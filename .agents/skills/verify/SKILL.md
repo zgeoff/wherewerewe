@@ -38,10 +38,11 @@ Read a feature's file before you run its journey.
 
 <!-- wringer:features -->
 
-| Feature | Summary                                                                             | File                                                       |
-| ------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| help    | Print the help text with `www help`                                                 | [references/feature-help.md](references/feature-help.md)   |
-| notes   | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www` | [references/feature-notes.md](references/feature-notes.md) |
+| Feature | Summary                                                                             | File                                                         |
+| ------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| help    | Print the help text with `www help`                                                 | [references/feature-help.md](references/feature-help.md)     |
+| notes   | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www` | [references/feature-notes.md](references/feature-notes.md)   |
+| import  | Convert a hand-kept store with `www import`, and read its brief                     | [references/feature-import.md](references/feature-import.md) |
 
 <!-- /wringer:features -->
 
@@ -141,6 +142,8 @@ for its commands.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, its stderr holds the text, and one stderr line is `Run: ` followed
   by the run line.
+- `bun verify www seed-hand-kept` copies an invented hand-kept store into the run as the session
+  `trial-import`, for the `import` journey.
 - The doctor check `www-help` runs `www help`. When it fails, `www` itself is broken: fix it first.
 
 <!-- /repo -->

@@ -1,3 +1,5 @@
+import { cpSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { WringerError, createWringer, local } from '@wringer/core';
 import type { Wringer } from '@wringer/core';
 import { z } from 'zod';
@@ -83,6 +85,27 @@ export function createVerifyRegistry(): Wringer {
         return output;
       },
     })
+    .command({
+      path: ['www', 'seed-hand-kept'],
+      summary: 'Copy the invented hand-kept store into the run as session trial-import',
+      args: z.strictObject({}),
+      data: z.strictObject({ folder: z.string() }),
+      run: (_args, ctx) => {
+        const folder = join(readStateRoot(ctx.endpoints), 'state', 'wherewerewe', 'trial-import');
+
+        if (existsSync(folder)) {
+          return Promise.reject(
+            new WringerError('usage', {
+              message: 'trial-import exists in this run. Run `bun verify up --restart` first.',
+            }),
+          );
+        }
+
+        cpSync(join(import.meta.dir, 'fixtures', 'hand-kept-store'), folder, { recursive: true });
+
+        return Promise.resolve({ folder });
+      },
+    })
     .check({
       name: 'www-help',
       input: z.strictObject({}),
@@ -117,6 +140,11 @@ export function createVerifyRegistry(): Wringer {
       name: 'notes',
       summary:
         'Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www`',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
+    .feature({
+      name: 'import',
+      summary: 'Convert a hand-kept store with `www import`, and read its brief',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
     .shared(
