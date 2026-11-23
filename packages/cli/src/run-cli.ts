@@ -5,6 +5,7 @@ import { parseCLIArgs } from './args/parse-cli-args.ts';
 import { getSessionDay } from './brief/get-session-day.ts';
 import { formatSessionLines } from './commands/format-session-lines.ts';
 import { runBriefCommand } from './commands/run-brief-command.ts';
+import { runImportCommand } from './commands/run-import-command.ts';
 import { runLogCommand } from './commands/run-log-command.ts';
 import { runSessionCommand } from './commands/run-session-command.ts';
 import { runShowCommand } from './commands/run-show-command.ts';
@@ -70,9 +71,13 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
 
   const context = { args, env: input.env, cwd: input.cwd, nowMs, root };
 
-  const result = sessionCommands.has(args.command)
-    ? await runSessionCommand(context)
-    : await runSessionBoundCommand(context);
+  const result = await match(args.command)
+    .with('import', () => runImportCommand(context))
+    .when(
+      (command) => sessionCommands.has(command),
+      () => runSessionCommand(context),
+    )
+    .otherwise(() => runSessionBoundCommand(context));
 
   return result;
 }

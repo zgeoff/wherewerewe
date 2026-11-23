@@ -118,7 +118,7 @@ Codex puts at most about 2,500 tokens of hook output into context. Ids, paths an
 - A tag shows `blocked by <id>` only while that id is open. Closing the blocker clears the tag on the next read.
 - An item with no check shows its age since `written`, so the reader sees which lines nobody verified.
 - Once a session is found and its store's format is known, the brief always exits 0 and prints, whatever the checks, the lock or the network do. [commands.md](commands.md) owns exits 4 and 5.
-- Every write reply ends with the brief's line count, from the same renderer with check results taken from `last`, without running the checks.
+- A write reply ends with the brief's line count, except the `init`, `attach`, `detach` and `import` replies; the reply table in [commands.md](commands.md) is the authority. Take the count from the same renderer, with check results from `last`, and run no checks.
 
 ## The brief on day 9 of an invented session
 

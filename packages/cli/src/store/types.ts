@@ -13,3 +13,15 @@ export interface LockFiles {
   readonly read: (path: string) => LockFileState | null;
   readonly remove: (path: string) => void;
 }
+
+export interface ImportFiles {
+  readonly exists: (path: string) => boolean;
+  readonly list: (path: string) => string[];
+  readonly removeFolder: (path: string) => void;
+  readonly removeFile: (path: string) => void;
+  readonly makeFolder: (path: string) => void;
+  readonly copyFile: (from: string, to: string) => void;
+  readonly readMode: (path: string) => number;
+  readonly writeFile: (path: string, text: string, mode: number) => void;
+  readonly rename: (from: string, to: string) => void;
+}

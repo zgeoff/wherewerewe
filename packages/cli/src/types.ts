@@ -335,6 +335,21 @@ export type RefusalReason =
       readonly named: string | null;
       readonly sessions: readonly { readonly name: string; readonly day: number | null }[];
     }
+  | {
+      readonly kind: 'import-no-session';
+      readonly name: string;
+      readonly sessions: readonly string[];
+    }
+  | {
+      readonly kind: 'import-already-format-1';
+      readonly name: string;
+      readonly hasAgent: boolean;
+    }
+  | {
+      readonly kind: 'import-broken-rows';
+      readonly name: string;
+      readonly problems: readonly string[];
+    }
   | { readonly kind: 'hand-kept'; readonly name: string }
   | { readonly kind: 'newer'; readonly name: string; readonly format: string }
   | {

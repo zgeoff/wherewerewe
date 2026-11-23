@@ -866,7 +866,7 @@ test.each([
     fills: [{ '<name>': 'tide-alerts' }, { '<name>': 'new-notes', '<what done means>': 'Ship it' }],
   },
   {
-    title: 'a hand-kept store (its Run line needs import, which slice 1c adds)',
+    title: 'a hand-kept store',
     setup: [],
     files: [
       {
@@ -880,6 +880,61 @@ test.each([
     exitCode: 5,
     stderr:
       'www: old-notes is a hand-kept store (format 0-by-hand). Convert it first.\nRun: www --session old-notes import old-notes\n',
+    fills: [{}],
+  },
+  {
+    title: 'an import of a folder that does not exist',
+    setup: [],
+    files: [],
+    argv: ['import', 'nope-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: no session folder nope-notes to import. Sessions: none.\nRun: www sessions\n',
+    fills: [{}],
+  },
+  {
+    title: 'an import of a store that is format 1 already, with an agent id',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['import', 'tide-alerts'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: tide-alerts is already format 1. Bind this agent session to it.\nRun: www attach tide-alerts\n',
+    fills: [{}],
+  },
+  {
+    title: 'an import of a store that is format 1 already, with no agent id',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['import', 'tide-alerts'],
+    env: 'shell',
+    exitCode: 3,
+    stderr: 'www: refused: tide-alerts is already format 1.\nRun: www --session tide-alerts\n',
+    fills: [{}],
+  },
+  {
+    title:
+      'an import of rows that break the rules (its Run line passes once the rows are fixed, which the import command test proves)',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'session',
+        text: 'name=old-notes\ngoal=x\nstarted=2026-03-02T08:00:00Z\n',
+      },
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\t${'c'.repeat(121)}\t-\t-\t-\t2026-03-02T09:00:00Z\tagent\t-\n`,
+      },
+    ],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: import found 1 rows that break the rules, and wrote nothing.\nitems.tsv line 2 (t-a): the claim is 121 characters, and the limit is 120.\nRun: www import old-notes\n',
     fills: [],
   },
   {
@@ -924,10 +979,10 @@ test.each([
     title: 'a command of a later version',
     setup: [],
     files: [],
-    argv: ['import', 'tide-alerts'],
+    argv: ['doctor', 'tide-alerts'],
     env: 'agent',
     exitCode: 2,
-    stderr: 'www: "import" comes in a later version of www.\nRun: www help\n',
+    stderr: 'www: "doctor" comes in a later version of www.\nRun: www help\n',
     fills: [{}],
   },
   {
