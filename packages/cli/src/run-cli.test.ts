@@ -932,3 +932,115 @@ test('it prints an open item with no history, and says so, when the journal cann
       "www: tide-alerts's journal.tsv does not parse: EISDIR. This read leaves out what it could not read. Fix the file by hand.\n",
   });
 });
+
+test.each([
+  { command: 'say', argv: ['--session', 'tide-alerts', 'say', 'Ask me first'] },
+  { command: 'ack', argv: ['--session', 'tide-alerts', 'ack', 'o-1'] },
+])(
+  'it refuses $command with exit 3 and changes nothing in an agent shell, for each signal',
+  async (row) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+    const before = await ctx.readTree();
+
+    const ownerEnv = { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+
+    const results = {
+      noStdin: await ctx.run(row.argv, ownerEnv, { stdin: false, stdout: true }),
+      noStdout: await ctx.run(row.argv, ownerEnv, { stdin: true, stdout: false }),
+      claudeCode: await ctx.run(
+        row.argv,
+        { ...ownerEnv, CLAUDECODE: '1' },
+        { stdin: true, stdout: true },
+      ),
+      claudeSession: await ctx.run(
+        row.argv,
+        { ...ownerEnv, CLAUDE_CODE_SESSION_ID: '1' },
+        { stdin: true, stdout: true },
+      ),
+      codexSession: await ctx.run(
+        row.argv,
+        { ...ownerEnv, CODEX_SESSION_ID: '1' },
+        { stdin: true, stdout: true },
+      ),
+      codexThread: await ctx.run(
+        row.argv,
+        { ...ownerEnv, CODEX_THREAD_ID: '1' },
+        { stdin: true, stdout: true },
+      ),
+      codexCI: await ctx.run(
+        row.argv,
+        { ...ownerEnv, CODEX_CI: '1' },
+        { stdin: true, stdout: true },
+      ),
+    };
+
+    const refusal = {
+      exitCode: 3 as const,
+      stdout: '',
+      stderr:
+        'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait or an approval.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
+    };
+
+    expect({ results, tree: await ctx.readTree() }).toStrictEqual({
+      results: {
+        noStdin: refusal,
+        noStdout: refusal,
+        claudeCode: refusal,
+        claudeSession: refusal,
+        codexSession: refusal,
+        codexThread: refusal,
+        codexCI: refusal,
+      },
+      tree: before,
+    });
+  },
+);
+
+test('it lets say run for an owner with agent variables set to an empty value', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+  const result = await ctx.run(
+    ['--session', 'tide-alerts', 'say', 'Ask me first'],
+    {
+      XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME,
+      CLAUDECODE: '',
+      CLAUDE_CODE_SESSION_ID: '',
+      CODEX_SESSION_ID: '',
+      CODEX_THREAD_ID: '',
+      CODEX_CI: '',
+    },
+    { stdin: true, stdout: true },
+  );
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout:
+      'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.\n',
+    stderr: '',
+  });
+});
+
+test('it exits 2 for a parse error in say before it checks for an owner terminal', async () => {
+  const ctx = setupTest();
+
+  const result = await ctx.run(['say', 'x', '--bogus'], {}, { stdin: false, stdout: false });
+
+  expect(result).toStrictEqual({
+    exitCode: 2,
+    stdout: '',
+    stderr: 'www: unknown flag "--bogus".\nRun: www help\n',
+  });
+});
+
+test('it refuses say in an agent shell even with no store folder', async () => {
+  const ctx = setupTest();
+
+  const result = await ctx.run(['say', 'x'], {}, { stdin: false, stdout: false });
+
+  expect(result.exitCode).toBe(3);
+});

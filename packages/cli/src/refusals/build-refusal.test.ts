@@ -2029,17 +2029,143 @@ test.each([
       'www: refused: the text must be one line, with no tab or newline.\nRun: www use ok-a --for "<one line>"\n',
     fills: [{ '<one line>': 'merged it' }],
   },
+  {
+    title: 'a say from an agent shell',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['say', 'Ask me first'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait or an approval.\nRun: www rule <id> "<what the owner said, as a rule>"\n',
+    fills: [
+      {
+        '<id>': 'r-owner-port',
+        '<what the owner said, as a rule>': 'Ask before you change the kiln simulator port',
+      },
+    ],
+  },
+  {
+    title: 'a third owner note',
+    setupEnv: 'owner',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['--session', 'tide-alerts', 'say', 'Ask me first'],
+      ['--session', 'tide-alerts', 'say', 'Use the recorded readings'],
+    ],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'say', 'A third note'],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: 2 owner notes already show. Clear one that is done.\nRun: www --session tide-alerts ack o-1\n',
+    fills: [{}],
+  },
+  {
+    title: 'an ack of a note that does not show',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'ack', 'o-9'],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: no owner note o-9 shows. Owner notes: none.\nRun: www --session tide-alerts\n',
+    fills: [{}],
+  },
+  {
+    title: 'an owner note over its limit',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'say', 'n'.repeat(161)],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: the owner note is 161 characters, and the limit is 160. Write what is true now; the story belongs in a PR or a commit.\nRun: www --session tide-alerts say "<owner note of at most 160 characters>"\n',
+    fills: [{ '<owner note of at most 160 characters>': 'Ask me first' }],
+  },
+  {
+    title: 'an owner note with a tab',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'say', 'a\tb'],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text must be one line, with no tab or newline.\nRun: www --session tide-alerts say "<one line>"\n',
+    fills: [{ '<one line>': 'Ask me first' }],
+  },
+  {
+    title: 'an empty owner note',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'say', ''],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: the owner note is empty.\nRun: www --session tide-alerts say "<owner note>"\n',
+    fills: [{ '<owner note>': 'Ask me first' }],
+  },
+  {
+    title: 'an owner note of a lone dash',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'say', '-'],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: the owner note is empty.\nRun: www --session tide-alerts say "<owner note>"\n',
+    fills: [{ '<owner note>': 'Ask me first' }],
+  },
+  {
+    title: 'an owner note with a credential',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'say', `Deploy with AKIA${'Q'.repeat(16)}`],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www --session tide-alerts say "<text with no secret in it>"\n',
+    fills: [{ '<text with no secret in it>': 'Ask me first' }],
+  },
+  {
+    title: 'a say on an item that is not open',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'say', 'Hello', '--on', 't-none'],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello\n',
+    fills: [{}],
+  },
 ])('it refuses $title with its text and a Run line that passes', async (row) => {
   const ctx = setupTest();
 
   const envs = {
     agent: ctx.agentEnv,
     shell: { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
+    owner: { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
     'other-agent': { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: 'c3d4-other' },
   };
 
+  const noTerminal = { stdin: false, stdout: false };
+
+  const terminals = {
+    agent: noTerminal,
+    shell: noTerminal,
+    'other-agent': noTerminal,
+    owner: { stdin: true, stdout: true },
+  };
+
   for (const setupArgv of row.setup) {
-    await ctx.run(setupArgv, ctx.agentEnv);
+    await ctx.run(setupArgv, envs[row.setupEnv ?? 'agent'], terminals[row.setupEnv ?? 'agent']);
   }
 
   for (const file of row.files) {
@@ -2047,7 +2173,7 @@ test.each([
   }
 
   const before = await ctx.readTree();
-  const result = await ctx.run(row.argv, envs[row.env]);
+  const result = await ctx.run(row.argv, envs[row.env], terminals[row.env]);
   const after = await ctx.readTree();
 
   const replayEnv = envs[row.replayEnv ?? row.env];
@@ -2058,7 +2184,7 @@ test.each([
   for (const [index, fills] of row.fills.entries()) {
     const argv = buildFilledRunArgv(runLines[index] ?? '', fills);
 
-    const filled = await ctx.run(argv, replayEnv);
+    const filled = await ctx.run(argv, replayEnv, terminals[row.replayEnv ?? row.env]);
 
     filledExitCodes.push(filled.exitCode);
   }
