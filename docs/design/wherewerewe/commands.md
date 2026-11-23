@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-`www` is one command with a subcommand per write. Every write answers in one line that ends with the brief's length, so the agent sees what each line costs; a write that touches an item with a note prints the note below that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. A build agent reads this doc to build the command-line parser, the write replies, the refusals and `www recap`, in the slice [build-order.md](build-order.md) names.
+`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. A write that touches an item with a note prints the note below that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. A build agent reads this doc to build the command-line parser, the write replies, the refusals and `www recap`, in the slice [build-order.md](build-order.md) names.
 
 ## Contracts
 
@@ -127,7 +127,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 
 ### Write replies
 
-Each write prints one line on stdout and exits 0. `<check>` is `no check`, `no check run` before the checks slice, or `checked now: <result>`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
+Each write prints its reply line on stdout, then the note lines or the older-note line that its row names, and exits 0. `<check>` is `no check`, `no check run` before the checks slice, or `checked now: <result>`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -225,7 +225,7 @@ day 9  11:51  done      pr-app-61  agent  Alert settings screen: in review
 
 ```text
 $ www --session tide-alerts recap
-tide-alerts · day 9 · recap since day 8 11:50Z (24h) · 23 writes
+tide-alerts · day 9 · recap since day 8 12:00Z (24h) · 24 writes
 GRANT  from the owner in chat, 7d ago
   "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding
    is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging
@@ -237,17 +237,18 @@ GRANT  from the owner in chat, 7d ago
 NOTES (3 of 3 open items with a note) · owed first, then newest
   t-flag      Turn on the tide_alerts flag in staging config
     owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…
-  pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa
+  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, …
   wt-tz       bosun-api worktree for the time zone fix, branch tz-fix
     note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads it…
-  no note: pr-app-61, pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-sim-p…
-DECIDED SINCE day 8 11:50Z (2)
+  no note: pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-sim-port, p-sim,…
+DECIDED SINCE day 8 12:00Z (2)
   d-23  Retry a 503 from the tide feed 3 times, 2 s apart · why: The feed returns 503 for about 4 s…
   d-24  ruled out: Queue failed alerts for the next tide · why: a queued alert lands after low water
-CLOSED SINCE day 8 11:50Z (2)
+CLOSED SINCE day 8 12:00Z (3)
   t-fixtures  done · bosunhq/bosun-api#75 merged as 0c41d2e
   w-design    done · the owner picked the 2-hour lead in chat, day 8
+  pr-app-61   done · merged as 51aa0e2, seen by check
 Whole text: www show <id> · correct: www --session tide-alerts say "<text>" [--on <id>]
 ```
 

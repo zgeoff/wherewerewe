@@ -125,7 +125,7 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | newlines          |        | 63                                            |
 | **Total**         | **63** | **6,967**                                     |
 
-Codex puts at most about 2,500 tokens of hook output into context. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. At the pessimistic rate, 6,967 characters is about 2,322 tokens, 7.1% under Codex's limit, and the 7,000-character cap is about 2,333 tokens, 6.7% under it. Claude Code's limit is 10,000 characters, 30% above the cap.
+Codex puts at most about 2,500 tokens of hook output into context. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. At the pessimistic rate, 6,967 characters is about 2,322 tokens, 7.1% under Codex's limit, and the 7,000-character cap is about 2,333 tokens, 6.7% under it. The cap is 30% under Claude Code's limit of 10,000 characters.
 
 ## Constraints
 

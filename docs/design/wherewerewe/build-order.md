@@ -50,7 +50,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Slice 1: store, writes, brief and import
 
-**Delivers.** The store in format 1 ([store.md](store.md)); every command in [commands.md](commands.md) except `say`, `ack`, `install`, `doctor` and `hook`; the brief ([brief.md](brief.md)) with no checks run, so each check tag reads `not checked yet`, no `CHANGED` section, and no pull request section; session finding by flag, variable and binding ([sessions-and-hooks.md](sessions-and-hooks.md), "How a command finds its session"); `www import`; the package and its bins ([shipping.md](shipping.md)). Two wringer features: `notes`, whose journey runs `www init`, `task`, `set`, `done` and `www`, and checks the brief and one refusal's `Run:` line; and `import`, whose journey imports a hand-kept fixture and reads its brief.
+**Delivers.** The store in format 1 ([store.md](store.md)); every command in [commands.md](commands.md) except `say`, `ack`, `install`, `doctor`, `hook`, `grant` and `recap`, with no notes and in format 1; the brief ([brief.md](brief.md)) with no checks run, so each check tag reads `not checked yet`, no `CHANGED` section, and no pull request section; session finding by flag, variable and binding ([sessions-and-hooks.md](sessions-and-hooks.md), "How a command finds its session"); `www import`; the package and its bins ([shipping.md](shipping.md)). Two wringer features: `notes`, whose journey runs `www init`, `task`, `set`, `done` and `www`, and checks the brief and one refusal's `Run:` line; and `import`, whose journey imports a hand-kept fixture and reads its brief.
 
 **Depends on.** Slice 0b.
 
@@ -104,7 +104,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Slice 2c: the grant and store format 2
 
-**Delivers.** Store format 2 ([store.md](store.md)): the four `grant` keys in `session`, no `use` key, and one `ok` item at most. `www grant` and `www grant --reading`, with their limits, replies and refusals; the `GRANT` section of the brief, whole after `GOAL` and never cut; `www show grant`; the `grant` rows in `www log`; the `ok --standing` refusal and the one-time approval cap of 1; the `APPROVED ONCE` section; the format 2 upgrade through `www import`, with `--quote`, `--where`, `--reading` and `--drop`, its refusals and `format-1-backup/`; the hand-kept import to format 2; exit 5 for a format 1 store; the reserved id `grant`; and the rest of the wording changes in [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md). The wringer feature `grant`, with a journey that seeds a format 1 store holding two standing approvals, runs `www import` and gets the refusal, runs the refusal's `Run:` line with the placeholders filled, reads the brief's `GRANT` section, replaces the reading with `www grant --reading`, and reads `www show grant`.
+**Delivers.** Store format 2 ([store.md](store.md)): the four `grant` keys in `session`, no `use` key, and one `ok` item at most. `www grant` and `www grant --reading`, with their limits, replies and refusals; the `GRANT` section of the brief, whole after `GOAL` and never cut; `www show grant`; the `grant` rows in `www log`; the `ok --standing` refusal and the one-time approval cap of 1; the `APPROVED ONCE` section; the format 2 upgrade through `www import`, with `--quote`, `--where`, `--reading` and `--drop`, its refusals and `format-1-backup/`; the hand-kept import to format 2; exit 5 for a format 1 store; the reserved id `grant`; the `say` replies' "It shows in every brief" wording from [owner-notes.md](owner-notes.md), and the rest of the wording changes in [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md). The wringer feature `grant`, with a journey that seeds a format 1 store holding two standing approvals, runs `www import` and gets the refusal, runs the refusal's `Run:` line with the placeholders filled, reads the brief's `GRANT` section, replaces the reading with `www grant --reading`, and reads `www show grant`.
 
 **Depends on.** Slice 2b. The owner's sign-off of this design authorises the build agent to upgrade the build session's store, as [README.md](README.md) lists.
 
@@ -192,7 +192,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Constraints
 
-- Each slice from 0b on is one pull request into `main` of its repo, or several that each leave the tool working, with green CI, and leaves every earlier acceptance line true.
+- Each slice from 0b on is one pull request into `main` of its repo, or several that each leave the tool working, with green CI, and leaves every earlier acceptance line true. Slice 2c is the one exception: format 2 replaces format 1, so the acceptance lines of slice 1 that name format 1 hold for format 2 from then on.
 - Each slice is built with the build-feature workflow, with a Codex review as its only review.
 - From slice 0b on, each pull request in this repo publishes the wringer report with `bun verify publish` after its last push, and every feature whose files it changed has a claim at the current fingerprint.
 - The registry is named `wherewerewe-verify`, never `www` or `wherewerewe`: gunshi reads a command group named like the program as the program itself, so the registry's name and its `www` command group must differ.
