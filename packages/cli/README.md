@@ -37,6 +37,8 @@ www --help
 - `www ok` records the owner's approval, and `use` spends one that was given once.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
 - `www done` and `drop` close an item and keep it in the journal.
+- `www import` converts a hand-kept store to format 1 in place, and keeps the originals in
+  `import-backup/`.
 - `www show` prints one item or decision with its history, and `log` prints the journal.
 
 ## Documentation

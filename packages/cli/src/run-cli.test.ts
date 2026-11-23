@@ -64,7 +64,7 @@ test.each([[['help']], [['--help']], [['-h']]])(
 
 test.each([
   [['taks'], 'www: unknown command "taks".\nRun: www help\n'],
-  [['import', 'x'], 'www: "import" comes in a later version of www.\nRun: www help\n'],
+  [['doctor', 'x'], 'www: "doctor" comes in a later version of www.\nRun: www help\n'],
   [['task', 't-a'], 'www: task takes <id> "<claim>".\nRun: www help\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],

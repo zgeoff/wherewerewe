@@ -1,0 +1,11 @@
+ts	op	id	text
+2026-04-06T09:00:00Z	init	trial-import	Ship the kiln temperature alerts
+2026-04-06T09:12:00Z	decide	d-1	Alerts fire from the job, not the request | why: the job already reads the probe
+2026-04-06T09:40:00Z	open	q-1	Which kilns get alerts first
+2026-04-06T09:45:00Z	open	q-2	Does the vendor sensor report in tenths
+2026-04-06T10:00:00Z	closed	q-2	Yes: the vendor sheet says tenths of a degree
+2026-04-06T10:05:00Z	note	n-1	The simulator needs PORT=8091
+2026-04-06T10:30:00Z	say	o-1	owner: keep the alert copy short
+2026-04-07T08:00:00Z	done	t-setup	repo set up and CI green
+2026-04-07T09:00:00Z	ok	ok-push	owner approved branch pushes
+2026-04-07T09:30:00Z	blocked	t-alerts	waiting on the probe vendor

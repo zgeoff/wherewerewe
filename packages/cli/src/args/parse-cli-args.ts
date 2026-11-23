@@ -86,6 +86,7 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ['detach', { count: 0, usage: 'no arguments', flags: [] }],
   ['init', { count: 1, usage: '<name>', flags: ['goal'] }],
   ['attach', { count: 1, usage: '<name>', flags: [] }],
+  ['import', { count: 1, usage: '<name>', flags: [] }],
   ['goal', { count: 1, usage: '"<what done means>"', flags: [] }],
   ['now', { count: 2, usage: '<id> "<next step>"', flags: [] }],
   ['task', { count: 2, usage: '<id> "<claim>"', flags: [...checkFlags, 'blocked-by'] }],
@@ -108,14 +109,7 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ['log', { count: 0, usage: 'no arguments', flags: ['since', 'op', 'id'] }],
 ]);
 
-const laterCommands: ReadonlySet<string> = new Set([
-  'import',
-  'say',
-  'ack',
-  'install',
-  'doctor',
-  'hook',
-]);
+const laterCommands: ReadonlySet<string> = new Set(['say', 'ack', 'install', 'doctor', 'hook']);
 
 function checkArgs(argv: readonly string[]): ParseResult {
   const parsed = parseArgs({

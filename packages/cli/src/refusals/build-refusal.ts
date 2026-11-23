@@ -247,6 +247,23 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       );
     })
     .with({ kind: 'no-session' }, (found) => buildNoSession(found))
+    .with({ kind: 'import-no-session' }, (found) =>
+      refuse(
+        `www: refused: no session folder ${found.name} to import. Sessions: ${formatList(found.sessions)}.`,
+        ['sessions'],
+      ),
+    )
+    .with({ kind: 'import-already-format-1' }, (found) =>
+      refuse(`www: refused: ${found.name} is already format 1.`, ['--session', found.name]),
+    )
+    .with({ kind: 'import-broken-rows' }, (found): Refusal => ({
+      exitCode: 3,
+      lines: [
+        `www: refused: import found ${String(found.problems.length)} rows that break the rules, and wrote nothing.`,
+        ...found.problems,
+      ],
+      runs: [{ www: ['import', found.name] }],
+    }))
     .with({ kind: 'hand-kept' }, (found): Refusal => ({
       exitCode: 5,
       lines: [`www: ${found.name} is a hand-kept store (format 0-by-hand). Convert it first.`],

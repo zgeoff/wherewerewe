@@ -6,6 +6,7 @@ import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatRefusal } from '../refusals/format-refusal.ts';
 import { readRefusalScope } from '../refusals/read-refusal-scope.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
+import { buildBindRow } from '../sessions/build-bind-row.ts';
 import { findAgentID } from '../sessions/find-agent-id.ts';
 import { readBinding } from '../sessions/read-binding.ts';
 import { readSessionSummaries } from '../sessions/read-session-summaries.ts';
@@ -92,18 +93,6 @@ function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
     exitCode: refusal.exitCode,
     stdout: '',
     stderr: formatRefusal(refusal, readRefusalScope(context.args)),
-  };
-}
-
-function buildBindRow(name: string, text: string, agent: AgentID, nowMs: number): JournalRow {
-  return {
-    ts: formatTimestamp(nowMs),
-    op: 'bind',
-    id: name,
-    by: 'agent',
-    text,
-    why: null,
-    extra: `harness=${agent.harness};agent=${agent.id}`,
   };
 }
 

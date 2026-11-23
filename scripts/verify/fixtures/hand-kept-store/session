@@ -1,0 +1,7 @@
+name=trial-import
+goal=Ship the kiln temperature alerts in the pottery app, behind the kiln_alerts flag.
+started=2026-04-06T09:00:00Z
+now=t-alerts
+now_next=write the alert rule test, then push
+now_set=2026-04-07T10:15:00Z
+format=0-by-hand
