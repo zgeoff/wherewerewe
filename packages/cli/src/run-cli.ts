@@ -15,18 +15,23 @@ import { buildRefusal } from './refusals/build-refusal.ts';
 import { formatRefusal } from './refusals/format-refusal.ts';
 import type { RefusalScope } from './refusals/format-refusal.ts';
 import { readRefusalScope } from './refusals/read-refusal-scope.ts';
+import { isOwnerTerminal } from './rules/is-owner-terminal.ts';
 import { isSessionName } from './rules/is-session-name.ts';
 import { readSessionSummaries } from './sessions/read-session-summaries.ts';
 import { resolveSession } from './sessions/resolve-session.ts';
 import { findStoreRoot } from './store/find-store-root.ts';
 import { readStore } from './store/read-store.ts';
 import type { CLIInput, CLIResult, ParsedArgs, Refusal, Store, UnreadRows } from './types.ts';
+import { pickAck } from './writes/pick-ack.ts';
 import { pickClose } from './writes/pick-close.ts';
 import { pickDecision } from './writes/pick-decision.ts';
 import { pickGoalWrite } from './writes/pick-goal-write.ts';
 import { pickItemWrite } from './writes/pick-item-write.ts';
 import { pickNowWrite } from './writes/pick-now-write.ts';
+import { pickSay } from './writes/pick-say.ts';
+import { runOwnerWrite } from './writes/run-owner-write.ts';
 import { runWrite } from './writes/run-write.ts';
+import type { RunWriteResult } from './writes/run-write.ts';
 
 // Parses the argv, finds the session, and runs the command. An expected outcome never throws: a
 // refusal comes back as a result with its text on stderr.
@@ -52,11 +57,16 @@ function toRefusalResult(refusal: Refusal, scope: RefusalScope): CLIResult {
   };
 }
 
+const ownerCommands: ReadonlySet<string> = new Set(['say', 'ack']);
 const sessionCommands: ReadonlySet<string> = new Set(['init', 'attach', 'detach', 'sessions']);
 
 async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResult> {
   if (args.command === 'help') {
     return { exitCode: 0, stdout: helpText, stderr: '' };
+  }
+
+  if (ownerCommands.has(args.command) && !isOwnerTerminal(input)) {
+    return toRefusalResult(buildRefusal({ kind: 'owner-only' }), readRefusalScope(args));
   }
 
   const root = findStoreRoot(input.env);
@@ -128,6 +138,19 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
     return runReadCommand(context, store, null);
   }
 
+  if (ownerCommands.has(args.command)) {
+    const owned = await runOwnerWrite({
+      folder: store.folder,
+      name: store.session.name,
+      args,
+      cwd: context.cwd,
+      nowMs: context.nowMs,
+      pick: args.command === 'say' ? pickSay : pickAck,
+    });
+
+    return resolveWriteResult(owned, args);
+  }
+
   const pick = match(args.command)
     .with('goal', () => pickGoalWrite)
     .with('now', () => pickNowWrite)
@@ -144,16 +167,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
     pick,
   });
 
-  return match(written)
-    .with({ kind: 'replied' }, (replied) => ({
-      exitCode: 0 as const,
-      stdout: `${replied.reply}\n`,
-      stderr: '',
-    }))
-    .with({ kind: 'refused' }, (refused) =>
-      toRefusalResult(refused.refusal, readRefusalScope(args)),
-    )
-    .exhaustive();
+  return resolveWriteResult(written, args);
 }
 
 function runReadCommand(
@@ -167,6 +181,19 @@ function runReadCommand(
     .with('show', () => runShowCommand(store, args.positionals[0] ?? '', context.nowMs, unread))
     .with('log', () => runLogCommand(store, args, context.nowMs, unread))
     .otherwise(() => Promise.resolve(runBriefCommand(store, context.nowMs, unread)));
+}
+
+function resolveWriteResult(written: RunWriteResult, args: ParsedArgs): CLIResult {
+  return match(written)
+    .with({ kind: 'replied' }, (replied) => ({
+      exitCode: 0 as const,
+      stdout: `${replied.reply}\n`,
+      stderr: '',
+    }))
+    .with({ kind: 'refused' }, (refused) =>
+      toRefusalResult(refused.refusal, readRefusalScope(args)),
+    )
+    .exhaustive();
 }
 
 async function refuseNoSession(context: CommandContext, named: string | null): Promise<CLIResult> {

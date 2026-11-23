@@ -2,8 +2,9 @@
 
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
 brief when the agent runs `www`. It has the store, the note writes, approvals, decisions, the two
-history reads, the import of a hand-kept store and the brief. A command it does not have exits 2.
-Read this before you change the package, then open the design doc that the section you change links.
+history reads, the import of a hand-kept store, the owner's notes and the brief. A command it does
+not have exits 2. Read this before you change the package, then open the design doc that the section
+you change links.
 
 ## The package
 
@@ -18,10 +19,12 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
-focus, `items.tsv` the open items, and `journal.tsv` every write. A session never reuses a closed
-id, so a write reads from the journal the ids that `done`, `drop` and `use` closed, the decision
-numbers and who made each decision, and nothing else. See
-[the store design](../design/wherewerewe/store.md) for the formats.
+focus, `items.tsv` the open items, `owner.tsv` the owner's notes that still show, and `journal.tsv`
+every write. `init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A session
+never reuses a closed id: a write reads from the journal the ids that `done`, `drop` and `use`
+closed, the decision numbers, who made each decision and, for `say`, the highest note number among
+its `say` rows, and nothing else. See [the store design](../design/wherewerewe/store.md) for the
+formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv` and `session`
 through a temporary file and a rename, and removes the lock. The journal comes first, so a write
@@ -44,12 +47,12 @@ command exits 4, and never falls back to the only session on the machine. See
 ## Commands and refusals
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
-`rule`, `where`, `set`, `ok`, `decide`, `done`, `drop`, `use`, `show`, `log` and `import`, and `www`
-alone prints the brief. A write answers in one line. The reply of a note write, such as `task`,
-`done` or `decide`, ends with the brief's length; `init`, `attach`, `detach` and `import` say what
-they did, and `import` names the folder of the backup. Each refusal prints its text and a `Run:`
-line with the command that fixes it. See [the commands design](../design/wherewerewe/commands.md)
-for the replies and the refusals.
+`rule`, `where`, `set`, `ok`, `decide`, `done`, `drop`, `use`, `show`, `log`, `import`, `say` and
+`ack`, and `www` alone prints the brief. A write answers in one line. The reply of a note write,
+such as `task`, `done`, `decide`, `say` or `ack`, names the note or item and ends with the brief's
+length; `init`, `attach`, `detach` and `import` say what they did, and `import` names the folder of
+the backup. Each refusal prints its text and a `Run:` line with the command that fixes it. See
+[the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
 
 ## Approvals and decisions
 
@@ -64,6 +67,30 @@ did with it. A standing approval is never spent.
 `decide` writes a decision, or with `--ruled-out` an approach that lost, as a journal row and no
 item. The tool numbers it `d-<n>`, one past the highest decision in the journal. A decision made by
 the owner can be replaced only by a decision recorded with `--who owner`.
+
+## Owner notes
+
+`say` and `ack` run only when stdin and stdout are terminals and none of `CLAUDECODE`,
+`CLAUDE_CODE_SESSION_ID`, `CODEX_SESSION_ID`, `CODEX_THREAD_ID` or `CODEX_CI` has a value. A
+variable with an empty value counts as unset. `cli.ts` reads the two descriptors once and passes the
+answer in, and `run-cli.ts` checks both conditions right after the arguments parse, before it finds
+the session.
+
+In an agent shell the command exits 3 and the agent records what the owner said as a rule, a wait or
+an approval instead. The check catches an agent that writes a note by mistake. An agent that fakes a
+terminal and clears the variables passes it. See
+[the owner notes design](../design/wherewerewe/owner-notes.md) for what the conditions leave open.
+
+`say` numbers a note `o-<n>`, one past the highest `o-<n>` among the journal's `say` rows and the
+notes that show, so an acknowledged note's number is never reused. `say` and `ack` take the store
+lock, append their journal row, and then replace `owner.tsv` through a temporary file and a rename.
+A stop between the two leaves a `say` that never shows and uses up its number, or an `ack` whose
+note still shows until the next `ack`. No other command rewrites `owner.tsv`.
+
+The brief shows at most 2 notes, oldest first, right after the goal, until `ack` clears them. A row
+of `owner.tsv` that does not parse is left out of the brief and named on stderr, and `say` and `ack`
+refuse until the owner fixes the file. Every other write works as before. See
+[the store design](../design/wherewerewe/store.md) for the file format.
 
 ## Reading the journal
 

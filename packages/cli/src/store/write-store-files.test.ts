@@ -66,6 +66,8 @@ test('it writes the items and the session, and appends the journal rows', async 
       folder: ctx.folder,
       session: expect.objectContaining({ lastWrite: '2026-03-10T10:31:09Z' }),
       items: [expect.objectContaining({ id: 't-a' })],
+      ownerNotes: [],
+      ownerUnread: null,
     },
   });
 
@@ -132,6 +134,8 @@ test('it leaves the items alone when the journal append fails, so a close is nev
       folder: ctx.folder,
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [expect.objectContaining({ id: 't-a' })],
+      ownerNotes: [],
+      ownerUnread: null,
     },
   });
 });
@@ -177,6 +181,8 @@ test('it appends the journal row before it rewrites the items, so a close that s
         folder: ctx.folder,
         session: expect.objectContaining({ name: 'tide-alerts' }),
         items: [expect.objectContaining({ id: 't-a' })],
+        ownerNotes: [],
+        ownerUnread: null,
       },
     },
     last: expect.objectContaining({ op: 'done', id: 't-a' }),

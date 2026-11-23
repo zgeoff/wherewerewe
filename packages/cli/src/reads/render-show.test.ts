@@ -27,7 +27,7 @@ function setupTest() {
     ) =>
       renderShow({
         id,
-        store: { folder: '/state/tide-alerts', session, items },
+        store: { folder: '/state/tide-alerts', session, items, ownerNotes: [], ownerUnread: null },
         rows,
         closed,
         nowMs: Date.parse('2026-03-10T11:43:00Z'),

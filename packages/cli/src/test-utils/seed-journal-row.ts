@@ -1,9 +1,11 @@
 import { writeStoreFiles } from '../store/write-store-files.ts';
+import type { JournalRow } from '../types.ts';
 
 interface JournalSeed {
   readonly ts: string;
   readonly op: string;
   readonly id: string;
+  readonly by?: JournalRow['by'];
   readonly extra?: string;
 }
 
@@ -15,7 +17,7 @@ export async function seedJournalRow(folder: string, row: JournalSeed): Promise<
         ts: row.ts,
         op: row.op,
         id: row.id,
-        by: 'agent',
+        by: row.by ?? 'agent',
         text: 'a claim',
         why: 'a reason',
         extra: row.extra ?? null,

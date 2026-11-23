@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { isatty } from 'node:tty';
 import { runCLI } from './run-cli.ts';
 
 const result = await runCLI({
@@ -6,6 +7,7 @@ const result = await runCLI({
   env: process.env,
   cwd: process.cwd(),
   now: Date.now,
+  terminal: { stdin: isatty(0), stdout: isatty(1) },
 });
 
 process.stdout.write(result.stdout);

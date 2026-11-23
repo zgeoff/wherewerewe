@@ -1,3 +1,4 @@
+import { isSetVariable } from '../rules/is-set-variable.ts';
 import type { AgentID } from '../types.ts';
 
 // An empty value counts as unset, and so does one with a character that a binding file name
@@ -15,5 +16,5 @@ export function findAgentID(env: Readonly<Record<string, string | undefined>>): 
 }
 
 function findID(value: string | undefined): string | null {
-  return value !== undefined && /^[A-Za-z0-9-]+$/u.test(value) ? value : null;
+  return isSetVariable(value) && /^[A-Za-z0-9-]+$/u.test(value) ? value : null;
 }

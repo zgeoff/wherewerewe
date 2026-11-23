@@ -21,6 +21,8 @@ test.each([
   [['rule', 'r-a', 'Run from api/', '--path', '/srv'], 'rule', ['r-a', 'Run from api/']],
   [['where', 'wt-a', 'A worktree', '--branch', '/srv@fix'], 'where', ['wt-a', 'A worktree']],
   [['set', 't-a', 'Done', '--pr', 'acme/tool#7'], 'set', ['t-a', 'Done']],
+  [['say', 'x', '--on', 't-a'], 'say', ['x']],
+  [['ack', 'o-1'], 'ack', ['o-1']],
   [['done', 't-a', '--evidence', 'commit 4c1d2e0'], 'done', ['t-a']],
   [['drop', 't-a', '--why', 'stopped'], 'drop', ['t-a']],
   [
@@ -119,8 +121,6 @@ test('it lets a claim that starts with a dash pass after a dash dash', () => {
 test.each([
   [['taks'], { kind: 'unknown-command', command: 'taks' }],
   [['brief'], { kind: 'unknown-command', command: 'brief' }],
-  [['say', 'x'], { kind: 'later-command', command: 'say' }],
-  [['ack', 'o-1'], { kind: 'later-command', command: 'ack' }],
   [['install'], { kind: 'later-command', command: 'install' }],
   [['doctor'], { kind: 'later-command', command: 'doctor' }],
   [['doctor', 'x'], { kind: 'later-command', command: 'doctor' }],

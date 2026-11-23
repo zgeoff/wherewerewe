@@ -4,8 +4,10 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { noSecretPlaceholder, redactCredential } from '../rules/redact-credential.ts';
 import type { CheckFlag, ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
+import { buildOwnerRefusal } from './build-owner-refusal.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
+import { formatList } from './format-list.ts';
 import { pickClosestID } from './pick-closest-id.ts';
 import { quoteShellWord } from './quote-shell-word.ts';
 
@@ -134,6 +136,13 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       ),
     )
     .with({ kind: 'on-unknown' }, (found) => buildOnUnknown(found))
+    .with(
+      { kind: 'owner-only' },
+      { kind: 'owner-notes-full' },
+      { kind: 'owner-note-numbers-used-up' },
+      { kind: 'owner-note-unknown' },
+      (found) => buildOwnerRefusal(found),
+    )
     .with({ kind: 'bad-since' }, () =>
       usage(2, 'www: --since takes 24h, 3d or day-7.', ['log', '--since', '24h']),
     )
@@ -381,10 +390,6 @@ function buildOnUnknown(found: Found<'on-unknown'>): Refusal {
     `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,
     (closest === null ? spec.dropFlag('on') : spec.replaceFlag('on', closest)).toArgv(),
   );
-}
-
-function formatList(words: readonly string[]): string {
-  return words.length === 0 ? 'none' : words.join(', ');
 }
 
 function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {

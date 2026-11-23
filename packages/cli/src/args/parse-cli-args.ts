@@ -105,11 +105,13 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
     'decide',
     { count: 1, usage: '"<choice>"', flags: ['why', 'on', 'who', 'ruled-out', 'replaces'] },
   ],
+  ['say', { count: 1, usage: '"<text>"', flags: ['on'] }],
+  ['ack', { count: 1, usage: 'o-<n>', flags: [] }],
   ['show', { count: 1, usage: '<id>', flags: [] }],
   ['log', { count: 0, usage: 'no arguments', flags: ['since', 'op', 'id'] }],
 ]);
 
-const laterCommands: ReadonlySet<string> = new Set(['say', 'ack', 'install', 'doctor', 'hook']);
+const laterCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);
 
 function checkArgs(argv: readonly string[]): ParseResult {
   const parsed = parseArgs({

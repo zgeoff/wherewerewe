@@ -12,6 +12,7 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
   const decisions = new Map<string, { readonly who: 'owner' | 'agent' | null }>();
 
   let lastDecisionNumber = 0;
+  let lastOwnerNoteNumber = 0;
   const stream = createReadStream(join(folder, 'journal.tsv'), 'utf8');
 
   stream.on('error', () => {});
@@ -28,7 +29,11 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
         closed.set(id, ts);
       }
 
-      const number = decisionOps.has(op) ? readDecisionNumber(id) : null;
+      if (op === 'say') {
+        lastOwnerNoteNumber = Math.max(lastOwnerNoteNumber, readNumber(id, 'o') ?? 0);
+      }
+
+      const number = decisionOps.has(op) ? readNumber(id, 'd') : null;
 
       if (number !== null) {
         decisions.set(id, { who: readWho(line.split('\t')[6] ?? null) });
@@ -42,11 +47,12 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
     }
   }
 
-  return { closed, decisions, lastDecisionNumber };
+  return { closed, decisions, lastDecisionNumber, lastOwnerNoteNumber };
 }
 
-function readDecisionNumber(id: string): number | null {
-  const digits = /^d-(?<number>\d+)$/u.exec(id)?.groups?.['number'];
+function readNumber(id: string, prefix: 'd' | 'o'): number | null {
+  const digits = new RegExp(`^${prefix}-(?<number>\\d+)$`, 'u').exec(id)?.groups?.['number'];
+
   const number = digits === undefined ? null : Number(digits);
 
   return number !== null && Number.isSafeInteger(number) ? number : null;

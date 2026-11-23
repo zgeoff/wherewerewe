@@ -2,7 +2,9 @@ import { cpSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { WringerError, createWringer, local } from '@wringer/core';
 import type { Wringer } from '@wringer/core';
+import { terminal } from '@wringer/terminal';
 import { z } from 'zod';
+import { buildOwnerPrograms } from './build-owner-programs.ts';
 import { buildWWWArgv } from './build-www-argv.ts';
 import { checkWWWHelp } from './check-www-help.ts';
 import { readStateRoot } from './read-state-root.ts';
@@ -23,6 +25,7 @@ const wwwRunSchema = z.strictObject({
 // program as the program itself, so the registry's name differs from the `www` group.
 export function createVerifyRegistry(): Wringer {
   return createWringer({ name: 'wherewerewe-verify' })
+    .use(terminal({}))
     .target('local', {
       mode: 'launch',
       access: 'read-write',
@@ -31,6 +34,9 @@ export function createVerifyRegistry(): Wringer {
         command: ['bun', '-e', "console.log('ready'); setInterval(() => {}, 1_000_000);"],
         ready: (line) => (line['message'] === 'ready' ? { stateRoot: ctx.runDirectory } : null),
       }),
+      drivers: {
+        terminal: (ctx) => ({ programs: buildOwnerPrograms(readStateRoot(ctx.endpoints)) }),
+      },
     })
     .command({
       path: ['www', 'help'],
@@ -145,6 +151,12 @@ export function createVerifyRegistry(): Wringer {
     .feature({
       name: 'import',
       summary: 'Convert a hand-kept store with `www import`, and read its brief',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
+    .feature({
+      name: 'owner-notes',
+      summary:
+        'Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
     .shared(

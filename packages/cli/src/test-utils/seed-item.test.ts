@@ -27,6 +27,8 @@ test('it adds items in order with the defaults the test leaves out', async () =>
         expect.objectContaining({ id: 't-a', kind: 'task', claim: 'Write the parser' }),
         expect.objectContaining({ id: 'w-a', kind: 'wait', extra: { who: 'owner' } }),
       ],
+      ownerNotes: [],
+      ownerUnread: null,
     },
   });
 });

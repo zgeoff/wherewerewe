@@ -23,7 +23,13 @@ function setupTest() {
     stateRoot,
     folder: join(stateRoot, 'old-notes'),
     run: (argv: readonly string[], env: Record<string, string | undefined>, nowMs: number) =>
-      runCLI({ argv, env, cwd: '/work', now: () => nowMs }),
+      runCLI({
+        argv,
+        env,
+        cwd: '/work',
+        now: () => nowMs,
+        terminal: { stdin: false, stdout: false },
+      }),
     readTree: () => readTreeHashes(stateRoot),
     readText: (path: string) => readFileSync(join(stateRoot, path), 'utf8'),
   };

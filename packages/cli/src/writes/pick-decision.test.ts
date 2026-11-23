@@ -22,11 +22,18 @@ function setupTest() {
   return {
     pick: (argv: readonly string[], journal: Partial<JournalIndex>) =>
       pickDecision({
-        store: { folder: '/state/tide-alerts', session, items: [buildMockItem({ id: 't-a' })] },
+        store: {
+          folder: '/state/tide-alerts',
+          session,
+          items: [buildMockItem({ id: 't-a' })],
+          ownerNotes: [],
+          ownerUnread: null,
+        },
         journal: {
           closed: new Map(),
           decisions: new Map(),
           lastDecisionNumber: 0,
+          lastOwnerNoteNumber: 0,
           ...journal,
         },
         args: buildParsedArgs(argv),

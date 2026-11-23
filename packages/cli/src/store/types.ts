@@ -35,3 +35,13 @@ export interface ImportFiles {
   readonly writeFile: (path: string, text: string, mode: number) => void;
   readonly rename: (from: string, to: string) => void;
 }
+
+// The three file calls writeOwnerFiles makes, in order, passed in so a test can stop it between
+// any two.
+export interface OwnerFiles {
+  readonly append: (path: string, text: string) => void;
+
+  // Writes and syncs the text to a new temporary file beside the path, and returns its path.
+  readonly writeTemporary: (path: string, text: string) => string;
+  readonly rename: (from: string, to: string) => void;
+}

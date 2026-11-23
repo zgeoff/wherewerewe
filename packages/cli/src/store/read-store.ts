@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
-import type { SessionFile, Store } from '../types.ts';
+import type { OwnerNote, SessionFile, Store, UnreadRows } from '../types.ts';
 import { parseItemsFile } from './parse-items-file.ts';
+import { parseOwnerFile } from './parse-owner-file.ts';
 import { parseSessionFile } from './parse-session-file.ts';
 
 export type StoreRead =
@@ -21,7 +22,9 @@ export type StoreRead =
       readonly partial: Store | null;
     };
 
-// Reads `session`, stopping at a hand-kept or newer store, then `items.tsv`. Never the journal.
+// Reads `session`, stopping at a hand-kept or newer store, then `items.tsv`, then `owner.tsv`. A
+// broken `owner.tsv` never makes the store broken: its rows that parse come back with the rows that
+// do not named in `ownerUnread`. Never the journal.
 export async function readStore(folder: string): Promise<StoreRead> {
   const sessionText = await readTextOrNull(join(folder, 'session'));
 
@@ -57,6 +60,7 @@ async function readTextOrNull(path: string): Promise<string | null> {
 
 async function readItems(folder: string, session: SessionFile): Promise<StoreRead> {
   const itemsText = await readTextOrNull(join(folder, 'items.tsv'));
+  const owner = await readOwner(folder);
 
   if (itemsText === null) {
     return {
@@ -64,21 +68,59 @@ async function readItems(folder: string, session: SessionFile): Promise<StoreRea
       file: 'items.tsv',
       line: null,
       reason: 'the file is missing',
-      partial: { folder, session, items: [] },
+      partial: { folder, session, items: [], ...owner },
     };
   }
 
   return match(parseItemsFile(itemsText))
     .with({ kind: 'items' }, (found): StoreRead => ({
       kind: 'store',
-      store: { folder, session, items: found.items },
+      store: { folder, session, items: found.items, ...owner },
     }))
     .with({ kind: 'broken' }, (found): StoreRead => ({
       kind: 'broken',
       file: 'items.tsv',
       line: found.line,
       reason: found.reason,
-      partial: { folder, session, items: found.items },
+      partial: { folder, session, items: found.items, ...owner },
+    }))
+    .exhaustive();
+}
+
+interface OwnerRead {
+  readonly ownerNotes: readonly OwnerNote[];
+  readonly ownerUnread: UnreadRows | null;
+}
+
+// A file system error on owner.tsv, such as a folder in its place or no read access, reads as a
+// broken owner file and never stops the brief or an agent write.
+async function readOwner(folder: string): Promise<OwnerRead> {
+  try {
+    const ownerText = await readTextOrNull(join(folder, 'owner.tsv'));
+
+    return ownerText === null ? { ownerNotes: [], ownerUnread: null } : readOwnerText(ownerText);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+      return {
+        ownerNotes: [],
+        ownerUnread: {
+          file: 'owner.tsv',
+          line: null,
+          reason: `the file cannot be read (${error.code})`,
+        },
+      };
+    }
+
+    throw error;
+  }
+}
+
+function readOwnerText(ownerText: string): OwnerRead {
+  return match(parseOwnerFile(ownerText))
+    .with({ kind: 'notes' }, (found): OwnerRead => ({ ownerNotes: found.notes, ownerUnread: null }))
+    .with({ kind: 'broken' }, (found): OwnerRead => ({
+      ownerNotes: found.notes,
+      ownerUnread: { file: 'owner.tsv', line: found.line, reason: found.reason },
     }))
     .exhaustive();
 }
