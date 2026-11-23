@@ -28,11 +28,13 @@ async function setupTest() {
   const buildCommand = (argv: readonly string[]) =>
     [...program.command, ...argv].map((word) => quoteShellWord(word)).join(' ');
 
-  await run(program.command, {
+  const init = await run(program.command, {
     cwd: program.cwd,
     env: cleanEnv,
     args: ['init', 'tide-alerts', '--goal', 'Ship the glaze timer'],
   });
+
+  expect(init.exitCode).toBe(0);
 
   return {
     ownerOnlyText:

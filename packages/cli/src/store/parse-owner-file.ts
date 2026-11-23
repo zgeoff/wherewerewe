@@ -75,7 +75,7 @@ function parseOwnerLine(line: string): OwnerNote | string {
     return 'the text is empty, longer than 160 characters or not one line';
   }
 
-  if (!saidFormat.test(said) || Number.isNaN(Date.parse(said))) {
+  if (!saidFormat.test(said) || !isRealTime(said)) {
     return 'the said time is not an ISO 8601 UTC time to the second, ending in Z';
   }
 
@@ -84,4 +84,13 @@ function parseOwnerLine(line: string): OwnerNote | string {
   }
 
   return { id, text, said, on: on === '-' ? null : on };
+}
+
+// Date.parse rolls an impossible date, such as 02-30, into the next month, so compare the round trip.
+function isRealTime(said: string): boolean {
+  const parsedAtMs = Date.parse(said);
+
+  return (
+    !Number.isNaN(parsedAtMs) && new Date(parsedAtMs).toISOString() === said.replace('Z', '.000Z')
+  );
 }

@@ -114,22 +114,14 @@ test.each([0o600, 0o640])('it keeps the mode %o of owner.tsv through a rewrite',
   const ownerPath = join(ctx.folder, 'owner.tsv');
 
   chmodSync(ownerPath, mode);
+
+  const before = statSync(ownerPath).mode & 0o777;
+
   writeOwnerFiles(ctx.folder, { notes: [ctx.note], journal: [ctx.sayRow] });
 
-  expect(statSync(ownerPath).mode & 0o777).toBe(mode);
-});
+  const after = statSync(ownerPath).mode & 0o777;
 
-test.each([0o600, 0o640])('it keeps the mode %o of owner.tsv through a rewrite', async (mode) => {
-  const ctx = setupTest();
-
-  await ctx.init();
-
-  const ownerPath = join(ctx.folder, 'owner.tsv');
-
-  chmodSync(ownerPath, mode);
-  writeOwnerFiles(ctx.folder, { notes: [ctx.note], journal: [ctx.sayRow] });
-
-  expect(statSync(ownerPath).mode & 0o777).toBe(mode);
+  expect({ before, after }).toStrictEqual({ before: mode, after: mode });
 });
 
 test.each([

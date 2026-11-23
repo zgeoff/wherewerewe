@@ -73,6 +73,13 @@ test.each([
     notes: [],
   },
   {
+    title: 'a said on a day the month does not have',
+    text: `id\ttext\tsaid\ton\no-1\tx\t2026-02-30T11:00:00Z\t-\n`,
+    line: 2,
+    reason: 'the said time is not an ISO 8601 UTC time to the second, ending in Z',
+    notes: [],
+  },
+  {
     title: 'an id past the safe integers',
     text: `id\ttext\tsaid\ton\no-9007199254740992\tx\t2026-03-10T11:00:00Z\t-\n`,
     line: 2,

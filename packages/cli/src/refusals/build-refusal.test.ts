@@ -2158,7 +2158,7 @@ test.each([
       {
         session: 'tide-alerts',
         name: 'journal.tsv',
-        text: 'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T10:00:00Z\tdecide\td-1\tagent\tRetry\tThe feed flaps\twho=agent\n',
+        text: 'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T10:00:00Z\tdone\td-1\tagent\tRetry\t-\t-\n',
       },
     ],
     argv: ['--session', 'tide-alerts', 'say', 'Hello', '--on', 'd-1'],

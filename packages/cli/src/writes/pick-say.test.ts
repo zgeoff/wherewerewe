@@ -170,6 +170,7 @@ test.each([
     title: 'a closed decision id, which owner.tsv cannot hold',
     argv: ['say', 'Hello', '--on', 'd-1'],
     notes: [],
+    journal: { closed: new Map([['d-1', '2026-03-05T08:00:00Z']]) },
     line: 'www: refused: no open item d-1. Open items: t-a.',
   },
   {
@@ -183,7 +184,7 @@ test.each([
   },
 ])('it refuses $title', (row) => {
   const ctx = setupTest();
-  const picked = ctx.pick(row.argv, row.notes, {});
+  const picked = ctx.pick(row.argv, row.notes, row.journal ?? {});
 
   expect(picked).toStrictEqual({
     kind: 'refused',
