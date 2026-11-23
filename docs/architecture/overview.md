@@ -44,9 +44,11 @@ command exits 4, and never falls back to the only session on the machine. See
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
 `rule`, `where`, `set`, `ok`, `decide`, `done`, `drop`, `use`, `show`, `log` and `import`, and `www`
-alone prints the brief. A write answers in one line that ends with the brief's length. Each refusal
-prints its text and a `Run:` line with the command that fixes it. See
-[the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
+alone prints the brief. A write answers in one line. The reply of a note write, such as `task`,
+`done` or `decide`, ends with the brief's length; `init`, `attach`, `detach` and `import` say what
+they did, and `import` names the folder of the backup. Each refusal prints its text and a `Run:`
+line with the command that fixes it. See [the commands design](../design/wherewerewe/commands.md)
+for the replies and the refusals.
 
 ## Approvals and decisions
 
@@ -91,7 +93,11 @@ bound to a hand-kept store. A store whose `session` file still has `format=0-by-
 finished importing. A rerun reads the originals from `import-backup/` when it exists, removes any
 `import-backup.tmp-*` folder and any temporary file a stopped import staged, and converts the store
 again. The backup and each new file keep the permissions of the file they replace, and a new
-`owner.tsv` or `prs.tsv` takes those of `session`. A store that is format 1 already is refused.
+`owner.tsv` or `prs.tsv` takes those of `session`.
+
+A rerun refuses a store that is format 1 already. When an agent session runs it, the refusal's
+`Run:` line is `www attach <session>`, which binds an agent that an import stopped after its last
+rename and before its binding left unbound.
 
 A row that a `done`, `closed`, `drop` or `use` row closes leaves `items.tsv`, and a question cannot
 reuse a closed id, because a closed id is never reused. An item holds only the `extra` keys of its
@@ -101,8 +107,9 @@ approval. A refusal never prints a value that looks like a credential.
 ## The brief
 
 `www` prints the goal, the item in focus, and the open tasks, waits, approvals, rules and where
-items, in at most 52 lines and 6,400 characters. The brief runs no check, so an item with a check
-reads `not checked yet`. A task or where item with no check reads `no check · <age>`, and a wait
-with no check reads `<who> · <age>`. A blocked task reads `blocked by <id>`. When a row of
+items, in at most 52 lines and 6,400 characters. The brief runs no check: an item with a check shows
+the last result saved in `items.tsv`, or `not checked yet` when none is saved. A task or where item
+with no check reads `no check · <age>`, and a wait with no check reads `<who> · <age>`. A blocked
+task reads `blocked by <id>`, followed by ` · <result>` when it has a check. When a row of
 `items.tsv` does not parse, `www` still prints the rows that do, and names the broken row on stderr.
 See [the brief design](../design/wherewerewe/brief.md) for the layout.
