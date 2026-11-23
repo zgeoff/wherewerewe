@@ -4,14 +4,13 @@ This repo holds `wherewerewe`, a command-line tool that one coding agent uses to
 
 ## Required reading
 
-Load the skill for your task before you start it. Repo-sync copies each skill into `.agents/skills/`, and overwrites any edit made there, so never edit a synced skill in this repo. Put each rule of this repo's own in a `project-<name>` skill in `.agents/skills/`.
+Load the skill for your task before you start it. Repo-sync copies each skill into `.agents/skills/`, and overwrites any edit made there, so never edit a synced skill in this repo. Put each rule of this repo's own in a `project-<name>` skill in `.agents/skills/`. Before you write a design or a decision record, load `design-docs` from `zgeoff/skills`, which repo-sync does not copy.
 
 | Task                                               | Skill          |
 | -------------------------------------------------- | -------------- |
 | Write or review TypeScript                         | `code-style`   |
 | Write or review a test                             | `testing`      |
 | Write or edit a doc, a README or this file         | `docs-writing` |
-| Write a design or a decision record                | `design-docs`  |
 | Add or change a workflow, a job or a release gate  | `ci-design`    |
 
 ## Repo structure
