@@ -25,9 +25,9 @@ A write takes the folder's `lock` file, appends its journal rows, rewrites `item
 through a temporary file and a rename, and removes the lock. The journal comes first, so a write
 that stops half way leaves a close recorded and its item still open, never an item gone with no
 record. A writer wins the claim file named after the lock and reads the lock again before it removes
-that lock, its own or a stale one, so no other writer gets in while a lock is fresh. Once a lock is
-older than the stale age in the store design, the next writer may take it over, even while its
-holder still runs.
+that lock, its own or a stale one, so one writer is inside at a time as long as each write finishes
+within the stale age the store design sets; a write that runs longer can lose the lock to the next
+writer.
 
 ## Finding the session
 

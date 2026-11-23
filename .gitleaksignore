@@ -1,5 +1,4 @@
-# Invented credentials that the credential-refusal tests fed to www, in commits before the tests
-# built them at run time. Each line names one commit, file, rule and line.
+# Each entry is an invented test key in a commit that the squash merge drops; delete this file in the next pull request.
 f0ab343a3c310f918dac7d42d5d0f4cb51174a9a:packages/cli/src/refusals/build-refusal.test.ts:aws-access-token:404
 f8b35d8ec384bad3aca029c7232855ef135418c9:packages/cli/src/rules/find-credential-match.test.ts:aws-access-token:17
 f8b35d8ec384bad3aca029c7232855ef135418c9:packages/cli/src/rules/find-credential-match.test.ts:gitlab-pat:21

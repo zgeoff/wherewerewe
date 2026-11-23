@@ -146,7 +146,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - From slice 0b on, each pull request in this repo publishes the wringer report with `bun verify publish` after its last push, and every feature whose files it changed has a claim at the current fingerprint.
 - The registry is named `wherewerewe-verify`, never `www` or `wherewerewe`: gunshi reads a command group named like the program as the program itself, so the registry's name and its `www` command group must differ.
 - A journey runs `www` with `XDG_STATE_HOME` and `HOME` pointed at folders under `.wringer/`, so it never reads or writes the owner's stores or agent settings.
-- From slice 1 on, the orchestrating agent writes its own notes only through `www`, and installs each merged slice with the commands in shipping.md.
+- From the end of slice 1, the orchestrating agent writes its own notes only through `www`, and installs each merged slice with the commands in shipping.md.
 - A slice changes no contract in another part's doc without changing that doc in the same pull request.
 
 ## Builder decides
