@@ -33,7 +33,7 @@ export function takeStoreLock(lockPath: string, files: LockFiles, now: () => num
   // A writer paused between writing its ts and making the lock made a lock that any other writer
   // may take over at once, so it gives that lock up.
   if (now() - tsMs > staleLockMs) {
-    removeLockIfUnchanged(lockPath, attempt.lock, files, now);
+    removeLockIfUnchanged(lockPath, attempt.lock, files, { now, probeRemovable: () => true });
 
     return { kind: 'held', pid: null };
   }
@@ -59,7 +59,10 @@ function createOrTakeOver(
   if (
     holder !== null &&
     (!probeStale(holder, files, now()) ||
-      removeLockIfUnchanged(lockPath, holder, files, now) !== 'removed')
+      removeLockIfUnchanged(lockPath, holder, files, {
+        now,
+        probeRemovable: () => probeStale(holder, files, now()),
+      }) !== 'removed')
   ) {
     return { kind: 'held', pid: parseLockLine(holder.content)?.pid ?? null };
   }

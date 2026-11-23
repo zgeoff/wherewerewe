@@ -7,6 +7,13 @@ import type { LockFileState, LockFiles } from './types.ts';
 
 export type LockRemoval = 'removed' | 'changed' | 'claimed';
 
+// `probeRemovable` judges the file again under the claim, as a clock that stepped back can make
+// a stale file live.
+export interface RemovalCheck {
+  readonly now: () => number;
+  readonly probeRemovable: () => boolean;
+}
+
 // A lock or claim file is removed only by its living creator or by the one caller that won the
 // claim named after that file and re-read it under the claim, and a new lock needs the path empty,
 // so the file cannot change between that re-read and the removal while the claim holds.
@@ -14,8 +21,9 @@ export function removeLockIfUnchanged(
   path: string,
   seen: LockFileState,
   files: LockFiles,
-  now: () => number,
+  check: RemovalCheck,
 ): LockRemoval {
+  const now = check.now;
   const claimPath = buildClaimPath(path, seen);
   const claim = takeClaim(claimPath, files, now);
 
@@ -24,7 +32,7 @@ export function removeLockIfUnchanged(
   }
 
   try {
-    if (!isSameLockFile(files.read(path), seen)) {
+    if (!isSameLockFile(files.read(path), seen) || !check.probeRemovable()) {
       return 'changed';
     }
 
@@ -69,7 +77,13 @@ function takeClaim(claimPath: string, files: LockFiles, now: () => number): Clai
       return null;
     }
 
-    if (holder !== null && removeLockIfUnchanged(claimPath, holder, files, now) === 'claimed') {
+    if (
+      holder !== null &&
+      removeLockIfUnchanged(claimPath, holder, files, {
+        now,
+        probeRemovable: () => probeClaimReapable(holder, files, now()),
+      }) === 'claimed'
+    ) {
       return null;
     }
   }

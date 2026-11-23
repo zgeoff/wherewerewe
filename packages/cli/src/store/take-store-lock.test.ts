@@ -136,7 +136,7 @@ test.each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])(
 
     const files = buildSteppedLockFiles(ctx.files, fromStep, () => {
       kinds.push(
-        `release ${removeLockIfUnchanged(ctx.lockPath, holderLock, ctx.files, Date.now)}`,
+        `release ${removeLockIfUnchanged(ctx.lockPath, holderLock, ctx.files, { now: Date.now, probeRemovable: () => true })}`,
         ctx.take(ctx.lockPath).kind,
       );
     });
@@ -164,7 +164,10 @@ test('it never matches a later lock of the same process to an earlier one it jud
 
   const files = buildSteppedLockFiles(memory.files, 2, () => {
     kinds.push(
-      `release ${removeLockIfUnchanged('reused-inode/lock', holderLock, memory.files, () => tMs)}`,
+      `release ${removeLockIfUnchanged('reused-inode/lock', holderLock, memory.files, {
+        now: () => tMs,
+        probeRemovable: () => true,
+      })}`,
       takeStoreLock('reused-inode/lock', memory.files, () => tMs).kind,
     );
   });
@@ -243,3 +246,27 @@ test.each([
     expect(takeStoreLock(ctx.lockPath, buildNoStartLockFiles(ctx.files), Date.now).kind).toBe(kind);
   },
 );
+
+// A contender judges the writer's lock stale while the clock reads t + 31 s; the clock steps back to
+// t before the contender re-reads the lock under its claim.
+test('it leaves a lock that is no longer stale when it judges it again under its claim', () => {
+  const memory = buildMemoryLockFiles();
+  const clock = { nowMs: Date.parse('2026-03-10T11:43:00.000Z') };
+
+  takeStoreLock('clock-back/lock', memory.files, () => clock.nowMs);
+
+  const writerLock = memory.readSeen('clock-back/lock');
+
+  const files = buildSteppedLockFiles(memory.files, 2, () => {
+    clock.nowMs = Date.parse('2026-03-10T11:43:00.000Z');
+  });
+
+  clock.nowMs = Date.parse('2026-03-10T11:43:31.000Z');
+
+  const contender = takeStoreLock('clock-back/lock', files, () => clock.nowMs);
+
+  expect({ contender, lock: memory.files.read('clock-back/lock') }).toStrictEqual({
+    contender: { kind: 'held', pid: process.pid },
+    lock: writerLock,
+  });
+});

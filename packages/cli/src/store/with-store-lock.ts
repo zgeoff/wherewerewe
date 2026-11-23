@@ -28,7 +28,10 @@ export async function withStoreLock<Value>(
   try {
     return { kind: 'ran', value: await fn() };
   } finally {
-    removeLockIfUnchanged(lockPath, attempt.lock, files, Date.now);
+    removeLockIfUnchanged(lockPath, attempt.lock, files, {
+      now: Date.now,
+      probeRemovable: () => true,
+    });
   }
 }
 
