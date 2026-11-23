@@ -7,7 +7,12 @@ import { pickClose } from './pick-close.ts';
 
 function setupTest() {
   return {
-    pick: (argv: readonly string[], items: readonly Item[], now: string | null) => {
+    pick: (
+      argv: readonly string[],
+      items: readonly Item[],
+      now: string | null,
+      closed: ReadonlyMap<string, string> = new Map(),
+    ) => {
       const session: SessionFile = {
         format: '1',
         name: 'tide-alerts',
@@ -23,7 +28,7 @@ function setupTest() {
 
       return pickClose({
         store: { folder: '/state/tide-alerts', session, items },
-        journal: { closed: new Map(), decisions: new Map(), lastDecisionNumber: 0 },
+        journal: { closed, decisions: new Map(), lastDecisionNumber: 0 },
         args: buildParsedArgs(argv),
         cwd: '/work',
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -206,4 +211,32 @@ test.each([
   );
 
   expect(picked.kind).toBe(kind);
+});
+
+test('it finishes the rewrite of an approval whose use row is already in the journal, with no second row', () => {
+  const ctx = setupTest();
+
+  const picked = ctx.pick(
+    ['use', 'ok-wipe', '--for', 'wiped it'],
+    [
+      buildMockItem({
+        id: 'ok-wipe',
+        kind: 'ok',
+        claim: 'wipe the staging tmp dir',
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+      }),
+    ],
+    null,
+    new Map([['ok-wipe', '2026-03-10T11:40:00Z']]),
+  );
+
+  expect(picked).toStrictEqual({
+    kind: 'write',
+    change: {
+      items: [],
+      session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
+      journal: [],
+    },
+    reply: expect.any(Function),
+  });
 });

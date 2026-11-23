@@ -63,8 +63,10 @@ the owner can be replaced only by a decision recorded with `--who owner`.
 
 `show <id>` prints one open item, closed item or decision, with the decisions made about it and its
 last 10 journal rows. `log` prints the journal oldest first, kept to the rows that `--since`, `--op`
-and `--id` name. Both read the whole journal, take no lock, and are never refused once the session
-is found: an unknown id lists the open items, and only a `--since` that `log` cannot read exits 2.
+and `--id` name, and sorts them by time. Both read the journal in chunks and hold only the rows they
+need, take no lock, and are never refused once the session is found: an unknown id lists the open
+items, an unreadable journal prints the item without its history and says so on stderr, and only a
+`--since` that `log` cannot read exits 2.
 
 ## The brief
 

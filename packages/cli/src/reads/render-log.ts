@@ -6,15 +6,14 @@ const idWidth = 11;
 const opWidth = 10;
 const whoWidth = 7;
 
-// The rows as one line each, oldest first: the day, the time, the op, the id, who, and the text,
-// with the why on a line of its own under it. Who is the who= of a decision, otherwise the author.
-export function renderLog(rows: readonly JournalRow[], started: string): string {
-  if (rows.length === 0) {
+export function renderLog(unsorted: readonly JournalRow[], started: string): string {
+  if (unsorted.length === 0) {
     return 'No journal rows match.\n';
   }
 
+  const rows = unsorted.toSorted((left, right) => Date.parse(left.ts) - Date.parse(right.ts));
   const days = rows.map((row) => `day ${String(getSessionDay(started, Date.parse(row.ts)))}`);
-  const dayWidth = Math.max(...days.map((day) => day.length));
+  const dayWidth = days.reduce((widest, day) => Math.max(widest, day.length), 0);
 
   const lines = rows.flatMap((row, index) => {
     const day = (days[index] ?? '').padEnd(dayWidth);

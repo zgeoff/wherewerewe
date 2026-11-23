@@ -211,3 +211,27 @@ test.each([
 
   expect(picked.kind).toBe(kind);
 });
+
+test('it journals the check of a set on an approval beside its use', () => {
+  const ctx = setupTest();
+
+  const picked = ctx.pick(
+    ['set', 'ok-merge', 'Updated quote', '--pid', '123'],
+    [
+      buildMockItem({
+        id: 'ok-merge',
+        kind: 'ok',
+        claim: 'merge the alert PRs yourself',
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+      }),
+    ],
+  );
+
+  expect(picked).toMatchObject({
+    kind: 'write',
+    change: {
+      items: [{ id: 'ok-merge', check: 'pid:123' }],
+      journal: [{ op: 'set', id: 'ok-merge', extra: 'use=once;check=pid:123' }],
+    },
+  });
+});

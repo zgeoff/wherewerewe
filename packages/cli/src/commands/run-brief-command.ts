@@ -1,8 +1,7 @@
 import { buildBriefInput } from '../brief/build-brief-input.ts';
 import { renderBrief } from '../brief/render-brief.ts';
-import type { CLIResult, Store } from '../types.ts';
+import type { CLIResult, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
-import type { UnreadRows } from './format-unread-note.ts';
 
 // Prints the brief. This slice runs no check and saves nothing, so it takes no lock. A file that
 // does not parse is never a refusal for a read: the brief prints what it can and says on stderr

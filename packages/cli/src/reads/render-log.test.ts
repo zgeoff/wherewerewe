@@ -150,3 +150,48 @@ test('it prints a row with no text as the columns alone', () => {
 test('it says when no row is left', () => {
   expect(renderLog([], '2026-03-02T08:04:11Z')).toBe('No journal rows match.\n');
 });
+
+test('it prints rows oldest first when the journal holds a newer row before an older one', () => {
+  const rows: JournalRow[] = [
+    {
+      ts: '2026-03-04T10:00:00Z',
+      op: 'task',
+      id: 't-b',
+      by: 'agent',
+      text: 'y',
+      why: null,
+      extra: null,
+    },
+    {
+      ts: '2026-03-03T10:00:00Z',
+      op: 'task',
+      id: 't-a',
+      by: 'agent',
+      text: 'x',
+      why: null,
+      extra: null,
+    },
+  ];
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z')).toBe(
+    [
+      'day 2  10:00  task      t-a        agent  x',
+      'day 3  10:00  task      t-b        agent  y',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it prints a journal of 100000 rows', () => {
+  const rows: JournalRow[] = Array.from({ length: 100_000 }, () => ({
+    ts: '2026-03-03T10:00:00Z',
+    op: 'task',
+    id: 't-a',
+    by: 'agent',
+    text: 'x',
+    why: null,
+    extra: null,
+  }));
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z').split('\n')).toHaveLength(100_001);
+});

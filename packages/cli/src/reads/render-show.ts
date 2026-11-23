@@ -9,15 +9,12 @@ export interface ShowInput {
   readonly id: string;
   readonly store: Store;
 
-  // the whole journal, oldest first
   readonly rows: readonly JournalRow[];
   readonly nowMs: number;
 }
 
 const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
 
-// One item, closed item or decision, in a few lines: its claim, what the journal holds on it, and
-// the decisions made about it. An id that names none of them lists the open items instead.
 export function renderShow(input: ShowInput): string {
   const item = input.store.items.find((candidate) => candidate.id === input.id);
 
@@ -59,7 +56,7 @@ function renderOpenItem(input: ShowInput, item: Item): string {
     `${item.id}  ${getKindWord(item.kind)}, open since day ${String(since)}, by ${item.by}`,
     ...(item.check === null ? [] : [`check: ${item.check}`]),
     ...(item.extra.who !== undefined && item.kind === 'wait' ? [`waits on ${item.extra.who}`] : []),
-    ...(item.extra.blocked_by === undefined ? [] : [`blocked by ${item.extra.blocked_by}`]),
+    ...(isBlocked(store, item) ? [`blocked by ${item.extra.blocked_by}`] : []),
   ].join(' · ');
 
   const age = formatAge(input.nowMs - Date.parse(item.written));
@@ -80,6 +77,10 @@ function renderOpenItem(input: ShowInput, item: Item): string {
 
 function getDay(store: Store, timeMs: number): number {
   return getSessionDay(store.session.started, timeMs);
+}
+
+function isBlocked(store: Store, item: Item): boolean {
+  return store.items.some((candidate) => candidate.id === item.extra.blocked_by);
 }
 
 function getClaimWord(item: Item): string {
@@ -161,17 +162,19 @@ function renderDecision(input: ShowInput, row: JournalRow): string {
   const who = findExtraValue(row.extra, 'who') ?? row.by;
   const day = getDay(input.store, Date.parse(row.ts));
 
-  const replacedBy = input.rows.find(
-    (candidate) =>
-      decisionOps.has(candidate.op) && findExtraValue(candidate.extra, 'replaces') === input.id,
-  );
+  const replacedBy = input.rows
+    .filter(
+      (candidate) =>
+        decisionOps.has(candidate.op) && findExtraValue(candidate.extra, 'replaces') === input.id,
+    )
+    .map((candidate) => candidate.id);
 
   const lines = [
     `${input.id}  ${row.op === 'ruled-out' ? 'ruled out' : 'decision'}${on === null ? '' : ` on ${on}`} · day ${String(day)} · by ${who}`,
     `  choice: ${row.text ?? ''}`,
     `  why: ${row.why ?? ''}`,
     ...(replaces === null ? [] : [`  replaces: ${replaces}`]),
-    ...(replacedBy === undefined ? [] : [`  replaced by: ${replacedBy.id}`]),
+    ...(replacedBy.length === 0 ? [] : [`  replaced by: ${replacedBy.join(', ')}`]),
   ];
 
   return `${lines.join('\n')}\n`;

@@ -111,8 +111,6 @@ const approvalFlags: readonly ApprovalText[] = [
   { flag: 'scope', limit: 40 },
 ];
 
-// An approval needs all four texts and exactly one of --once and --standing. Each text is checked
-// in the order the command takes them, then each of --who, --where and --scope for a separator.
 function pickApprovalRefusal(args: ParsedArgs): RefusalReason | null {
   if (args.command !== 'ok') {
     return null;
@@ -339,9 +337,10 @@ function buildExtra(args: ParsedArgs): Extra {
 }
 
 function buildJournalExtra(item: Item): string | null {
-  if (item.kind === 'ok' && item.extra.use !== undefined) {
-    return `use=${item.extra.use}`;
-  }
+  const parts = [
+    ...(item.kind === 'ok' && item.extra.use !== undefined ? [`use=${item.extra.use}`] : []),
+    ...(item.check === null ? [] : [`check=${item.check}`]),
+  ];
 
-  return item.check === null ? null : `check=${item.check}`;
+  return parts.length === 0 ? null : parts.join(';');
 }

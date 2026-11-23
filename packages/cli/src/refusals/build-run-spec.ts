@@ -1,3 +1,4 @@
+import { redactCredential } from '../rules/redact-credential.ts';
 import type { ParsedArgs, TypedFlag } from '../types.ts';
 
 export interface RunSpec {
@@ -19,8 +20,11 @@ export interface RunSpec {
 export function buildRunSpec(args: ParsedArgs): RunSpec {
   return makeSpec({
     command: args.command,
-    positionals: args.positionals,
-    flags: args.flags,
+    positionals: args.positionals.map((word) => redactCredential(word)),
+    flags: args.flags.map((flag) => ({
+      name: flag.name,
+      value: flag.value === null ? null : redactCredential(flag.value),
+    })),
     words: [],
   });
 }
@@ -85,12 +89,20 @@ function makeSpec(state: SpecState): RunSpec {
 // A positional that starts with a dash goes after `--`, which ends the flags.
 function buildArgv(state: SpecState): string[] {
   const words = [...(state.command === 'brief' ? [] : [state.command]), ...state.positionals];
-
-  const flagWords = state.flags.flatMap((flag) =>
-    flag.value === null ? [`--${flag.name}`] : [`--${flag.name}`, flag.value],
-  );
+  const flagWords = state.flags.flatMap((flag) => buildFlagWords(flag));
 
   return words.some((word) => word.startsWith('-'))
     ? [...flagWords, ...state.words, '--', ...words]
     : [...words, ...flagWords, ...state.words];
+}
+
+// The parser reads `--quote --preview` as a flag with no value, and `--quote=--preview` as the value.
+function buildFlagWords(flag: TypedFlag): string[] {
+  if (flag.value === null) {
+    return [`--${flag.name}`];
+  }
+
+  return flag.value.startsWith('-')
+    ? [`--${flag.name}=${flag.value}`]
+    : [`--${flag.name}`, flag.value];
 }

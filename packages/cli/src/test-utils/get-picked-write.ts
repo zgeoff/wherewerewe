@@ -1,8 +1,6 @@
 import type { StoreChange } from '../types.ts';
 import type { WriteResult } from '../writes/types.ts';
 
-// What a write picked to change, and its reply for a brief of that many lines. It throws when the
-// write was refused.
 export function getPickedWrite(
   picked: WriteResult,
   briefLines: number,

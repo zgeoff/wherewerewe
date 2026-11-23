@@ -87,3 +87,23 @@ test('it finds nothing when the session has no journal file yet', async () => {
 
   expect(index.closed).toStrictEqual(new Map());
 });
+
+test('it counts no decision number that is too large to add one to', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedJournalRow(ctx.folder, { ts: '2026-03-03T08:00:00Z', op: 'decide', id: 'd-3' });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-04T08:00:00Z',
+    op: 'decide',
+    id: 'd-9007199254740992',
+  });
+
+  const index = await readJournalIndex(ctx.folder);
+
+  expect({ decisions: [...index.decisions.keys()], last: index.lastDecisionNumber }).toStrictEqual({
+    decisions: ['d-3'],
+    last: 3,
+  });
+});

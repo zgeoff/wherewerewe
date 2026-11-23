@@ -11,11 +11,10 @@ export interface LogFilter {
   readonly id: string | null;
 }
 
-export function collectLogRows(rows: readonly JournalRow[], filter: LogFilter): JournalRow[] {
-  return rows.filter(
-    (row) =>
-      (filter.fromMs === null || Date.parse(row.ts) >= filter.fromMs) &&
-      (filter.ops === null || filter.ops.includes(row.op)) &&
-      (filter.id === null || row.id === filter.id),
+export function isLogRow(row: JournalRow, filter: LogFilter): boolean {
+  return (
+    (filter.fromMs === null || Date.parse(row.ts) >= filter.fromMs) &&
+    (filter.ops === null || filter.ops.includes(row.op)) &&
+    (filter.id === null || row.id === filter.id)
   );
 }

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -880,3 +880,23 @@ test.each([
     });
   },
 );
+
+test('it prints an open item with no history, and says so, when the journal cannot be read', async () => {
+  const ctx = setupTest();
+  const journalPath = join(ctx.stateRoot, 'tide-alerts', 'journal.tsv');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  rmSync(journalPath);
+  mkdirSync(journalPath);
+
+  const result = await ctx.run(['show', 't-a']);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: 't-a  task, open since day 1, by agent\n  claim (0m): Write it\n',
+    stderr:
+      "www: tide-alerts's journal.tsv does not parse: EISDIR. This read leaves out what it could not read. Fix the file by hand.\n",
+  });
+});

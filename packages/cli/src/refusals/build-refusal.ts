@@ -2,6 +2,7 @@ import { match } from 'ts-pattern';
 import { getKindWord } from '../rules/get-kind-word.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
+import { noSecretPlaceholder, redactCredential } from '../rules/redact-credential.ts';
 import type { CheckFlag, ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
@@ -105,11 +106,10 @@ export function buildRefusal(reason: RefusalReason): Refusal {
           ? 'there are no decisions yet'
           : `the last is d-${String(found.lastNumber)}`;
 
-      return refuse(`www: refused: there is no decision ${found.value}; ${last}.`, [
-        'log',
-        '--op',
-        'decide,ruled-out',
-      ]);
+      return refuse(
+        `www: refused: there is no decision ${redactCredential(found.value)}; ${last}.`,
+        ['log', '--op', 'decide,ruled-out'],
+      );
     })
     .with({ kind: 'decision-is-owners' }, (found) =>
       refuse(
@@ -290,7 +290,7 @@ function buildCredentialRun(found: Found<'credential'>): string[] {
     return ['where', id, '<where the secret lives>'];
   }
 
-  return replaceText(found.args, found.target, '<text with no secret in it>');
+  return replaceText(found.args, found.target, noSecretPlaceholder);
 }
 
 const capWords = {
@@ -349,7 +349,7 @@ function buildOnUnknown(found: Found<'on-unknown'>): Refusal {
   const closest = pickClosestID(found.id, found.openIDs);
 
   return refuse(
-    `www: refused: no open item ${found.id}. Open items: ${formatList(found.openIDs)}.`,
+    `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,
     (closest === null ? spec.dropFlag('on') : spec.replaceFlag('on', closest)).toArgv(),
   );
 }
@@ -360,7 +360,7 @@ function formatList(words: readonly string[]): string {
 
 function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
   const spec = buildRunSpec(found.args);
-  const closest = pickClosestID(found.id, found.openIDs) ?? '<open id>';
+  const closest = pickClosestID(found.id, found.suggestIDs ?? found.openIDs) ?? '<open id>';
 
   const argv =
     found.args.command === 'set'
@@ -368,7 +368,7 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
       : spec.replacePositional(0, closest).toArgv();
 
   return refuse(
-    `www: refused: no open item ${found.id}. Open items: ${formatList(found.openIDs)}.`,
+    `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,
     argv,
   );
 }

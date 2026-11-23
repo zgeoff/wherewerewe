@@ -1,16 +1,13 @@
-import { collectLogRows } from '../reads/collect-log-rows.ts';
+import { isLogRow } from '../reads/is-log-row.ts';
 import { parseSince } from '../reads/parse-since.ts';
 import { renderLog } from '../reads/render-log.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatRefusal } from '../refusals/format-refusal.ts';
 import { readRefusalScope } from '../refusals/read-refusal-scope.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
-import type { CLIResult, ParsedArgs, Store } from '../types.ts';
+import type { CLIResult, ParsedArgs, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
-import type { UnreadRows } from './format-unread-note.ts';
 
-// Prints the journal, oldest first, kept to the rows that --since, --op and --id name. A --since
-// it cannot read is a usage error, the one way a read is refused.
 export async function runLogCommand(
   store: Store,
   args: ParsedArgs,
@@ -28,13 +25,13 @@ export async function runLogCommand(
     };
   }
 
-  const journal = await readJournalRows(store.folder);
-
-  const rows = collectLogRows(journal, {
+  const filter = {
     fromMs,
     ops: args.values.op === undefined ? null : args.values.op.split(','),
     id: args.values.id ?? null,
-  });
+  };
+
+  const rows = await readJournalRows(store.folder, (row) => isLogRow(row, filter));
 
   return {
     exitCode: 0,

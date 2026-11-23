@@ -7,9 +7,6 @@ import type { JournalIndex } from '../types.ts';
 const closingOps: ReadonlySet<string> = new Set(['done', 'drop', 'use']);
 const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
 
-// Reads the journal line by line and splits only the first three columns, so no text cell is
-// ever held. It finds the ids that a done, drop or use row closed. On a decide or ruled-out row it
-// also reads the extra column, to find who made the decision.
 export async function readJournalIndex(folder: string): Promise<JournalIndex> {
   const closed = new Map<string, string>();
   const decisions = new Map<string, { readonly who: 'owner' | 'agent' | null }>();
@@ -50,8 +47,9 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
 
 function readDecisionNumber(id: string): number | null {
   const digits = /^d-(?<number>\d+)$/u.exec(id)?.groups?.['number'];
+  const number = digits === undefined ? null : Number(digits);
 
-  return digits === undefined ? null : Number(digits);
+  return number !== null && Number.isSafeInteger(number) ? number : null;
 }
 
 function readWho(extra: string | null): 'owner' | 'agent' | null {

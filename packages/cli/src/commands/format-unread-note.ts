@@ -1,11 +1,5 @@
-// What a read could not use of the store: the file, the first row that broke, and why.
-export interface UnreadRows {
-  readonly file: string;
-  readonly line: number | null;
-  readonly reason: string;
-}
+import type { UnreadRows } from '../types.ts';
 
-// The subject is what leaves the rows out, such as `The brief`.
 export function formatUnreadNote(name: string, unread: UnreadRows, subject: string): string {
   const where =
     unread.line === null

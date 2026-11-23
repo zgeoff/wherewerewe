@@ -149,3 +149,27 @@ test('it keeps no flag when asked to keep none', () => {
     'new note',
   ]);
 });
+
+test('it joins a flag value that starts with a dash to its flag', () => {
+  const spec = buildRunSpec({
+    command: 'ok',
+    positionals: ['ok-a'],
+    values: {},
+    sessionFlag: null,
+    flags: [{ name: 'quote', value: '--preview' }],
+  });
+
+  expect(spec.toArgv()).toStrictEqual(['ok', 'ok-a', '--quote=--preview']);
+});
+
+test('it puts a placeholder where a typed value looks like a credential', () => {
+  const spec = buildRunSpec({
+    command: 'ok',
+    positionals: ['ok-a'],
+    values: {},
+    sessionFlag: null,
+    flags: [{ name: 'quote', value: `AKIA${'Q'.repeat(16)}` }],
+  });
+
+  expect(spec.toArgv()).toStrictEqual(['ok', 'ok-a', '--quote', '<text with no secret in it>']);
+});

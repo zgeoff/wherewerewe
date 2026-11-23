@@ -1,4 +1,3 @@
-// The argv that writes the approval ok-merge, with --once or --standing as given.
 export function buildOkArgv(use: '--once' | '--standing'): string[] {
   return [
     'ok',

@@ -5,8 +5,8 @@ import type { Item, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
-// done, drop and use: each removes the open item, clears the focus when the item was in it, and
-// keeps the item's claim in the journal row. use spends an open --once approval.
+// An open item whose id the journal already closed lost its rewrite to an interrupted write: it
+// finishes the rewrite and adds no second row.
 export function pickClose(input: WriteInput): WriteResult {
   const store = input.store;
   const args = input.args;
@@ -73,6 +73,13 @@ export function pickClose(input: WriteInput): WriteResult {
         args,
         id,
         openIDs: store.items.map((candidate) => candidate.id),
+        ...(command === 'use'
+          ? {
+              suggestIDs: store.items
+                .filter((candidate) => candidate.kind === 'ok' && candidate.extra.use === 'once')
+                .map((candidate) => candidate.id),
+            }
+          : {}),
       }),
     };
   }
@@ -85,6 +92,7 @@ export function pickClose(input: WriteInput): WriteResult {
 
   const ts = formatTimestamp(nowMs);
   const wasInFocus = store.session.now === id;
+  const isSpent = input.journal.closed.has(id);
 
   const verb = match(command)
     .with('done', () => 'done')
@@ -101,7 +109,9 @@ export function pickClose(input: WriteInput): WriteResult {
         lastWrite: ts,
         ...(wasInFocus ? { now: null, nowNext: null, nowSet: null } : {}),
       },
-      journal: [{ ts, op: args.command, id, by: 'agent', text: item.claim, why, extra: null }],
+      journal: isSpent
+        ? []
+        : [{ ts, op: args.command, id, by: 'agent', text: item.claim, why, extra: null }],
     },
     reply: (briefLines) =>
       `${id}  ${verb}. Off the brief, kept in the journal. Brief: ${String(briefLines)} lines.`,

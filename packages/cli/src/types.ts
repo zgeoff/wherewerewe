@@ -86,6 +86,12 @@ export interface JournalIndex {
   readonly lastDecisionNumber: number;
 }
 
+export interface UnreadRows {
+  readonly file: string;
+  readonly line: number | null;
+  readonly reason: string;
+}
+
 export interface StoreChange {
   readonly session?: SessionFile;
   readonly items?: readonly Item[];
@@ -269,6 +275,9 @@ export type RefusalReason =
       readonly args: ParsedArgs;
       readonly id: string;
       readonly openIDs: readonly string[];
+
+      // the open ids that the Run line may suggest, when fewer than openIDs would pass
+      readonly suggestIDs?: readonly string[];
     }
   | {
       readonly kind: 'closed-id';

@@ -319,3 +319,60 @@ test('it says none when no item is open', () => {
 
   expect(text).toBe('t-zz: no item, decision or journal row has this id. Open items: none.\n');
 });
+
+test('it drops the blocked by part once the blocker is no longer open', () => {
+  const ctx = setupTest();
+
+  const items = [
+    buildMockItem({
+      id: 't-flag',
+      claim: 'turn on the flag',
+      extra: { blocked_by: 'w-apns' },
+      written: '2026-03-10T09:43:00Z',
+    }),
+  ];
+
+  expect(ctx.show('t-flag', items, [])).toBe(
+    ['t-flag  task, open since day 9, by agent', '  claim (2h): turn on the flag', ''].join('\n'),
+  );
+});
+
+test('it lists every decision that replaces a decision', () => {
+  const ctx = setupTest();
+
+  const rows = [
+    buildMockJournalRow({
+      ts: '2026-03-05T10:00:00Z',
+      op: 'decide',
+      id: 'd-1',
+      text: 'retry 3 times',
+      why: 'the feed flaps',
+    }),
+    buildMockJournalRow({
+      ts: '2026-03-06T10:00:00Z',
+      op: 'decide',
+      id: 'd-2',
+      text: 'retry 5 times',
+      why: 'three was not enough',
+      extra: 'who=agent;replaces=d-1',
+    }),
+    buildMockJournalRow({
+      ts: '2026-03-07T10:00:00Z',
+      op: 'decide',
+      id: 'd-3',
+      text: 'retry 4 times',
+      why: 'five was too many',
+      extra: 'who=agent;replaces=d-1',
+    }),
+  ];
+
+  expect(ctx.show('d-1', [], rows)).toBe(
+    [
+      'd-1  decision · day 4 · by agent',
+      '  choice: retry 3 times',
+      '  why: the feed flaps',
+      '  replaced by: d-2, d-3',
+      '',
+    ].join('\n'),
+  );
+});

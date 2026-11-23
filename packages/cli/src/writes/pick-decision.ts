@@ -4,8 +4,6 @@ import type { RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
-// decide writes a decision, or with --ruled-out an approach that lost, as a journal row. It writes
-// no item, and the tool numbers it from the highest decision in the journal.
 export function pickDecision(input: WriteInput): WriteResult {
   const store = input.store;
   const args = input.args;

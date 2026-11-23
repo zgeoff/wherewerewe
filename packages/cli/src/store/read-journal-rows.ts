@@ -1,15 +1,29 @@
-import { readFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import type { JournalRow } from '../types.ts';
-import { parseJournalFile } from './parse-journal-file.ts';
+import { parseJournalLine } from './parse-journal-line.ts';
 
-// Every row of the journal, oldest first. Only the reads that show history call it: a write reads
-// the journal index instead. A session with no journal file has no rows.
-export async function readJournalRows(folder: string): Promise<JournalRow[]> {
+export async function readJournalRows(
+  folder: string,
+  keep: (row: JournalRow) => boolean,
+): Promise<JournalRow[]> {
+  const rows: JournalRow[] = [];
+  let pending = '';
+
   try {
-    const text = await readFile(join(folder, 'journal.tsv'), 'utf8');
+    for await (const chunk of createReadStream(join(folder, 'journal.tsv'), 'utf8')) {
+      const lines = `${pending}${String(chunk)}`.split('\n');
 
-    return parseJournalFile(text);
+      pending = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const row = parseJournalLine(line);
+
+        if (row !== null && keep(row)) {
+          rows.push(row);
+        }
+      }
+    }
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       return [];
@@ -17,4 +31,6 @@ export async function readJournalRows(folder: string): Promise<JournalRow[]> {
 
     throw error;
   }
+
+  return rows;
 }
