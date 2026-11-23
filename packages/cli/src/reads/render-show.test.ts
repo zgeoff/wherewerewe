@@ -265,6 +265,7 @@ test('it shows a decision that replaces one, and the one that replaces it', () =
       '  choice: retry 3 times',
       '  why: the feed flaps',
       '  replaced by: d-2',
+      '  journal: day 4 decide',
       '',
     ].join('\n'),
     [
@@ -272,6 +273,7 @@ test('it shows a decision that replaces one, and the one that replaces it', () =
       '  choice: retry 5 times',
       '  why: three was not enough',
       '  replaces: d-1',
+      '  journal: day 5 decide',
       '',
     ].join('\n'),
   ]);
@@ -396,6 +398,7 @@ test('it lists every decision that replaces a decision', () => {
       '  choice: retry 3 times',
       '  why: the feed flaps',
       '  replaced by: d-2, d-3',
+      '  journal: day 4 decide',
       '',
     ].join('\n'),
   );

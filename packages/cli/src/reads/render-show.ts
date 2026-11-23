@@ -184,6 +184,7 @@ function renderDecision(input: ShowInput, row: JournalRow): string {
     `  why: ${row.why ?? ''}`,
     ...(replaces === null ? [] : [`  replaces: ${replaces}`]),
     ...(replacedBy.length === 0 ? [] : [`  replaced by: ${replacedBy.join(', ')}`]),
+    ...formatHistoryLines(input),
   ];
 
   return `${lines.join('\n')}\n`;

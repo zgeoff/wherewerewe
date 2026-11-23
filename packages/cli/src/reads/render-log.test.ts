@@ -147,6 +147,73 @@ test('it prints a row with no text as the columns alone', () => {
   );
 });
 
+test('it keeps one space after an op longer than the op column', () => {
+  const rows: JournalRow[] = [
+    {
+      ts: '2026-03-03T10:00:00Z',
+      op: 'historical',
+      id: 'opt-a',
+      by: 'import',
+      text: 'picked a',
+      why: null,
+      extra: null,
+    },
+    {
+      ts: '2026-03-03T10:05:00Z',
+      op: 'task',
+      id: 't-b',
+      by: 'agent',
+      text: 'x',
+      why: null,
+      extra: null,
+    },
+  ];
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z')).toBe(
+    [
+      'day 2  10:00  historical opt-a      import picked a',
+      'day 2  10:05  task       t-b        agent  x',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it keeps one space after a who longer than the who column', () => {
+  const rows: JournalRow[] = [
+    {
+      ts: '2026-03-03T10:00:00Z',
+      op: 'decide',
+      id: 'd-1',
+      by: 'agent',
+      text: 'x',
+      why: null,
+      extra: 'who=migration',
+    },
+  ];
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z')).toBe(
+    'day 2  10:00  decide    d-1        migration x\n',
+  );
+});
+
+test('it prints the trailing spaces of a stored text as stored', () => {
+  const rows: JournalRow[] = [
+    {
+      ts: '2026-03-03T10:00:00Z',
+      op: 'task',
+      id: 't-a',
+      by: 'agent',
+      text: 'spaced   ',
+      why: null,
+      extra: null,
+    },
+  ];
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z')).toBe(
+    'day 2  10:00  task      t-a        agent  spaced   \n',
+  );
+});
+
 test('it says when no row is left', () => {
   expect(renderLog([], '2026-03-02T08:04:11Z')).toBe('No journal rows match.\n');
 });
