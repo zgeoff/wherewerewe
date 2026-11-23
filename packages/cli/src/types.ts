@@ -78,6 +78,18 @@ export interface Store {
 export interface JournalIndex {
   // id -> ts of its done, drop or use row
   readonly closed: ReadonlyMap<string, string>;
+
+  // d-<n> -> its who=, from the extra of its decide or ruled-out row
+  readonly decisions: ReadonlyMap<string, { readonly who: 'owner' | 'agent' | null }>;
+
+  // 0 when there is no decision
+  readonly lastDecisionNumber: number;
+}
+
+export interface UnreadRows {
+  readonly file: string;
+  readonly line: number | null;
+  readonly reason: string;
 }
 
 export interface StoreChange {
@@ -166,7 +178,18 @@ export interface ParsedArgs {
   readonly flags: readonly TypedFlag[];
 }
 
-type TextLabel = 'claim' | 'next step' | 'goal' | 'evidence' | 'reason' | 'who';
+type TextLabel =
+  | 'claim'
+  | 'next step'
+  | 'goal'
+  | 'evidence'
+  | 'reason'
+  | 'who'
+  | 'where'
+  | 'scope'
+  | 'quote'
+  | 'decision'
+  | '--for text';
 
 // Where a text sits in the typed command.
 export interface TextTarget {
@@ -209,18 +232,53 @@ export type RefusalReason =
     }
   | {
       readonly kind: 'kind-full';
-      readonly itemKind: 'task' | 'wait' | 'rule' | 'where';
+      readonly itemKind: 'task' | 'wait' | 'rule' | 'where' | 'ok';
       readonly oldestID: string;
     }
   | { readonly kind: 'needs-evidence'; readonly args: ParsedArgs }
   | { readonly kind: 'needs-reason'; readonly args: ParsedArgs }
   | { readonly kind: 'needs-who'; readonly args: ParsedArgs }
-  | { readonly kind: 'who-has-separator'; readonly args: ParsedArgs; readonly who: string }
+  | {
+      readonly kind: 'extra-has-separator';
+      readonly args: ParsedArgs;
+      readonly flag: 'who' | 'where' | 'scope';
+      readonly value: string;
+    }
+  | {
+      readonly kind: 'ok-needs-parts';
+      readonly args: ParsedArgs;
+      readonly missing: readonly ('quote' | 'who' | 'where' | 'scope')[];
+      readonly needsUse: boolean;
+    }
+  | { readonly kind: 'decide-needs-why'; readonly args: ParsedArgs }
+  | { readonly kind: 'bad-decision-who'; readonly args: ParsedArgs }
+  | {
+      readonly kind: 'no-such-decision';
+      readonly value: string;
+
+      // 0 when there is none
+      readonly lastNumber: number;
+    }
+  | { readonly kind: 'decision-numbers-used-up'; readonly lastNumber: number }
+  | { readonly kind: 'decision-is-owners'; readonly id: string }
+  | {
+      readonly kind: 'on-unknown';
+      readonly args: ParsedArgs;
+      readonly id: string;
+      readonly openIDs: readonly string[];
+    }
+  | { readonly kind: 'bad-since' }
+  | { readonly kind: 'use-needs-for'; readonly args: ParsedArgs }
+  | { readonly kind: 'use-standing'; readonly id: string }
+  | { readonly kind: 'use-not-approval'; readonly id: string; readonly itemKind: Kind }
   | {
       readonly kind: 'no-open-item';
       readonly args: ParsedArgs;
       readonly id: string;
       readonly openIDs: readonly string[];
+
+      // the open ids that the Run line may suggest, when fewer than openIDs would pass
+      readonly suggestIDs?: readonly string[];
     }
   | {
       readonly kind: 'closed-id';

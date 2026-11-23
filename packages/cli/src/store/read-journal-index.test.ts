@@ -32,10 +32,78 @@ test('it finds each id that a done, drop or use row closed, with the ts of that 
   );
 });
 
+test('it finds each decision with who made it, and the highest decision number', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-03T08:00:00Z',
+    op: 'decide',
+    id: 'd-2',
+    extra: 'on=t-a;who=owner',
+  });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-04T08:00:00Z',
+    op: 'ruled-out',
+    id: 'd-12',
+    extra: 'who=agent;replaces=d-2',
+  });
+
+  await seedJournalRow(ctx.folder, { ts: '2026-03-05T08:00:00Z', op: 'decide', id: 'd-7' });
+  await seedJournalRow(ctx.folder, { ts: '2026-03-06T08:00:00Z', op: 'say', id: 'd-40' });
+
+  const index = await readJournalIndex(ctx.folder);
+
+  expect({ decisions: index.decisions, last: index.lastDecisionNumber }).toStrictEqual({
+    decisions: new Map([
+      ['d-2', { who: 'owner' }],
+      ['d-12', { who: 'agent' }],
+      ['d-7', { who: null }],
+    ]),
+    last: 12,
+  });
+});
+
+test('it reads no decision from a journal that has none', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedJournalRow(ctx.folder, { ts: '2026-03-03T08:00:00Z', op: 'task', id: 't-a' });
+
+  const index = await readJournalIndex(ctx.folder);
+
+  expect({ decisions: index.decisions, last: index.lastDecisionNumber }).toStrictEqual({
+    decisions: new Map(),
+    last: 0,
+  });
+});
+
 test('it finds nothing when the session has no journal file yet', async () => {
   const ctx = setupTest();
 
   const index = await readJournalIndex(ctx.folder);
 
   expect(index.closed).toStrictEqual(new Map());
+});
+
+test('it counts no decision number that is too large to add one to', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedJournalRow(ctx.folder, { ts: '2026-03-03T08:00:00Z', op: 'decide', id: 'd-3' });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-04T08:00:00Z',
+    op: 'decide',
+    id: 'd-9007199254740992',
+  });
+
+  const index = await readJournalIndex(ctx.folder);
+
+  expect({ decisions: [...index.decisions.keys()], last: index.lastDecisionNumber }).toStrictEqual({
+    decisions: ['d-3'],
+    last: 3,
+  });
 });

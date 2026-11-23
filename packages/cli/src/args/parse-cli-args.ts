@@ -95,14 +95,20 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ['set', { count: 2, usage: '<id> "<claim>"', flags: checkFlags }],
   ['done', { count: 1, usage: '<id>', flags: ['evidence'] }],
   ['drop', { count: 1, usage: '<id>', flags: ['why'] }],
+  [
+    'ok',
+    { count: 1, usage: '<id>', flags: ['quote', 'who', 'where', 'scope', 'once', 'standing'] },
+  ],
+  ['use', { count: 1, usage: '<id>', flags: ['for'] }],
+  [
+    'decide',
+    { count: 1, usage: '"<choice>"', flags: ['why', 'on', 'who', 'ruled-out', 'replaces'] },
+  ],
+  ['show', { count: 1, usage: '<id>', flags: [] }],
+  ['log', { count: 0, usage: 'no arguments', flags: ['since', 'op', 'id'] }],
 ]);
 
 const laterCommands: ReadonlySet<string> = new Set([
-  'ok',
-  'use',
-  'decide',
-  'show',
-  'log',
   'import',
   'say',
   'ack',

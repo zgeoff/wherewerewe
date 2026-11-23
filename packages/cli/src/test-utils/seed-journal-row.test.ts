@@ -20,3 +20,20 @@ test('it appends one row to the journal', async () => {
     '2026-03-04T08:00:00Z\tdone\tt-a\tagent\ta claim\ta reason\t-\n',
   );
 });
+
+test('it appends a row with the extra it is given', async () => {
+  const ctx = setupTest();
+
+  const folder = await seedSessionStore(ctx.root, 'tide-alerts');
+
+  await seedJournalRow(folder, {
+    ts: '2026-03-04T08:00:00Z',
+    op: 'decide',
+    id: 'd-1',
+    extra: 'who=owner',
+  });
+
+  expect(readFileSync(join(folder, 'journal.tsv'), 'utf8')).toEndWith(
+    '2026-03-04T08:00:00Z\tdecide\td-1\tagent\ta claim\ta reason\twho=owner\n',
+  );
+});
