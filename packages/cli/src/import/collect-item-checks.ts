@@ -253,7 +253,7 @@ function parseExtraCell(cell: string): ExtraParse {
 }
 
 function cutToken(token: string): string {
-  const points = [...token];
+  const points = Array.from(token, (character) => character);
 
   return points.length > 40 ? `${points.slice(0, 40).join('')}…` : token;
 }
