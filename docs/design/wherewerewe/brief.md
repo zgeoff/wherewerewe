@@ -66,7 +66,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | pull request overflow    | `  and <n> more: www log --op pr`                                                             | 30     |
 | pull request hint        | `  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>`                     | 71     |
 
-A check result is at most 15 characters; the list is in [checks.md](checks.md). The fix command in a changed row is at most 64 characters, and the widest changed row pairs the 6-character `CLOSED` with its 64-character fix:
+A check result is at most 15 characters; the list is in [checks.md](checks.md). The fix command in a changed row is at most 64 characters with a 16-character id, the longest an id can be, and the widest changed row pairs the 6-character `CLOSED` with that 64-character fix:
 
 | The check now reads                        | Fix command                                                     |
 | ------------------------------------------ | --------------------------------------------------------------- |
@@ -138,7 +138,7 @@ Codex puts at most about 2,500 tokens of hook output into context. Ids, paths an
 - A changed row's fix command stays the same when the item has an owed note. Running it gets the owed-note refusal in [commands.md](commands.md), which prints the note whole.
 - A tag shows `blocked by <id>` only while that id is open. Closing the blocker clears the tag on the next read.
 - An item with no check shows its age since `written`, so the reader sees which lines nobody verified.
-- No heading, label, footer or tag tells the agent to hold back, to ask, or to act only inside a limit. A heading states what the section holds. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- Never use a heading, label, footer or tag to tell the agent to hold back, to ask, or to act only inside a limit. Make each heading say what the section holds. Two headings keep a suffix, `OWNER SAYS (<n>) · act on it; only the owner clears it` and `CHANGED SINCE WRITTEN (<n>) · these claims are no longer true`, because 0008 keeps each for stating or preventing a fact. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - Once a session is found and its store is in format 2, the brief always exits 0 and prints, whatever the checks, the lock or the network do. Exits 4 and 5 are defined in [commands.md](commands.md).
 - A write reply's first line ends with the brief's line count, except the `init`, `attach`, `detach` and `import` replies; the reply table in [commands.md](commands.md) is the authority. Take the count from the same renderer, with check results from `last`, and run no checks.
 

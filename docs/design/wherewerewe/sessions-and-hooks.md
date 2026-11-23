@@ -60,7 +60,7 @@ Each bind and detach adds a `bind` journal row with the harness and id in `extra
 The design works whichever way the unknowns fall:
 
 - The `PostToolUse` hook binds the `session_id` from its own stdin whenever it sees a successful `www init`, `www attach` or `www import` command. So when a Codex shell's id differs from its hook's id, both ids get a binding.
-- A subagent whose shell has no bound id gets the no-session refusal. The `SubagentStart` hook gives it the name first, by adding `This session keeps its notes in wherewerewe session <name>. When a www command says there is no session, add --session <name>.`
+- A subagent whose shell has no bound id gets the no-session refusal. In Claude Code, the `SubagentStart` hook gives it the name first, by adding `This session keeps its notes in wherewerewe session <name>. When a www command says there is no session, add --session <name>.`
 - After `/clear`, or a resume or fork that changes the id, the new id has no binding, and the hooks stay silent. The agent, or the owner with `! www attach <name>` in Claude Code, binds it again. The no-session text names `www attach`.
 
 ### The hooks
@@ -112,7 +112,7 @@ writable_roots = ["/home/sam/.local/state/wherewerewe"]   # the store root, as a
 ## Constraints
 
 - A hook always exits 0, never blocks a tool call, and writes any error to `hook-errors.log`, never to stdout or stderr.
-- For an agent session id with no binding, a hook prints nothing, writes nothing except the binding in `PostToolUse` step 1, and returns in under 150 ms. A test measures the median of 20 runs.
+- For an agent session id with no binding, a hook prints nothing, writes nothing except the binding in `PostToolUse` step 1 and any error line in `hook-errors.log`, and returns in under 150 ms. A test measures the median of 20 runs.
 - A `PostToolUse` hook for a bound session never runs a probe and never touches the network, and returns in under 300 ms.
 - A `SessionStart` hook returns within 6 s: the 5 s check deadline and the render.
 - A hook reads only `session_id`, `hook_event_name`, `source`, `tool_input.command` and `tool_response` from its stdin, and ignores any other field.
@@ -140,4 +140,4 @@ writable_roots = ["/home/sam/.local/state/wherewerewe"]   # the store root, as a
 
 ## Open questions
 
-- **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** A live test in the hooks slice settles both. Until then, a Codex subagent passes `--session`.
+- **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** Run a live test in the hooks slice to settle all three. Until then, a Codex subagent passes `--session`.

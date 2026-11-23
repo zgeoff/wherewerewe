@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-Each session keeps its state in one folder of plain UTF-8 text files that a person can read with `less` and an agent can read with `cut` when the tool is missing. `session`, `items.tsv`, `notes.tsv` and `owner.tsv` are rewritten whole and capped by the limits in [brief.md](brief.md), so they stay the same size on day 14 as on day 2. `prs.tsv` gains one row per pull request the session opens, but a read probes and prints only the rows still open, and the brief shows at most 1. The journal grows, and nothing reads it whole by default. A build agent reads this doc to build the store module, `www import`, the format 2 upgrade and the lock, in the slice [build-order.md](build-order.md) names.
+Each session keeps its state in one folder of plain UTF-8 text files that a person can read with `less` and an agent can read with `cut` when the tool is missing. `session`, `items.tsv`, `notes.tsv` and `owner.tsv` are rewritten whole and capped by the limits in [brief.md](brief.md), so they stay the same size on day 14 as on day 2. `prs.tsv` gains one row per pull request the session opens, but a read probes and prints only the rows still open, and the brief shows at most 1. The journal grows, and no read prints it whole unless `www log` runs with no filter. A build agent reads this doc to build the store module, `www import`, the format 2 upgrade and the lock, in the slice [build-order.md](build-order.md) names.
 
 ## Shape
 
@@ -47,9 +47,9 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
 format=2                         # the store's format version; see "Versions"
 name=tide-alerts                 # 2–24 of [a-z0-9-], starts with a letter; equals the folder name
 goal=Ship tide alerts in bosun-api and bosun-app: a push alert 2 hours before low water at a saved harbour, behind the tide_alerts flag. Done when alerts-e2e passes on staging.   # 1–200 characters
-grant=Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from the prod push certificate and the prod database, and don't publish a tidekit release.   # the owner's words, 1–700 characters, or empty
-grant_reading=covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases   # 1–200 characters, or empty
-grant_where=chat                 # where the owner gave the words; 1–16 characters, or empty
+grant=Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from the prod push certificate and the prod database, and don't publish a tidekit release.   # the owner's words, 1–700 characters; empty with no grant
+grant_reading=covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases   # 1–200 characters; empty with no grant
+grant_where=chat                 # where the owner gave the words; 1–16 characters; empty with no grant
 grant_set=2026-03-03T09:12:40Z   # when the words were last written; a new reading alone keeps it
 started=2026-03-02T08:04:11Z     # every timestamp in the store is ISO 8601 UTC, to the second, with Z
 now=pr-api-77                    # an open item's id, or empty
@@ -60,7 +60,7 @@ last_nudge=2026-03-10T10:40:00Z  # written by the hook; empty until the first nu
 imported_from=0-by-hand          # only in a store that www import converted from a hand-kept store
 ```
 
-The four `grant` keys are all set or all empty. A store with no grant writes them empty.
+The four `grant` keys are all set or all empty: a store with no grant writes them empty, and a store with a grant sets all four.
 
 ### items.tsv
 
@@ -192,7 +192,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 ## Versions
 
 - `format=2` is the format the tool writes. Format 2 adds the four `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike.
-- The tool reads and writes only a store in format 2.
+- Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
 - A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. [commands.md](commands.md) fixes the text.
 - A store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
 - A store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
