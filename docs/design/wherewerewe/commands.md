@@ -335,7 +335,7 @@ Whole text: www show <id> · correct: www --session tide-alerts say "<text>" [--
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; at most 5, then `  and <n> more: www log --op done,drop,use --since <t>` | 7 |
 | footer    | `Whole text: www show <id> · correct: www --session <name> say "<text>" [--on <id>]`         | 1             |
 
-The recap is at most 44 lines: 1 + 13 + (1 heading + 6 × 2 + 1 overflow + 1 no-note line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 1 = 44. Every line is at most 100 characters: the grant wraps at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer with a 24-character name is 100, and each other line that would pass 100 is cut to 99 characters and `…`. So the recap is at most 44 × 100 + 44 newlines = 4,444 characters. A section with no rows is left out, except `GRANT`, which prints `GRANT  none` with no grant, and `writes` counts the journal rows since `<t>` with `by` `agent` or `owner`.
+The recap is at most 44 lines: 1 + 13 + (1 heading + 6 × 2 + 1 overflow + 1 no-note line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 1 = 44. Every line is at most 100 characters: the grant wraps at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer with a 24-character name is 100, and each other line that would pass 100 is cut to 99 characters and `…`. So the recap is at most 44 × 100 + 44 newlines = 4,444 characters. A section with no rows is left out, except `GRANT`, which prints `GRANT  none` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
 
 ## Refusals
 
