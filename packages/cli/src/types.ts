@@ -1,6 +1,6 @@
 export type Kind = 'task' | 'wait' | 'ok' | 'rule' | 'where';
 
-export type Author = 'agent' | 'owner' | 'import';
+type Author = 'agent' | 'owner' | 'import';
 
 // pr:<owner>/<repo>#<n> | branch:<absolute path>@<branch> | path:<absolute path> | pid:<n>
 export type CheckRef = string;
@@ -125,7 +125,7 @@ export interface TypedFlag {
   readonly value: string | null;
 }
 
-export interface ArgValues {
+interface ArgValues {
   readonly session?: string | undefined;
   readonly goal?: string | undefined;
   readonly who?: string | undefined;
@@ -164,7 +164,7 @@ export interface ParsedArgs {
   readonly flags: readonly TypedFlag[];
 }
 
-export type TextLabel = 'claim' | 'next step' | 'goal' | 'evidence' | 'reason' | 'who';
+type TextLabel = 'claim' | 'next step' | 'goal' | 'evidence' | 'reason' | 'who';
 
 // Where a text sits in the typed command.
 export interface TextTarget {

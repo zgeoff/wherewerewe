@@ -2,7 +2,7 @@
 
 - **Status:** agreed
 
-Slice 0 is the repo setup, done before this design, and is not one of the slices this doc builds. After it, the tool is built in seven slices, 0b and 1 to 6, each one pull request that leaves the tool working. The agent that orchestrates the build keeps its own notes in the tool from the end of slice 1, so slice 1 gives a usable tool with no checks and no hooks, and each later slice adds to it. The build order lives in this doc, not only in work items, because the owner signs it off together with the design, in one pull request, before any slice starts; each slice's work item is cut from this doc when the slice starts and links its section here. Each slice names what it delivers, what it needs first, and acceptance lines that each name their evidence. From slice 0b on, each slice in this repo also adds a wringer feature, whose journey drives the real `www` through `bun verify`, and its pull request carries the wringer report. A build agent reads this doc first, takes the next slice whose dependencies are met, reads the part docs that slice names, and builds it.
+Slice 0 is the repo setup, done before this design, and is not one of the slices this doc builds. After it, the tool is built in seven slices, 0b and 1 to 6. Each slice is one pull request, or several when it is too large to build and review in one run, and each pull request leaves the tool working. The agent that orchestrates the build keeps its own notes in the tool from the end of slice 1, so slice 1 gives a usable tool with no checks and no hooks, and each later slice adds to it. The build order lives in this doc, not only in work items, because the owner signs it off together with the design, in one pull request, before any slice starts; each slice's work item is cut from this doc when the slice starts and links its section here. Each slice names what it delivers, what it needs first, and acceptance lines that each name their evidence. From slice 0b on, each slice in this repo also adds a wringer feature, whose journey drives the real `www` through `bun verify`, and its pull request carries the wringer report. A build agent reads this doc first, takes the next slice whose dependencies are met, reads the part docs that slice names, and builds it.
 
 ## Shape
 
@@ -62,6 +62,12 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] A copy installed from a packed tarball runs as `www` and as `wherewerewe` after the worktree is removed. Evidence: a CI step that packs, installs with `bun add -g`, deletes the source folder, and runs `www help`.
 - [ ] The `notes` and `import` journeys reach their end states. Evidence: the wringer report block in the pull request, with a claim for each, and a green `verify / gate`.
 - [ ] The orchestrating agent's hand-kept store converts. Evidence: after the agent fixes the rows import names, `www import build` exits 0, and `www --session build` prints its brief.
+
+**Pull requests.** Slice 1 is built as three pull requests, each one after the one before it merges:
+
+- 1a, [#11](https://github.com/zgeoff/wherewerewe/issues/11): the store in format 1, session finding, the brief, and `www`, `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`, `rule`, `where`, `set`, `done` and `drop`, with the `notes` feature. It proves the worst-case, two-session, concurrency, packed-tarball and `notes` journey lines, and the write and refusal lines for its commands.
+- 1b, [#12](https://github.com/zgeoff/wherewerewe/issues/12): `ok`, `use`, `decide`, `show` and `log`. It proves the write and refusal lines for its commands.
+- 1c, [#13](https://github.com/zgeoff/wherewerewe/issues/13): `www import`, with the `import` feature. It proves the import, `import` journey and hand-kept store lines, and the hand-kept refusal's `Run:` line.
 
 ## Slice 2: owner notes
 
@@ -135,7 +141,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Constraints
 
-- Each slice from 0b on is one pull request into `main` of its repo, with green CI, and leaves every earlier acceptance line true.
+- Each slice from 0b on is one pull request into `main` of its repo, or several that each leave the tool working, with green CI, and leaves every earlier acceptance line true.
 - Each slice is built with the build-feature workflow, with a Codex review as its only review.
 - From slice 0b on, each pull request in this repo publishes the wringer report with `bun verify publish` after its last push, and every feature whose files it changed has a claim at the current fingerprint.
 - The registry is named `wherewerewe-verify`, never `www` or `wherewerewe`: gunshi reads a command group named like the program as the program itself, so the registry's name and its `www` command group must differ.
