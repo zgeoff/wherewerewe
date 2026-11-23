@@ -2,8 +2,10 @@ import type { ParsedArgs, TypedFlag } from '../types.ts';
 
 export interface RunSpec {
   readonly replacePositional: (index: number, value: string) => RunSpec;
+  readonly addPositional: (value: string) => RunSpec;
   readonly replaceFlag: (name: string, value: string) => RunSpec;
   readonly addFlag: (name: string, value: string) => RunSpec;
+  readonly addWord: (word: string) => RunSpec;
   readonly keepFlags: (names: readonly string[]) => RunSpec;
   readonly keepCheckFlags: () => RunSpec;
   readonly keepFirstCheck: () => RunSpec;
@@ -15,7 +17,12 @@ export interface RunSpec {
 // The refused command as typed, without --session, that a refusal edits into its Run line. A flag
 // typed twice counts at its last value, as the parser reads it, so a replaced flag keeps one copy.
 export function buildRunSpec(args: ParsedArgs): RunSpec {
-  return makeSpec({ command: args.command, positionals: args.positionals, flags: args.flags });
+  return makeSpec({
+    command: args.command,
+    positionals: args.positionals,
+    flags: args.flags,
+    words: [],
+  });
 }
 
 const checkFlagNames: ReadonlySet<string> = new Set(['pr', 'branch', 'path', 'pid']);
@@ -24,6 +31,9 @@ interface SpecState {
   readonly command: string;
   readonly positionals: readonly string[];
   readonly flags: readonly TypedFlag[];
+
+  // bare words that end the command, such as a placeholder for a choice of two flags
+  readonly words: readonly string[];
 }
 
 function makeSpec(state: SpecState): RunSpec {
@@ -33,6 +43,7 @@ function makeSpec(state: SpecState): RunSpec {
         ...state,
         positionals: state.positionals.map((word, at) => (at === index ? value : word)),
       }),
+    addPositional: (value) => makeSpec({ ...state, positionals: [...state.positionals, value] }),
     replaceFlag: (name, value) => {
       const last = state.flags.findLastIndex((flag) => flag.name === name);
 
@@ -48,6 +59,7 @@ function makeSpec(state: SpecState): RunSpec {
       });
     },
     addFlag: (name, value) => makeSpec({ ...state, flags: [...state.flags, { name, value }] }),
+    addWord: (word) => makeSpec({ ...state, words: [...state.words, word] }),
     keepFlags: (names) =>
       makeSpec({ ...state, flags: state.flags.filter((flag) => names.includes(flag.name)) }),
     keepCheckFlags: () =>
@@ -79,6 +91,6 @@ function buildArgv(state: SpecState): string[] {
   );
 
   return words.some((word) => word.startsWith('-'))
-    ? [...flagWords, '--', ...words]
-    : [...words, ...flagWords];
+    ? [...flagWords, ...state.words, '--', ...words]
+    : [...words, ...flagWords, ...state.words];
 }

@@ -4,11 +4,22 @@ interface JournalSeed {
   readonly ts: string;
   readonly op: string;
   readonly id: string;
+  readonly extra?: string;
 }
 
 // Appends a journal row to a session folder through the store module.
 export async function seedJournalRow(folder: string, row: JournalSeed): Promise<void> {
   await writeStoreFiles(folder, {
-    journal: [{ ...row, by: 'agent', text: 'a claim', why: 'a reason', extra: null }],
+    journal: [
+      {
+        ts: row.ts,
+        op: row.op,
+        id: row.id,
+        by: 'agent',
+        text: 'a claim',
+        why: 'a reason',
+        extra: row.extra ?? null,
+      },
+    ],
   });
 }

@@ -34,6 +34,9 @@ function setupTest() {
         },
       }),
     readTree: () => readTreeHashes(stateRoot),
+    advance: (durationMs: number) => {
+      clock.nowMs += durationMs;
+    },
   };
 }
 
@@ -61,7 +64,7 @@ test.each([[['help']], [['--help']], [['-h']]])(
 
 test.each([
   [['taks'], 'www: unknown command "taks".\nRun: www help\n'],
-  [['ok', 'ok-a'], 'www: "ok" comes in a later version of www.\nRun: www help\n'],
+  [['import', 'x'], 'www: "import" comes in a later version of www.\nRun: www help\n'],
   [['task', 't-a'], 'www: task takes <id> "<claim>".\nRun: www help\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],
@@ -352,6 +355,90 @@ test.each([
     },
   ],
   [
+    'ok',
+    [['init', 'tide-alerts', '--goal', 'Ship it']],
+    [
+      'ok',
+      'ok-merge',
+      '--quote',
+      'merge the alert PRs yourself',
+      '--who',
+      'owner',
+      '--where',
+      'terminal',
+      '--scope',
+      'bosun-api',
+      '--once',
+    ],
+    {
+      env: {},
+      stdout: 'ok-merge  ok, open, no check. Brief: 8 lines.\n',
+      changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'use',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      [
+        'ok',
+        'ok-merge',
+        '--quote',
+        'merge the alert PRs yourself',
+        '--who',
+        'owner',
+        '--where',
+        'terminal',
+        '--scope',
+        'bosun-api',
+        '--once',
+      ],
+    ],
+    ['use', 'ok-merge', '--for', 'merged the alert PR'],
+    {
+      env: {},
+      stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 6 lines.\n',
+      changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'decide',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    ['decide', 'Retry a 503 3 times', '--why', 'The feed flaps', '--on', 't-a'],
+    {
+      env: {},
+      stdout: 'd-1  decision on t-a. Read it with: www show t-a. Brief: 8 lines.\n',
+      changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'show',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    ['show', 't-a'],
+    {
+      env: {},
+      stdout:
+        't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task\n',
+      changed: [],
+    },
+  ],
+  [
+    'log',
+    [['init', 'tide-alerts', '--goal', 'Ship it']],
+    ['log', '--op', 'init'],
+    {
+      env: {},
+      stdout: 'day 1  11:43  init      tide-alerts agent  Ship it\n',
+      changed: [],
+    },
+  ],
+  [
     'sessions',
     [['init', 'tide-alerts', '--goal', 'Ship it']],
     ['sessions'],
@@ -635,3 +722,161 @@ test('it refuses a new item on an id whose done reached the journal before the w
       'www: refused: t-a closed on day 1. Pick a new id.\nRun: www task <new id> "Write it again"\n',
   });
 });
+
+test('it prints show and log from a session written across three days', async () => {
+  const ctx = setupTest();
+  const dayMs = 86_400_000;
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-api-77', 'Alert job retries a 503', '--pr', 'bosunhq/bosun-api#77']);
+  await ctx.run(['task', 't-old', 'Write the feed client']);
+  await ctx.run(['wait', 'w-apns', 'upload the staging push key', '--who', 'owner']);
+
+  await ctx.run([
+    'ok',
+    'ok-wipe',
+    '--quote',
+    'wipe the staging tmp dir',
+    '--who',
+    'owner',
+    '--where',
+    'terminal',
+    '--scope',
+    'bosun-api',
+    '--once',
+  ]);
+
+  ctx.advance(dayMs);
+
+  await ctx.run([
+    'decide',
+    'Queue the alert in the job, not the request, so a slow feed never blocks a save',
+    '--why',
+    'The request path has a 2 s budget',
+    '--on',
+    'pr-api-77',
+    '--who',
+    'owner',
+  ]);
+
+  await ctx.run(['done', 't-old', '--evidence', 'merged as 51aa0e2']);
+
+  ctx.advance(dayMs);
+
+  await ctx.run([
+    'decide',
+    'Retry a 503 from the tide feed 3 times',
+    '--why',
+    'The feed returns 503 for about 4 s during its hourly refresh',
+    '--on',
+    'pr-api-77',
+    '--replaces',
+    'd-1',
+    '--who',
+    'owner',
+  ]);
+
+  await ctx.run(['decide', 'Poll the feed every minute', '--why', 'Too slow', '--ruled-out']);
+  await ctx.run(['use', 'ok-wipe', '--for', 'wiped it']);
+
+  const shows = [];
+
+  for (const id of ['pr-api-77', 'w-apns', 'ok-wipe', 't-old', 'd-1', 'd-3', 'd-9']) {
+    const shown = await ctx.run(['show', id]);
+
+    shows.push(shown.stdout);
+  }
+
+  const log = await ctx.run(['log', '--op', 'done,decide,ruled-out,use', '--since', 'day-2']);
+
+  expect({ shows, log: log.stdout }).toStrictEqual({
+    shows: [
+      [
+        'pr-api-77  task, open since day 1, by agent · check: pr:bosunhq/bosun-api#77',
+        '  claim (2d): Alert job retries a 503',
+        '  checked now: not checked yet · at write: not checked yet',
+        '  decisions: d-1 Queue the alert in the job, not the requ… (day 2) · d-2 Retry a 503 from the tide feed 3 times (day 3)',
+        '  journal: day 1 task',
+        '',
+      ].join('\n'),
+      [
+        'w-apns  wait, open since day 1, by agent · waits on owner',
+        '  what (2d): upload the staging push key',
+        '  journal: day 1 wait',
+        '',
+      ].join('\n'),
+      [
+        'ok-wipe  closed: used on day 3, by agent',
+        '  claim at close: wipe the staging tmp dir',
+        '  used for: wiped it',
+        '  journal: day 1 ok · day 3 use',
+        '',
+      ].join('\n'),
+      [
+        't-old  closed: done on day 2, by agent',
+        '  claim at close: Write the feed client',
+        '  evidence: merged as 51aa0e2',
+        '  journal: day 1 task · day 2 done',
+        '',
+      ].join('\n'),
+      [
+        'd-1  decision on pr-api-77 · day 2 · by owner',
+        '  choice: Queue the alert in the job, not the request, so a slow feed never blocks a save',
+        '  why: The request path has a 2 s budget',
+        '  replaced by: d-2',
+        '',
+      ].join('\n'),
+      [
+        'd-3  ruled out · day 3 · by agent',
+        '  choice: Poll the feed every minute',
+        '  why: Too slow',
+        '',
+      ].join('\n'),
+      'd-9: no item, decision or journal row has this id. Open items: pr-api-77, w-apns.\n',
+    ],
+    log: [
+      'day 2  11:43  decide    d-1        owner  Queue the alert in the job, not the request, so a slow feed never blocks a save',
+      '                                          why: The request path has a 2 s budget',
+      'day 2  11:43  done      t-old      agent  Write the feed client',
+      '                                          why: merged as 51aa0e2',
+      'day 3  11:43  decide    d-2        owner  Retry a 503 from the tide feed 3 times',
+      '                                          why: The feed returns 503 for about 4 s during its hourly refresh',
+      'day 3  11:43  ruled-out d-3        agent  Poll the feed every minute',
+      '                                          why: Too slow',
+      'day 3  11:43  use       ok-wipe    agent  wipe the staging tmp dir',
+      '                                          why: wiped it',
+      '',
+    ].join('\n'),
+  });
+});
+
+test.each([
+  [
+    ['show', 't-a'],
+    't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task\n',
+  ],
+  [['log', '--id', 't-a'], 'day 1  11:43  task      t-a        agent  Write it\n'],
+])(
+  'it prints %p from the rows that parse when one item row is broken, and says what it left out',
+  async (argv, stdout) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 't-a', 'Write it']);
+
+    seedStoreFile(
+      join(ctx.stateRoot, 'tide-alerts'),
+      'items.tsv',
+      `${readFileSync(join(ctx.stateRoot, 'tide-alerts', 'items.tsv'), 'utf8')}t-b\ttask\n`,
+    );
+
+    const result = await ctx.run(argv);
+
+    expect(result).toStrictEqual({
+      exitCode: 0,
+      stdout,
+      stderr:
+        "www: tide-alerts's items.tsv line 3 does not parse: expected 9 tab-separated columns, found 2. This read leaves out what it could not read. Fix the file by hand.\n",
+    });
+  },
+);

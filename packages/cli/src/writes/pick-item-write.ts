@@ -6,29 +6,27 @@ import { canBlock } from '../rules/can-block.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { parseCheckFlags } from '../rules/parse-check-flags.ts';
 import type { CheckFlagsResult } from '../rules/parse-check-flags.ts';
-import type { Extra, Item, ParsedArgs, RefusalReason } from '../types.ts';
+import type { Extra, Item, Kind, ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
-// task, wait, rule and where write a new item, or replace an open item of the same kind. set
+// task, wait, rule, where and ok write a new item, or replace an open item of the same kind. set
 // replaces the claim of an open item and keeps its kind.
 export function pickItemWrite(input: WriteInput): WriteResult {
   const store = input.store;
   const args = input.args;
   const nowMs = input.nowMs;
   const id = args.positionals[0] ?? '';
-  const claim = args.positionals[1] ?? '';
+  const isApproval = args.command === 'ok';
+  const claim = isApproval ? (args.values.quote ?? '') : (args.positionals[1] ?? '');
   const isSet = args.command === 'set';
   const existing = store.items.find((item) => item.id === id);
   const checks = parseCheckFlags(args.flags, input.cwd);
 
   const reason =
     pickIDRefusal(args, id, isSet) ??
-    pickTextRefusal(
-      args,
-      [{ target: { label: 'claim', place: { positional: 1 } }, text: claim, limit: 120 }],
-      existing !== undefined && existing.kind !== 'where',
-    ) ??
+    pickApprovalRefusal(args) ??
+    pickClaimRefusal(args, claim, existing) ??
     pickCheckRefusal(args, checks, existing) ??
     pickWhoRefusal(args, existing) ??
     pickStoreRefusal(input, id, isSet) ??
@@ -73,7 +71,7 @@ export function pickItemWrite(input: WriteInput): WriteResult {
           by: 'agent',
           text: claim,
           why: null,
-          extra: item.check === null ? null : `check=${item.check}`,
+          extra: buildJournalExtra(item),
         },
       ],
     },
@@ -97,6 +95,77 @@ export function pickItemWrite(input: WriteInput): WriteResult {
 
 function pickIDRefusal(args: ParsedArgs, id: string, isSet: boolean): RefusalReason | null {
   return isSet || isItemID(id) ? null : { kind: 'bad-id', args, id };
+}
+
+type ApprovalFlag = 'quote' | 'who' | 'where' | 'scope';
+
+interface ApprovalText {
+  readonly flag: ApprovalFlag;
+  readonly limit: number;
+}
+
+const approvalFlags: readonly ApprovalText[] = [
+  { flag: 'quote', limit: 120 },
+  { flag: 'who', limit: 16 },
+  { flag: 'where', limit: 16 },
+  { flag: 'scope', limit: 40 },
+];
+
+// An approval needs all four texts and exactly one of --once and --standing. Each text is checked
+// in the order the command takes them, then each of --who, --where and --scope for a separator.
+function pickApprovalRefusal(args: ParsedArgs): RefusalReason | null {
+  if (args.command !== 'ok') {
+    return null;
+  }
+
+  const missing = approvalFlags.filter((text) => args.values[text.flag] === undefined);
+  const needsUse = (args.values.once === true) === (args.values.standing === true);
+
+  if (missing.length > 0 || needsUse) {
+    return { kind: 'ok-needs-parts', args, missing: missing.map((text) => text.flag), needsUse };
+  }
+
+  const textReason = pickTextRefusal(
+    args,
+    approvalFlags.map((text) => ({
+      target: { label: text.flag, place: { flag: text.flag } },
+      text: args.values[text.flag] ?? '',
+      limit: text.limit,
+    })),
+    false,
+  );
+
+  if (textReason !== null) {
+    return textReason;
+  }
+
+  return pickSeparatorRefusal(args);
+}
+
+function pickSeparatorRefusal(args: ParsedArgs): RefusalReason | null {
+  for (const flag of ['who', 'where', 'scope'] as const) {
+    const value = args.values[flag] ?? '';
+
+    if (/[;=]/u.test(value)) {
+      return { kind: 'extra-has-separator', args, flag, value };
+    }
+  }
+
+  return null;
+}
+
+function pickClaimRefusal(
+  args: ParsedArgs,
+  claim: string,
+  existing: Item | undefined,
+): RefusalReason | null {
+  return args.command === 'ok'
+    ? null
+    : pickTextRefusal(
+        args,
+        [{ target: { label: 'claim', place: { positional: 1 } }, text: claim, limit: 120 }],
+        existing !== undefined && existing.kind !== 'where',
+      );
 }
 
 function pickCheckRefusal(
@@ -156,7 +225,7 @@ function pickWhoRefusal(args: ParsedArgs, existing: Item | undefined): RefusalRe
     return reason;
   }
 
-  return /[;=]/u.test(who) ? { kind: 'who-has-separator', args, who } : null;
+  return /[;=]/u.test(who) ? { kind: 'extra-has-separator', args, flag: 'who', value: who } : null;
 }
 
 function pickStoreRefusal(input: WriteInput, id: string, isSet: boolean): RefusalReason | null {
@@ -189,7 +258,7 @@ function pickStoreRefusal(input: WriteInput, id: string, isSet: boolean): Refusa
 }
 
 function getKind(command: string): Item['kind'] {
-  if (command === 'wait' || command === 'rule' || command === 'where') {
+  if (command === 'wait' || command === 'rule' || command === 'where' || command === 'ok') {
     return command;
   }
 
@@ -220,17 +289,12 @@ function pickCapRefusal(input: WriteInput, id: string, isSet: boolean): RefusalR
     return null;
   }
 
-  return match(kind)
-    .with('task', 'wait', 'rule', 'where', (capped) => pickFullKind(input.store.items, capped))
-    .with('ok', () => null)
-    .exhaustive();
+  return pickFullKind(input.store.items, kind);
 }
 
-type CappedKind = 'task' | 'wait' | 'rule' | 'where';
+const caps: Readonly<Record<Kind, number>> = { task: 6, wait: 4, rule: 5, where: 4, ok: 3 };
 
-const caps: Readonly<Record<CappedKind, number>> = { task: 6, wait: 4, rule: 5, where: 4 };
-
-function pickFullKind(items: readonly Item[], kind: CappedKind): RefusalReason | null {
+function pickFullKind(items: readonly Item[], kind: Kind): RefusalReason | null {
   const ofKind = items.filter((item) => item.kind === kind);
   const [oldest] = ofKind;
 
@@ -262,5 +326,22 @@ function buildExtra(args: ParsedArgs): Extra {
     return { blocked_by: args.values['blocked-by'] };
   }
 
+  if (args.command === 'ok') {
+    return {
+      who: args.values.who ?? '',
+      where: args.values.where ?? '',
+      scope: args.values.scope ?? '',
+      use: args.values.once === true ? 'once' : 'standing',
+    };
+  }
+
   return {};
+}
+
+function buildJournalExtra(item: Item): string | null {
+  if (item.kind === 'ok' && item.extra.use !== undefined) {
+    return `use=${item.extra.use}`;
+  }
+
+  return item.check === null ? null : `check=${item.check}`;
 }
