@@ -1,10 +1,10 @@
 {
   "$schema": "./node_modules/knip/schema.json",
-  // the shared oxlint config loads the plugin, and the chex baseline in lefthook.yml runs diet,
-  // so knip sees neither
   // repo-sync delivers .claude/ verbatim
   "ignore": [".claude/**"],
-  "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/diet"],
+  // the shared oxlint config loads the plugin, the chex baseline in lefthook.yml runs diet, and the
+  // synced start hook in .claude/ loads agent-hooks at run time, so knip sees none of them
+  "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/diet", "@zgeoff/agent-hooks"],
   "workspaces": {
     ".": { "entry": ["rig.config.ts", "scripts/**/*.test.ts"] },
     "packages/*": { "entry": ["src/**/*.test.ts"] }

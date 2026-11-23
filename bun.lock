@@ -9,6 +9,7 @@
         "@stylistic/eslint-plugin": "catalog:",
         "@tsconfig/strictest": "catalog:",
         "@types/bun": "catalog:",
+        "@zgeoff/agent-hooks": "catalog:",
         "@zgeoff/bun-test-extended": "catalog:",
         "@zgeoff/chex": "catalog:",
         "@zgeoff/commitlint-config": "catalog:",
@@ -40,6 +41,7 @@
     "@stylistic/eslint-plugin": "5.10.0",
     "@tsconfig/strictest": "2.0.9",
     "@types/bun": "1.4.4",
+    "@zgeoff/agent-hooks": "0.3.2",
     "@zgeoff/bun-test-extended": "0.2.4",
     "@zgeoff/chex": "0.4.7",
     "@zgeoff/commitlint-config": "0.1.2",
@@ -386,6 +388,8 @@
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
     "@wherewerewe/cli": ["@wherewerewe/cli@workspace:packages/cli"],
+
+    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.3.2", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-9F7us6ipxUDEozm0RPGBWlbPVQpr8icqVX5zoZYuyrN1dxSy+NTge7zdUkDFHYVQ4RzHxoz+3kHj/YPZZJiewQ=="],
 
     "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.4", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-pjHhfUFSQVOG97CPobmUJ3v1xbigRe5DOD+7VDoe5IIYvAOMkctmkHznj4EKKnZSpQp0b3/jqvYuzIFrpeaZMw=="],
 
