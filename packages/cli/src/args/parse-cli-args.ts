@@ -40,7 +40,7 @@ export function parseCLIArgs(argv: readonly string[]): ParseResult {
         throw error;
       });
 
-    return { kind: 'refused', reason, sessionFlag: null };
+    return { kind: 'refused', reason, sessionFlag: pickSessionFlag(argv) };
   }
 }
 
@@ -181,4 +181,16 @@ function checkArgs(argv: readonly string[]): ParseResult {
 
 function isStringOption(name: string): boolean {
   return Object.entries(options).some(([key, option]) => key === name && option.type === 'string');
+}
+
+// Reads --session alone from the argv, leniently, so a refusal for another flag keeps the scope.
+function pickSessionFlag(argv: readonly string[]): string | null {
+  const lenient = parseArgs({
+    args: [...argv],
+    options: { session: { type: 'string' } },
+    strict: false,
+    allowPositionals: true,
+  });
+
+  return typeof lenient.values.session === 'string' ? lenient.values.session : null;
 }

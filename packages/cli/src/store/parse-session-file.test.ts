@@ -37,6 +37,11 @@ test.each([
   ['a hand-kept format', 'format=0-by-hand\nname=a\n', { kind: 'hand-kept' }],
   ['a newer format', 'format=2\nname=a\n', { kind: 'newer', format: '2' }],
   [
+    'a newer format with a line that is not key=value',
+    'format=2\nfuture field syntax\n',
+    { kind: 'newer', format: '2' },
+  ],
+  [
     'an unknown key',
     'format=1\nname=a\ngoal=b\nstarted=c\ncolour=red\n',
     { kind: 'broken', reason: 'the key colour is not in format 1' },

@@ -10,6 +10,8 @@ import type { CommandContext } from './commands/types.ts';
 import { buildReadRefusal } from './refusals/build-read-refusal.ts';
 import { buildRefusal } from './refusals/build-refusal.ts';
 import { formatRefusal } from './refusals/format-refusal.ts';
+import type { RefusalScope } from './refusals/format-refusal.ts';
+import { readRefusalScope } from './refusals/read-refusal-scope.ts';
 import { isSessionName } from './rules/is-session-name.ts';
 import { readSessionSummaries } from './sessions/read-session-summaries.ts';
 import { resolveSession } from './sessions/resolve-session.ts';
@@ -27,17 +29,22 @@ import { runWrite } from './writes/run-write.ts';
 export function runCLI(input: CLIInput): Promise<CLIResult> {
   return match(parseCLIArgs(input.argv))
     .with({ kind: 'refused' }, (refused) =>
-      Promise.resolve(toRefusalResult(buildRefusal(refused.reason), refused.sessionFlag)),
+      Promise.resolve(
+        toRefusalResult(buildRefusal(refused.reason), {
+          sessionFlag: refused.sessionFlag,
+          typedWords: input.argv,
+        }),
+      ),
     )
     .with({ kind: 'args' }, (parsed) => runParsedArgs(input, parsed.args))
     .exhaustive();
 }
 
-function toRefusalResult(refusal: Refusal, sessionFlag: string | null): CLIResult {
+function toRefusalResult(refusal: Refusal, scope: RefusalScope): CLIResult {
   return {
     exitCode: refusal.exitCode,
     stdout: '',
-    stderr: formatRefusal(refusal, { sessionFlag }),
+    stderr: formatRefusal(refusal, scope),
   };
 }
 
@@ -55,7 +62,7 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
     // Listing sessions needs no session and is never refused: with no folder, there are none.
     return args.command === 'sessions'
       ? { exitCode: 0, stdout: `${formatSessionLines([], nowMs)}\n`, stderr: '' }
-      : toRefusalResult(buildRefusal({ kind: 'no-store-folder' }), args.sessionFlag);
+      : toRefusalResult(buildRefusal({ kind: 'no-store-folder' }), readRefusalScope(args));
   }
 
   const context = { args, env: input.env, cwd: input.cwd, nowMs, root };
@@ -88,12 +95,18 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
     .with({ kind: 'store' }, (found) => runStoreCommand(context, found.store))
     .with({ kind: 'missing' }, () => refuseNoSession(context, name))
     .with({ kind: 'hand-kept' }, { kind: 'newer' }, (unreadable) =>
-      toRefusalResult(buildReadRefusal(unreadable, { name, folder }), context.args.sessionFlag),
+      toRefusalResult(
+        buildReadRefusal(unreadable, { name, folder }),
+        readRefusalScope(context.args),
+      ),
     )
     .with({ kind: 'broken' }, (broken) =>
       broken.partial !== null && context.args.command === 'brief'
         ? runBriefCommand(broken.partial, context.nowMs, broken)
-        : toRefusalResult(buildReadRefusal(broken, { name, folder }), context.args.sessionFlag),
+        : toRefusalResult(
+            buildReadRefusal(broken, { name, folder }),
+            readRefusalScope(context.args),
+          ),
     )
     .exhaustive();
 }
@@ -126,7 +139,9 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
       stdout: `${replied.reply}\n`,
       stderr: '',
     }))
-    .with({ kind: 'refused' }, (refused) => toRefusalResult(refused.refusal, args.sessionFlag))
+    .with({ kind: 'refused' }, (refused) =>
+      toRefusalResult(refused.refusal, readRefusalScope(args)),
+    )
     .exhaustive();
 }
 
@@ -142,5 +157,5 @@ async function refuseNoSession(context: CommandContext, named: string | null): P
     })),
   });
 
-  return toRefusalResult(refusal, context.args.sessionFlag);
+  return toRefusalResult(refusal, readRefusalScope(context.args));
 }

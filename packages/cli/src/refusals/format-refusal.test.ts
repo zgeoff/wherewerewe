@@ -8,7 +8,7 @@ test('it prints the lines, then each run as a Run line', () => {
       lines: ['www: refused: drop needs a reason.'],
       runs: [{ www: ['drop', 'p-sim', '--why', '<reason>'] }],
     },
-    { sessionFlag: null },
+    { sessionFlag: null, typedWords: [] },
   );
 
   expect(text).toBe('www: refused: drop needs a reason.\nRun: www drop p-sim --why "<reason>"\n');
@@ -25,7 +25,7 @@ test.each([
 ])('it keeps --session on a Run line for %s', (_title, argv, expected) => {
   const text = formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', typedWords: [] },
   );
 
   expect(text).toBe(`www: x\n${expected}\n`);
@@ -41,7 +41,7 @@ test.each([
 ])('it keeps --session on the run %p', (argv, expected) => {
   const text = formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', typedWords: [] },
   );
 
   expect(text).toBe(`www: x\n${expected}\n`);
@@ -50,7 +50,7 @@ test.each([
 test('it adds no --session to a run that already names one', () => {
   const text = formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: ['--session', 'other', 'task', 't-a'] }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', typedWords: [] },
   );
 
   expect(text).toBe('www: x\nRun: www --session other task t-a\n');
@@ -59,7 +59,7 @@ test('it adds no --session to a run that already names one', () => {
 test('it prints a shell run as it is', () => {
   const text = formatRefusal(
     { exitCode: 5, lines: ['www: x'], runs: [{ shell: 'bun add -g @wherewerewe/cli@latest' }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', typedWords: [] },
   );
 
   expect(text).toBe('www: x\nRun: bun add -g @wherewerewe/cli@latest\n');

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from './run-cli.ts';
+import { withBindingLock } from './sessions/with-binding-lock.ts';
 import { parseJournalFile } from './store/parse-journal-file.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
@@ -60,6 +61,10 @@ test.each([
   [['taks'], 'www: unknown command "taks".\nRun: www help\n'],
   [['ok', 'ok-a'], 'www: "ok" comes in a later version of www.\nRun: www help\n'],
   [['task', 't-a'], 'www: task takes <id> "<claim>".\nRun: www help\n'],
+  [
+    ['--session', 'sample', 'task', 'x', '--bogus'],
+    'www: unknown flag "--bogus".\nRun: www --session sample help\n',
+  ],
 ])('it refuses %p with exit 2', async (argv, stderr) => {
   const ctx = setupTest();
 
@@ -168,6 +173,39 @@ test('it never journals a detach on a session the binding no longer names', asyn
     beta: ['init:Beta goal', 'bind:init', 'bind:attach', 'bind:detach'],
     bindingKept: false,
   });
+});
+
+test('it leaves a binding that agrees with the journal when an attach and a detach start together', async () => {
+  const ctx = setupTest();
+  const released = Promise.withResolvers<undefined>();
+  const bindingPath = join(ctx.stateRoot, '.bindings', 'claude-a1b2-test');
+
+  await ctx.run(['init', 'alpha-notes', '--goal', 'Alpha goal']);
+
+  await ctx.run(['init', 'beta-notes', '--goal', 'Beta goal'], {
+    ...ctx.agentEnv,
+    CLAUDE_CODE_SESSION_ID: '9c21-beta',
+  });
+
+  const holder = withBindingLock(ctx.stateRoot, () => released.promise);
+
+  await waitFor(() => readFileSync(join(ctx.stateRoot, '.bindings', 'lock')));
+
+  const both = Promise.all([ctx.run(['detach']), ctx.run(['attach', 'beta-notes'])]);
+
+  released.resolve(undefined);
+
+  await holder;
+  await both;
+
+  const bindRows = parseJournalFile(
+    readFileSync(join(ctx.stateRoot, 'beta-notes', 'journal.tsv'), 'utf8'),
+  ).filter((row) => row.op === 'bind' && row.extra?.includes('a1b2-test') === true);
+
+  const isBound = existsSync(bindingPath);
+  const expectedBind = isBound ? 'attach' : 'detach';
+
+  expect(bindRows.at(-1)?.text).toBe(expectedBind);
 });
 
 test.each([

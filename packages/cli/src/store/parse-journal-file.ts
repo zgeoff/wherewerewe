@@ -34,6 +34,11 @@ function isAuthor(value: string | undefined): value is JournalRow['by'] {
   return value !== undefined && authors.has(value);
 }
 
+// A dash is an empty cell, and a cell that starts with a backslash had one put there on write.
 function toNullable(cell: string): string | null {
-  return cell === '-' ? null : cell;
+  if (cell === '-') {
+    return null;
+  }
+
+  return cell.startsWith('\\') ? cell.slice(1) : cell;
 }

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { existsSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -118,25 +118,6 @@ test('it makes a second writer wait until the first releases the lock', async ()
   await Promise.all([first, second]);
 
   expect(order).toStrictEqual(['first released', 'second ran']);
-});
-
-test('it takes over a stale lock when a crashed writer left its guard behind', async () => {
-  const ctx = setupTest();
-
-  await seedStaleLock(ctx.folder);
-
-  seedStoreFile(ctx.folder, 'lock.guard', 'pid=1\n');
-
-  const longAgoSeconds = (Date.now() - 60_000) / 1000;
-
-  utimesSync(join(ctx.folder, 'lock.guard'), longAgoSeconds, longAgoSeconds);
-
-  const result = await withStoreLock(ctx.folder, () => Promise.resolve('ran'), { waitMs: 500 });
-
-  expect({ result, guardLeft: existsSync(join(ctx.folder, 'lock.guard')) }).toStrictEqual({
-    result: { kind: 'ran', value: 'ran' },
-    guardLeft: false,
-  });
 });
 
 test('it runs one writer at a time when many start together over a stale lock', async () => {

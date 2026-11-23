@@ -23,7 +23,7 @@ test.each([
   [['task', 't-a', 'phase>draft'], 'www task t-a "phase>draft"'],
   [['task', 't-a', '#note'], 'www task t-a "#note"'],
 ])('it writes %p as %s', (argv, expected) => {
-  expect(formatCommandLine(argv)).toBe(expected);
+  expect(formatCommandLine(argv, [])).toBe(expected);
 });
 
 test.each([
@@ -40,7 +40,19 @@ test.each([
   [['task', 't-a', 'two\nlines']],
   [['where', 'wt-a', 'x', '--path', '/tmp/two words/(a)/repo']],
 ])('it prints %p as words that a real shell reads back as typed', async (argv) => {
-  const words = await readShellWords(formatCommandLine(argv).slice('www '.length));
+  const words = await readShellWords(formatCommandLine(argv, []).slice('www '.length));
 
   expect(words).toStrictEqual(argv);
+});
+
+test('it quotes a typed word that reads like a placeholder', async () => {
+  const argv = ['task', 't-a', '<name>', '--pr', 'acme/tool#1'];
+  const line = formatCommandLine(argv, ['<name>']);
+
+  const words = await readShellWords(line.slice('www '.length));
+
+  expect({ line, words }).toStrictEqual({
+    line: 'www task t-a "<name>" --pr acme/tool#1',
+    words: argv,
+  });
 });

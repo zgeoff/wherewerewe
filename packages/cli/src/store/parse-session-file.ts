@@ -22,24 +22,31 @@ const knownKeys: ReadonlySet<string> = new Set([
 export function parseSessionFile(text: string): SessionParse {
   const pairs = new Map<string, string>();
 
+  let badLine: string | null = null;
+
   for (const line of text.split('\n')) {
     const split = line.indexOf('=');
 
     if (line !== '' && split > 0) {
       pairs.set(line.slice(0, split), line.slice(split + 1));
-    } else if (line !== '') {
-      return { kind: 'broken', reason: `the line "${line}" is not key=value` };
+    } else if (line !== '' && badLine === null) {
+      badLine = line;
     }
   }
 
+  // The format line decides first: a newer format may write lines this one cannot read.
   const format = pairs.get('format');
 
-  if (format === undefined || format === '0-by-hand') {
+  if (format === '0-by-hand' || (format === undefined && badLine === null)) {
     return { kind: 'hand-kept' };
   }
 
-  if (format !== '1') {
+  if (format !== undefined && format !== '1') {
     return { kind: 'newer', format };
+  }
+
+  if (badLine !== null) {
+    return { kind: 'broken', reason: `the line "${badLine}" is not key=value` };
   }
 
   const unknownKey = [...pairs.keys()].find((key) => !knownKeys.has(key));

@@ -1,5 +1,7 @@
-import { closeSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs';
+import { closeSync, openSync, readFileSync, statSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
+import { isErrorCode } from './is-error-code.ts';
+import { removeLockIf } from './remove-lock-if.ts';
 
 export type LockResult<Value> =
   | { readonly kind: 'ran'; readonly value: Value }
@@ -25,7 +27,7 @@ export async function withStoreLock<Value>(
 
     const holder = readHolder(lockPath);
 
-    if (holder !== null && holder.isStale && takeOver(lockPath, holder.content)) {
+    if (holder !== null && holder.isStale && removeLockIf(lockPath, holder.content)) {
       continue;
     }
 
@@ -39,7 +41,7 @@ export async function withStoreLock<Value>(
   try {
     return { kind: 'ran', value: await fn() };
   } finally {
-    await removeOwn(lockPath, mine);
+    removeLockIf(lockPath, mine);
   }
 }
 
@@ -61,10 +63,6 @@ function tryCreate(lockPath: string, content: string): boolean {
 
     throw error;
   }
-}
-
-function isErrorCode(error: unknown, code: string): boolean {
-  return error instanceof Error && 'code' in error && error.code === code;
 }
 
 const staleMs = 30_000;
@@ -108,88 +106,5 @@ function isAlive(pid: number): boolean {
     return true;
   } catch (error) {
     return !isErrorCode(error, 'ESRCH');
-  }
-}
-
-// Removes the lock that was judged stale, when it is still that one. Returns whether the lock is
-// gone or was replaced, so the caller tries to create it again; false means the guard is taken.
-function takeOver(lockPath: string, judgedContent: string): boolean {
-  return runGuarded(lockPath, () => {
-    if (readIfThere(lockPath) === judgedContent) {
-      unlinkIfThere(lockPath);
-    }
-  });
-}
-
-// Only the guard's holder removes the lock, a takeover or the holder at its end, and it re-reads
-// the lock first, so nobody removes a lock that replaced the one it meant to. The guarded code
-// awaits nothing, so a guard older than the stale age is a crash. Returns whether it ran.
-function runGuarded(lockPath: string, fn: () => void): boolean {
-  const guardPath = `${lockPath}.guard`;
-
-  if (!tryCreate(guardPath, `pid=${String(process.pid)}\n`)) {
-    removeCrashedGuard(guardPath);
-
-    return false;
-  }
-
-  try {
-    fn();
-
-    return true;
-  } finally {
-    unlinkIfThere(guardPath);
-  }
-}
-
-function removeCrashedGuard(guardPath: string): void {
-  try {
-    if (Date.now() - statSync(guardPath).mtimeMs > staleMs) {
-      unlinkIfThere(guardPath);
-    }
-  } catch (error) {
-    if (!isErrorCode(error, 'ENOENT')) {
-      throw error;
-    }
-  }
-}
-
-function unlinkIfThere(path: string): void {
-  try {
-    unlinkSync(path);
-  } catch (error) {
-    if (!isErrorCode(error, 'ENOENT')) {
-      throw error;
-    }
-  }
-}
-
-function readIfThere(path: string): string | null {
-  try {
-    return readFileSync(path, 'utf8');
-  } catch (error) {
-    if (isErrorCode(error, 'ENOENT')) {
-      return null;
-    }
-
-    throw error;
-  }
-}
-
-const guardPollMs = 5;
-
-async function removeOwn(lockPath: string, mine: string): Promise<void> {
-  for (;;) {
-    const isRemoved = runGuarded(lockPath, () => {
-      if (readIfThere(lockPath) === mine) {
-        unlinkIfThere(lockPath);
-      }
-    });
-
-    if (isRemoved) {
-      return;
-    }
-
-    await Bun.sleep(guardPollMs);
   }
 }
