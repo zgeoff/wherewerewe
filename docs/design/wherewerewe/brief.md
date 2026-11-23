@@ -96,7 +96,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 | note               | 1 per open item | a rewrite replaces it, and only the note of the item in focus prints |
 | grant              | 1   | the owner's words whole, in one place                                           |
 
-The worst case fills every cap, every text to its limit, every item with its widest tag and an owed note, a grant with 700 characters of words and a 200-character reading, a 400-character note on the item in focus, 3 changed rows with an overflow line, 1 pull request row with an overflow line, a two-digit count in each of those two headings, and a two-line header. The widths come from the renderer's line templates above, with every field at its limit.
+The worst case fills every cap with every text at its limit: every item has its widest tag and an owed note, the grant has 700 characters of words and a 200-character reading, the item in focus has a 400-character note, 3 changed rows and 1 pull request row each have an overflow line, those two headings each carry a two-digit count, and the header runs to two lines. The widths come from the renderer's line templates above.
 
 A wrapped line holds at least 85 characters, so a line that carries a prefix of `p` characters carries at least `85 − p` characters of text. That gives each wrapped block its line count:
 

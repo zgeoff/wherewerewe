@@ -140,7 +140,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - A write without `--note` keeps the item's note. `--no-note` clears it.
 - `www grant` with `--quote` replaces the words, where they were given and the reading at once. `www grant --reading` alone replaces only the reading.
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
-- `ok` accepts `--once` and ignores it, since every approval is one-time, so a call written with `--once` still runs. `--standing` gets the refusal below.
+- `ok` accepts `--once` and ignores it, because every approval is one-time. `--standing` gets the refusal below.
 - `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; see [store.md](store.md) for when each is needed.
 
 ### Text limits
