@@ -29,7 +29,8 @@ that stops half way leaves a close recorded and its item still open, never an it
 record. A writer wins the claim file named after the lock and reads the lock again before it removes
 that lock, its own or a stale one, so one writer is inside at a time as long as each write finishes
 within the stale age the store design sets; a write that runs longer can lose the lock to the next
-writer.
+writer. The age comes from the wall clock, so a clock that jumps forward by more than the stale age
+while a write runs also lets the next writer in beside it.
 
 ## Finding the session
 
