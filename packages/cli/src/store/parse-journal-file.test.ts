@@ -22,3 +22,19 @@ test('it drops a last line that has no newline', () => {
 
   expect(parseJournalFile(text)).toHaveLength(1);
 });
+
+test('it reads a cell that starts with a backslash as it is', () => {
+  const text = `ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T10:48:15Z\tdone\tt-a\tagent\t${String.raw`\path`}\t-x\t-\n`;
+
+  expect(parseJournalFile(text)).toStrictEqual([
+    {
+      ts: '2026-03-10T10:48:15Z',
+      op: 'done',
+      id: 't-a',
+      by: 'agent',
+      text: String.raw`\path`,
+      why: '-x',
+      extra: null,
+    },
+  ]);
+});

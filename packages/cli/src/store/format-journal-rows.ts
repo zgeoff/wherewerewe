@@ -1,7 +1,5 @@
 import type { JournalRow } from '../types.ts';
 
-// An empty cell is a dash, so a text that is a dash, or that starts with a backslash, gets a
-// backslash in front of it, and the parser takes that one backslash off.
 export function formatJournalRows(rows: readonly JournalRow[]): string {
   return rows
     .map(
@@ -11,10 +9,7 @@ export function formatJournalRows(rows: readonly JournalRow[]): string {
     .join('');
 }
 
+// Each write refuses a text of a lone dash, so a dash is always an empty cell.
 function toCell(cell: string | null): string {
-  if (cell === null) {
-    return '-';
-  }
-
-  return cell === '-' || cell.startsWith('\\') ? `\\${cell}` : cell;
+  return cell ?? '-';
 }

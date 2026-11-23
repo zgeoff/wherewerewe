@@ -47,23 +47,18 @@ test('it round-trips through the parser', () => {
   expect(actual).toStrictEqual(rows);
 });
 
-test.each([['-'], [String.raw`\-`], [String.raw`\path`], ['-x']])(
-  'it round-trips the text %s',
-  (value) => {
-    const rows = [
-      {
-        ts: '2026-03-10T10:48:15Z',
-        op: 'done',
-        id: 't-a',
-        by: 'agent',
-        text: value,
-        why: value,
-        extra: null,
-      },
-    ] as const;
+test('it writes a text that starts with a backslash or a dash as it is', () => {
+  const text = formatJournalRows([
+    {
+      ts: '2026-03-10T10:48:15Z',
+      op: 'done',
+      id: 't-a',
+      by: 'agent',
+      text: String.raw`\path\to`,
+      why: '-x',
+      extra: null,
+    },
+  ]);
 
-    const actual: unknown = parseJournalFile(formatJournalRows(rows));
-
-    expect(actual).toStrictEqual(rows);
-  },
-);
+  expect(text).toBe(`2026-03-10T10:48:15Z\tdone\tt-a\tagent\t${String.raw`\path\to`}\t-x\t-\n`);
+});
