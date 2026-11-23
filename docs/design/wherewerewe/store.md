@@ -31,12 +31,12 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
   hook-errors.log                 the last 200 hook errors, newest last
   <session>/                      one folder per session, named by www init
     session                       key=value lines, with the grant      rewritten on each write
-    items.tsv                     one row per open item                rewritten on each write; capped
+    items.tsv                     one row per open item                rewritten on each write and each read that saves results; capped
     notes.tsv                     one row per open item with a note    rewritten by each note write and close
-    owner.tsv                     the owner's notes still showing      rewritten by say and ack only
+    owner.tsv                     the owner's notes still showing      created by init and import; rewritten by say and ack only
     prs.tsv                       pull requests this session opened    appended by the hook; state set by reads
     journal.tsv                   every write, decision and change     append-only; import rewrites a hand-kept one once
-    lock                          exists while a write runs: pid=<n> ts=<iso>
+    lock                          exists while a write, or a read that saves results, runs: pid=<n> ts=<iso>
     import-backup/                the hand-kept files, only after www import of a hand-kept store
     format-1-backup/              the format 1 files, only after the format 2 upgrade
 ```
