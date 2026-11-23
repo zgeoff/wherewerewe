@@ -343,6 +343,9 @@ test('it binds the agent with the Run line of a rerun, after an import stopped b
 
   rmSync(join(ctx.stateRoot, '.bindings', 'claude-a1b2-test'), { recursive: true });
 
+  await seedStaleLock(ctx.folder);
+  await seedStaleLock(join(ctx.stateRoot, '.bindings'));
+
   const retried = await ctx.run(['import', 'old-notes'], env, nowMs);
   const attached = await ctx.run(['attach', 'old-notes'], env, nowMs);
   const brief = await ctx.run([], env, nowMs);
