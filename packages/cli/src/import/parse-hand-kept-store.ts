@@ -5,7 +5,7 @@ export interface HandKeptFiles {
   readonly journal: string | null;
 }
 
-export interface HandKeptLine {
+interface HandKeptLine {
   // 1 is the first line of the file
   readonly line: number;
   readonly text: string;
@@ -16,7 +16,7 @@ export interface HandKeptRow {
   readonly cells: readonly string[];
 }
 
-export interface HandKeptTable {
+interface HandKeptTable {
   // the first line, or null when the file is missing or empty
   readonly header: string | null;
   readonly rows: readonly HandKeptRow[];

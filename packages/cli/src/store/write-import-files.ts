@@ -5,7 +5,7 @@ import { ownerHeader, prsHeader } from './constants.ts';
 import { createImportFiles } from './create-import-files.ts';
 import type { ImportFiles } from './types.ts';
 
-export interface ConvertedFiles {
+interface ConvertedFiles {
   readonly session: string;
   readonly items: string;
   readonly journal: string;
