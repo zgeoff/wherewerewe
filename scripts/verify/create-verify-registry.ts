@@ -140,7 +140,7 @@ export function createVerifyRegistry(): Wringer {
       'scripts/verify-gate/**',
       'scripts/run-knip.sh',
       '.editorconfig',
-      '.gitignore',
+      '.git{ignore,leaksignore}',
       '.oxlintrc.json',
       '.release-please-manifest.json',
       'commitlint.config.js',
