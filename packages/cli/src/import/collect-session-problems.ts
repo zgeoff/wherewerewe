@@ -21,6 +21,9 @@ const replacedSessionKeys: ReadonlySet<string> = new Set([
   'imported_from',
 ]);
 
+const carriageReturnLineProblem =
+  'the line holds a carriage return. Save the file with LF line endings.';
+
 const oneLineProblem = 'the text must be one line, with no tab or newline.';
 
 export function collectSessionProblems(
@@ -30,8 +33,9 @@ export function collectSessionProblems(
   openIDs: ReadonlyMap<string, number>,
 ): string[] {
   const pairs = new Map<string, string>();
+  const keyedLines = new Map<string, number>();
 
-  const lineProblems: string[] = [];
+  const lineProblems: { readonly line: number; readonly problems: string[] }[] = [];
 
   for (const entry of hand.session) {
     const clean = stripCarriageReturn(entry.text);
@@ -39,82 +43,112 @@ export function collectSessionProblems(
 
     if (split >= 1) {
       pairs.set(clean.slice(0, split), clean.slice(split + 1));
+      keyedLines.set(clean.slice(0, split), entry.line);
     }
 
     const problems = [
       ...(split < 1 ? ['the line is not key=value.'] : []),
-      ...(entry.text.includes('\r')
-        ? ['the line holds a carriage return. Save the file with LF line endings.']
-        : []),
+      ...(entry.text.includes('\r') ? [carriageReturnLineProblem] : []),
     ];
 
     if (problems.length > 0) {
-      lineProblems.push(`session line ${String(entry.line)}: ${problems.join('; ')}`);
+      lineProblems.push({ line: entry.line, problems });
     }
   }
 
-  const missing = ['name', 'goal', 'started']
-    .filter((key) => (pairs.get(key) ?? '') === '')
-    .map((key) => `session (${key}): the key is missing.`);
+  const keyed = new Map<string, string[]>();
+
+  const addKeyProblem = (key: string, problem: string): void => {
+    keyed.set(key, [...(keyed.get(key) ?? []), problem]);
+  };
+
+  for (const key of ['name', 'goal', 'started']) {
+    if ((pairs.get(key) ?? '') === '') {
+      addKeyProblem(key, 'the key is missing.');
+    }
+  }
 
   const name = pairs.get('name') ?? '';
 
-  const wrongName =
-    name !== '' && name !== folderName
-      ? [`session (name): the name ${redactCredential(name)} is not the folder name ${folderName}.`]
-      : [];
-
-  const unknown = [...pairs.keys()]
-    .filter((key) => !handKeptSessionKeys.has(key) && !replacedSessionKeys.has(key))
-    .map(
-      (key) =>
-        `session (${redactCredential(key)}): format 1 has no key ${redactCredential(key)}. Remove the line.`,
+  if (name !== '' && name !== folderName) {
+    addKeyProblem(
+      'name',
+      `the name ${redactCredential(name)} is not the folder name ${folderName}.`,
     );
+  }
 
-  const goal = pairs.get('goal') ?? '';
-  const nowNext = pairs.get('now_next') ?? '';
-  const goalProblem = findTextProblem(goal, 200);
-  const nowNextProblem = findTextProblem(nowNext, 120);
+  for (const key of pairs.keys()) {
+    if (!handKeptSessionKeys.has(key) && !replacedSessionKeys.has(key)) {
+      addKeyProblem(key, `format 1 has no key ${redactCredential(key)}. Remove the line.`);
+    }
+  }
 
-  const textProblems = [
-    ...(goalProblem?.kind === 'not-one-line' ? [`session (goal): ${oneLineProblem}`] : []),
-    ...(goalProblem?.kind === 'too-long'
-      ? [
-          `session (goal): the goal is ${String(goalProblem.length)} characters, and the limit is 200.`,
-        ]
-      : []),
-    ...(nowNextProblem?.kind === 'not-one-line' ? [`session (now_next): ${oneLineProblem}`] : []),
-    ...(nowNextProblem?.kind === 'too-long'
-      ? [
-          `session (now_next): the next step is ${String(nowNextProblem.length)} characters, and the limit is 120.`,
-        ]
-      : []),
-  ];
+  const goalProblem = findTextProblem(pairs.get('goal') ?? '', 200);
+  const nowNextProblem = findTextProblem(pairs.get('now_next') ?? '', 120);
 
-  const credentials = [...handKeptSessionKeys].flatMap((key) => {
+  if (goalProblem?.kind === 'not-one-line') {
+    addKeyProblem('goal', oneLineProblem);
+  }
+
+  if (goalProblem?.kind === 'too-long') {
+    addKeyProblem(
+      'goal',
+      `the goal is ${String(goalProblem.length)} characters, and the limit is 200.`,
+    );
+  }
+
+  if (nowNextProblem?.kind === 'not-one-line') {
+    addKeyProblem('now_next', oneLineProblem);
+  }
+
+  if (nowNextProblem?.kind === 'too-long') {
+    addKeyProblem(
+      'now_next',
+      `the next step is ${String(nowNextProblem.length)} characters, and the limit is 120.`,
+    );
+  }
+
+  for (const key of handKeptSessionKeys) {
     const label = findCredentialMatch(pairs.get(key) ?? '');
 
-    return label === null
-      ? []
-      : [`session (${key}): the text looks like a credential (it matches ${label}).`];
-  });
+    if (label !== null) {
+      addKeyProblem(key, `the text looks like a credential (it matches ${label}).`);
+    }
+  }
 
   const now = pairs.get('now') ?? '';
 
   const questionIDs = new Set(facts.questions.map((question) => question.id));
 
-  const nowProblem =
-    now !== '' && !openIDs.has(now) && !questionIDs.has(now)
-      ? [`session (now): ${redactCredential(now)} names no open item.`]
-      : [];
+  if (now !== '' && !openIDs.has(now) && !questionIDs.has(now)) {
+    addKeyProblem('now', `${redactCredential(now)} names no open item.`);
+  }
+
+  // A line that holds a carriage return and breaks another rule gets one line, not two.
+  const carriageReturnLines = new Set(
+    lineProblems
+      .filter((entry) => entry.problems.includes(carriageReturnLineProblem))
+      .map((entry) => entry.line),
+  );
+
+  const merged = new Set<number>();
+
+  const keyedText = [...keyed].map(([key, problems]) => {
+    const line = keyedLines.get(key);
+
+    if (line !== undefined && carriageReturnLines.has(line)) {
+      merged.add(line);
+
+      return `session (${redactCredential(key)}): ${[...problems, carriageReturnLineProblem].join('; ')}`;
+    }
+
+    return `session (${redactCredential(key)}): ${problems.join('; ')}`;
+  });
 
   return [
-    ...lineProblems,
-    ...missing,
-    ...wrongName,
-    ...unknown,
-    ...textProblems,
-    ...credentials,
-    ...nowProblem,
+    ...lineProblems
+      .filter((entry) => !merged.has(entry.line))
+      .map((entry) => `session line ${String(entry.line)}: ${entry.problems.join('; ')}`),
+    ...keyedText,
   ];
 }

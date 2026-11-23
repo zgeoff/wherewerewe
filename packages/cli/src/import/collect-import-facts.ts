@@ -41,6 +41,7 @@ export function collectImportFacts(hand: HandKeptStore): Facts {
   return {
     journal,
     questions: collectQuestions(plain),
+    reopened: collectReopened(plain),
     settledIDs: new Set(plain.filter((row) => closingOps.has(row.op)).map((row) => row.id)),
     itemRows,
   };
@@ -59,25 +60,37 @@ function findClosedText(
 }
 
 function collectQuestions(journal: readonly PlainFact[]): Question[] {
-  return journal.flatMap((row, index): Question[] => {
-    if (row.op !== 'open' || journal.slice(index + 1).some((later) => isClosing(later, row.id))) {
-      return [];
-    }
-
-    const closedBefore = journal.slice(0, index).find((candidate) => isClosing(candidate, row.id));
-
-    return [
-      {
-        line: row.line,
-        id: row.id,
-        text: row.text,
-        ts: row.ts,
-        closedLine: closedBefore?.line ?? null,
-      },
-    ];
-  });
+  return journal.flatMap((row, index): Question[] =>
+    row.op === 'open' && !journal.slice(index + 1).some((later) => isClosing(later, row.id))
+      ? [buildQuestion(row, journal.slice(0, index))]
+      : [],
+  );
 }
 
 function isClosing(row: PlainFact, id: string): boolean {
   return closingOps.has(row.op) && row.id === id;
+}
+
+function buildQuestion(row: PlainFact, earlier: readonly PlainFact[]): Question {
+  return {
+    line: row.line,
+    id: row.id,
+    text: row.text,
+    ts: row.ts,
+    closedLine: earlier.find((candidate) => isClosing(candidate, row.id))?.line ?? null,
+  };
+}
+
+// An open row whose id a later row closes, but an earlier row closed first: it is no open
+// question, yet it still reuses a closed id.
+function collectReopened(journal: readonly PlainFact[]): Question[] {
+  return journal.flatMap((row, index): Question[] => {
+    const question = buildQuestion(row, journal.slice(0, index));
+
+    return row.op === 'open' &&
+      question.closedLine !== null &&
+      journal.slice(index + 1).some((later) => isClosing(later, row.id))
+      ? [question]
+      : [];
+  });
 }

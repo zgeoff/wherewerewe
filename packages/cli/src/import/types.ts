@@ -16,6 +16,7 @@ export interface Facts {
   readonly settledIDs: ReadonlySet<string>;
   readonly itemRows: readonly HandKeptRow[];
   readonly questions: readonly Question[];
+  readonly reopened: readonly Question[];
 }
 
 export interface Question {

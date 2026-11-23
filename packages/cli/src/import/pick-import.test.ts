@@ -62,6 +62,13 @@ test.each([
     problems: ['session (goal): the text must be one line, with no tab or newline.'],
   },
   {
+    title: 'a goal with a tab that ends in a carriage return, on one line',
+    session: 'name=old-notes\ngoal=Ship\tit\r\nstarted=2026-03-02T08:00:00Z\n',
+    problems: [
+      'session (goal): the text must be one line, with no tab or newline.; the line holds a carriage return. Save the file with LF line endings.',
+    ],
+  },
+  {
     title: 'a next step over its limit',
     session: `name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nnow_next=${'n'.repeat(121)}\n`,
     problems: ['session (now_next): the next step is 121 characters, and the limit is 120.'],
@@ -80,8 +87,7 @@ test.each([
     title: 'a name that looks like a credential, which the line never prints',
     session: `name=AKIA${'Q'.repeat(16)}\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n`,
     problems: [
-      'session (name): the name <text with no secret in it> is not the folder name old-notes.',
-      'session (name): the text looks like a credential (it matches AKIA).',
+      'session (name): the name <text with no secret in it> is not the folder name old-notes.; the text looks like a credential (it matches AKIA).',
     ],
   },
   {
@@ -284,7 +290,7 @@ test.each([
   },
   {
     title: 'a task that holds use=once, which only an approval holds',
-    items: [buildHandKeptItemRow({ extra: 'once' })],
+    items: [buildHandKeptItemRow({ kind: 'task', extra: 'once' })],
     journal: [],
     problems: [
       'items.tsv line 2 (t-b): the extra key use is for kind ok, and this row is kind task.',
@@ -300,7 +306,7 @@ test.each([
   },
   {
     title: 'a pid_start on a row with no pid check',
-    items: [buildHandKeptItemRow({ extra: 'pid_start=12345' })],
+    items: [buildHandKeptItemRow({ kind: 'task', check: '-', extra: 'pid_start=12345' })],
     journal: [],
     problems: [
       'items.tsv line 2 (t-b): the extra key pid_start is for a pid check, and this row has none.',
@@ -322,7 +328,7 @@ test.each([
   },
   {
     title: 'a blocked_by that names no item',
-    items: [buildHandKeptItemRow({ extra: 'blocked_by=t-gone' })],
+    items: [buildHandKeptItemRow({ kind: 'task', extra: 'blocked_by=t-gone' })],
     journal: [],
     problems: ['items.tsv line 2 (t-b): blocked_by=t-gone names no open task or wait.'],
   },
@@ -334,7 +340,7 @@ test.each([
         kind: 'ok',
         extra: 'who=owner;where=chat;scope=the repo;once',
       }),
-      buildHandKeptItemRow({ extra: 'blocked_by=ok-a' }),
+      buildHandKeptItemRow({ kind: 'task', extra: 'blocked_by=ok-a' }),
     ],
     journal: [],
     problems: ['items.tsv line 3 (t-b): blocked_by=ok-a names no open task or wait.'],
@@ -342,8 +348,8 @@ test.each([
   {
     title: 'a blocked_by that names a task a done row closed',
     items: [
-      buildHandKeptItemRow({ id: 't-old' }),
-      buildHandKeptItemRow({ extra: 'blocked_by=t-old' }),
+      buildHandKeptItemRow({ id: 't-old', kind: 'task' }),
+      buildHandKeptItemRow({ kind: 'task', extra: 'blocked_by=t-old' }),
     ],
     journal: ['2026-03-02T10:00:00Z\tdone\tt-old\tfinished'],
     problems: ['items.tsv line 3 (t-b): blocked_by=t-old names no open task or wait.'],
@@ -477,6 +483,16 @@ test.each([
     journal: [
       '2026-03-02T09:00:00Z\tdone\tq-1\tshipped',
       buildHandKeptQuestionRow({ id: 'q-1', text: 'Again' }),
+    ],
+    problems: ['journal.tsv line 3 (q-1): line 2 closed the id, and a closed id is never reused.'],
+  },
+  {
+    title: 'a question that reuses an id a done row closed, and a closed row closes again',
+    items: [],
+    journal: [
+      '2026-03-02T09:00:00Z\tdone\tq-1\tshipped',
+      buildHandKeptQuestionRow({ id: 'q-1', text: 'Again' }),
+      '2026-03-02T10:30:00Z\tclosed\tq-1\tAll of them',
     ],
     problems: ['journal.tsv line 3 (q-1): line 2 closed the id, and a closed id is never reused.'],
   },
@@ -938,12 +954,12 @@ test.each([
 test.each([
   {
     title: 'a task that a done row closed',
-    items: [buildHandKeptItemRow({ id: 't-x' })],
+    items: [buildHandKeptItemRow({ id: 't-x', kind: 'task' })],
     journal: ['2026-03-04T10:00:00Z\tdone\tt-x\tmerged'],
   },
   {
     title: 'a task that a drop row closed',
-    items: [buildHandKeptItemRow({ id: 't-x' })],
+    items: [buildHandKeptItemRow({ id: 't-x', kind: 'task' })],
     journal: ['2026-03-04T10:00:00Z\tdrop\tt-x\tno longer needed'],
   },
   {
@@ -959,7 +975,7 @@ test.each([
   },
   {
     title: 'a task that a closed row settled',
-    items: [buildHandKeptItemRow({ id: 't-x' })],
+    items: [buildHandKeptItemRow({ id: 't-x', kind: 'task' })],
     journal: ['2026-03-04T10:00:00Z\tclosed\tt-x\tmerged'],
   },
 ])('it leaves out $title, and keeps the open task beside it', (row) => {

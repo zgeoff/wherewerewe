@@ -31,6 +31,7 @@ export function collectJournalProblems(
 
   const factsByLine = new Map(facts.journal.map((row) => [row.line, row]));
   const questionsByLine = new Map(questions.map((question) => [question.line, question]));
+  const reopenedByLine = new Map(facts.reopened.map((question) => [question.line, question]));
   const seenQuestions = new Map<string, number>();
 
   const lines: string[] = [];
@@ -50,7 +51,10 @@ export function collectJournalProblems(
           .map((cell) => findCredentialMatch(cell))
           .find((found) => found !== null) ?? null;
 
+      const reopened = reopenedByLine.get(row.line);
+
       const problems = [
+        ...(reopened === undefined ? [] : [buildReuseProblem(reopened)]),
         ...(question === undefined
           ? []
           : collectQuestionProblems(question, itemLines, seenQuestions)),
@@ -75,6 +79,10 @@ export function collectJournalProblems(
   return [...headerProblems, ...lines];
 }
 
+function buildReuseProblem(question: Question): string {
+  return `line ${String(question.closedLine)} closed the id, and a closed id is never reused.`;
+}
+
 function collectQuestionProblems(
   question: Question,
   itemLines: ReadonlyMap<string, number>,
@@ -92,9 +100,7 @@ function collectQuestionProblems(
         ]
       : []),
     ...(isItemID(question.id) ? [] : [idRuleProblem]),
-    ...(question.closedLine === null
-      ? []
-      : [`line ${String(question.closedLine)} closed the id, and a closed id is never reused.`]),
+    ...(question.closedLine === null ? [] : [buildReuseProblem(question)]),
     ...(itemLine === undefined ? [] : [`items.tsv line ${String(itemLine)} has the same id.`]),
     ...(questionLine === undefined ? [] : [`line ${String(questionLine)} has the same id.`]),
   ];

@@ -311,6 +311,32 @@ test('it refuses a store that is format 1 already', async () => {
   });
 });
 
+test('it binds no agent to a store whose conversion finished with no binding written', async () => {
+  const ctx = setupTest();
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+  await ctx.run(['init', 'old-notes', '--goal', 'Ship it'], { XDG_STATE_HOME: ctx.root }, nowMs);
+
+  const before = await ctx.readTree();
+
+  const result = await ctx.run(
+    ['import', 'old-notes'],
+    { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    nowMs,
+  );
+
+  const after = await ctx.readTree();
+
+  expect({ result, unchanged: after }).toStrictEqual({
+    result: {
+      exitCode: 3,
+      stdout: '',
+      stderr: 'www: refused: old-notes is already format 1.\nRun: www --session old-notes\n',
+    },
+    unchanged: before,
+  });
+});
+
 test('it refuses a format 1 store with a broken session file, and writes nothing', async () => {
   const ctx = setupTest();
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
@@ -546,10 +572,6 @@ test.each([
       { name: 'journal.tsv.tmp-1-abcd', text: 'new journal\n' },
       { name: 'session.tmp-1-abcd', text: 'format=1\n' },
     ],
-  },
-  {
-    title: 'the binding written and nothing else',
-    files: [{ name: '../.bindings/claude-a1b2-test', text: 'name=old-notes\n' }],
   },
 ])('it ends a restart with $title as a clean import does', async (row) => {
   const clean = setupTest();

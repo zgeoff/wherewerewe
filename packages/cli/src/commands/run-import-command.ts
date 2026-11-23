@@ -113,10 +113,13 @@ async function importStore(
   if (agent === null) {
     writeImportFiles(folder, write);
   } else {
+    // The binding lock comes first, so a busy lock converts nothing. The binding itself comes after
+    // the conversion, so a stop before the conversion ends never leaves the agent bound to a
+    // hand-kept store.
     const bound = await withBindingLock(context.root, async () => {
-      await writeBinding(context.root, agent, name);
-
       writeImportFiles(folder, write);
+
+      await writeBinding(context.root, agent, name);
     });
 
     if (bound.kind === 'busy') {
