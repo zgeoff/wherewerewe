@@ -397,7 +397,7 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 
 - When one upgrade finds more than one of its problems, it prints each problem's lines and one `Run:` line with every flag the problems need.
 - The credential test matches at least these: `ghp_`, `gho_`, `ghs_`, `ghu_`, `github_pat_`, `sk-` followed by 20 or more letters and digits, `xoxb-`, `xoxp-`, `AKIA` followed by 16 capitals or digits, `ops_` followed by 20 or more characters, `-----BEGIN`, and a JWT (`eyJ` then two `.`-separated parts). It applies to notes and to the grant's words and reading.
-- A refusal of a note's text or of `--owed` keeps the refused command and changes only `--note`: a note over its limit, with a tab or a newline, or that looks like a credential gets `--note "<note of at most 400 characters>"`, `--note "<one line>"` or `--note "<where the secret lives>"`. So the `Run:` line passes for a new item, and for an item of any kind.
+- A refusal of a note keeps the refused command and fixes only the note. A note over its limit, with a tab or a newline, or that looks like a credential becomes `--note "<note of at most 400 characters>"`, `--note "<one line>"` or `--note "<where the secret lives>"`, and `--owed` with no `--note` gets `--note "<what is owed>"`. The `Run:` line then passes for a new item and for an item of any kind.
 - When the agent typed `www` with `--session`, each `Run:` line keeps `--session <name>`.
 
 ## Constraints
