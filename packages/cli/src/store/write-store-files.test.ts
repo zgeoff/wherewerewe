@@ -1,9 +1,10 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { seedItem } from '../test-utils/seed-item.ts';
 import { seedSessionStore } from '../test-utils/seed-session-store.ts';
+import { parseJournalFile } from './parse-journal-file.ts';
 import { readStore } from './read-store.ts';
 import { writeStoreFiles } from './write-store-files.ts';
 
@@ -132,5 +133,52 @@ test('it leaves the items alone when the journal append fails, so a close is nev
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [expect.objectContaining({ id: 't-a' })],
     },
+  });
+});
+
+// A folder that is not writable still lets the append to journal.tsv land, and stops the rewrite,
+// which needs a temporary file in the folder.
+test('it appends the journal row before it rewrites the items, so a close that stops between them is recorded with its item still open', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a', claim: 'Write it' });
+
+  chmodSync(ctx.folder, 0o555);
+
+  const written = writeStoreFiles(ctx.folder, {
+    items: [],
+    journal: [
+      {
+        ts: '2026-03-10T10:31:09Z',
+        op: 'done',
+        id: 't-a',
+        by: 'agent',
+        text: 'Write it',
+        why: 'commit 4c1d2e0',
+        extra: null,
+      },
+    ],
+  });
+
+  await expect(written).toReject();
+
+  chmodSync(ctx.folder, 0o755);
+
+  const journal = readFileSync(join(ctx.folder, 'journal.tsv'), 'utf8');
+
+  expect({
+    read: await readStore(ctx.folder),
+    last: parseJournalFile(journal).at(-1),
+  }).toStrictEqual({
+    read: {
+      kind: 'store',
+      store: {
+        folder: ctx.folder,
+        session: expect.objectContaining({ name: 'tide-alerts' }),
+        items: [expect.objectContaining({ id: 't-a' })],
+      },
+    },
+    last: expect.objectContaining({ op: 'done', id: 't-a' }),
   });
 });

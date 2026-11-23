@@ -5,10 +5,12 @@ import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
+import { parseItemsFile } from './store/parse-items-file.ts';
 import { parseJournalFile } from './store/parse-journal-file.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
+import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
 
 function setupTest() {
@@ -588,4 +590,48 @@ test('it records each write in the journal, with the check but no free text in e
       '',
     ].join('\n'),
   );
+});
+
+test('it closes an item with done after an earlier done stopped between its journal row and the rewrite', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  await seedJournalRow(folder, { ts: '2026-03-10T11:43:02Z', op: 'done', id: 't-a' });
+
+  const result = await ctx.run(['done', 't-a', '--evidence', 'commit 4c1d2e0']);
+
+  const itemsText = readFileSync(join(folder, 'items.tsv'), 'utf8');
+
+  expect({ result, items: parseItemsFile(itemsText) }).toStrictEqual({
+    result: {
+      exitCode: 0,
+      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 6 lines.\n',
+      stderr: '',
+    },
+    items: { kind: 'items', items: [] },
+  });
+});
+
+test('it refuses a new item on an id whose done reached the journal before the write stopped', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  await seedJournalRow(folder, { ts: '2026-03-10T11:43:02Z', op: 'done', id: 't-a' });
+
+  await ctx.run(['done', 't-a', '--evidence', 'commit 4c1d2e0']);
+
+  const result = await ctx.run(['task', 't-a', 'Write it again']);
+
+  expect(result).toStrictEqual({
+    exitCode: 3,
+    stdout: '',
+    stderr:
+      'www: refused: t-a closed on day 1. Pick a new id.\nRun: www task <new id> "Write it again"\n',
+  });
 });
