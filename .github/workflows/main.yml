@@ -1,0 +1,109 @@
+# Runs the shared Bun checks on every push to main, with the script list that the
+# BUN_CHECK_SCRIPTS repo variable sets for pull requests too, then releases @wherewerewe/cli through the
+# shared release-please job and publishes each release to npm through OIDC.
+name: Main
+
+on:
+  push:
+    branches: [main]
+  # The publish run, which a push run dispatches at the release tag, and the recovery path for a
+  # release that tagged but failed to publish: it skips the release job and publishes the given
+  # package folders after the checks pass. A version npm holds already is skipped.
+  workflow_dispatch:
+    inputs:
+      republish_paths:
+        description: 'JSON array of package folders to publish, e.g. ["packages/cli"]'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Two runs of one commit, such as a rerun and a dispatch, wait for each other, and no run is
+  # cancelled, so every merged commit is tested.
+  checks:
+    concurrency:
+      group:
+        main-checks-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.sha }}
+      cancel-in-progress: false
+    # GitHub checks the called workflow's job permissions even for its skipped gitleaks job, which
+    # asks for pull-requests: write
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: zgeoff/tools/.github/workflows/bun-checks.yml@a8c62d5e90a66cbee12cf64573fd0169d44bbe2c # main
+    with:
+      scripts: ${{ vars.BUN_CHECK_SCRIPTS }}
+      timeout-minutes: ${{ fromJSON(vars.BUN_CHECK_TIMEOUT_MINUTES || '20') }}
+      # the pull request that landed the commits already scanned them
+      gitleaks: false
+
+  # A release takes two runs:
+  # - Run 1, after a releasable commit lands on main: the shared release-please job opens or
+  #   updates the release pull request. A person merges it, so merge stays off, and the run of that
+  #   merge's push tags the release. The dispatch-publish job then starts run 2.
+  # - Run 2, dispatched at the tag: the publish job ships the package to npm through OIDC, after
+  #   the checks of the tagged commit pass.
+  # The release waits for its one-time setup and the first publish by hand, which the
+  # RELEASE_ENABLED repo variable marks done. Its queue keeps every waiting run.
+  release:
+    if: github.event_name == 'push' && vars.RELEASE_ENABLED == 'true'
+    concurrency:
+      group: release
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: zgeoff/tools/.github/workflows/release-please.yml@a8c62d5e90a66cbee12cf64573fd0169d44bbe2c # main
+    with:
+      app-id: ${{ vars.RELEASE_APP_ID }}
+      merge: false
+    secrets:
+      app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+  # npm provenance names the run's own commit, so a push run never publishes: the run at the tag
+  # has the tagged commit as its github.sha.
+  dispatch-publish:
+    name: Dispatch the release publish
+    needs: release
+    if: needs.release.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: dispatch-publish
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - name: Dispatch publish at the release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_OUTPUTS: ${{ needs.release.outputs.release-outputs }}
+        run: bun run --silent ci:dispatch-publish
+
+  # npm checks the caller's workflow file for the trusted publisher, so this job grants the OIDC
+  # token. No npm token exists in this repo.
+  publish:
+    name: Publish the release
+    needs: checks
+    if: github.event_name == 'workflow_dispatch'
+    concurrency:
+      group: publish
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      id-token: write
+    uses: zgeoff/tools/.github/workflows/npm-publish.yml@a8c62d5e90a66cbee12cf64573fd0169d44bbe2c # main
+    with:
+      paths: ${{ inputs.republish_paths }}

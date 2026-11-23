@@ -35,9 +35,11 @@
     "format": "oxfmt . && format-codemod --quiet .",
     "format:check": "oxfmt --check . && format-codemod --check --quiet .",
     "lint": "oxlint",
+    "lint:full": "oxlint --type-aware --type-check --report-unused-disable-directives-severity error",
     "typecheck": "bun run --filter '*' typecheck && tsrs --fast -p .",
     "test": "rig unit",
     "test:related": "rig related",
+    "ci:dispatch-publish": "bun scripts/dispatch-publish/dispatch-publish.ts",
     "check:docs": "chex prose length links readmes skill"
   },
   "devDependencies": {
