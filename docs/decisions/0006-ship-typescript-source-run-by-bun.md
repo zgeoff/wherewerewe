@@ -1,7 +1,7 @@
 # 0006: Ship TypeScript source run by Bun
 
 - Date: 2026-11-23
-- Status: proposed
+- Status: decided
 
 ## Decision
 

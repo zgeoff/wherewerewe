@@ -1,7 +1,7 @@
 # 0004: Hooks install once per machine
 
 - Date: 2026-11-23
-- Status: proposed
+- Status: decided
 
 ## Decision
 

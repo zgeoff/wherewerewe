@@ -1,7 +1,7 @@
 # 0002: Sessions bind by agent session id
 
 - Date: 2026-11-23
-- Status: proposed
+- Status: decided
 
 ## Decision
 

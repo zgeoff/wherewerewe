@@ -1,6 +1,6 @@
 # The brief
 
-- **Status:** draft
+- **Status:** agreed
 
 `www` with no subcommand prints the brief: the whole state of the session in at most 52 lines and 6,400 characters on any day. It opens with what the owner said and what the world has overtaken, so the agent reads the stale claims before it acts on them, and it ends with three lines that teach the write commands again. The same text is what the hooks put in context after a compaction. A build agent reads this doc to build the brief renderer and its size test, in the slice [build-order.md](build-order.md) names.
 

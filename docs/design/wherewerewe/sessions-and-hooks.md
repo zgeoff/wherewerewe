@@ -1,6 +1,6 @@
 # Sessions and hooks
 
-- **Status:** draft
+- **Status:** agreed
 - **Decision records:** [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
 
 The owner runs several agent sessions on one machine, and each can keep its own wherewerewe session. A binding file maps an agent session's id to the wherewerewe session it writes to. A command finds the id in its environment, and a hook finds it in its stdin. [store.md](store.md) owns the file formats, [brief.md](brief.md) the brief a hook prints, and [commands.md](commands.md) the commands and refusal texts named here. The hooks are installed once for the machine and do nothing for an agent session with no binding. A build agent reads this doc to build session finding, the bindings, the hooks, `www install` and `www doctor`, in the slice [build-order.md](build-order.md) names.

@@ -1,6 +1,6 @@
 # The commands
 
-- **Status:** draft
+- **Status:** agreed
 
 `www` is one command with a subcommand per write. Every write answers in one line that ends with the brief's length, so the agent sees what each line costs. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. A build agent reads this doc to build the command-line parser, the write replies and the refusals, in the slice [build-order.md](build-order.md) names.
 

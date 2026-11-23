@@ -1,7 +1,7 @@
 # 0003: Checks are built-in read-only probes
 
 - Date: 2026-11-23
-- Status: proposed
+- Status: decided
 
 ## Decision
 

@@ -1,6 +1,6 @@
 # Shipping
 
-- **Status:** draft
+- **Status:** agreed
 - **Decision records:** [0006](../../decisions/0006-ship-typescript-source-run-by-bun.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
 
 The tool ships as its TypeScript source, with a Bun shebang on the command file, as the repo-standard skill sets up for a CLI that does not need Node. Bun runs it with no build step, and a small TypeScript command starts in a few milliseconds. An agent with no Bun installs it with one command, or reads the store's plain text files until then. A build agent reads this doc to build the package and its install, in the slice [build-order.md](build-order.md) names.

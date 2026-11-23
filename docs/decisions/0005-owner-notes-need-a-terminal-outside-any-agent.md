@@ -1,7 +1,7 @@
 # 0005: Owner notes need a terminal outside any agent
 
 - Date: 2026-11-23
-- Status: proposed
+- Status: decided
 
 ## Decision
 

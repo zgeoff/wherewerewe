@@ -1,6 +1,6 @@
 # Build order
 
-- **Status:** draft
+- **Status:** agreed
 
 Slice 0 is the repo setup, done before this design, and is not one of the slices this doc builds. After it, the tool is built in seven slices, 0b and 1 to 6, each one pull request that leaves the tool working. The agent that orchestrates the build keeps its own notes in the tool from the end of slice 1, so slice 1 gives a usable tool with no checks and no hooks, and each later slice adds to it. The build order lives in this doc, not only in work items, because the owner signs it off together with the design, in one pull request, before any slice starts; each slice's work item is cut from this doc when the slice starts and links its section here. Each slice names what it delivers, what it needs first, and acceptance lines that each name their evidence. From slice 0b on, each slice in this repo also adds a wringer feature, whose journey drives the real `www` through `bun verify`, and its pull request carries the wringer report. A build agent reads this doc first, takes the next slice whose dependencies are met, reads the part docs that slice names, and builds it.
 

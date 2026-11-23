@@ -1,6 +1,6 @@
 # What the skills take from the store
 
-- **Status:** draft
+- **Status:** agreed
 
 Three skills in `zgeoff/skills` read a session's state today from a handoff doc, chat history and the live state of branches and pull requests. [brief.md](brief.md) defines the brief's sections, and [commands.md](commands.md) defines `www log --op`. When the session has a wherewerewe store, each reads it first, because the store already holds the state in the shape the skills need, with each checkable claim checked. Each skill still works with no store. The skill changes are their own slice, a pull request in `zgeoff/skills`, after the hooks. A build agent reads this doc to build the skill changes in `zgeoff/skills` in slice 6 of [build-order.md](build-order.md).
 

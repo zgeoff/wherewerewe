@@ -1,7 +1,7 @@
 # 0001: The store is plain TSV files
 
 - Date: 2026-11-23
-- Status: proposed
+- Status: decided
 
 ## Decision
 

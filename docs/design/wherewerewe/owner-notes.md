@@ -1,6 +1,6 @@
 # Owner notes
 
-- **Status:** draft
+- **Status:** agreed
 - **Decision records:** [0005](../../decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md)
 
 The owner corrects the agent by writing a note straight into the store from a terminal. The note tops every brief until the owner clears it, so the agent's next read cannot miss it. The tool refuses `say` and `ack` from an agent's shell, which stops an agent that writes an owner note by mistake. It does not stop an agent that sets out to fake one, and this doc says what is left open. A build agent reads this doc to build `www say`, `www ack` and the terminal test, in the slice [build-order.md](build-order.md) names.

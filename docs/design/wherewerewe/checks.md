@@ -1,6 +1,6 @@
 # The checks
 
-- **Status:** draft
+- **Status:** agreed
 - **Decision records:** [0003](../../decisions/0003-checks-are-built-in-read-only-probes.md)
 
 An item can name one thing in the world: a pull request, a branch, a path or a process. Every read of the brief ([brief.md](brief.md)) probes each named thing that can still change, compares the result with `at_write`, the result stored when the claim was written, and marks the claim as changed when they differ. A probe only reads. The read records each result in the store ([store.md](store.md)), never changes an item's claim, kind or state, and never stops the brief from printing. A build agent reads this doc to build the probes and how a read uses their results, in the slice [build-order.md](build-order.md) names.

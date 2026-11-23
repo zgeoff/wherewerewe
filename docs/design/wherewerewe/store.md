@@ -1,6 +1,6 @@
 # The store
 
-- **Status:** draft
+- **Status:** agreed
 - **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md)
 
 Each session keeps its state in one folder of plain UTF-8 text files that a person can read with `less` and an agent can read with `cut` when the tool is missing. `session`, `items.tsv` and `owner.tsv` are rewritten whole and capped by the limits in [brief.md](brief.md), so they stay the same size on day 14 as on day 2. `prs.tsv` gains one row per pull request the session opens, but a read probes and prints only the rows still open, and the brief shows at most 3. The journal grows, and nothing reads it whole by default. A build agent reads this doc to build the store module, `www import` and the lock, in the slice [build-order.md](build-order.md) names.

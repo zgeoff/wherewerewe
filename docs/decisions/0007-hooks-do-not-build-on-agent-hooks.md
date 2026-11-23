@@ -1,7 +1,7 @@
 # 0007: The hooks do not build on agent-hooks
 
 - Date: 2026-11-23
-- Status: proposed
+- Status: decided
 
 ## Decision
 
