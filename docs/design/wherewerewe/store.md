@@ -35,7 +35,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
     notes.tsv                     one row per open item with a note    rewritten by each note write and close
     owner.tsv                     the owner's notes still showing      rewritten by say and ack only
     prs.tsv                       pull requests this session opened    appended by the hook; state set by reads
-    journal.tsv                   every write, decision and change     append-only
+    journal.tsv                   every write, decision and change     append-only; import rewrites a hand-kept one once
     lock                          exists while a write runs: pid=<n> ts=<iso>
     import-backup/                the hand-kept files, only after www import of a hand-kept store
     format-1-backup/              the format 1 files, only after the format 2 upgrade

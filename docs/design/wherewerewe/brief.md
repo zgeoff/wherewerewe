@@ -194,7 +194,7 @@ PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 ```
 
-The agent's next commands come from the brief alone: `www done pr-app-61 --evidence "merged as 51aa0e2, seen by check"`, `www drop p-sim --why "process gone, seen by check"`, then `www show pr-api-77` to read the failing job before it sets a new next step. Under the grant, the agent may merge `pr-api-77` itself once CI is green and the findings are answered.
+The agent's next commands come from the brief alone: `www done pr-app-61 --evidence "merged, seen by check"`, `www drop p-sim --why "process gone, seen by check"`, then `www show pr-api-77` to read the failing job before it sets a new next step. Under the grant, the agent may merge `pr-api-77` itself once CI is green and the findings are answered.
 
 ## Decisions
 
