@@ -8,7 +8,7 @@ agent variables, and reads the brief between them. Its folders are inside the ru
 
 ## Journey
 
-Run `bun verify up --restart` first, so `trial-owner` does not exist yet, then `doctor`.
+Run `bun verify up --restart` first, so no `trial-owner` session exists, then `doctor`.
 
 ```bash
 bun verify use --feature owner-notes

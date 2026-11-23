@@ -112,16 +112,16 @@ test.each([
   {
     title: 'a say by import and a say by the owner',
     rows: [
-      { ts: '2026-03-03T08:00:00Z', op: 'say', id: 'o-1' },
-      { ts: '2026-03-04T08:00:00Z', op: 'say', id: 'o-3' },
-      { ts: '2026-03-05T08:00:00Z', op: 'ack', id: 'o-9' },
-      { ts: '2026-03-06T08:00:00Z', op: 'say', id: 'x-7' },
+      { ts: '2026-03-03T08:00:00Z', op: 'say', id: 'o-1', by: 'import' },
+      { ts: '2026-03-04T08:00:00Z', op: 'say', id: 'o-3', by: 'owner' },
+      { ts: '2026-03-05T08:00:00Z', op: 'ack', id: 'o-9', by: 'owner' },
+      { ts: '2026-03-06T08:00:00Z', op: 'say', id: 'x-7', by: 'owner' },
     ],
     expected: 3,
   },
   {
     title: 'no say row',
-    rows: [{ ts: '2026-03-05T08:00:00Z', op: 'ack', id: 'o-9' }],
+    rows: [{ ts: '2026-03-05T08:00:00Z', op: 'ack', id: 'o-9', by: 'owner' }],
     expected: 0,
   },
 ])('it finds the highest owner note number for $title', async (row) => {

@@ -300,6 +300,7 @@ export type RefusalReason =
     }
   | { readonly kind: 'owner-only' }
   | { readonly kind: 'owner-notes-full'; readonly name: string; readonly oldestID: string }
+  | { readonly kind: 'owner-note-numbers-used-up'; readonly lastNumber: number }
   | {
       readonly kind: 'owner-note-unknown';
       readonly name: string;

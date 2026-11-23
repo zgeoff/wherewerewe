@@ -7,6 +7,7 @@ import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
+import { seedJournalRow } from '../test-utils/seed-journal-row.ts';
 
 function setupTest() {
   const root = createTempDir('run-owner-write').path;
@@ -282,6 +283,68 @@ test('it counts the two note lines and the section line in an agent write reply'
   expect(result).toStrictEqual({
     exitCode: 0,
     stdout: 't-a  task, open, no check. Brief: 11 lines.\n',
+    stderr: '',
+  });
+});
+
+test.each([
+  {
+    title: 'an imported say of o-4',
+    imported: 'o-4',
+    result: {
+      exitCode: 0,
+      stdout:
+        'o-5  owner note. It tops the brief until you run: www --session tide-alerts ack o-5. Brief: 8 lines.\n',
+      stderr: '',
+    },
+    owner: 'id\ttext\tsaid\ton\no-5\tAsk me first\t2026-03-10T11:43:01Z\t-\n',
+  },
+  {
+    title: 'an imported say of the highest safe number',
+    imported: 'o-9007199254740991',
+    result: {
+      exitCode: 3,
+      stdout: '',
+      stderr:
+        'www: refused: owner note numbers are used up after o-9007199254740991.\nRun: www --session tide-alerts log --op say\n',
+    },
+    owner: 'id\ttext\tsaid\ton\n',
+  },
+])('it numbers the first note from the journal after $title', async (row) => {
+  const ctx = setupTest();
+
+  await ctx.init();
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-01T08:00:00Z',
+    op: 'say',
+    id: row.imported,
+    by: 'import',
+  });
+
+  const first = await ctx.runAsOwner(['say', 'Ask me first']);
+
+  expect({ first, owner: ctx.readSessionFile('owner.tsv') }).toStrictEqual({
+    first: row.result,
+    owner: row.owner,
+  });
+});
+
+test('it never reuses the number of an acknowledged note', async () => {
+  const ctx = setupTest();
+
+  await ctx.init();
+  await ctx.runAsOwner(['say', 'Ask me first']);
+  await ctx.runAsOwner(['say', 'Use the recorded readings']);
+  await ctx.runAsOwner(['ack', 'o-2']);
+  await ctx.runAsOwner(['ack', 'o-1']);
+
+  const next = await ctx.runAsOwner(['say', 'Ship the timer first']);
+
+  expect(next).toStrictEqual({
+    exitCode: 0,
+    stdout:
+      'o-3  owner note. It tops the brief until you run: www --session tide-alerts ack o-3. Brief: 8 lines.\n',
     stderr: '',
   });
 });

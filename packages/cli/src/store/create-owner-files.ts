@@ -1,5 +1,14 @@
 import { randomBytes } from 'node:crypto';
-import { appendFileSync, closeSync, fsyncSync, openSync, renameSync, writeSync } from 'node:fs';
+import {
+  appendFileSync,
+  closeSync,
+  fchmodSync,
+  fsyncSync,
+  openSync,
+  renameSync,
+  statSync,
+  writeSync,
+} from 'node:fs';
 import type { OwnerFiles } from './types.ts';
 
 export function createOwnerFiles(): OwnerFiles {
@@ -9,9 +18,11 @@ export function createOwnerFiles(): OwnerFiles {
     },
     writeTemporary: (path, text) => {
       const temporaryPath = `${path}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`;
-      const handle = openSync(temporaryPath, 'wx');
+      const mode = readMode(path);
+      const handle = openSync(temporaryPath, 'wx', mode);
 
       try {
+        fchmodSync(handle, mode);
         writeSync(handle, text);
         fsyncSync(handle);
       } finally {
@@ -22,4 +33,14 @@ export function createOwnerFiles(): OwnerFiles {
     },
     rename: renameSync,
   };
+}
+
+// The file's own mode, so a rewrite never widens what import or init made. Notes are private, so a
+// missing owner.tsv takes owner-only access.
+function readMode(path: string): number {
+  try {
+    return statSync(path).mode & 0o777;
+  } catch {
+    return 0o600;
+  }
 }

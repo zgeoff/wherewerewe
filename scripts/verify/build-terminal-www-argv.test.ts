@@ -1,12 +1,13 @@
 import { expect, test } from 'bun:test';
 import { buildTerminalWWWArgv } from './build-terminal-www-argv.ts';
+import { cliPath } from './build-www-argv.ts';
 
 test('it unsets the five agent variables and the session, then sets the given ones and runs www', () => {
   const argv = buildTerminalWWWArgv('/runs/r-1', ['--session', 'trial-owner', 'ack', 'o-1'], {
     CODEX_CI: '1',
   });
 
-  expect(argv.slice(0, -3)).toStrictEqual([
+  expect(argv).toStrictEqual([
     'env',
     '-u',
     'CLAUDECODE',
@@ -24,9 +25,10 @@ test('it unsets the five agent variables and the session, then sets the given on
     'HOME=/runs/r-1/home',
     'XDG_STATE_HOME=/runs/r-1/state',
     'bun',
-    expect.stringMatching(/packages\/cli\/src\/cli\.ts$/u),
+    cliPath,
     '--session',
+    'trial-owner',
+    'ack',
+    'o-1',
   ]);
-
-  expect(argv.slice(-3)).toStrictEqual(['trial-owner', 'ack', 'o-1']);
 });

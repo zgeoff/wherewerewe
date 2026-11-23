@@ -20,10 +20,10 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
 focus, `items.tsv` the open items, `owner.tsv` the owner's notes that still show, and `journal.tsv`
-every write. Only `say` and `ack` write `owner.tsv`. A session never reuses a closed id, so a write
-reads from the journal the ids that `done`, `drop` and `use` closed, the decision numbers and who
-made each decision, and nothing else. See [the store design](../design/wherewerewe/store.md) for the
-formats.
+every write. `init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A session
+never reuses a closed id, so a write reads from the journal the ids that `done`, `drop` and `use`
+closed, the decision numbers, who made each decision and the highest owner note number, and nothing
+else. See [the store design](../design/wherewerewe/store.md) for the formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv` and `session`
 through a temporary file and a rename, and removes the lock. The journal comes first, so a write
@@ -76,15 +76,15 @@ answer in, and `run-cli.ts` checks both conditions right after the arguments par
 the session.
 
 In an agent shell the command exits 3 and the agent records what the owner said as a rule, a wait or
-an approval instead. A terminal with no agent variables passes, so the check stops an agent that
-writes a note by mistake and does not stop one that sets out to fake it. See
-[the owner notes design](../design/wherewerewe/owner-notes.md) for what the conditions do not stop.
+an approval instead. The check catches an agent that writes a note by mistake. An agent that fakes a
+terminal and clears the variables passes it. See
+[the owner notes design](../design/wherewerewe/owner-notes.md) for what the conditions leave open.
 
-`say` numbers a note `o-<n>`, one past the highest `o-<n>` among the journal's `say` rows, so an
-acknowledged note's number is never reused. `say` and `ack` take the store lock, append their
-journal row, and then replace `owner.tsv` through a temporary file and a rename. A stop between the
-two leaves a `say` that never shows and uses up its number, or an `ack` whose note still shows until
-the next `ack`. No other command writes `owner.tsv`.
+`say` numbers a note `o-<n>`, one past the highest `o-<n>` among the journal's `say` rows and the
+notes that show, so an acknowledged note's number is never reused. `say` and `ack` take the store
+lock, append their journal row, and then replace `owner.tsv` through a temporary file and a rename.
+A stop between the two leaves a `say` that never shows and uses up its number, or an `ack` whose
+note still shows until the next `ack`. No other command rewrites `owner.tsv`.
 
 The brief shows at most 2 notes, oldest first, right after the goal, until `ack` clears them. A row
 of `owner.tsv` that does not parse is left out of the brief and named on stderr, and `say` and `ack`

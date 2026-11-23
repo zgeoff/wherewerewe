@@ -2134,6 +2134,41 @@ test.each([
     fills: [{ '<text with no secret in it>': 'Ask me first' }],
   },
   {
+    title: 'a say when the journal holds the last safe owner note number',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'journal.tsv',
+        text: `ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T10:00:00Z\tsay\to-${String(Number.MAX_SAFE_INTEGER)}\timport\tAsk me first\t-\t-\n`,
+      },
+    ],
+    argv: ['--session', 'tide-alerts', 'say', 'Hello'],
+    env: 'owner',
+    exitCode: 3,
+    stderr: `www: refused: owner note numbers are used up after o-${String(Number.MAX_SAFE_INTEGER)}.\nRun: www --session tide-alerts log --op say\n`,
+    fills: [{}],
+  },
+  {
+    title: 'a say on a decision id, which owner.tsv cannot hold',
+    setupEnv: 'owner',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'journal.tsv',
+        text: 'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T10:00:00Z\tdecide\td-1\tagent\tRetry\tThe feed flaps\twho=agent\n',
+      },
+    ],
+    argv: ['--session', 'tide-alerts', 'say', 'Hello', '--on', 'd-1'],
+    env: 'owner',
+    exitCode: 3,
+    stderr:
+      'www: refused: no open item d-1. Open items: none.\nRun: www --session tide-alerts say Hello\n',
+    fills: [{}],
+  },
+  {
     title: 'a say on an item that is not open',
     setupEnv: 'owner',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],

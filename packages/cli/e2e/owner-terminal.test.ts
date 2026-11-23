@@ -1,6 +1,6 @@
 // Runs the real www under `script`, which gives it a pseudo-terminal on stdin and stdout. This is
 // the bypass owner-notes.md says the tool does not stop: a faked terminal with the agent variables
-// cleared.
+// cleared. Each test runs with HOME and XDG_STATE_HOME inside a temporary folder, after an init.
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,6 +15,7 @@ async function setupTest() {
   const folder = createTempDir('owner-terminal').path;
 
   const cleanEnv = {
+    HOME: join(folder, 'home'),
     XDG_STATE_HOME: folder,
     CLAUDECODE: '',
     CLAUDE_CODE_SESSION_ID: '',
@@ -26,6 +27,12 @@ async function setupTest() {
 
   const buildCommand = (argv: readonly string[]) =>
     [...program.command, ...argv].map((word) => quoteShellWord(word)).join(' ');
+
+  await run(program.command, {
+    cwd: program.cwd,
+    env: cleanEnv,
+    args: ['init', 'tide-alerts', '--goal', 'Ship the glaze timer'],
+  });
 
   return {
     ownerOnlyText:
@@ -53,9 +60,6 @@ async function setupTest() {
 
 test('it writes and clears a note under a terminal with no agent variable', async () => {
   const ctx = await setupTest();
-
-  await ctx.runPiped(['init', 'tide-alerts', '--goal', 'Ship the glaze timer']);
-
   const say = await ctx.runUnderScript(['--session', 'tide-alerts', 'say', 'Ask me first']);
   const ack = await ctx.runUnderScript(['--session', 'tide-alerts', 'ack', 'o-1']);
 

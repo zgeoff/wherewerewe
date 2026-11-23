@@ -3,8 +3,10 @@ import { isItemID } from '../rules/is-item-id.ts';
 import type { OwnerNote } from '../types.ts';
 import { ownerHeader } from './constants.ts';
 
+const noteCap = 2;
+
 export type OwnerParse =
-  | { readonly kind: 'notes'; readonly notes: OwnerNote[] }
+  | { readonly kind: 'notes'; readonly notes: readonly OwnerNote[] }
   | {
       readonly kind: 'broken';
 
@@ -13,7 +15,7 @@ export type OwnerParse =
       readonly reason: string;
 
       // the rows that do parse, which a read prints and say and ack never use
-      readonly notes: OwnerNote[];
+      readonly notes: readonly OwnerNote[];
     };
 
 export function parseOwnerFile(text: string): OwnerParse {
@@ -35,6 +37,10 @@ export function parseOwnerFile(text: string): OwnerParse {
 
     if (typeof parsed === 'string') {
       firstBroken ??= { line: index + 2, reason: parsed };
+    } else if (notes.some((note) => note.id === parsed.id)) {
+      firstBroken ??= { line: index + 2, reason: 'the id repeats an earlier row' };
+    } else if (notes.length >= noteCap) {
+      firstBroken ??= { line: index + 2, reason: `more than ${String(noteCap)} notes` };
     } else {
       notes.push(parsed);
     }
@@ -44,6 +50,8 @@ export function parseOwnerFile(text: string): OwnerParse {
     ? { kind: 'notes', notes }
     : { kind: 'broken', line: firstBroken.line, reason: firstBroken.reason, notes };
 }
+
+const saidFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u;
 
 function parseOwnerLine(line: string): OwnerNote | string {
   const cells = line.split('\t');
@@ -59,20 +67,20 @@ function parseOwnerLine(line: string): OwnerNote | string {
     return `expected 4 tab-separated columns, found ${String(cells.length)}`;
   }
 
-  if (!/^o-[1-9][0-9]*$/u.test(id)) {
-    return `the id "${id}" is not o-<n>`;
+  if (!/^o-[1-9][0-9]*$/u.test(id) || !Number.isSafeInteger(Number(id.slice('o-'.length)))) {
+    return 'the id is not o-<n>';
   }
 
   if (findTextProblem(text, 160) !== null) {
     return 'the text is empty, longer than 160 characters or not one line';
   }
 
-  if (said === '') {
-    return 'the said time is empty';
+  if (!saidFormat.test(said) || Number.isNaN(Date.parse(said))) {
+    return 'the said time is not an ISO 8601 UTC time to the second, ending in Z';
   }
 
   if (on !== '-' && !isItemID(on)) {
-    return `the on "${on}" is not - or an item id`;
+    return 'the on is not - or an item id';
   }
 
   return { id, text, said, on: on === '-' ? null : on };

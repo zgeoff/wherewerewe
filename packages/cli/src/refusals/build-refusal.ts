@@ -139,6 +139,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with(
       { kind: 'owner-only' },
       { kind: 'owner-notes-full' },
+      { kind: 'owner-note-numbers-used-up' },
       { kind: 'owner-note-unknown' },
       (found) => buildOwnerRefusal(found),
     )

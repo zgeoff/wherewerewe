@@ -167,6 +167,12 @@ test.each([
     line: 'www: refused: no open item t-none. Open items: t-a.',
   },
   {
+    title: 'a closed decision id, which owner.tsv cannot hold',
+    argv: ['say', 'Hello', '--on', 'd-1'],
+    notes: [],
+    line: 'www: refused: no open item d-1. Open items: t-a.',
+  },
+  {
     title: 'two notes already showing',
     argv: ['say', 'Hello'],
     notes: [
@@ -190,4 +196,18 @@ test('it takes a closed item as --on', () => {
   const picked = ctx.pick(['say', 'Hello', '--on', 't-done'], [], {});
 
   expect(picked.kind).toBe('write');
+});
+
+test('it refuses once the note numbers are used up, so no two notes share an id', () => {
+  const ctx = setupTest();
+  const picked = ctx.pick(['say', 'Hello'], [], { lastOwnerNoteNumber: Number.MAX_SAFE_INTEGER });
+
+  expect(picked).toStrictEqual({
+    kind: 'refused',
+    refusal: expect.objectContaining({
+      exitCode: 3,
+      lines: ['www: refused: owner note numbers are used up after o-9007199254740991.'],
+      runs: [{ www: ['log', '--op', 'say'] }],
+    }),
+  });
 });

@@ -92,13 +92,30 @@ interface OwnerRead {
   readonly ownerUnread: UnreadRows | null;
 }
 
+// A file system error on owner.tsv, such as a folder in its place or no read access, reads as a
+// broken owner file and never stops the brief or an agent write.
 async function readOwner(folder: string): Promise<OwnerRead> {
-  const ownerText = await readTextOrNull(join(folder, 'owner.tsv'));
+  try {
+    const ownerText = await readTextOrNull(join(folder, 'owner.tsv'));
 
-  if (ownerText === null) {
-    return { ownerNotes: [], ownerUnread: null };
+    return ownerText === null ? { ownerNotes: [], ownerUnread: null } : readOwnerText(ownerText);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+      return {
+        ownerNotes: [],
+        ownerUnread: {
+          file: 'owner.tsv',
+          line: null,
+          reason: `the file cannot be read (${error.code})`,
+        },
+      };
+    }
+
+    throw error;
   }
+}
 
+function readOwnerText(ownerText: string): OwnerRead {
   return match(parseOwnerFile(ownerText))
     .with({ kind: 'notes' }, (found): OwnerRead => ({ ownerNotes: found.notes, ownerUnread: null }))
     .with({ kind: 'broken' }, (found): OwnerRead => ({

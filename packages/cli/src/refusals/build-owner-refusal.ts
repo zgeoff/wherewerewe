@@ -5,7 +5,7 @@ import { formatList } from './format-list.ts';
 
 type OwnerReason = Extract<
   RefusalReason,
-  { kind: 'owner-only' | 'owner-notes-full' | 'owner-note-unknown' }
+  { kind: 'owner-only' | 'owner-notes-full' | 'owner-note-numbers-used-up' | 'owner-note-unknown' }
 >;
 
 export function buildOwnerRefusal(reason: OwnerReason): Refusal {
@@ -22,6 +22,13 @@ export function buildOwnerRefusal(reason: OwnerReason): Refusal {
         found.name,
         'ack',
         found.oldestID,
+      ]),
+    )
+    .with({ kind: 'owner-note-numbers-used-up' }, (found) =>
+      refuse(`www: refused: owner note numbers are used up after o-${String(found.lastNumber)}.`, [
+        'log',
+        '--op',
+        'say',
       ]),
     )
     .with({ kind: 'owner-note-unknown' }, (found) =>
