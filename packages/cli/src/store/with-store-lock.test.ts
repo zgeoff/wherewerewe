@@ -1,5 +1,5 @@
-import { expect, test } from 'bun:test';
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { expect, onTestFinished, setSystemTime, test } from 'bun:test';
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -165,4 +165,40 @@ test('it takes over a stale lock and removes its own when the system shows no st
     result: { kind: 'ran', value: 'ran' },
     left: [],
   });
+});
+
+test('it reports busy once its wait is spent when the wall clock steps back 31 seconds during it', async () => {
+  const ctx = setupTest();
+
+  seedStoreFile(ctx.folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
+
+  onTestFinished(() => {
+    setSystemTime();
+  });
+
+  const pending = withStoreLock(ctx.folder, () => Promise.resolve('never'), { waitMs: 100 });
+
+  setSystemTime(new Date(Date.now() - 31_000));
+
+  const result = await pending;
+
+  expect(result).toStrictEqual({ kind: 'busy', pid: process.pid });
+});
+
+test('it reports busy when the lock goes only after its wait is spent', async () => {
+  const ctx = setupTest();
+
+  seedStoreFile(ctx.folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
+
+  const release = setTimeout(() => {
+    rmSync(ctx.lockPath);
+  }, 15);
+
+  onTestFinished(() => {
+    clearTimeout(release);
+  });
+
+  const result = await withStoreLock(ctx.folder, () => Promise.resolve('ran'), { waitMs: 5 });
+
+  expect(result).toStrictEqual({ kind: 'busy', pid: process.pid });
 });

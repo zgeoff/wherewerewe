@@ -19,7 +19,7 @@ export async function withStoreLock<Value>(
   const files = options.files ?? createLockFiles();
   const lockPath = join(folder, 'lock');
 
-  const attempt = await waitForLock(lockPath, files, Date.now() + (options.waitMs ?? 2000));
+  const attempt = await waitForLock(lockPath, files, performance.now() + (options.waitMs ?? 2000));
 
   if (attempt.kind === 'held') {
     return { kind: 'busy', pid: attempt.pid };
@@ -37,6 +37,7 @@ export async function withStoreLock<Value>(
 
 const pollMs = 25;
 
+// The wait runs on the monotonic clock, so a wall clock that steps back cannot stretch it.
 async function waitForLock(
   lockPath: string,
   files: LockFiles,
@@ -44,11 +45,12 @@ async function waitForLock(
 ): Promise<LockAttempt> {
   for (;;) {
     const attempt = takeStoreLock(lockPath, files, Date.now);
+    const remainingMs = deadlineMs - performance.now();
 
-    if (attempt.kind === 'taken' || Date.now() >= deadlineMs) {
+    if (attempt.kind === 'taken' || remainingMs <= 0) {
       return attempt;
     }
 
-    await Bun.sleep(pollMs);
+    await Bun.sleep(Math.min(pollMs, remainingMs));
   }
 }
