@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, and `www --help` and `www -h` do the same. The lines below are fixed; only the spacing is the builder's call ([Builder decides](#builder-decides)). A test compares the block with the tool's output character for character.
+`www help` prints this text, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -256,7 +256,7 @@ day 9  11:51  done      pr-app-61  agent  Alert settings screen: in review
 
 ### www recap
 
-`www recap [--since <t>]` prints one screen for the owner: what the session holds, so the owner can check it against what they said and correct it with `www say`. `--since` takes the same values as `log`, and the default is `24h`. It runs no checks, never takes the lock, and is never refused once a session is found.
+`www recap [--since <t>]` prints one screen for the owner: what the session holds, so the owner can check it against what they said and correct it with `www say`. `--since` takes the same values as `log`, and the default is `24h`. It runs no checks, never takes the lock, and is never refused once a session is found and its store is in format 2.
 
 ```text
 $ www --session tide-alerts recap
@@ -360,7 +360,7 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 
 ## Constraints
 
-- Once a session is found and its store's format is known, a read is never refused: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `sessions` needs no session and is never refused.
+- Once a session is found and its store is in format 2, a read is never refused: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `sessions` needs no session and is never refused.
 - A changed check never makes `set` refuse, so the agent can always fix a stale claim.
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
@@ -379,6 +379,6 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 
 ## Builder decides
 
-- The argument parser, the spacing of the help text, and the spacing and column widths of `show`, `log`, `recap` and `sessions`.
+- The argument parser, and the spacing and column widths of `show`, `log`, `recap` and `sessions`.
 - Fuzzy matching for the suggested id in a `Run:` line, such as `w-apns` for `w-apn`.
 - The full credential pattern list, beyond the patterns above.
