@@ -16,11 +16,16 @@ function setupTest() {
   return {
     stateRoot: join(root, 'wherewerewe'),
     agentEnv: { XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
-    run: (argv: readonly string[], env: Record<string, string | undefined>) =>
+    run: (
+      argv: readonly string[],
+      env: Record<string, string | undefined>,
+      terminal: { stdin: boolean; stdout: boolean } | null = null,
+    ) =>
       runCLI({
         argv,
         env,
         cwd: '/work',
+        terminal: terminal ?? { stdin: false, stdout: false },
         now: () => {
           clock.nowMs += 1000;
 

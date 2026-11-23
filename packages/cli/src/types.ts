@@ -72,6 +72,30 @@ export interface Store {
   readonly folder: string;
   readonly session: SessionFile;
   readonly items: readonly Item[];
+  readonly ownerNotes: readonly OwnerNote[];
+
+  // null when every row of owner.tsv parses
+  readonly ownerUnread: UnreadRows | null;
+}
+
+export interface OwnerNote {
+  // o-<n>
+  readonly id: string;
+
+  // 1 to 160 characters, one line
+  readonly text: string;
+
+  // ISO 8601 UTC to the second, with Z
+  readonly said: string;
+
+  // '-' on disk
+  readonly on: string | null;
+}
+
+export interface OwnerChange {
+  // the whole new owner.tsv, oldest first
+  readonly notes: readonly OwnerNote[];
+  readonly journal: readonly JournalRow[];
 }
 
 // What a write needs from the journal, from its ts, op and id columns only.
@@ -84,6 +108,9 @@ export interface JournalIndex {
 
   // 0 when there is no decision
   readonly lastDecisionNumber: number;
+
+  // the highest n of an o-<n> id on a say row, whoever wrote it; 0 when there is none
+  readonly lastOwnerNoteNumber: number;
 }
 
 export interface UnreadRows {
@@ -117,6 +144,9 @@ export interface CLIInput {
 
   // ms since the epoch
   readonly now: () => number;
+
+  // whether file descriptors 0 and 1 are terminals, read once by cli.ts
+  readonly terminal: { readonly stdin: boolean; readonly stdout: boolean };
 }
 
 export interface CLIResult {
@@ -188,6 +218,7 @@ type TextLabel =
   | 'where'
   | 'scope'
   | 'quote'
+  | 'owner note'
   | 'decision'
   | '--for text';
 
@@ -266,6 +297,14 @@ export type RefusalReason =
       readonly args: ParsedArgs;
       readonly id: string;
       readonly openIDs: readonly string[];
+    }
+  | { readonly kind: 'owner-only' }
+  | { readonly kind: 'owner-notes-full'; readonly name: string; readonly oldestID: string }
+  | {
+      readonly kind: 'owner-note-unknown';
+      readonly name: string;
+      readonly id: string;
+      readonly shownIDs: readonly string[];
     }
   | { readonly kind: 'bad-since' }
   | { readonly kind: 'use-needs-for'; readonly args: ParsedArgs }

@@ -1,6 +1,7 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import type { RefusalReason } from '../types.ts';
+import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
@@ -87,18 +88,6 @@ export function pickDecision(input: WriteInput): WriteResult {
 
 function refuse(reason: RefusalReason): WriteResult {
   return { kind: 'refused', refusal: buildRefusal(reason) };
-}
-
-function pickOnRefusal(input: WriteInput, on: string | undefined): RefusalReason | null {
-  if (on === undefined) {
-    return null;
-  }
-
-  const openIDs = input.store.items.map((item) => item.id);
-
-  return openIDs.includes(on) || input.journal.closed.has(on)
-    ? null
-    : { kind: 'on-unknown', args: input.args, id: on, openIDs };
 }
 
 function pickReplacesRefusal(

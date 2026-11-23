@@ -19,6 +19,8 @@ test('it reports no checks when no item has one, with empty later sections', () 
         importedFrom: null,
       },
       items: [buildMockItem({ id: 't-a' })],
+      ownerNotes: [],
+      ownerUnread: null,
     },
     1000,
   );
@@ -33,6 +35,34 @@ test('it reports no checks when no item has one, with empty later sections', () 
     resultsNotSaved: null,
     nowMs: 1000,
   });
+});
+
+test('it passes the owner notes of the store on', () => {
+  const note = { id: 'o-1', text: 'Ask first', said: '2026-03-10T11:00:00Z', on: null };
+
+  const input = buildBriefInput(
+    {
+      folder: '/state/wherewerewe/tide-alerts',
+      session: {
+        format: '1',
+        name: 'tide-alerts',
+        goal: 'Ship it',
+        started: '2026-03-02T08:04:11Z',
+        now: null,
+        nowNext: null,
+        nowSet: null,
+        lastWrite: null,
+        lastNudge: null,
+        importedFrom: null,
+      },
+      items: [],
+      ownerNotes: [note],
+      ownerUnread: null,
+    },
+    1000,
+  );
+
+  expect(input.ownerNotes).toStrictEqual([note]);
 });
 
 test('it counts the items that have a check as not run yet', () => {
@@ -56,6 +86,8 @@ test('it counts the items that have a check as not run yet', () => {
         buildMockItem({ id: 't-b', check: 'path:/srv/app' }),
         buildMockItem({ id: 't-c' }),
       ],
+      ownerNotes: [],
+      ownerUnread: null,
     },
     1000,
   );

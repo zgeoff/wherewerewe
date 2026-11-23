@@ -22,11 +22,16 @@ function setupTest() {
   return {
     stateRoot,
     agentEnv,
-    run: (argv: readonly string[], env: Record<string, string | undefined> = agentEnv) =>
+    run: (
+      argv: readonly string[],
+      env: Record<string, string | undefined> = agentEnv,
+      terminal: { stdin: boolean; stdout: boolean } | null = null,
+    ) =>
       runCLI({
         argv,
         env,
         cwd: '/work',
+        terminal: terminal ?? { stdin: false, stdout: false },
         now: () => {
           clock.nowMs += 1000;
 

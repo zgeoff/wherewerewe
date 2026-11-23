@@ -27,6 +27,8 @@ test('it reads the session and its items', async () => {
       folder: ctx.folder,
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [expect.objectContaining({ id: 't-a', claim: 'Write it' })],
+      ownerNotes: [],
+      ownerUnread: null,
     },
   });
 });
@@ -88,6 +90,8 @@ test('it reports a broken items file with its line, and the store as far as it r
       folder: ctx.folder,
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [expect.objectContaining({ id: 't-a' })],
+      ownerNotes: [],
+      ownerUnread: null,
     },
   });
 });
@@ -110,6 +114,8 @@ test('it reports a missing items file with the session and no items', async () =
       folder: ctx.folder,
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [],
+      ownerNotes: [],
+      ownerUnread: null,
     },
   });
 });

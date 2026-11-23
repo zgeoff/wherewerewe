@@ -27,8 +27,8 @@ function setupTest() {
       };
 
       return pickClose({
-        store: { folder: '/state/tide-alerts', session, items },
-        journal: { closed, decisions: new Map(), lastDecisionNumber: 0 },
+        store: { folder: '/state/tide-alerts', session, items, ownerNotes: [], ownerUnread: null },
+        journal: { closed, decisions: new Map(), lastDecisionNumber: 0, lastOwnerNoteNumber: 0 },
         args: buildParsedArgs(argv),
         cwd: '/work',
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
