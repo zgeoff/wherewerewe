@@ -7,6 +7,9 @@ first line it prints.
 
 ## Journey
 
+Start a run first: steps 2 and 3 of [Check a change](../SKILL.md#check-a-change) run `up` and
+`doctor`.
+
 ```bash
 bun verify use --feature help
 bun verify www help --first-line "wherewerewe (www): notes for one long agent session"
@@ -14,7 +17,7 @@ bun verify www help --first-line "wherewerewe (www): notes for one long agent se
 
 ## End state
 
-- `bun verify www help` exits 0, and `data.firstLine` is
+- The journey's `bun verify www help --first-line ...` exits 0, and `data.firstLine` is
   `wherewerewe (www): notes for one long agent session`. It exits 1 with `check-failed` when `www`
   exits other than 0 or prints another first line. When it fails, follow step 5 of
   [Check a change](../SKILL.md#check-a-change).

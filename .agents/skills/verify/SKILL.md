@@ -133,8 +133,8 @@ for its commands.
 
 - `bun verify www <command> ...` runs the real `www <command>` as a process, with `HOME` and
   `XDG_STATE_HOME` inside the run's folder, so it never touches your own stores or agent settings.
-  Each one fails with `check-failed` when `www` exits other than 0 or prints other text than the
-  flags name.
+  Each one fails with `check-failed` when `www` exits other than 0 or prints text other than the
+  flags expect.
 - The doctor check `www-help` runs `www help`. When it fails, `www` itself is broken: fix it first.
 
 <!-- /repo -->
@@ -143,10 +143,10 @@ for its commands.
 
 <!-- repo: registry -->
 
-The registry, [create-verify-registry.ts](../../../scripts/verify/create-verify-registry.ts),
-declares the target, the commands, the doctor check and the features, with each feature's `paths`,
-the shared globs and the ignore list. CI runs `bun verify lint` and `bun verify gate` on each PR, in
-the `verify / gate` check.
+Declare the target, the commands, the doctor check and the features in the registry,
+[create-verify-registry.ts](../../../scripts/verify/create-verify-registry.ts), with each feature's
+`paths`, the shared globs and the ignore list. CI runs `bun verify lint` and `bun verify gate` on
+each PR, in the `verify / gate` check.
 
 <!-- /repo -->
 

@@ -18,7 +18,7 @@ The rules a task needs are not repeated here. Load the skill for the work before
 
 repo-sync delivers each shared skill at the `zgeoff/skills` commit that `zgeoff/tools` pins, and overwrites a local edit. Never edit a shared skill here. Put a rule of this repo's own about code, tests, docs or CI in a `project-<name>` skill beside the shared skill on that topic. repo-sync copies no `design-docs` skill: before you write a design or a decision record, load [`design-docs`](https://github.com/zgeoff/skills/tree/main/skills/design-docs) from zgeoff/skills.
 
-When you write or edit a skill:
+When you write or edit a skill of this repo's own, which is a `project-<name>` skill or the `verify` skill and its references:
 
 1. Load the `skill-writing`, `cold-read` and `deslop` skills from `.agents/skills/`.
 2. Do every step in the "Check it" section of `.agents/skills/skill-writing/SKILL.md`. In its last step, tick the Deslop and Cold read lines of the PR template's `## Checks` section, each with the short hash of the commit you checked, and leave the chex line for CI.
