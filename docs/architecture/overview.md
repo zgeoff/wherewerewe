@@ -2,7 +2,8 @@
 
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
 brief when the agent runs `www`. It has the store, the note writes, approvals, decisions, the two
-history reads and the brief. A command it does not have exits 2.
+history reads and the brief. A command it does not have exits 2. Read this before you change the
+package, then open the design doc that the section you change links.
 
 ## The package
 
