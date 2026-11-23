@@ -254,7 +254,12 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       ),
     )
     .with({ kind: 'import-already-format-1' }, (found) =>
-      refuse(`www: refused: ${found.name} is already format 1.`, ['--session', found.name]),
+      found.hasAgent
+        ? refuse(
+            `www: refused: ${found.name} is already format 1. Bind this agent session to it.`,
+            ['attach', found.name],
+          )
+        : refuse(`www: refused: ${found.name} is already format 1.`, ['--session', found.name]),
     )
     .with({ kind: 'import-broken-rows' }, (found): Refusal => ({
       exitCode: 3,

@@ -82,7 +82,14 @@ async function importStore(
           ),
           context,
         )
-      : replyRefusal(buildRefusal({ kind: 'import-already-format-1', name }), context);
+      : replyRefusal(
+          buildRefusal({
+            kind: 'import-already-format-1',
+            name,
+            hasAgent: findAgentID(context.env) !== null,
+          }),
+          context,
+        );
   }
 
   if (format !== null && format !== '0-by-hand') {
@@ -113,9 +120,9 @@ async function importStore(
   if (agent === null) {
     writeImportFiles(folder, write);
   } else {
-    // The binding lock comes first, so a busy lock converts nothing. The binding itself comes after
-    // the conversion, so a stop before the conversion ends never leaves the agent bound to a
-    // hand-kept store.
+    // The binding lock comes first, so a busy lock converts nothing. The binding comes last, so a
+    // stop never binds the agent to a hand-kept store; a stop just before it leaves a format 1 store
+    // whose refusal on a rerun gives www attach as its Run line.
     const bound = await withBindingLock(context.root, async () => {
       writeImportFiles(folder, write);
 

@@ -340,7 +340,11 @@ export type RefusalReason =
       readonly name: string;
       readonly sessions: readonly string[];
     }
-  | { readonly kind: 'import-already-format-1'; readonly name: string }
+  | {
+      readonly kind: 'import-already-format-1';
+      readonly name: string;
+      readonly hasAgent: boolean;
+    }
   | {
       readonly kind: 'import-broken-rows';
       readonly name: string;

@@ -894,11 +894,22 @@ test.each([
     fills: [{}],
   },
   {
-    title: 'an import of a store that is format 1 already',
+    title: 'an import of a store that is format 1 already, with an agent id',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: ['import', 'tide-alerts'],
     env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: tide-alerts is already format 1. Bind this agent session to it.\nRun: www attach tide-alerts\n',
+    fills: [{}],
+  },
+  {
+    title: 'an import of a store that is format 1 already, with no agent id',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['import', 'tide-alerts'],
+    env: 'shell',
     exitCode: 3,
     stderr: 'www: refused: tide-alerts is already format 1.\nRun: www --session tide-alerts\n',
     fills: [{}],

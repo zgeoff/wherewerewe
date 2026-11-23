@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -8,6 +8,7 @@ import { withBindingLock } from '../sessions/with-binding-lock.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
+import { seedStaleLock } from '../test-utils/seed-stale-lock.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 
 function setupTest() {
@@ -311,29 +312,71 @@ test('it refuses a store that is format 1 already', async () => {
   });
 });
 
-test('it binds no agent to a store whose conversion finished with no binding written', async () => {
+// A folder where the binding file belongs lets the conversion finish and stops the binding write,
+// which renames a temporary file over that path: an import stopped after its last rename.
+test('it binds the agent with the Run line of a rerun, after an import stopped before its binding', async () => {
   const ctx = setupTest();
+  const env = { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
 
-  await ctx.run(['init', 'old-notes', '--goal', 'Ship it'], { XDG_STATE_HOME: ctx.root }, nowMs);
+  const originals = {
+    session: 'name=old-notes\ngoal=Ship it\nstarted=2026-04-06T09:00:00Z\nnow=t-a\n',
+    items:
+      'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-04-06T09:00:00Z\tagent\t-\n',
+    journal: 'ts\top\tid\ttext\n2026-04-06T09:00:00Z\tinit\told-notes\tStart\n',
+  };
 
-  const before = await ctx.readTree();
+  seedStoreFile(ctx.folder, 'session', originals.session);
+  seedStoreFile(ctx.folder, 'items.tsv', originals.items);
+  seedStoreFile(ctx.folder, 'journal.tsv', originals.journal);
+  seedStoreFile(join(ctx.stateRoot, '.bindings', 'claude-a1b2-test'), 'in-the-way', 'x\n');
 
-  const result = await ctx.run(
-    ['import', 'old-notes'],
-    { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
-    nowMs,
-  );
+  await expect(ctx.run(['import', 'old-notes'], env, nowMs)).toReject();
 
-  const after = await ctx.readTree();
+  const stopped = {
+    session: ctx.readText('old-notes/session'),
+    binding: existsSync(join(ctx.stateRoot, '.bindings', 'claude-a1b2-test', 'in-the-way')),
+  };
 
-  expect({ result, unchanged: after }).toStrictEqual({
-    result: {
+  rmSync(join(ctx.stateRoot, '.bindings', 'claude-a1b2-test'), { recursive: true });
+
+  const retried = await ctx.run(['import', 'old-notes'], env, nowMs);
+  const attached = await ctx.run(['attach', 'old-notes'], env, nowMs);
+  const brief = await ctx.run([], env, nowMs);
+
+  expect({
+    stopped,
+    retried,
+    attached,
+    briefExitCode: brief.exitCode,
+    binding: ctx.readText('.bindings/claude-a1b2-test'),
+    backup: [
+      ctx.readText('old-notes/import-backup/session'),
+      ctx.readText('old-notes/import-backup/items.tsv'),
+      ctx.readText('old-notes/import-backup/journal.tsv'),
+    ],
+    items: ctx.readText('old-notes/items.tsv'),
+  }).toStrictEqual({
+    stopped: {
+      session: expect.stringContaining('format=1\n'),
+      binding: true,
+    },
+    retried: {
       exitCode: 3,
       stdout: '',
-      stderr: 'www: refused: old-notes is already format 1.\nRun: www --session old-notes\n',
+      stderr:
+        'www: refused: old-notes is already format 1. Bind this agent session to it.\nRun: www attach old-notes\n',
     },
-    unchanged: before,
+    attached: {
+      exitCode: 0,
+      stdout: 'Bound this Claude Code session to old-notes.\n',
+      stderr: '',
+    },
+    briefExitCode: 0,
+    binding: 'name=old-notes\n',
+    backup: [originals.session, originals.items, originals.journal],
+    items:
+      'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-04-06T09:00:00Z\tagent\t-\n',
   });
 });
 
@@ -573,6 +616,31 @@ test.each([
       { name: 'session.tmp-1-abcd', text: 'format=1\n' },
     ],
   },
+  {
+    title:
+      'the locks a killed import left in the session folder and in .bindings/, import-backup/ complete and items.tsv converted',
+    staleLocks: true,
+    files: [
+      {
+        name: 'import-backup/session',
+        text: 'name=old-notes\ngoal=Ship it\nstarted=2026-04-06T09:00:00Z\nnow=t-a\n',
+      },
+      {
+        name: 'import-backup/items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-04-06T09:00:00Z\tagent\t-\n',
+      },
+      {
+        name: 'import-backup/journal.tsv',
+        text: 'ts\top\tid\ttext\n2026-04-06T09:00:00Z\tinit\told-notes\tStart\n',
+      },
+      {
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n',
+      },
+      { name: 'owner.tsv', text: 'id\ttext\tsaid\ton\n' },
+      { name: 'prs.tsv', text: 'ref\topened\tstate\tseen\n' },
+    ],
+  },
 ])('it ends a restart with $title as a clean import does', async (row) => {
   const clean = setupTest();
   const restart = setupTest();
@@ -602,6 +670,11 @@ test.each([
     const path = join(restart.folder, file.name);
 
     seedStoreFile(dirname(path), basename(path), file.text);
+  }
+
+  if (row.staleLocks === true) {
+    await seedStaleLock(restart.folder);
+    await seedStaleLock(join(restart.stateRoot, '.bindings'));
   }
 
   const cleanResult = await clean.run(

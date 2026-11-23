@@ -123,6 +123,7 @@ test.each([
   [['ack', 'o-1'], { kind: 'later-command', command: 'ack' }],
   [['install'], { kind: 'later-command', command: 'install' }],
   [['doctor'], { kind: 'later-command', command: 'doctor' }],
+  [['doctor', 'x'], { kind: 'later-command', command: 'doctor' }],
   [['hook', 'claude'], { kind: 'later-command', command: 'hook' }],
   [['task', 't-a', 'x', '--colour', 'red'], { kind: 'unknown-flag', flag: '--colour' }],
   [['task', 't-a', 'x', '-z'], { kind: 'unknown-flag', flag: '-z' }],
