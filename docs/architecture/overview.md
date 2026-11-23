@@ -1,7 +1,7 @@
 # Overview
 
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
-brief after each compaction. The store, the note writes and the brief are built. Checks, owner
+brief when the agent runs `www`. The store, the note writes and the brief are built. Checks, owner
 notes, hooks and the other commands come in later pull requests, and until then they exit 2.
 
 ## The package
@@ -19,17 +19,19 @@ Each session keeps its state in one folder of plain text files under `$XDG_STATE
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
 focus, `items.tsv` the open items, and `journal.tsv` every write. A write takes the folder's `lock`
 file, appends its journal rows, rewrites `items.tsv` and `session` through a temporary file and a
-rename, and removes the lock. The journal comes first, so a write that stops half way leaves a close
-recorded and its item still open, never an item gone with no record. The journal stays closed except
-for the ids that `done`, `drop` and `use` closed, which a write reads to refuse a closed id.
+rename, and removes the lock. A writer removes a lock, its own or a stale one, only after it wins
+the claim file named after that one lock and reads the lock again, so two writers are never inside
+at once. The journal comes first, so a write that stops half way leaves a close recorded and its
+item still open, never an item gone with no record. The journal stays closed except for the ids that
+`done`, `drop` and `use` closed, which a write reads to refuse a closed id.
 [The store design](../design/wherewerewe/store.md) fixes the formats.
 
 ## Finding the session
 
 A command finds its session from `--session`, then `WHEREWEREWE_SESSION`, then the binding of the
-agent session id in `CLAUDE_CODE_SESSION_ID` or `CODEX_SESSION_ID`. `init` and `attach` write a
-binding file under `.bindings/`, and `detach` removes it. With no match the command exits 4, and
-never falls back to the only session on the machine. See
+agent session id in `CLAUDE_CODE_SESSION_ID`, or in `CODEX_SESSION_ID`, or `CODEX_THREAD_ID` when
+that is unset. `init` and `attach` write a binding file under `.bindings/`, and `detach` removes it.
+With no match the command exits 4, and never falls back to the only session on the machine. See
 [sessions and hooks](../design/wherewerewe/sessions-and-hooks.md).
 
 ## Commands and refusals
