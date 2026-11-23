@@ -7,6 +7,6 @@
   "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/diet", "@zgeoff/agent-hooks"],
   "workspaces": {
     ".": { "entry": ["rig.config.ts", "scripts/**/*.test.ts"] },
-    "packages/*": { "entry": ["src/**/*.test.ts"] }
+    "packages/*": { "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts"] }
   }
 }

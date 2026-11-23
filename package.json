@@ -44,6 +44,7 @@
     "typecheck": "bun run --filter '*' typecheck && tsrs --fast -p .",
     "test": "rig unit",
     "test:related": "rig related",
+    "test:e2e": "rig e2e",
     "ci:dispatch-publish": "bun scripts/dispatch-publish/dispatch-publish.ts",
     "check:docs": "chex prose length links readmes skill",
     "ci:verify-gate": "bun scripts/verify-gate/run-verify-gate.ts",
