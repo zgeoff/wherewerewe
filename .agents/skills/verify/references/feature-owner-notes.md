@@ -3,8 +3,8 @@
 Check that the owner can write and clear a note from a terminal, that the brief shows it first after
 the goal, and that an agent cannot write one. The journey starts a session and a task with the real
 `www`, then runs `say` and `ack` through the terminal driver, which gives `www` a terminal with no
-agent variables, and reads the brief between them. Its folders are inside the run's folder under
-`.wringer/`, so it never touches your own stores.
+agent variables (`say-as-agent` sets one, to play an agent), and reads the brief between them. Its
+folders are inside the run's folder under `.wringer/`, so it never touches your own stores.
 
 ## Journey
 

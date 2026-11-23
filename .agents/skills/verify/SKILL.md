@@ -145,8 +145,9 @@ for its commands.
 - `bun verify www seed-hand-kept` copies an invented hand-kept store into the run as the session
   `trial-import`.
 - `bun verify terminal start <program>` starts one of the programs the `local` target names for the
-  `owner-notes` journey, each a real `www` command in a terminal with the agent variables unset.
-  Pass `--session <program>-<n>` to each later `terminal` command.
+  `owner-notes` journey, each a real `www` command in a terminal with the agent variables unset,
+  except `say-as-agent`, which sets one. Pass `--session <program>-<n>` to each later `terminal`
+  command.
 - The doctor check `www-help` runs `www help`. When it fails, `www` itself is broken: fix it first.
 
 <!-- /repo -->
