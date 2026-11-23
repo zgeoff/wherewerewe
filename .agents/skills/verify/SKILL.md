@@ -135,15 +135,15 @@ for its commands.
 
 - `bun verify www <command> ...` runs the real `www <command>` as a process, with `HOME` and
   `XDG_STATE_HOME` inside the run's folder, so it never touches your own stores or agent settings.
-  Each one fails with `check-failed` when `www` exits other than 0 or prints text other than the
-  flags expect.
+  Each fails with `check-failed` when `www` exits other than 0 or prints text other than its flags
+  expect.
 - `bun verify www run --line '<a www command line>' --expect '<text>'` runs that line as the real
-  `www` and fails with `check-failed` unless it exits 0 and its stdout holds the text.
+  `www`, and expects the text in its stdout.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, its stderr holds the text, and one stderr line is `Run: ` followed
   by the run line.
 - `bun verify www seed-hand-kept` copies an invented hand-kept store into the run as the session
-  `trial-import`, for the `import` journey.
+  `trial-import`.
 - The doctor check `www-help` runs `www help`. When it fails, `www` itself is broken: fix it first.
 
 <!-- /repo -->
