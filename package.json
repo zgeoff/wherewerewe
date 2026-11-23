@@ -1,0 +1,65 @@
+{
+  "name": "wherewerewe",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "catalog": {
+      "@commitlint/cli": "21.2.4",
+      "@stylistic/eslint-plugin": "5.10.0",
+      "@tsconfig/strictest": "2.0.9",
+      "@types/bun": "1.4.4",
+      "@zgeoff/bun-test-extended": "0.2.4",
+      "@zgeoff/chex": "0.4.7",
+      "@zgeoff/commitlint-config": "0.1.2",
+      "@zgeoff/diet": "0.3.2",
+      "@zgeoff/format-codemod": "0.3.6",
+      "@zgeoff/oxfmt-config": "0.1.2",
+      "@zgeoff/oxlint-config": "0.11.3",
+      "@zgeoff/rig": "0.3.2",
+      "@zgeoff/testing": "0.4.2",
+      "knip": "6.44.2",
+      "lefthook": "2.2.2",
+      "oxfmt": "0.77.0",
+      "oxlint": "1.92.0",
+      "tsrs": "0.25.0-ts7.1.0-beta",
+      "typescript": "7.0.2"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "prepare": "lefthook install --force || true",
+    "audit": "bun audit",
+    "deadcode": "knip",
+    "format": "oxfmt . && format-codemod --quiet .",
+    "format:check": "oxfmt --check . && format-codemod --check --quiet .",
+    "lint": "oxlint",
+    "typecheck": "bun run --filter '*' typecheck && tsrs --fast -p .",
+    "test": "rig unit",
+    "test:related": "rig related",
+    "check:docs": "chex prose length links readmes skill"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "catalog:",
+    "@stylistic/eslint-plugin": "catalog:",
+    "@tsconfig/strictest": "catalog:",
+    "@types/bun": "catalog:",
+    "@zgeoff/bun-test-extended": "catalog:",
+    "@zgeoff/chex": "catalog:",
+    "@zgeoff/commitlint-config": "catalog:",
+    "@zgeoff/diet": "catalog:",
+    "@zgeoff/format-codemod": "catalog:",
+    "@zgeoff/oxfmt-config": "catalog:",
+    "@zgeoff/oxlint-config": "catalog:",
+    "@zgeoff/rig": "catalog:",
+    "@zgeoff/testing": "catalog:",
+    "knip": "catalog:",
+    "lefthook": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "tsrs": "catalog:",
+    "typescript": "catalog:"
+  },
+  "packageManager": "bun@1.4.4"
+}

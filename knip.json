@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  // the shared oxlint config loads the plugin, and the chex baseline in lefthook.yml runs diet,
+  // so knip sees neither
+  "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/diet"],
+  "workspaces": {
+    ".": { "entry": ["rig.config.ts"] },
+    "packages/*": { "entry": ["src/**/*.test.ts"] }
+  }
+}
