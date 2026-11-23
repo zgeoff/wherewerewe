@@ -34,7 +34,7 @@ flowchart LR
 | [owner-notes.md](owner-notes.md)            | how the owner's notes stay apart from the agent's writes, and what that does not stop |
 | [shipping.md](shipping.md)                  | the package, the built file, the runtime, and why the hooks don't use agent-hooks |
 | [skills.md](skills.md)                      | what changes in the handoff, where-were-we and pickup skills                       |
-| [build-order.md](build-order.md)            | the slices, each with what it delivers, its dependencies and its acceptance lines  |
+| [build-order.md](build-order.md)            | the slices, each with what it delivers, its dependencies, its acceptance lines and its wringer feature |
 
 ## Decisions
 
@@ -44,6 +44,7 @@ These span parts. Each part doc lists its own.
 - **One store per session, outside every repo.** One session works across several repos, so the store lives in the user's state folder. [0001](../../decisions/0001-the-store-is-plain-tsv-files.md)
 - **A session opts in by `www init`, `www attach` or `www import`; nothing else turns the tool on.** The hooks are installed once per machine and stay silent for every agent session that has no binding. [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md)
 - **Every read runs the live checks, and a check never changes an item.** The brief marks what changed and prints the command that fixes it; the agent runs it. [0003](../../decisions/0003-checks-are-built-in-read-only-probes.md)
+- **Every slice in this repo is verified with wringer, and built with the build-feature workflow with Codex as its only review.** Each pull request carries the wringer report, and `verify / gate` fails it when a changed feature has no claim. [build-order.md](build-order.md)
 - **The tool works without hooks.** Hooks put the brief in context and record pull requests; every command works from a bare shell, so an agent with no hooks still reads and writes the same store.
 
 ## What the owner's sign-off authorises
@@ -53,6 +54,7 @@ Signing off this design authorises the build agent to take these steps when its 
 - Run `www install`, which adds hook entries to `~/.claude/settings.json` and `~/.codex/hooks.json` and keeps every other hook. [sessions-and-hooks.md](sessions-and-hooks.md)
 - Add `hooks = true` and the store root to `writable_roots` in `~/.codex/config.toml`. [sessions-and-hooks.md](sessions-and-hooks.md)
 - Run `www import build` on the build session's hand-kept store, after fixing the rows it names. [store.md](store.md)
+- Make `verify / gate` a required check on `main`, once the workflow has run. [build-order.md](build-order.md)
 
 Only the owner can do these, by hand:
 
