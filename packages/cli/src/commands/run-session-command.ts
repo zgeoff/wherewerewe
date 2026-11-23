@@ -256,7 +256,7 @@ function formatSummaryLine(summary: SessionSummary, width: number, nowMs: number
       ? 'last write never'
       : `last write ${formatAge(nowMs - Date.parse(summary.lastWrite))} ago`;
 
-  const goalChars = [...summary.goal];
+  const goalChars = Array.from(summary.goal, (character) => character);
   const goal = goalChars.length > 60 ? `${goalChars.slice(0, 60).join('')}…` : summary.goal;
 
   return `  ${name}  day ${String(getSessionDay(summary.started, nowMs))}  ${lastWrite}  ${goal}`;

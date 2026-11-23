@@ -12,7 +12,7 @@ export function findTextProblem(text: string, limit: number): TextProblem | null
     return { kind: 'not-one-line' };
   }
 
-  const length = [...text].length;
+  const length = Array.from(text, (character) => character).length;
 
   return length > limit ? { kind: 'too-long', length } : null;
 }

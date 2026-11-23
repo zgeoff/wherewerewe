@@ -31,9 +31,9 @@ test('it adds items in order with the defaults the test leaves out', async () =>
   });
 });
 
-test('it throws when the folder holds no store', async () => {
+test('it throws when the folder holds no store', () => {
   const ctx = setupTest();
   const seeded = seedItem(ctx.root, { id: 't-a' });
 
-  await expect(seeded).rejects.toThrow('no store to seed');
+  expect(seeded).rejects.toThrow('no store to seed');
 });

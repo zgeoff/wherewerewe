@@ -832,9 +832,11 @@ test('it refuses a write while another holds the lock for 2 s, names the holder,
 
   const holder = withStoreLock(join(ctx.stateRoot, 'tide-alerts'), () => released.promise);
 
-  await waitFor(() =>
-    ctx.readTree().then((tree) => expect(Object.keys(tree)).toContain('tide-alerts/lock')),
-  );
+  await waitFor(async () => {
+    const tree = await ctx.readTree();
+
+    expect(Object.keys(tree)).toContain('tide-alerts/lock');
+  });
 
   const before = await ctx.readTree();
   const refused = await ctx.run(['task', 't-a', 'Write it'], ctx.agentEnv);

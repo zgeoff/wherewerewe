@@ -132,8 +132,10 @@ function renderPullRequests(input: BriefInput): ItemSection {
 
   const rows = pullRequests.slice(0, maxPullRequestRows).map((pullRequest) => {
     const ref =
-      [...pullRequest.ref].length > 60
-        ? `${[...pullRequest.ref].slice(0, 59).join('')}…`
+      Array.from(pullRequest.ref, (character) => character).length > 60
+        ? `${Array.from(pullRequest.ref, (character) => character)
+            .slice(0, 59)
+            .join('')}…`
         : pullRequest.ref;
 
     const age = formatAge(input.nowMs - Date.parse(pullRequest.opened));
@@ -305,5 +307,5 @@ function renderNow(input: BriefInput): string[] {
 }
 
 function countCharacters(text: string): number {
-  return [...text].length;
+  return Array.from(text, (character) => character).length;
 }

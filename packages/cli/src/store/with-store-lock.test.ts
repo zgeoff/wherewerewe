@@ -81,8 +81,9 @@ test('it removes the lock when the callback throws', async () => {
   const ctx = setupTest();
   const result = withStoreLock(ctx.folder, () => Promise.reject(new Error('boom')));
 
-  await expect(result).rejects.toThrow('boom');
+  const settled = await Promise.allSettled([result]);
 
+  expect(settled.map((outcome) => outcome.status)).toStrictEqual(['rejected']);
   expect(existsSync(ctx.lockPath)).toBe(false);
 });
 

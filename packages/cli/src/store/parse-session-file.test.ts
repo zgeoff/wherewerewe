@@ -52,5 +52,7 @@ test.each([
     { kind: 'broken', reason: 'the line "nonsense" is not key=value' },
   ],
 ])('it reads %s as %p', (_title, text, expected) => {
-  expect<unknown>(parseSessionFile(text)).toStrictEqual(expected);
+  const actual: unknown = parseSessionFile(text);
+
+  expect(actual).toStrictEqual(expected);
 });

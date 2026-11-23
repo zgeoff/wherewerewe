@@ -128,5 +128,7 @@ test.each([
   [['help', 'x'], { kind: 'wrong-positionals', command: 'help', usage: 'no arguments' }],
   [['attach'], { kind: 'wrong-positionals', command: 'attach', usage: '<name>' }],
 ])('it refuses %p with %p', (argv, reason) => {
-  expect<unknown>(parseCLIArgs(argv)).toStrictEqual({ kind: 'refused', reason });
+  const actual: unknown = parseCLIArgs(argv);
+
+  expect(actual).toStrictEqual({ kind: 'refused', reason });
 });

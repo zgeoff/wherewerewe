@@ -370,7 +370,7 @@ test('it renders the worst case, every cap full and every text at its limit, in 
 
   expect({
     lines: brief.split('\n').length - 1,
-    isWithinLimit: [...brief].length <= 6400,
+    isWithinLimit: Array.from(brief, (character) => character).length <= 6400,
   }).toStrictEqual({
     lines: 52,
     isWithinLimit: true,
@@ -405,7 +405,7 @@ test('it cuts item lines from the bottom up when the text passes 6,400 character
   const lines = brief.split('\n');
 
   expect({
-    isWithinLimit: [...brief].length <= 6400,
+    isWithinLimit: Array.from(brief, (character) => character).length <= 6400,
     keepsHeader: lines[0]?.startsWith('tide-alerts · day 9'),
     keepsOwner: brief.includes('OWNER SAYS (1)') && brief.includes('o-1  Ask me first.'),
     keepsChanged: brief.includes('CHANGED SINCE WRITTEN (1)'),

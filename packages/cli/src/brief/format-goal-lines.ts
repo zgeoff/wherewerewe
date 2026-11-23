@@ -10,7 +10,7 @@ export function formatGoalLines(goal: string): string[] {
   let isEmpty = true;
 
   for (const word of goal.split(' ').filter((part) => part !== '')) {
-    let rest = [...word];
+    let rest = Array.from(word, (character) => character);
 
     while (current.length + (isEmpty ? 0 : 1) + rest.length > width) {
       if (!isEmpty) {

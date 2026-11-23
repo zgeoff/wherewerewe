@@ -47,7 +47,9 @@ test.each([[['help']], [['--help']], [['-h']]])(
       'help'
     ];
 
-    expect<unknown>(result).toStrictEqual({ exitCode: 0, stdout: helpBlock, stderr: '' });
+    const actual: unknown = result;
+
+    expect(actual).toStrictEqual({ exitCode: 0, stdout: helpBlock, stderr: '' });
   },
 );
 
@@ -262,7 +264,9 @@ test.each([
       ? expected.stdout.replace('<STATE>', ctx.stateRoot)
       : expected.stdout;
 
-  expect<unknown>({ ...result, changed: readChangedPaths(before, after) }).toStrictEqual({
+  const actual: unknown = { ...result, changed: readChangedPaths(before, after) };
+
+  expect(actual).toStrictEqual({
     exitCode: 0,
     stdout,
     stderr: '',
@@ -307,7 +311,7 @@ test('it keeps two sessions apart: each agent reads and writes only its own stor
 test('it lists each session with its day, its last write and its goal cut to 60 characters, and flags a hand-kept store', async () => {
   const ctx = setupTest();
 
-  await ctx.run(['init', 'alpha', '--goal', `${'g'.repeat(61)}`]);
+  await ctx.run(['init', 'alpha', '--goal', 'g'.repeat(61)]);
 
   await ctx.run(['init', 'beta-notes', '--goal', 'Short goal'], {
     ...ctx.agentEnv,

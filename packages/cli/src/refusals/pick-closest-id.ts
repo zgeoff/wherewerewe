@@ -21,10 +21,10 @@ export function pickClosestID(typed: string, candidates: readonly string[]): str
 function measureDistance(left: string, right: string): number {
   let previous = Array.from({ length: right.length + 1 }, (_unused, index) => index);
 
-  for (const [leftIndex, leftChar] of [...left].entries()) {
+  for (const [leftIndex, leftChar] of Array.from(left, (character) => character).entries()) {
     const row = [leftIndex + 1];
 
-    for (const [rightIndex, rightChar] of [...right].entries()) {
+    for (const [rightIndex, rightChar] of Array.from(right, (character) => character).entries()) {
       row.push(
         Math.min(
           (previous[rightIndex + 1] ?? 0) + 1,

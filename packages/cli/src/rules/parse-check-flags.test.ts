@@ -44,5 +44,7 @@ test.each([
   ],
   [[{ name: 'who', value: 'owner' }], { kind: 'none' }],
 ])('it reads the check flags %p as %p', (flags, expected) => {
-  expect<unknown>(parseCheckFlags(flags, '/work')).toStrictEqual(expected);
+  const actual: unknown = parseCheckFlags(flags, '/work');
+
+  expect(actual).toStrictEqual(expected);
 });

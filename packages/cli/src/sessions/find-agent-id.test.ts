@@ -24,5 +24,7 @@ test.each([
   ],
   [{}, null],
 ])('it finds the agent for %p as %p', (env, expected) => {
-  expect<unknown>(findAgentID(env)).toStrictEqual(expected);
+  const actual: unknown = findAgentID(env);
+
+  expect(actual).toStrictEqual(expected);
 });

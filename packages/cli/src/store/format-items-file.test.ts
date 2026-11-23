@@ -53,6 +53,8 @@ test('it round-trips through the parser, and writes only the header for no items
     },
   ] as const;
 
-  expect<unknown>(parseItemsFile(formatItemsFile(items))).toStrictEqual({ kind: 'items', items });
+  const actual: unknown = parseItemsFile(formatItemsFile(items));
+
+  expect(actual).toStrictEqual({ kind: 'items', items });
   expect(formatItemsFile([])).toBe('id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n');
 });

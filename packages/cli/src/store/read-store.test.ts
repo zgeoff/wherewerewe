@@ -53,7 +53,9 @@ test.each([
 
   const read = await readStore(ctx.folder);
 
-  expect<unknown>(read).toStrictEqual(expected);
+  const actual: unknown = read;
+
+  expect(actual).toStrictEqual(expected);
 });
 
 test('it reports a broken items file with its line', async () => {

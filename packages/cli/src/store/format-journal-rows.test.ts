@@ -42,5 +42,7 @@ test('it round-trips through the parser', () => {
     },
   ] as const;
 
-  expect<unknown>(parseJournalFile(formatJournalRows(rows))).toStrictEqual(rows);
+  const actual: unknown = parseJournalFile(formatJournalRows(rows));
+
+  expect(actual).toStrictEqual(rows);
 });
