@@ -19,7 +19,7 @@ test.each([
   {
     title: "a bot's release pull request",
     head: 'release-please--branches--main',
-    user: { type: 'Bot', login: 'acme-release[bot]' },
+    user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
     body: null,
     step: { kind: 'skip', reason: 'a release pull request carries no verify report' },
   },
@@ -27,6 +27,29 @@ test.each([
     title: "a person's branch named like the release branch",
     head: 'release-please--branches--main',
     user: { type: 'User', login: 'river-otter' },
+    body: '',
+    step: { kind: 'gate', baseRef: 'main', body: '' },
+  },
+  {
+    title: "another bot's pull request from the release branch",
+    head: 'release-please--branches--main',
+    user: { type: 'Bot', login: 'acme-release[bot]' },
+    body: '',
+    step: { kind: 'gate', baseRef: 'main', body: '' },
+  },
+  {
+    title: "the release bot's pull request from a fork",
+    head: 'release-please--branches--main',
+    user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
+    headRepo: { full_name: 'fork-owner/notes' },
+    body: '',
+    step: { kind: 'gate', baseRef: 'main', body: '' },
+  },
+  {
+    title: "the release bot's pull request from a deleted fork",
+    head: 'release-please--branches--main',
+    user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
+    headRepo: null,
     body: '',
     step: { kind: 'gate', baseRef: 'main', body: '' },
   },
@@ -48,8 +71,11 @@ test.each([
   const event = {
     pull_request: {
       body: row.body,
-      base: { ref: 'main' },
-      head: { ref: row.head },
+      base: { ref: 'main', repo: { full_name: 'owner/notes' } },
+      head: {
+        ref: row.head,
+        repo: row.headRepo === undefined ? { full_name: 'owner/notes' } : row.headRepo,
+      },
       user: row.user,
     },
   };
