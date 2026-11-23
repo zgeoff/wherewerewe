@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. A write that touches an item with a note prints the note below that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. A build agent reads this doc to build the command-line parser, the write replies, the refusals and `www recap`, in the slice [build-order.md](build-order.md) names.
+`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note below that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. A build agent reads this doc to build the command-line parser, the write replies, the refusals and `www recap`, in the slice [build-order.md](build-order.md) names.
 
 ## Contracts
 
@@ -24,7 +24,7 @@ Read. Run www first, after every compaction, and whenever you are unsure:
   www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
   www sessions               every session on this machine
 
-Write as you go. One id holds one claim and one note, and each write replaces them:
+Write as you go. One id holds one claim and one note; --note replaces the note:
   www now <id> "<next step>" [--note "<detail>" [--owed]]
   www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]
   www wait <id> "<what>" --who <who> [<check>]
@@ -232,8 +232,8 @@ GRANT  from the owner in chat, 7d ago
    alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from
    the prod push certificate and the prod database, and don't publish a tidekit release."
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
-    staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit
-    releases
+    staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit
+    merges and releases
 NOTES (3 of 3 open items with a note) · owed first, then newest
   t-flag      Turn on the tide_alerts flag in staging config
     owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…
@@ -326,7 +326,7 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 ## Constraints
 
 - Once a session is found and its store's format is known, a read is never refused: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `sessions` needs no session and is never refused.
-- `set` on an item whose check changed is never refused: fixing a stale claim is what the brief asks for.
+- A changed check never makes `set` refuse: fixing a stale claim is what the brief asks for.
 - A write changes only the files its command names in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
 - Each `Run:` line, with its placeholders filled in, passes the same validation.
@@ -344,6 +344,6 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 
 ## Builder decides
 
-- The argument parser, and the spacing and column widths of `show`, `log`, `recap` and `sessions`.
+- The argument parser, the spacing of the help text, and the spacing and column widths of `show`, `log`, `recap` and `sessions`.
 - Fuzzy matching for the suggested id in a `Run:` line, such as `w-apns` for `w-apn`.
 - The full credential pattern list, beyond the patterns above.

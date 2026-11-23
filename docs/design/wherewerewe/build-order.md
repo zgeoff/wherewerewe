@@ -192,7 +192,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Constraints
 
-- Each slice from 0b on is one pull request into `main` of its repo, or several that each leave the tool working, with green CI, and leaves every earlier acceptance line true. Slice 2c is the one exception: format 2 replaces format 1, so the acceptance lines of slice 1 that name format 1 hold for format 2 from then on.
+- Each slice from 0b on is one pull request into `main` of its repo, or several that each leave the tool working, with green CI, and leaves every earlier acceptance line true. Slice 2c is the one exception: format 2 replaces format 1 and folds standing approvals into the grant, so from then on the slice 1 lines that name format 1 hold for format 2, and the bound in brief.md replaces the worst-case line of slice 2b.
 - Each slice is built with the build-feature workflow, with a Codex review as its only review.
 - From slice 0b on, each pull request in this repo publishes the wringer report with `bun verify publish` after its last push, and every feature whose files it changed has a claim at the current fingerprint.
 - The registry is named `wherewerewe-verify`, never `www` or `wherewerewe`: gunshi reads a command group named like the program as the program itself, so the registry's name and its `www` command group must differ.
