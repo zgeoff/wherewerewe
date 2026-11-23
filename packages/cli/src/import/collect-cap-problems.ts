@@ -1,3 +1,4 @@
+import { redactCredential } from '../rules/redact-credential.ts';
 import type { Kind } from '../types.ts';
 import type { Question } from './types.ts';
 
@@ -26,7 +27,7 @@ export function collectCapProblems(
     const source = pickSource(fromItems.length, fromQuestions.length);
 
     return [
-      `${source}: ${String(ids.length)} open ${words.plural} (${ids.join(', ')}), and the limit is ${String(words.cap)}. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
+      `${source}: ${String(ids.length)} open ${words.plural} (${ids.map((id) => redactCredential(id)).join(', ')}), and the limit is ${String(words.cap)}. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ];
   });
 }

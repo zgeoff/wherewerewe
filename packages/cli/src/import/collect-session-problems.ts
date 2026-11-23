@@ -1,4 +1,6 @@
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
+import { findTextProblem } from '../rules/find-text-problem.ts';
+import { redactCredential } from '../rules/redact-credential.ts';
 import type { HandKeptStore } from './parse-hand-kept-store.ts';
 import { stripCarriageReturn } from './strip-carriage-return.ts';
 import type { Facts } from './types.ts';
@@ -19,6 +21,8 @@ const replacedSessionKeys: ReadonlySet<string> = new Set([
   'imported_from',
 ]);
 
+const oneLineProblem = 'the text must be one line, with no tab or newline.';
+
 export function collectSessionProblems(
   hand: HandKeptStore,
   folderName: string,
@@ -32,18 +36,20 @@ export function collectSessionProblems(
   for (const entry of hand.session) {
     const clean = stripCarriageReturn(entry.text);
     const split = clean.indexOf('=');
-    const line = String(entry.line);
 
-    if (split < 1) {
-      lineProblems.push(`session line ${line}: the line is not key=value.`);
-    } else {
+    if (split >= 1) {
       pairs.set(clean.slice(0, split), clean.slice(split + 1));
     }
 
-    if (entry.text.includes('\r')) {
-      lineProblems.push(
-        `session line ${line}: the line holds a carriage return. Save the file with LF line endings.`,
-      );
+    const problems = [
+      ...(split < 1 ? ['the line is not key=value.'] : []),
+      ...(entry.text.includes('\r')
+        ? ['the line holds a carriage return. Save the file with LF line endings.']
+        : []),
+    ];
+
+    if (problems.length > 0) {
+      lineProblems.push(`session line ${String(entry.line)}: ${problems.join('; ')}`);
     }
   }
 
@@ -55,38 +61,42 @@ export function collectSessionProblems(
 
   const wrongName =
     name !== '' && name !== folderName
-      ? [`session (name): the name ${name} is not the folder name ${folderName}.`]
+      ? [`session (name): the name ${redactCredential(name)} is not the folder name ${folderName}.`]
       : [];
 
   const unknown = [...pairs.keys()]
     .filter((key) => !handKeptSessionKeys.has(key) && !replacedSessionKeys.has(key))
-    .map((key) => `session (${key}): format 1 has no key ${key}. Remove the line.`);
+    .map(
+      (key) =>
+        `session (${redactCredential(key)}): format 1 has no key ${redactCredential(key)}. Remove the line.`,
+    );
 
   const goal = pairs.get('goal') ?? '';
   const nowNext = pairs.get('now_next') ?? '';
-  const goalLength = [...goal].length;
-  const nowNextLength = [...nowNext].length;
+  const goalProblem = findTextProblem(goal, 200);
+  const nowNextProblem = findTextProblem(nowNext, 120);
 
-  const lengthProblems = [
-    ...(goalLength > 200
-      ? [`session (goal): the goal is ${String(goalLength)} characters, and the limit is 200.`]
-      : []),
-    ...(nowNextLength > 120
+  const textProblems = [
+    ...(goalProblem?.kind === 'not-one-line' ? [`session (goal): ${oneLineProblem}`] : []),
+    ...(goalProblem?.kind === 'too-long'
       ? [
-          `session (now_next): the next step is ${String(nowNextLength)} characters, and the limit is 120.`,
+          `session (goal): the goal is ${String(goalProblem.length)} characters, and the limit is 200.`,
+        ]
+      : []),
+    ...(nowNextProblem?.kind === 'not-one-line' ? [`session (now_next): ${oneLineProblem}`] : []),
+    ...(nowNextProblem?.kind === 'too-long'
+      ? [
+          `session (now_next): the next step is ${String(nowNextProblem.length)} characters, and the limit is 120.`,
         ]
       : []),
   ];
 
-  const credentials = [
-    ['goal', goal],
-    ['now_next', nowNext],
-  ].flatMap(([key, text]) => {
-    const label = findCredentialMatch(text ?? '');
+  const credentials = [...handKeptSessionKeys].flatMap((key) => {
+    const label = findCredentialMatch(pairs.get(key) ?? '');
 
     return label === null
       ? []
-      : [`session (${key ?? ''}): the text looks like a credential (it matches ${label}).`];
+      : [`session (${key}): the text looks like a credential (it matches ${label}).`];
   });
 
   const now = pairs.get('now') ?? '';
@@ -95,7 +105,7 @@ export function collectSessionProblems(
 
   const nowProblem =
     now !== '' && !openIDs.has(now) && !questionIDs.has(now)
-      ? [`session (now): ${now} names no open item.`]
+      ? [`session (now): ${redactCredential(now)} names no open item.`]
       : [];
 
   return [
@@ -103,7 +113,7 @@ export function collectSessionProblems(
     ...missing,
     ...wrongName,
     ...unknown,
-    ...lengthProblems,
+    ...textProblems,
     ...credentials,
     ...nowProblem,
   ];

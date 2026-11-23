@@ -16,40 +16,45 @@ export interface ImportWrite {
   readonly converted: ConvertedFiles;
 }
 
-// Runs only inside the lock. It changes no hand-kept file until import-backup/ is complete and
-// every new file is written to a temporary file. `session` is renamed last, so a store that still
-// says 0-by-hand has not finished importing.
 export function writeImportFiles(
   folder: string,
   write: ImportWrite,
   files: ImportFiles = createImportFiles(),
 ): void {
+  removeLeftovers(folder, files);
+
   const backupPath = join(folder, 'import-backup');
 
   if (!files.exists(backupPath)) {
     writeBackup(folder, backupPath, write.originals, files);
   }
 
+  const sessionMode = files.readMode(join(folder, 'session'));
+
   const newFiles = [
-    ...(files.exists(join(folder, 'owner.tsv'))
-      ? []
-      : [{ name: 'owner.tsv', text: `${ownerHeader}\n` }]),
-    ...(files.exists(join(folder, 'prs.tsv')) ? [] : [{ name: 'prs.tsv', text: `${prsHeader}\n` }]),
+    { name: 'owner.tsv', text: `${ownerHeader}\n` },
+    { name: 'prs.tsv', text: `${prsHeader}\n` },
     { name: 'items.tsv', text: write.converted.items },
     { name: 'journal.tsv', text: write.converted.journal },
     { name: 'session', text: write.converted.session },
-  ].map((file) => {
+  ].flatMap((file) => {
     const path = join(folder, file.name);
+    const isKept = files.exists(path);
 
-    return {
-      text: file.text,
-      path,
-      temporaryPath: `${path}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`,
-    };
+    return isKept && (file.name === 'owner.tsv' || file.name === 'prs.tsv')
+      ? []
+      : [
+          {
+            text: file.text,
+            path,
+            mode: isKept ? files.readMode(path) : sessionMode,
+            temporaryPath: `${path}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`,
+          },
+        ];
   });
 
   for (const file of newFiles) {
-    files.writeFile(file.temporaryPath, file.text);
+    files.writeFile(file.temporaryPath, file.text, file.mode);
   }
 
   for (const file of newFiles) {
@@ -57,20 +62,24 @@ export function writeImportFiles(
   }
 }
 
-// An import that stopped during its backup left a folder named import-backup.tmp-*, which holds a
-// partial copy and is never used.
+const stagedFile = /^(?:owner\.tsv|prs\.tsv|items\.tsv|journal\.tsv|session)\.tmp-/u;
+
+function removeLeftovers(folder: string, files: ImportFiles): void {
+  for (const name of files.list(folder)) {
+    if (name.startsWith('import-backup.tmp-')) {
+      files.removeFolder(join(folder, name));
+    } else if (stagedFile.test(name)) {
+      files.removeFile(join(folder, name));
+    }
+  }
+}
+
 function writeBackup(
   folder: string,
   backupPath: string,
   originals: HandKeptFiles,
   files: ImportFiles,
 ): void {
-  for (const name of files.list(folder)) {
-    if (name.startsWith('import-backup.tmp-')) {
-      files.removeFolder(join(folder, name));
-    }
-  }
-
   const temporaryPath = `${backupPath}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`;
 
   files.makeFolder(temporaryPath);

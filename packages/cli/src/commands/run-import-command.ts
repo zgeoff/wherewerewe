@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
+import { findFormat } from '../import/find-format.ts';
 import { parseHandKeptStore } from '../import/parse-hand-kept-store.ts';
 import type { HandKeptFiles } from '../import/parse-hand-kept-store.ts';
 import { pickImport } from '../import/pick-import.ts';
@@ -25,7 +26,6 @@ import { writeImportFiles } from '../store/write-import-files.ts';
 import type { CLIResult, Refusal } from '../types.ts';
 import type { CommandContext } from './types.ts';
 
-// Converts the hand-kept store named by the argument to format 1, in place.
 export async function runImportCommand(context: CommandContext): Promise<CLIResult> {
   const name = context.args.positionals[0] ?? '';
   const folder = join(context.root, name);
@@ -69,7 +69,7 @@ async function importStore(
   const sessionFile = await readTextOrNull(join(folder, 'session'));
 
   const sessionText = sessionFile ?? '';
-  const format = readFormat(sessionText);
+  const format = findFormat(sessionText);
 
   if (format === '1') {
     const parsed = parseSessionFile(sessionText);
@@ -101,17 +101,30 @@ async function importStore(
     );
   }
 
-  writeImportFiles(folder, {
+  const write = {
     originals,
     converted: {
       session: formatSessionFile(picked.session),
       items: formatItemsFile(picked.items),
       journal: `${journalHeader}\n${formatJournalRows(picked.journal)}`,
     },
-  });
+  };
 
-  if (agent !== null) {
-    await withBindingLock(context.root, () => writeBinding(context.root, agent, name));
+  if (agent === null) {
+    writeImportFiles(folder, write);
+  } else {
+    const bound = await withBindingLock(context.root, async () => {
+      await writeBinding(context.root, agent, name);
+
+      writeImportFiles(folder, write);
+    });
+
+    if (bound.kind === 'busy') {
+      return replyRefusal(
+        buildRefusal({ kind: 'lock-busy', args: context.args, name, pid: bound.pid }),
+        context,
+      );
+    }
   }
 
   return {
@@ -133,18 +146,6 @@ async function readTextOrNull(path: string): Promise<string | null> {
   }
 }
 
-// The value of the last format line, or null when there is none.
-function readFormat(sessionText: string): string | null {
-  const values = sessionText
-    .split('\n')
-    .filter((line) => line.startsWith('format='))
-    .map((line) => line.slice('format='.length));
-
-  return values.at(-1) ?? null;
-}
-
-// The originals come from import-backup/ when it exists: an earlier import finished its backup, so
-// it holds the true originals, and the session folder may hold some converted files.
 async function readOriginals(folder: string): Promise<HandKeptFiles> {
   const backup = join(folder, 'import-backup');
   const source = existsSync(backup) ? backup : folder;

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
@@ -10,31 +10,8 @@ import { writeImportFiles } from './write-import-files.ts';
 function setupTest() {
   const folder = join(createTempDir('write-import-files').path, 'old-notes');
 
-  const originals = {
-    session: 'name=old-notes\ngoal=Hold the kiln at 1,280 °C\nstarted=2026-03-02T08:00:00Z\n',
-    items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
-    journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
-  };
-
-  const converted = {
-    session: 'format=1\nname=old-notes\n',
-    items: 'new items\n',
-    journal: 'new journal\n',
-  };
-
-  seedStoreFile(folder, 'session', originals.session);
-  seedStoreFile(folder, 'items.tsv', originals.items);
-  seedStoreFile(folder, 'journal.tsv', originals.journal);
-
   return {
     folder,
-    originals,
-    converted,
-    ownerHeader: 'id\ttext\tsaid\ton\n',
-    prsHeader: 'ref\topened\tstate\tseen\n',
-    write: (files = createImportFiles()) => {
-      writeImportFiles(folder, { originals, converted }, files);
-    },
     stopBefore: (step: number) =>
       buildSteppedImportFiles(createImportFiles(), step, () => {
         throw new Error('stopped');
@@ -44,14 +21,44 @@ function setupTest() {
 
       return existsSync(path) ? readFileSync(path, 'utf8') : null;
     },
+    readMode: (name: string): number => statSync(join(folder, name)).mode & 0o777,
     readNames: () => readdirSync(folder).toSorted(),
+    readStaged: (): Record<string, string> =>
+      Object.fromEntries(
+        readdirSync(folder)
+          .filter((name) => name.includes('.tmp-'))
+          .map((name) => [
+            name.slice(0, name.indexOf('.tmp-')),
+            readFileSync(join(folder, name), 'utf8'),
+          ]),
+      ),
   };
 }
 
 test('it copies the originals byte for byte into import-backup/ and writes the new files', () => {
   const ctx = setupTest();
 
-  ctx.write();
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\ngoal=Hold the kiln at 1,280 °C\n');
+  seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\nt-a\ttask\tWrite it\n');
+
+  seedStoreFile(
+    ctx.folder,
+    'journal.tsv',
+    'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+  );
+
+  writeImportFiles(ctx.folder, {
+    originals: {
+      session: 'name=old-notes\ngoal=Hold the kiln at 1,280 °C\n',
+      items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+      journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+    },
+    converted: {
+      session: 'format=1\nname=old-notes\n',
+      items: 'new items\n',
+      journal: 'new journal\n',
+    },
+  });
 
   expect({
     backup: ['session', 'items.tsv', 'journal.tsv'].map((name) =>
@@ -62,33 +69,70 @@ test('it copies the originals byte for byte into import-backup/ and writes the n
     ),
     names: ctx.readNames(),
   }).toStrictEqual({
-    backup: [ctx.originals.session, ctx.originals.items, ctx.originals.journal],
+    backup: [
+      'name=old-notes\ngoal=Hold the kiln at 1,280 °C\n',
+      'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+      'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+    ],
     files: [
-      ctx.converted.session,
-      ctx.converted.items,
-      ctx.converted.journal,
-      ctx.ownerHeader,
-      ctx.prsHeader,
+      'format=1\nname=old-notes\n',
+      'new items\n',
+      'new journal\n',
+      'id\ttext\tsaid\ton\n',
+      'ref\topened\tstate\tseen\n',
     ],
     names: ['import-backup', 'items.tsv', 'journal.tsv', 'owner.tsv', 'prs.tsv', 'session'],
   });
 });
 
-test('it makes 19 file calls on a clean run, which the stop tests below walk through', () => {
+test('it gives the backup and each new file the mode of the file it replaces', () => {
   const ctx = setupTest();
-  const counted = { calls: 0 };
 
-  ctx.write(
-    buildSteppedImportFiles(createImportFiles(), 0, () => {
-      counted.calls += 1;
-    }),
-  );
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
+  seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\n');
+  seedStoreFile(ctx.folder, 'journal.tsv', 'ts\top\tid\ttext\n');
+  chmodSync(join(ctx.folder, 'session'), 0o600);
+  chmodSync(join(ctx.folder, 'items.tsv'), 0o640);
+  chmodSync(join(ctx.folder, 'journal.tsv'), 0o600);
 
-  expect(counted.calls).toBe(19);
+  writeImportFiles(ctx.folder, {
+    originals: {
+      session: 'name=old-notes\n',
+      items: 'id\tkind\tclaim\n',
+      journal: 'ts\top\tid\ttext\n',
+    },
+    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+  });
+
+  expect(
+    Object.fromEntries(
+      [
+        'session',
+        'items.tsv',
+        'journal.tsv',
+        'owner.tsv',
+        'prs.tsv',
+        'import-backup/session',
+        'import-backup/items.tsv',
+        'import-backup/journal.tsv',
+      ].map((name) => [name, ctx.readMode(name)]),
+    ),
+  ).toStrictEqual({
+    session: 0o600,
+    'items.tsv': 0o640,
+    'journal.tsv': 0o600,
+    'owner.tsv': 0o600,
+    'prs.tsv': 0o600,
+    'import-backup/session': 0o600,
+    'import-backup/items.tsv': 0o640,
+    'import-backup/journal.tsv': 0o600,
+  });
 });
 
 test('it keeps an owner.tsv and a prs.tsv that exist', () => {
   const ctx = setupTest();
+
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
 
   seedStoreFile(
     ctx.folder,
@@ -98,7 +142,10 @@ test('it keeps an owner.tsv and a prs.tsv that exist', () => {
 
   seedStoreFile(ctx.folder, 'prs.tsv', 'ref\topened\tstate\tseen\n');
 
-  ctx.write();
+  writeImportFiles(ctx.folder, {
+    originals: { session: 'name=old-notes\n', items: null, journal: null },
+    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+  });
 
   expect(ctx.readText('owner.tsv')).toBe(
     'id\ttext\tsaid\ton\no-1\tKeep it\t2026-03-03T08:00:00Z\t-\n',
@@ -107,82 +154,288 @@ test('it keeps an owner.tsv and a prs.tsv that exist', () => {
 
 test('it copies only the original files that exist', () => {
   const ctx = setupTest();
-  const folder = join(createTempDir('write-import-files').path, 'old-notes');
 
-  seedStoreFile(folder, 'session', ctx.originals.session);
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
 
-  writeImportFiles(folder, {
-    originals: { session: ctx.originals.session, items: null, journal: null },
-    converted: ctx.converted,
+  writeImportFiles(ctx.folder, {
+    originals: { session: 'name=old-notes\n', items: null, journal: null },
+    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
   });
 
-  expect(readdirSync(join(folder, 'import-backup'))).toStrictEqual(['session']);
+  expect(readdirSync(join(ctx.folder, 'import-backup'))).toStrictEqual(['session']);
 });
 
 test('it skips the backup when import-backup/ exists, so the true originals stay', () => {
   const ctx = setupTest();
 
+  seedStoreFile(ctx.folder, 'session', 'format=0-by-hand\n');
   seedStoreFile(join(ctx.folder, 'import-backup'), 'session', 'the true original\n');
 
-  ctx.write();
+  writeImportFiles(ctx.folder, {
+    originals: { session: 'the true original\n', items: null, journal: null },
+    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+  });
 
   expect(ctx.readText('import-backup/session')).toBe('the true original\n');
 });
 
-test('it removes an import-backup.tmp-* folder that an earlier import left', () => {
+test('it removes the backup folder and the staged files that an earlier import left', () => {
   const ctx = setupTest();
 
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
   seedStoreFile(join(ctx.folder, 'import-backup.tmp-1-abcd'), 'session', 'partial\n');
+  seedStoreFile(ctx.folder, 'items.tsv.tmp-1-abcd', 'half\n');
+  seedStoreFile(ctx.folder, 'session.tmp-1-abcd', 'half\n');
+  seedStoreFile(ctx.folder, 'notes.tmp-1-abcd', 'not an import file\n');
 
-  ctx.write();
+  writeImportFiles(ctx.folder, {
+    originals: { session: 'name=old-notes\n', items: null, journal: null },
+    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+  });
 
   expect(ctx.readNames()).toStrictEqual([
     'import-backup',
     'items.tsv',
     'journal.tsv',
+    'notes.tmp-1-abcd',
     'owner.tsv',
     'prs.tsv',
     'session',
   ]);
 });
 
-// Calls 0 to 6 make the backup, 7 and 8 look for owner.tsv and prs.tsv, 9 to 13 write the
-// temporary files, and 14 to 18 rename them, with items.tsv at 16 and session last.
-test.each(Array.from({ length: 19 }, (_value, step) => ({ step })))(
-  'it leaves the hand-kept files whole when it stops before call $step, until items.tsv is renamed',
+test('it makes 26 file calls on a clean run, which the stop tests below walk through', () => {
+  const ctx = setupTest();
+  const counted = { calls: 0 };
+
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
+  seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\n');
+  seedStoreFile(ctx.folder, 'journal.tsv', 'ts\top\tid\ttext\n');
+
+  writeImportFiles(
+    ctx.folder,
+    {
+      originals: {
+        session: 'name=old-notes\n',
+        items: 'id\tkind\tclaim\n',
+        journal: 'ts\top\tid\ttext\n',
+      },
+      converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+    },
+    buildSteppedImportFiles(createImportFiles(), 0, () => {
+      counted.calls += 1;
+    }),
+  );
+
+  expect(counted.calls).toBe(26);
+});
+
+test.each(Array.from({ length: 24 }, (_value, step) => ({ step })))(
+  'it leaves the hand-kept files whole when it stops before call $step',
   (row) => {
     const ctx = setupTest();
 
+    seedStoreFile(ctx.folder, 'session', 'name=old-notes\ngoal=Hold the kiln\n');
+    seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\nt-a\ttask\tWrite it\n');
+
+    seedStoreFile(
+      ctx.folder,
+      'journal.tsv',
+      'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+    );
+
     expect(() => {
-      ctx.write(ctx.stopBefore(row.step));
+      writeImportFiles(
+        ctx.folder,
+        {
+          originals: {
+            session: 'name=old-notes\ngoal=Hold the kiln\n',
+            items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+            journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+          },
+          converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+        },
+        ctx.stopBefore(row.step),
+      );
     }).toThrow('stopped');
 
-    expect({
-      backupJournal: ctx.readText('import-backup/journal.tsv'),
-      backupItems: ctx.readText('import-backup/items.tsv'),
-      backupSession: ctx.readText('import-backup/session'),
-      items: ctx.readText('items.tsv'),
-      session: ctx.readText('session'),
-    }).toStrictEqual({
-      backupJournal: row.step >= 7 ? ctx.originals.journal : null,
-      backupItems: row.step >= 7 ? ctx.originals.items : null,
-      backupSession: row.step >= 7 ? ctx.originals.session : null,
-      items: row.step <= 16 ? ctx.originals.items : ctx.converted.items,
-      session: ctx.originals.session,
-    });
+    expect(['session', 'items.tsv', 'journal.tsv'].map((name) => ctx.readText(name))).toStrictEqual(
+      [
+        'name=old-notes\ngoal=Hold the kiln\n',
+        'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+        'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+      ],
+    );
   },
 );
 
-test.each(Array.from({ length: 19 }, (_value, step) => ({ step })))(
-  'it finishes the same files when it runs again after a stop before call $step',
+test.each([
+  {
+    title: 'items.tsv',
+    step: 24,
+    files: ['name=old-notes\n', 'new items\n', 'ts\top\tid\ttext\n'],
+  },
+  {
+    title: 'items.tsv and journal.tsv',
+    step: 25,
+    files: ['name=old-notes\n', 'new items\n', 'new journal\n'],
+  },
+])('it has renamed $title and not session when it stops before call $step', (row) => {
+  const ctx = setupTest();
+
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
+  seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\n');
+  seedStoreFile(ctx.folder, 'journal.tsv', 'ts\top\tid\ttext\n');
+
+  expect(() => {
+    writeImportFiles(
+      ctx.folder,
+      {
+        originals: {
+          session: 'name=old-notes\n',
+          items: 'id\tkind\tclaim\n',
+          journal: 'ts\top\tid\ttext\n',
+        },
+        converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+      },
+      ctx.stopBefore(row.step),
+    );
+  }).toThrow('stopped');
+
+  expect(['session', 'items.tsv', 'journal.tsv'].map((name) => ctx.readText(name))).toStrictEqual([
+    ...row.files,
+  ]);
+});
+
+test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
+  'it leaves import-backup/ absent or complete when it stops before call $step',
   (row) => {
     const ctx = setupTest();
 
+    seedStoreFile(ctx.folder, 'session', 'name=old-notes\ngoal=Hold the kiln\n');
+    seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\nt-a\ttask\tWrite it\n');
+
+    seedStoreFile(
+      ctx.folder,
+      'journal.tsv',
+      'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+    );
+
     expect(() => {
-      ctx.write(ctx.stopBefore(row.step));
+      writeImportFiles(
+        ctx.folder,
+        {
+          originals: {
+            session: 'name=old-notes\ngoal=Hold the kiln\n',
+            items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+            journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+          },
+          converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+        },
+        ctx.stopBefore(row.step),
+      );
     }).toThrow('stopped');
 
-    ctx.write();
+    expect(
+      ['session', 'items.tsv', 'journal.tsv'].map((name) => ctx.readText(`import-backup/${name}`)),
+    ).toBeOneOf([
+      [null, null, null],
+      [
+        'name=old-notes\ngoal=Hold the kiln\n',
+        'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+        'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+      ],
+    ]);
+  },
+);
+
+test.each([
+  { step: 16, staged: {} },
+  { step: 17, staged: { 'owner.tsv': 'id\ttext\tsaid\ton\n' } },
+  {
+    step: 18,
+    staged: { 'owner.tsv': 'id\ttext\tsaid\ton\n', 'prs.tsv': 'ref\topened\tstate\tseen\n' },
+  },
+  {
+    step: 19,
+    staged: {
+      'owner.tsv': 'id\ttext\tsaid\ton\n',
+      'prs.tsv': 'ref\topened\tstate\tseen\n',
+      'items.tsv': 'new items\n',
+    },
+  },
+  {
+    step: 20,
+    staged: {
+      'owner.tsv': 'id\ttext\tsaid\ton\n',
+      'prs.tsv': 'ref\topened\tstate\tseen\n',
+      'items.tsv': 'new items\n',
+      'journal.tsv': 'new journal\n',
+    },
+  },
+  {
+    step: 21,
+    staged: {
+      'owner.tsv': 'id\ttext\tsaid\ton\n',
+      'prs.tsv': 'ref\topened\tstate\tseen\n',
+      'items.tsv': 'new items\n',
+      'journal.tsv': 'new journal\n',
+      session: 'format=1\n',
+    },
+  },
+])('it has staged the whole text of $staged when it stops before call $step', (row) => {
+  const ctx = setupTest();
+
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
+  seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\n');
+  seedStoreFile(ctx.folder, 'journal.tsv', 'ts\top\tid\ttext\n');
+
+  expect(() => {
+    writeImportFiles(
+      ctx.folder,
+      {
+        originals: {
+          session: 'name=old-notes\n',
+          items: 'id\tkind\tclaim\n',
+          journal: 'ts\top\tid\ttext\n',
+        },
+        converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+      },
+      ctx.stopBefore(row.step),
+    );
+  }).toThrow('stopped');
+
+  expect(ctx.readStaged()).toStrictEqual(row.staged);
+});
+
+test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
+  'it finishes the same files, and leaves no temporary file, when it runs again after a stop before call $step',
+  (row) => {
+    const ctx = setupTest();
+
+    seedStoreFile(ctx.folder, 'session', 'name=old-notes\ngoal=Hold the kiln\n');
+    seedStoreFile(ctx.folder, 'items.tsv', 'id\tkind\tclaim\nt-a\ttask\tWrite it\n');
+
+    seedStoreFile(
+      ctx.folder,
+      'journal.tsv',
+      'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+    );
+
+    const write = {
+      originals: {
+        session: 'name=old-notes\ngoal=Hold the kiln\n',
+        items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+        journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+      },
+      converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+    };
+
+    expect(() => {
+      writeImportFiles(ctx.folder, write, ctx.stopBefore(row.step));
+    }).toThrow('stopped');
+
+    writeImportFiles(ctx.folder, write);
 
     expect({
       files: [
@@ -192,18 +445,22 @@ test.each(Array.from({ length: 19 }, (_value, step) => ({ step })))(
         'owner.tsv',
         'prs.tsv',
         'import-backup/session',
+        'import-backup/items.tsv',
+        'import-backup/journal.tsv',
       ].map((name) => ctx.readText(name)),
-      stray: ctx.readNames().filter((name) => name.startsWith('import-backup.tmp-')),
+      names: ctx.readNames(),
     }).toStrictEqual({
       files: [
-        ctx.converted.session,
-        ctx.converted.items,
-        ctx.converted.journal,
-        ctx.ownerHeader,
-        ctx.prsHeader,
-        ctx.originals.session,
+        'format=1\n',
+        'new items\n',
+        'new journal\n',
+        'id\ttext\tsaid\ton\n',
+        'ref\topened\tstate\tseen\n',
+        'name=old-notes\ngoal=Hold the kiln\n',
+        'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
+        'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
       ],
-      stray: [],
+      names: ['import-backup', 'items.tsv', 'journal.tsv', 'owner.tsv', 'prs.tsv', 'session'],
     });
   },
 );

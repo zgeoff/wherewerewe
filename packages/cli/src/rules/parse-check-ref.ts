@@ -1,7 +1,5 @@
 import type { CheckRef } from '../types.ts';
 
-// The stored form of a check: pr:<owner>/<repo>#<n>, branch:<absolute path>@<branch>,
-// path:<absolute path> or pid:<n>. Null when the text is none of them.
 export function parseCheckRef(text: string): CheckRef | null {
   const split = text.indexOf(':');
   const kind = text.slice(0, split);

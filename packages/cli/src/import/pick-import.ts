@@ -15,11 +15,7 @@ export type ImportPick =
       readonly kind: 'import';
       readonly session: SessionFile;
       readonly items: readonly Item[];
-
-      // the carried-over rows, then the import row and the bind row
       readonly journal: readonly JournalRow[];
-
-      // rows carried over from the hand-kept journal
       readonly carried: number;
     }
   | { readonly kind: 'refused'; readonly problems: readonly string[] };
@@ -30,8 +26,6 @@ interface ImportOptions {
   readonly agent: AgentID | null;
 }
 
-// Checks every row of the hand-kept store against the write rules, and converts it to format 1
-// only when no row breaks one.
 export function pickImport(hand: HandKeptStore, options: ImportOptions): ImportPick {
   const facts = collectImportFacts(hand);
   const items = collectItemChecks(hand, facts);
@@ -50,7 +44,7 @@ export function pickImport(hand: HandKeptStore, options: ImportOptions): ImportP
 
   const session = buildSession(hand, options.name, facts);
   const converted = [...items.items, ...questions.map((question) => buildQuestionItem(question))];
-  const carried = facts.journal.map((row, index) => convertRow(row, index, facts));
+  const carried = facts.journal.map((row) => convertRow(row));
 
   return {
     kind: 'import',
@@ -121,7 +115,7 @@ function buildQuestionItem(question: Question): Item {
 
 const decideSeparator = ' | why: ';
 
-function convertRow(row: JournalFact, index: number, facts: Facts): JournalRow {
+function convertRow(row: JournalFact): JournalRow {
   const base = { ts: row.ts, id: row.id, by: 'import' as const };
 
   if (row.op === 'decide') {
@@ -138,14 +132,10 @@ function convertRow(row: JournalFact, index: number, facts: Facts): JournalRow {
   }
 
   if (row.op === 'closed') {
-    const earlier = facts.journal
-      .slice(0, index)
-      .findLast((candidate) => candidate.op === 'open' && candidate.id === row.id);
-
     return {
       ...base,
       op: 'done',
-      text: toText(facts.claims.get(row.id) ?? earlier?.text),
+      text: toText(row.closedText),
       why: toText(row.text),
       extra: null,
     };
@@ -154,7 +144,6 @@ function convertRow(row: JournalFact, index: number, facts: Facts): JournalRow {
   return { ...base, op: row.op, text: toText(row.text), why: null, extra: null };
 }
 
-// A lone dash is the empty cell on disk, and a free-text cell never means a dash.
-function toText(cell: string | undefined): string | null {
-  return cell === undefined || cell === '' || cell === '-' ? null : cell;
+function toText(cell: string | null | undefined): string | null {
+  return cell === undefined || cell === null || cell === '' || cell === '-' ? null : cell;
 }

@@ -1,7 +1,5 @@
 import type { ImportFiles } from '../store/types.ts';
 
-// Wraps the import's file calls so a test can stop it between any two: `onStep` runs before each
-// call from number `fromStep` on, counting the calls from 0.
 export function buildSteppedImportFiles(
   files: ImportFiles,
   fromStep: number,
@@ -33,6 +31,11 @@ export function buildSteppedImportFiles(
 
       files.removeFolder(path);
     },
+    removeFile: (path) => {
+      beforeCall();
+
+      files.removeFile(path);
+    },
     makeFolder: (path) => {
       beforeCall();
 
@@ -43,10 +46,15 @@ export function buildSteppedImportFiles(
 
       files.copyFile(from, to);
     },
-    writeFile: (path, text) => {
+    readMode: (path) => {
       beforeCall();
 
-      files.writeFile(path, text);
+      return files.readMode(path);
+    },
+    writeFile: (path, text, mode) => {
+      beforeCall();
+
+      files.writeFile(path, text, mode);
     },
     rename: (from, to) => {
       beforeCall();

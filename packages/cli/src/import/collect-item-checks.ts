@@ -3,6 +3,7 @@ import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { findTextProblem } from '../rules/find-text-problem.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { parseCheckRef } from '../rules/parse-check-ref.ts';
+import { redactCredential } from '../rules/redact-credential.ts';
 import { itemsHeader } from '../store/constants.ts';
 import type { Extra, Item, Kind } from '../types.ts';
 import { checkHeader } from './check-header.ts';
@@ -60,7 +61,7 @@ export function collectItemChecks(hand: HandKeptStore, facts: Facts): ItemChecks
       if (checked.problems.length > 0) {
         lines.push({
           line: row.line,
-          text: `items.tsv line ${String(row.line)} (${checked.id}): ${checked.problems.join('; ')}`,
+          text: `items.tsv line ${String(row.line)} (${redactCredential(checked.id)}): ${checked.problems.join('; ')}`,
         });
       }
     }
@@ -111,11 +112,8 @@ function checkItemRow(
   const claimProblem = findTextProblem(claim, 120);
   const label = kind === 'ok' ? 'quote' : 'claim';
 
-  const credential = [claim, extra.who, extra.where, extra.scope].flatMap((text) => {
-    const found = text === undefined ? null : findCredentialMatch(text);
-
-    return found === null ? [] : [`the text looks like a credential (it matches ${found}).`];
-  });
+  const credentialLabel =
+    cells.map((cell) => findCredentialMatch(cell)).find((found) => found !== null) ?? null;
 
   const limitProblems = (['who', 'where', 'scope'] as const).flatMap((key) => {
     const value = extra[key];
@@ -137,18 +135,23 @@ function checkItemRow(
     ...(firstLine !== undefined && firstLine !== row.line
       ? [`line ${String(firstLine)} has the same id.`]
       : []),
-    ...(isKind(kind) ? [] : [`the kind ${kind} is not task, wait, ok, rule or where.`]),
-    ...(check !== '-' && parsedCheck === null ? [`the check ${check} does not parse.`] : []),
+    ...(isKind(kind)
+      ? []
+      : [`the kind ${redactCredential(kind)} is not task, wait, ok, rule or where.`]),
+    ...(check !== '-' && parsedCheck === null
+      ? [`the check ${redactCredential(check)} does not parse.`]
+      : []),
     ...(kind === 'rule' && check !== '-' ? ['a rule has no check.'] : []),
     ...(by === 'agent' || by === 'owner' || by === 'import'
       ? []
-      : [`by is ${by}, and it must be agent, owner or import.`]),
+      : [`by is ${redactCredential(by)}, and it must be agent, owner or import.`]),
     ...(claimProblem?.kind === 'empty' ? [`the ${label} is empty.`] : []),
     ...(claimProblem?.kind === 'too-long'
       ? [`the ${label} is ${String(claimProblem.length)} characters, and the limit is 120.`]
       : []),
     ...limitProblems,
     ...parsedExtra.problems,
+    ...collectKeyKindProblems(kind, check, parsedExtra.keys),
     ...(kind === 'ok' &&
     (!parsedExtra.keys.has('who') ||
       !parsedExtra.keys.has('where') ||
@@ -158,9 +161,11 @@ function checkItemRow(
       : []),
     ...(kind === 'wait' && extra.who === undefined ? ['a wait needs who.'] : []),
     ...(extra.blocked_by !== undefined && !isBlocker(blockers, extra.blocked_by)
-      ? [`blocked_by=${extra.blocked_by} names no open task or wait.`]
+      ? [`blocked_by=${redactCredential(extra.blocked_by)} names no open task or wait.`]
       : []),
-    ...credential,
+    ...(credentialLabel === null
+      ? []
+      : [`the text looks like a credential (it matches ${credentialLabel}).`]),
     ...(hasCarriageReturn ? [carriageReturnProblem] : []),
   ];
 
@@ -189,7 +194,6 @@ type ExtraKey = (typeof extraKeys)[number];
 interface ExtraParse {
   readonly extra: Extra;
 
-  // the keys the cell names, valid or not
   readonly keys: ReadonlySet<ExtraKey>;
   readonly problems: readonly string[];
 }
@@ -212,12 +216,14 @@ function parseExtraCell(cell: string): ExtraParse {
     const value = token === 'once' || token === 'standing' ? token : token.slice(split + 1);
 
     if (token !== 'once' && token !== 'standing' && split < 1) {
-      tokens.push(`the extra token "${cutToken(token)}" is not key=value, once or standing.`);
+      tokens.push(
+        `the extra token "${cutToken(redactCredential(token))}" is not key=value, once or standing.`,
+      );
     } else if (value.includes('=')) {
-      equals.push(`the ${key} holds "=", and an extra value never holds ; or =.`);
+      equals.push(`the ${redactCredential(key)} holds "=", and an extra value never holds ; or =.`);
     } else if (!isExtraKey(key)) {
       unknownKeys.push(
-        `the extra key ${key} is not who, where, scope, use, blocked_by or pid_start.`,
+        `the extra key ${redactCredential(key)} is not who, where, scope, use, blocked_by or pid_start.`,
       );
     } else if (pairs.has(key)) {
       useProblems.push(`the extra key ${key} is given twice.`);
@@ -225,7 +231,7 @@ function parseExtraCell(cell: string): ExtraParse {
       pairs.set(key, value);
 
       if (key === 'use' && value !== 'once' && value !== 'standing') {
-        useProblems.push(`the use ${value} is not once or standing.`);
+        useProblems.push(`the use ${redactCredential(value)} is not once or standing.`);
       }
     }
   }
@@ -254,6 +260,38 @@ function cutToken(token: string): string {
 
 function isExtraKey(value: string): value is ExtraKey {
   return extraKeys.some((key) => key === value);
+}
+
+interface KeyKinds {
+  readonly key: ExtraKey;
+  readonly kinds: readonly Kind[];
+}
+
+const keyKinds: readonly KeyKinds[] = [
+  { key: 'who', kinds: ['wait', 'ok'] },
+  { key: 'where', kinds: ['ok'] },
+  { key: 'scope', kinds: ['ok'] },
+  { key: 'use', kinds: ['ok'] },
+  { key: 'blocked_by', kinds: ['task'] },
+];
+
+function collectKeyKindProblems(
+  kind: string,
+  check: string,
+  keys: ReadonlySet<ExtraKey>,
+): string[] {
+  const kindProblems = isKind(kind)
+    ? keyKinds
+        .filter((entry) => keys.has(entry.key) && !entry.kinds.includes(kind))
+        .map(
+          (entry) =>
+            `the extra key ${entry.key} is for kind ${entry.kinds.join(' or ')}, and this row is kind ${kind}.`,
+        )
+    : [];
+
+  return keys.has('pid_start') && !check.startsWith('pid:')
+    ? [...kindProblems, 'the extra key pid_start is for a pid check, and this row has none.']
+    : kindProblems;
 }
 
 function isBlocker(blockers: ReadonlyMap<string, Kind>, id: string): boolean {

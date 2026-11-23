@@ -7,8 +7,6 @@ interface HandKeptItemCells {
   readonly extra?: string;
 }
 
-// A tab-separated row of a hand-kept items.tsv: an unchecked task written on 2026-03-02, with the
-// cells the test names laid over it.
 export function buildHandKeptItemRow(cells: HandKeptItemCells): string {
   return [
     cells.id ?? 't-b',

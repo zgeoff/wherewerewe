@@ -1,6 +1,7 @@
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { findTextProblem } from '../rules/find-text-problem.ts';
 import { isItemID } from '../rules/is-item-id.ts';
+import { redactCredential } from '../rules/redact-credential.ts';
 import { checkHeader } from './check-header.ts';
 import { carriageReturnProblem, idRuleProblem } from './constants.ts';
 import type { HandKeptStore } from './parse-hand-kept-store.ts';
@@ -43,7 +44,11 @@ export function collectJournalProblems(
       );
     } else {
       const question = questionsByLine.get(row.line);
-      const credential = findCredentialMatch(fact.text);
+
+      const credential =
+        [fact.ts, fact.op, fact.id, fact.text, fact.closedText ?? '']
+          .map((cell) => findCredentialMatch(cell))
+          .find((found) => found !== null) ?? null;
 
       const problems = [
         ...(question === undefined
@@ -60,7 +65,9 @@ export function collectJournalProblems(
       }
 
       if (problems.length > 0) {
-        lines.push(`journal.tsv line ${String(row.line)} (${fact.id}): ${problems.join('; ')}`);
+        lines.push(
+          `journal.tsv line ${String(row.line)} (${redactCredential(fact.id)}): ${problems.join('; ')}`,
+        );
       }
     }
   }
@@ -85,6 +92,9 @@ function collectQuestionProblems(
         ]
       : []),
     ...(isItemID(question.id) ? [] : [idRuleProblem]),
+    ...(question.closedLine === null
+      ? []
+      : [`line ${String(question.closedLine)} closed the id, and a closed id is never reused.`]),
     ...(itemLine === undefined ? [] : [`items.tsv line ${String(itemLine)} has the same id.`]),
     ...(questionLine === undefined ? [] : [`line ${String(questionLine)} has the same id.`]),
   ];

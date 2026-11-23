@@ -82,13 +82,21 @@ files, and checks every row against the write rules. When any row breaks a rule,
 line per row and changes no file. See [the store design](../design/wherewerewe/store.md) for the
 conversion and [the commands design](../design/wherewerewe/commands.md) for the refusal text.
 
-Otherwise it copies `session`, `items.tsv` and `journal.tsv` into `import-backup/` through a
-temporary folder and a rename, so `import-backup/` is either absent or complete. It then writes each
-new file in full to a temporary file, and renames them into place in this order: `owner.tsv`,
-`prs.tsv`, `items.tsv`, `journal.tsv` and `session`. A store whose `session` file still has
-`format=0-by-hand` has not finished importing. A rerun reads the originals from `import-backup/`
-when it exists, ignores a folder named `import-backup.tmp-*`, and converts the store again. It binds
-the agent session that runs it, as `init` does. A store that is format 1 already is refused.
+Otherwise it takes the binding lock when an agent session runs it, and writes the binding first, so
+a stopped import never leaves a converted store with no binding. It then copies `session`,
+`items.tsv` and `journal.tsv` into `import-backup/` through a temporary folder and a rename, so
+`import-backup/` is either absent or complete. It writes each new file in full to a temporary file,
+and renames them into place in this order: `owner.tsv`, `prs.tsv`, `items.tsv`, `journal.tsv` and
+`session`. A store whose `session` file still has `format=0-by-hand` has not finished importing. A
+rerun reads the originals from `import-backup/` when it exists, removes any `import-backup.tmp-*`
+folder and any temporary file a stopped import staged, and converts the store again. The backup and
+each new file keep the permissions of the file they replace, and a new `owner.tsv` or `prs.tsv`
+takes those of `session`. A store that is format 1 already is refused.
+
+A row that a `done`, `closed`, `drop` or `use` row closes leaves `items.tsv`, and a question cannot
+reuse a closed id, because a closed id is never reused. An item holds only the `extra` keys of its
+kind: `use`, `where` and `scope` on an approval, `blocked_by` on a task, `who` on a wait or an
+approval. A refusal never prints a value that looks like a credential.
 
 ## The brief
 
