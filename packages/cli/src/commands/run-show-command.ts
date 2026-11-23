@@ -27,7 +27,7 @@ export async function runShowCommand(
     journalUnread = {
       file: 'journal.tsv',
       line: null,
-      reason: error instanceof Error && 'code' in error ? `${String(error.code)}` : 'read failed',
+      reason: error instanceof Error && 'code' in error ? String(error.code) : 'read failed',
     };
   }
 
