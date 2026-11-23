@@ -1,13 +1,13 @@
 # import
 
 Check that `www import` converts a hand-kept store. A user who kept notes by hand runs
-`www import <session>` once, then reads the brief. The journey copies an invented hand-kept store
-into the run's folder under `.wringer/`, imports it with the real `www`, and reads its brief, so it
-never touches your own stores.
+`www import <session>` once, then reads the brief. Run the journey to import an invented hand-kept
+store with the real `www` and read its brief. It works on a copy in the run's folder under
+`.wringer/`, so it never touches your own stores.
 
 ## Journey
 
-Run `bun verify up --restart` first, so `trial-import` does not exist yet, then `doctor`.
+Run `bun verify up --restart` first, so `trial-import` does not exist yet, then run `doctor`.
 
 ```bash
 bun verify use --feature import
@@ -23,4 +23,4 @@ bun verify www run --line 'www --session trial-import' --expect '  q-1         W
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: the import
   reports 7 items and 10 journal rows, and the brief shows the goal and the open question `q-1` as a
   wait on the owner. Each fails with `check-failed` when `www` exits other than 0 or prints other
-  text. When a line fails, do what its row in [Exit codes](exit-codes.md) says.
+  text. When a line fails, follow its row in [Exit codes](exit-codes.md).

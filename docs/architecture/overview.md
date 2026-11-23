@@ -96,14 +96,14 @@ stopped import staged, and converts the store again. The backup and each new fil
 permissions of the file they replace, and a new `owner.tsv` or `prs.tsv` takes those of `session`.
 
 A rerun refuses a store that is format 1 already. When an agent session runs it, the refusal's
-`Run:` line is `www attach <session>`, which binds an agent that an import stopped after its last
-rename and before its binding left unbound.
+`Run:` line is `www attach <session>`, which binds an agent that an import left unbound by stopping
+after its last rename and before its binding.
 
 An item that a hand-kept `done`, `closed`, `drop` or `use` journal row closes leaves `items.tsv`. A
 hand-kept journal settles a question or an item with a `closed` row. A question cannot reuse a
-closed id, because a closed id is never reused. An item holds only the `extra` keys of its kind:
-`use`, `where` and `scope` on an approval, `blocked_by` on a task, `who` on a wait or an approval. A
-refusal never prints a value that looks like a credential.
+closed id. An item holds only the `extra` keys of its kind: `use`, `where` and `scope` on an
+approval, `blocked_by` on a task, `who` on a wait or an approval. A refusal never prints a value
+that looks like a credential.
 
 ## The brief
 

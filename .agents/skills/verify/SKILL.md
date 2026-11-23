@@ -137,7 +137,7 @@ for its commands.
   `XDG_STATE_HOME` inside the run's folder, so it never touches your own stores or agent settings.
   Each fails with `check-failed` when `www` exits or prints other than its flags expect.
 - `bun verify www run --line '<a www command line>' --expect '<text>'` runs that line as the real
-  `www`, and expects exit 0 and the text in its stdout.
+  `www` and fails unless it exits 0 and its stdout holds the text.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, its stderr holds the text, and one stderr line is `Run: ` followed
   by the run line.
