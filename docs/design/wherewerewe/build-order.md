@@ -2,7 +2,7 @@
 
 - **Status:** agreed
 
-Slice 0 is the repo setup, done before this design, and is not one of the slices this doc builds. After it, the tool is built in ten slices: 0b, 1, 2, 2b, 2c, 2d, and 3 to 6. Each slice is one pull request, or several when it is too large to build and review in one run, and each pull request leaves the tool working. The agent that orchestrates the build keeps its own notes in the tool from the end of slice 1, so slice 1 gives a usable tool with no checks and no hooks, and each later slice adds to it. The build order lives in this doc, not only in work items, because the owner signs it off together with the design, in one pull request, before any slice starts; each slice's work item is cut from this doc when the slice starts and links its section here. Each slice names what it delivers, what it needs first, and acceptance lines that each name their evidence. From slice 0b on, each slice in this repo also adds a wringer feature, whose journey drives the real `www` through `bun verify`, and its pull request carries the wringer report. A build agent reads this doc first, takes the next slice whose dependencies are met, reads the part docs that slice names, and builds it.
+Slice 0 is the repo setup, done before this design, and is not one of the slices this doc builds. After it, the tool is built in ten slices: 0b, 1, 2, 2b, 2c, 2d, and 3 to 6. Each slice is one pull request, or several when it is too large to build and review in one run, and each pull request leaves the tool working. The agent that orchestrates the build keeps its own notes in the tool from the end of slice 1, so slice 1 gives a usable tool with no checks and no hooks, and each later slice adds to it. The build order lives in this doc because the owner signs it off together with the design, in one pull request, before any slice starts; each slice's work item is cut from this doc when the slice starts and links its section here. Each slice gives what it delivers, what it needs first, and acceptance lines, each with its evidence. From slice 0b on, each slice in this repo also adds a wringer feature, whose journey drives the real `www` through `bun verify`, and its pull request carries the wringer report. Read this doc first, take the next slice whose dependencies are met, read the part docs that slice names, and build it.
 
 ## Shape
 
@@ -180,9 +180,9 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Slice 6: skills
 
-**Delivers.** The handoff, where-were-we and pickup changes in [skills.md](skills.md), as one pull request in `zgeoff/skills`. Each of the three skills teaches notes, with `--note`, `--owed` and the rule that a note holds what the agent needs on its next turn to the item, and the grant, with `www grant`, the `GRANT` section and the owner's words copied whole.
+**Delivers.** The handoff, where-were-we and pickup changes in [skills.md](skills.md), as one pull request in `zgeoff/skills`. Each of the three skills covers notes, with `--note`, `--owed` and the rule that a note holds what the agent needs on its next turn to the item, and the grant, with `www grant`, the `GRANT` section and the owner's words copied whole.
 
-**Depends on.** Slice 5, so a skill names a command any machine can install. `zgeoff/skills` has no wringer, so this slice has no wringer feature: that repo's own checks are its evidence.
+**Depends on.** Slice 5, so a skill can refer to a command any machine can install. `zgeoff/skills` has no wringer, so this slice has no wringer feature: that repo's own checks are its evidence.
 
 **Acceptance.**
 

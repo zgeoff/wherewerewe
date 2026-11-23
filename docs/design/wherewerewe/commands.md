@@ -3,13 +3,13 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note below that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. A build agent reads this doc to build the command-line parser, the write replies, the refusals and `www recap`, in the slice [build-order.md](build-order.md) names.
+`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note below that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
 
 ## Contracts
 
 ### www help
 
-`www help` prints this text, and `www --help` and `www -h` do the same. The lines below are fixed; [Builder decides](#builder-decides) covers only spacing.
+`www help` prints this text, and `www --help` and `www -h` do the same. The lines below are fixed; only the spacing is the builder's call ([Builder decides](#builder-decides)).
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -106,7 +106,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - A write without `--note` keeps the item's note. `--no-note` clears it.
 - `www grant` with `--quote` replaces the words, where they were given and the reading at once. `www grant --reading` alone replaces only the reading.
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
-- `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; [store.md](store.md) says when each is needed.
+- `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; see [store.md](store.md) for when each is needed.
 
 ### Text limits
 
@@ -127,7 +127,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 
 ### Write replies
 
-Each write prints its reply line on stdout, then the note lines or the older-note line that its row names, and exits 0. `<check>` is `no check`, `no check run` before the checks slice, or `checked now: <result>`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
+Each write prints its reply line on stdout, then the note lines or the older-note line in its row, and exits 0. `<check>` is `no check`, `no check run` before the checks slice, or `checked now: <result>`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -326,8 +326,8 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 ## Constraints
 
 - Once a session is found and its store's format is known, a read is never refused: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `sessions` needs no session and is never refused.
-- A changed check never makes `set` refuse: fixing a stale claim is what the brief asks for.
-- A write changes only the files its command names in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
+- A changed check never makes `set` refuse, so the agent can always fix a stale claim.
+- A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
 - Each `Run:` line, with its placeholders filled in, passes the same validation.
 - No reply, refusal or help line tells the agent to hold back, to ask, or to act only inside a limit. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
@@ -336,7 +336,7 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 
 - **`decide` takes no id; the tool numbers decisions.** The hand-kept log already numbers them d-1 upward, and a number the agent picks can clash.
 - **`--blocked-by` stays.** The hand-kept store uses `blocked_by` on 3 of its 4 tasks, and the brief shows the blocker in the task's tag.
-- **A ruled-out approach is its own journal op.** The Ruled out section of the [handoff skill](https://github.com/zgeoff/skills/blob/main/skills/handoff/SKILL.md) reads it with `www log --op ruled-out`.
+- **A ruled-out approach is its own journal op.** The Ruled out section of the [handoff skill](https://github.com/zgeoff/skills/blob/main/skills/handoff/SKILL.md) gets its rows from `www log --op ruled-out`.
 - **A note is written only through `--note`, and `set` without a claim changes only the note.** One path means one place for the 400 limit, the credential test and the older-note line, and a note change never resets a claim's age or check. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **`www grant` sets the grant, and `ok --standing` is gone.** An approval is an item with a 120-character quote and a 40-character scope that counts against a cap; the grant is one per session, holds 700 characters of the owner's words and a reading, and lives in `session`. One command per shape keeps each limit in one place. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **The owner corrects the reading with `www say`, and the agent rewrites it.** `say --on` takes an item id, so a plain `say` names the grant in its text; the agent then runs `www grant --reading`, and the owner clears the note with `ack`. [owner-notes.md](owner-notes.md)

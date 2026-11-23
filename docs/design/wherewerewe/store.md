@@ -216,7 +216,7 @@ Upgraded tide-alerts to format 2: grant 373 of 700 characters, 2 standing approv
 | every other item, note, owner note and pull request row | the same row                                                                                   |
 | the journal                                            | the same rows, then the rows above, a `grant` row when `--quote` is given, and an `import` row with `text` `format 1 -> 2` |
 
-- When the store holds a standing approval and the command has no `--quote`, the upgrade refuses. The refusal prints each standing approval's words and scope, and a `Run:` line with `--quote`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so no brief ever shows neither.
+- When the store holds a standing approval and the command has no `--quote`, the upgrade refuses. The refusal prints each standing approval's words and scope, and a `Run:` line with `--quote`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so every brief shows the approvals or the grant.
 - When the store holds more than one one-time approval, the upgrade refuses, names each with its age, and prints a `Run:` line whose `--drop` names every one except the newest.
 - When the store holds an item with the id `grant`, the upgrade refuses, and its `Run:` line adds `grant` to `--drop`.
 - The upgrade prints each note it removes in its reply, after the first line, so an owed note on a standing approval reaches the agent.

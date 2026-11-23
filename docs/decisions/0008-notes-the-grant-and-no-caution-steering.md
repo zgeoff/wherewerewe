@@ -11,10 +11,10 @@
 
 ## Why
 
-- The agent reads what the brief puts in front of it, and skips what it has to remember to look for. On the first day of real use, it rewrote a 120-character next step twice and lost the reason behind the step, which is what it needed after the compaction.
+- The agent reads what the brief puts in front of it and skips what it has to remember to look for. On the first day of real use, it rewrote a 120-character next step twice and lost the reason behind the step, which is what it needed after the compaction.
 - The owner's failure case is an agent that, after a compaction, forgets what it was allowed, and stops to ask or loops waiting. A separate permission check already polices what the agent does, and it remembers the owner's messages better than the agent does. So the tool's job is to keep what the agent may do fresh in what it reads.
 - The owner's real grant for the build session is 645 characters with about ten parts. Three approvals of 120 characters, each with a 40-character scope, under a heading that said "act only inside each quote and scope", cut it into fragments, and a fresh agent asked to do a task that no fragment named found no line that allowed it.
-- A note that the owner cannot see is a note the owner cannot correct. `www recap` puts the grant, the reading and every note in one screen, and `www say` puts the correction at the top of the next brief.
+- The owner cannot correct a note the owner cannot see. `www recap` puts the grant, the reading and every note in one screen, and `www say` puts the correction at the top of the next brief.
 
 ## Rejected alternatives
 
@@ -33,8 +33,8 @@
 ## Consequences
 
 - The brief's bound is 63 lines and 7,000 characters, about 2,333 tokens at 3 characters per token, 6.7% under Codex's 2,500. Changed rows drop from 4 to 3, pull request rows from 3 to 1, and the footer from 3 lines to 1, to pay for the grant and the note.
-- A format 1 store exits 5 until `www import` upgrades it. The upgrade takes the grant in the same command when the store holds standing approvals, so no brief shows neither.
-- The owner's protection against a wrong reading or a stale note is reading `www recap`. An owner who never runs it sees only what the brief shows.
+- A format 1 store exits 5 until `www import` upgrades it. The upgrade takes the grant in the same command when the store holds standing approvals, so every brief shows the approvals or the grant.
+- The owner catches a wrong reading or a stale note by reading `www recap`. An owner who never runs it sees only what the brief shows.
 - These printed strings change:
   - The brief's approvals heading, `APPROVED (<n> of 3) · act only inside each quote and scope`, becomes `APPROVED ONCE (<n> of 1)`.
   - The refusal of `use` on a standing approval, which ended "Act inside its quote and scope.", goes with standing approvals.

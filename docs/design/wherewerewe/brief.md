@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-`www` with no subcommand prints the brief: the whole state of the session in at most 63 lines and 7,000 characters on any day. It opens with the goal, the owner's grant, the owner's notes and what the world has overtaken, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that teaches the write commands again. The same text is what the hooks put in context after a compaction. A build agent reads this doc to build the brief renderer and its size test, in the slice [build-order.md](build-order.md) names.
+`www` with no subcommand prints the brief: the whole state of the session in at most 63 lines and 7,000 characters on any day. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that teaches the write commands again. The same text is what the hooks put in context after a compaction. A build agent reads this doc to build the brief renderer and its size test, in its slice of [build-order.md](build-order.md).
 
 ## Shape
 
@@ -66,7 +66,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | pull request overflow    | `  and <n> more: www log --op pr`                                                             | 30     |
 | pull request hint        | `  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>`                     | 71     |
 
-A check result is at most 15 characters; [checks.md](checks.md) lists them. The fix command in a changed row is at most 64 characters, and the widest changed row pairs the 6-character `CLOSED` with its 64-character fix:
+A check result is at most 15 characters; the list is in [checks.md](checks.md). The fix command in a changed row is at most 64 characters, and the widest changed row pairs the 6-character `CLOSED` with its 64-character fix:
 
 | The check now reads                        | Fix command                                                     |
 | ------------------------------------------ | --------------------------------------------------------------- |
@@ -139,7 +139,7 @@ Codex puts at most about 2,500 tokens of hook output into context. Ids, paths an
 - A tag shows `blocked by <id>` only while that id is open. Closing the blocker clears the tag on the next read.
 - An item with no check shows its age since `written`, so the reader sees which lines nobody verified.
 - No heading, label, footer or tag tells the agent to hold back, to ask, or to act only inside a limit. A heading states what the section holds. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
-- Once a session is found and its store's format is known, the brief always exits 0 and prints, whatever the checks, the lock or the network do. [commands.md](commands.md) owns exits 4 and 5.
+- Once a session is found and its store's format is known, the brief always exits 0 and prints, whatever the checks, the lock or the network do. Exits 4 and 5 are defined in [commands.md](commands.md).
 - A write reply's first line ends with the brief's line count, except the `init`, `attach`, `detach` and `import` replies; the reply table in [commands.md](commands.md) is the authority. Take the count from the same renderer, with check results from `last`, and run no checks.
 
 ## The brief on day 9 of an invented session
@@ -194,7 +194,7 @@ PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 ```
 
-The agent's next commands come from the brief alone: `www done pr-app-61 --evidence "merged as 51aa0e2, seen by check"`, `www drop p-sim --why "process gone, seen by check"`, then `www show pr-api-77` to read the failing job before it sets a new next step. The grant says the agent may merge `pr-api-77` itself once CI is green and the findings are answered.
+The agent's next commands come from the brief alone: `www done pr-app-61 --evidence "merged as 51aa0e2, seen by check"`, `www drop p-sim --why "process gone, seen by check"`, then `www show pr-api-77` to read the failing job before it sets a new next step. Under the grant, the agent may merge `pr-api-77` itself once CI is green and the findings are answered.
 
 ## Decisions
 
@@ -202,7 +202,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 - **Only the note of the item in focus prints.** The brief stays the same size however many items carry a note. An owed note shows as a tag on its item, and `now`, each close and `www show` print a note whole. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Row limits pay for the grant and the note, and the caps stay.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The task, wait, rule and where caps stay, so no store that fits them today is refused; the format 2 upgrade in [store.md](store.md) handles the approvals.
 - **A claim is at most 120 characters.** At 160, the worst case passes 7,700 characters, over Codex's limit at 3 characters per token.
-- **Caps count items, not characters.** A count is easy to see in the section heading (`4 of 6`), and every field's own limit bounds the characters.
+- **Caps count items, not characters.** The section heading shows the count (`4 of 6`), and every field's own limit bounds the characters.
 - **The brief prints no journal rows.** `www log`, `www show` and `www recap` read the journal; the brief stays the same size however long the session runs.
 
 ## Builder decides

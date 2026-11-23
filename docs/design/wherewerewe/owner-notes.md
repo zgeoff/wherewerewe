@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0005](../../decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-The owner reads what the session kept with `www recap`, and corrects the agent by writing a note straight into the store from a terminal. The note shows in every brief, ahead of everything but the goal and the grant, until the owner clears it, so the agent's next read cannot miss it. The tool refuses `say` and `ack` from an agent's shell, which stops an agent that writes an owner note by mistake. It does not stop an agent that sets out to fake one, and this doc says what is left open. A build agent reads this doc to build `www say`, `www ack`, the terminal test and how the owner corrects the grant, in the slice [build-order.md](build-order.md) names.
+The owner reads what the session kept with `www recap`, and corrects the agent by writing a note straight into the store from a terminal. The note shows in every brief, ahead of everything but the goal and the grant, until the owner clears it, so the agent's next read cannot miss it. The tool refuses `say` and `ack` from an agent's shell, which stops an agent that writes an owner note by mistake. It does not stop an agent that sets out to fake one: [What this does not protect against](#what-this-does-not-protect-against) lists what is left open. Build `www say`, `www ack`, the terminal test and how the owner corrects the grant in their slice of [build-order.md](build-order.md).
 
 ## Shape
 
@@ -31,9 +31,9 @@ o-2  cleared. Kept in the journal. Brief: <n> lines.
 - `say` and `ack` run only when both hold: stdin and stdout are terminals, and none of `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CODEX_SESSION_ID`, `CODEX_THREAD_ID` or `CODEX_CI` is set.
 - `say` writes `owner.tsv` and a `say` journal row with `by=owner`. `ack` removes the note from `owner.tsv` and adds an `ack` row with `by=owner`.
 - No agent command reads `owner.tsv` for writing. Only `say` and `ack` do.
-- The brief prints owner notes before every other section after the goal and the grant. [brief.md](brief.md) owns the line format.
+- Print owner notes in the brief right after the goal and the grant, before every other section. Take the line format from [brief.md](brief.md).
 - The owner corrects the grant's reading with a plain `say`, as in `o-2` above: `--on` takes an item id, and the grant is no item. The agent then rewrites the reading with `www grant --reading`, and the owner clears the note with `ack` once the brief shows the new reading.
-- The owner reads what the session kept with `www --session <name> recap`: the grant, the notes on open items, the decisions and the closes since a time, in at most 44 lines. [commands.md](commands.md) owns its sections.
+- The owner reads what the session kept with `www --session <name> recap`: the grant, the notes on open items, the decisions and the closes since a time, in at most 44 lines. Take its sections from [commands.md](commands.md).
 - At most 2 notes show; a third `say` is refused until the owner clears one.
 - An agent's `Run:` line in a refusal never suggests `say` or `ack`.
 
@@ -46,7 +46,7 @@ The agent runs as the same Unix user as the owner, so the tool cannot tell them 
 - An agent that records `--who owner` on a `decide` or `ok` that the owner never gave, or quotes words the owner never said in an `ok` or in `www grant`.
 - A note the owner wrote in a terminal that an agent can type into, such as a shared tmux pane.
 
-The owner's check is to read `www --session <name> recap` now and then, and `www --session <name> log --op say,ack,ok,decide,grant` when a line looks wrong, and to compare them with what they said. Any of the attacks above is deliberate misbehaviour, which an agent's own rules already forbid; the tool makes the honest path the easy one and leaves a trail.
+The owner checks by reading `www --session <name> recap` every so often, and `www --session <name> log --op say,ack,ok,decide,grant` when a line looks wrong, and comparing them with what they said. Each attack above is deliberate misbehaviour that an agent's own rules already forbid. The tool makes the honest path easy and leaves a trail.
 
 ## Decisions
 
