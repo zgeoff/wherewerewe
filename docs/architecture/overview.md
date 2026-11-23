@@ -1,9 +1,8 @@
 # Overview
 
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
-brief when the agent runs `www`. The store, the note writes, approvals, decisions, the two history
-reads and the brief are built. Checks, owner notes, hooks and the other commands come in later pull
-requests, and until then they exit 2.
+brief when the agent runs `www`. It has the store, the note writes, approvals, decisions, the two
+history reads and the brief. A command it does not have exits 2.
 
 ## The package
 
@@ -71,7 +70,7 @@ history and says so on stderr. Only a `--since` that `log` cannot read exits 2.
 ## The brief
 
 `www` prints the goal, the item in focus, and the open tasks, waits, approvals, rules and where
-items, in at most 52 lines and 6,400 characters. No check runs yet, so each tag reads
+items, in at most 52 lines and 6,400 characters. The brief runs no check, so each tag reads
 `not checked yet` or the item's age. When a row of `items.tsv` does not parse, `www` still prints
 the rows that do, and names the broken row on stderr. See
 [the brief design](../design/wherewerewe/brief.md) for the layout.
