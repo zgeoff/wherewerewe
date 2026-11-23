@@ -23,4 +23,6 @@ bun verify www run --line 'www --session trial-import' --expect '  q-1         W
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: the import
   reports 7 items and 10 journal rows, and the brief shows the goal and the open question `q-1` as a
   wait on the owner. Each fails with `check-failed` when `www` exits other than 0 or prints other
-  text. When a line fails, follow its row in [Exit codes](exit-codes.md).
+  text. When a command fails, follow its row in [Exit codes](exit-codes.md), as step 4 of
+  [Check a change](../SKILL.md#check-a-change) says. When the end state does not match, follow
+  step 5.

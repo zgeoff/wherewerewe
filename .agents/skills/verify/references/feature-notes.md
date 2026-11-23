@@ -25,7 +25,8 @@ bun verify www run --line 'www --session trial-notes' --expect 'NOW  none. Run: 
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: the session
   starts, the task's reply reports a brief of 8 lines, the brief has the task with its new claim and
   no check, and after `done` the brief has no task and no item in focus. Each fails with
-  `check-failed` when `www` exits other than 0 or prints other text. When a line fails, follow step
-  5 of [Check a change](../SKILL.md#check-a-change).
+  `check-failed` when `www` exits other than 0 or prints other text. When a command fails, follow
+  its row in [Exit codes](exit-codes.md), as step 4 of [Check a change](../SKILL.md#check-a-change)
+  says. When the end state does not match, follow step 5.
 - `bun verify www refuse` exits 0: `www` refused `done` with no evidence, exit 3, and printed the
   `Run:` line with `--evidence` added.
