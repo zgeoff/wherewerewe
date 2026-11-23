@@ -1,7 +1,8 @@
-import { WringerError, createWringer, local } from '@wringer/core';
+import { createWringer, local } from '@wringer/core';
 import type { Wringer } from '@wringer/core';
 import { z } from 'zod';
 import { buildWWWArgv } from './build-www-argv.ts';
+import { checkWWWHelp } from './check-www-help.ts';
 import { readStateRoot } from './read-state-root.ts';
 import { readWWWOutput } from './read-www-output.ts';
 
@@ -30,15 +31,7 @@ export function createVerifyRegistry(): Wringer {
       run: async (args, ctx) => {
         const result = await ctx.exec(buildWWWArgv(readStateRoot(ctx.endpoints), ['help']));
 
-        const output = readWWWOutput('help', result);
-
-        if (output.firstLine !== args.firstLine) {
-          throw new WringerError('check-failed', {
-            message: `www help printed ${JSON.stringify(output.firstLine)} as its first line, not ${JSON.stringify(args.firstLine)}`,
-          });
-        }
-
-        return output;
+        return checkWWWHelp(result, args.firstLine);
       },
     })
     .check({

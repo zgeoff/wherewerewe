@@ -2,11 +2,18 @@ import { join } from 'node:path';
 import { match } from 'ts-pattern';
 import { pickGateStep } from './pick-gate-step.ts';
 
+type RunCommand = (argv: readonly string[]) => Promise<number>;
+
+export interface RunVerifyGateOptions {
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly runCommand: RunCommand;
+}
+
 // The `verify / gate` step. It reads the body from the event file, as GitHub wrote it when the run
 // started, so an `edited` run reads the report that `bun verify publish` just wrote.
-export async function runVerifyGate(env: Readonly<Record<string, string | undefined>>) {
-  const eventPath = env['GITHUB_EVENT_PATH'];
-  const tempDirectory = env['RUNNER_TEMP'];
+export async function runVerifyGate(options: RunVerifyGateOptions) {
+  const eventPath = options.env['GITHUB_EVENT_PATH'];
+  const tempDirectory = options.env['RUNNER_TEMP'];
 
   if (eventPath === undefined || tempDirectory === undefined) {
     process.stderr.write(
@@ -36,16 +43,22 @@ export async function runVerifyGate(env: Readonly<Record<string, string | undefi
 
       await Bun.write(bodyFile, gate.body);
 
-      const child = Bun.spawn(
-        ['bun', 'verify', 'gate', '--base', `origin/${gate.baseRef}`, '--body-file', bodyFile],
-        { stdout: 'inherit', stderr: 'inherit' },
-      );
-
-      return child.exited;
+      return options.runCommand([
+        'bun',
+        'verify',
+        'gate',
+        '--base',
+        `origin/${gate.baseRef}`,
+        '--body-file',
+        bodyFile,
+      ]);
     })
     .exhaustive();
 }
 
 if (import.meta.main) {
-  process.exitCode = await runVerifyGate(process.env);
+  process.exitCode = await runVerifyGate({
+    env: process.env,
+    runCommand: (argv) => Bun.spawn([...argv], { stdout: 'inherit', stderr: 'inherit' }).exited,
+  });
 }
