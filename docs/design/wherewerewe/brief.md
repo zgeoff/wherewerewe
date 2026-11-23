@@ -25,7 +25,7 @@ flowchart TD
 | ---------------------------- | -------------------------------------------------------------------------------------------------- | ----------- |
 | header                       | session, day, time, age of the last write, how many checks ran and how long they took             | always      |
 | `GOAL`                       | the goal                                                                                           | always      |
-| `GRANT`                      | the owner's words whole, where and when they were given, and the agent's reading of what they cover and what the owner kept back | `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what it covers; what the owner kept back>"` |
+| `GRANT`                      | the owner's words whole, where and when they were given, and the agent's reading of what they cover and what the owner kept back | `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"` |
 | `OWNER SAYS`                 | each owner note, oldest first                                                                      | left out    |
 | `CHANGED SINCE WRITTEN`      | each item whose check result differs from `at_write`, at most 3 rows, with the command that fixes it | left out  |
 | `NOW`                        | the item in focus, its next step or why the step is hidden, then the item's note                   | `NOW  none. Run: www now <id> "<next step>"` |
@@ -96,7 +96,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 | note               | 1 per open item | a rewrite replaces it, and only the note of the item in focus prints |
 | grant              | 1   | the owner's words whole, in one place                                           |
 
-The worst case fills every cap, every text to its limit, every item with its widest tag and an owed note, a grant with 700 characters of words and a 200-character reading, a 400-character note on the item in focus, 3 changed rows with an overflow line, 1 pull request row with an overflow line, and a two-line header. The widths come from the renderer's line templates above, with every field at its limit.
+The worst case fills every cap, every text to its limit, every item with its widest tag and an owed note, a grant with 700 characters of words and a 200-character reading, a 400-character note on the item in focus, 3 changed rows with an overflow line, 1 pull request row with an overflow line, a two-digit count in each of those two headings, and a two-line header. The widths come from the renderer's line templates above, with every field at its limit.
 
 A wrapped line holds at least 85 characters, so a line that carries a prefix of `p` characters carries at least `85 − p` characters of text. That gives each wrapped block its line count:
 
@@ -113,19 +113,19 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | goal              | 3      | 200 + 3 × 6 = 218                             |
 | grant             | 13     | 51 + (701 + 9 × 3) + (200 + 11 + 2 × 4) = 998 |
 | owner notes       | 3      | 52 + 2 × 198 = 448                            |
-| changed           | 5      | 59 + 3 × 131 + 57 = 509                       |
+| changed           | 5      | 60 + 3 × 131 + 57 = 510                       |
 | now and its note  | 7      | 57 + 128 + (400 + 5 × 4) = 605               |
 | open (6 tasks)    | 7      | 13 + 6 × 196 = 1,189                          |
 | waiting (4)       | 5      | 16 + 4 × 185 = 756                            |
 | approved once (1) | 2      | 22 + 193 = 215                                |
 | rules (5)         | 6      | 14 + 5 × 148 = 754                            |
 | where (4)         | 5      | 14 + 4 × 166 = 678                            |
-| pull requests     | 4      | 56 + 98 + 30 + 71 = 255                       |
+| pull requests     | 4      | 57 + 98 + 30 + 71 = 256                       |
 | footer            | 1      | 95                                            |
 | newlines          |        | 63                                            |
-| **Total**         | **63** | **6,967**                                     |
+| **Total**         | **63** | **6,969**                                     |
 
-Codex puts at most about 2,500 tokens of hook output into context. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. At the pessimistic rate, 6,967 characters is about 2,322 tokens, 7.1% under Codex's limit, and the 7,000-character cap is about 2,333 tokens, 6.7% under it. The cap is 30% under Claude Code's limit of 10,000 characters.
+Codex puts at most about 2,500 tokens of hook output into context. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. At the pessimistic rate, 6,969 characters is about 2,323 tokens, 7.1% under Codex's limit, and the 7,000-character cap is about 2,333 tokens, 6.7% under it. The cap is 30% under Claude Code's limit of 10,000 characters.
 
 ## Constraints
 

@@ -140,6 +140,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - A write without `--note` keeps the item's note. `--no-note` clears it.
 - `www grant` with `--quote` replaces the words, where they were given and the reading at once. `www grant --reading` alone replaces only the reading.
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
+- `ok` accepts `--once` and ignores it, since every approval is one-time, so a call written with `--once` still runs. `--standing` gets the refusal below.
 - `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; see [store.md](store.md) for when each is needed.
 
 ### Text limits
@@ -289,7 +290,7 @@ Whole text: www show <id> · correct: www --session tide-alerts say "<text>" [--
 | Section   | Shows                                                                                         | Lines at most |
 | --------- | --------------------------------------------------------------------------------------------- | ------------- |
 | header    | `<name> · day <d> · recap since day <d> <HH:MMZ> (<t>) · <n> writes`                         | 1             |
-| `GRANT`   | the grant, exactly as the brief prints it, or `GRANT  none` with the brief's `Run:` line     | 13            |
+| `GRANT`   | the grant, exactly as the brief prints it, or `GRANT  none. Run: www show grant`             | 13            |
 | `NOTES`   | open items with a note, owed first, then newest: the item line, then `    note (<age>): <note>` or `    owed note (<age>): <note>`; at most 6 items, then `  and <n> more with a note: www show <id>`, then `  no note: <ids>` | 15 |
 | `DECIDED SINCE` | `decide` and `ruled-out` rows since `<t>`, oldest first: `  <d-n>  [ruled out: ]<choice> · why: <reason>`; at most 5, then `  and <n> more: www log --op decide,ruled-out --since <t>` | 7 |
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; at most 5, then `  and <n> more: www log --op done,drop,use --since <t>` | 7 |

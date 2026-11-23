@@ -94,7 +94,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 **Acceptance.**
 
 - [ ] The `item-notes` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `item-notes`, and a green `verify / gate`.
-- [ ] A store with every cap full, three standing approvals, every text at its limit, a 400-character note on the item in focus and an owed note on every other item renders in at most 52 lines and 6,400 characters. Evidence: the worst-case render test, at 6,372 characters by the arithmetic in brief.md with the 3 standing approval lines in place of the grant and the one-time approval.
+- [ ] A store with every cap full, three standing approvals, every text at its limit, a 400-character note on the item in focus and an owed note on every other item renders in at most 52 lines and 6,400 characters. Evidence: the worst-case render test, at 6,374 characters by the arithmetic in brief.md with the 3 standing approval lines in place of the grant and the one-time approval.
 - [ ] The note of the item in focus prints whole under `NOW`, also when the next step is hidden, and every other item with an owed note shows the owed tag. Evidence: brief tests.
 - [ ] A 400-character note of words that end at column 85 wraps to 5 lines, and a 200-character goal of 49-character words wraps to 3. Evidence: wrap tests.
 - [ ] `done`, `drop` and `use` refuse while an owed note stands, print the note, and each `Run:` line in the refusal runs. Evidence: one refusal test per command.
