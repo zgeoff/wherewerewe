@@ -19,13 +19,13 @@ flowchart LR
 
 ```text
 $ www --session tide-alerts say "Don't touch the prod push certificate, even with ok-merge. Ask me first."
-o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2
+o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: <n> lines.
 
 $ www --session tide-alerts say "Use the recorded tide fixtures for e2e, not the live feed" --on t-e2e
-o-3  owner note on t-e2e. It tops the brief until you run: www --session tide-alerts ack o-3
+o-3  owner note on t-e2e. It tops the brief until you run: www --session tide-alerts ack o-3. Brief: <n> lines.
 
 $ www --session tide-alerts ack o-2
-o-2  cleared. Kept in the journal.
+o-2  cleared. Kept in the journal. Brief: <n> lines.
 ```
 
 - `say` and `ack` run only when both hold: stdin and stdout are terminals, and none of `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CODEX_SESSION_ID`, `CODEX_THREAD_ID` or `CODEX_CI` is set.
