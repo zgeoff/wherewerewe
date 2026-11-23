@@ -1,8 +1,11 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { run } from '@zgeoff/testing/process';
+import { buildClaimPath } from '../src/store/build-claim-path.ts';
+import { runGoneProcess } from '../src/test-utils/run-gone-process.ts';
+import { seedLockFile } from '../src/test-utils/seed-lock-file.ts';
 import { seedStaleLock } from '../src/test-utils/seed-stale-lock.ts';
 
 function setupTest() {
@@ -42,11 +45,8 @@ function setupTest() {
   `;
 
   return {
-    runRound: async (round: number) => {
-      const folder = join(root, String(round));
-
-      await seedStaleLock(folder);
-
+    root,
+    runContenders: async (folder: string) => {
       const results = await Promise.all(
         Array.from({ length: 24 }, () =>
           run([process.execPath, '-e', contender], {
@@ -69,8 +69,11 @@ test.each(Array.from({ length: 16 }, (_, index) => index + 1))(
   'it lets one writer at a time in when 24 processes take over stale locks, round %i',
   async (round) => {
     const ctx = setupTest();
+    const folder = join(ctx.root, String(round));
 
-    const outcome = await ctx.runRound(round);
+    await seedStaleLock(folder);
+
+    const outcome = await ctx.runContenders(folder);
 
     expect(outcome).toStrictEqual({
       exitCodes: Array.from({ length: 24 }, () => 0),
@@ -78,3 +81,32 @@ test.each(Array.from({ length: 16 }, (_, index) => index + 1))(
     });
   },
 );
+
+// The claim names this test's own pid, which runs, and no start time, as a claim made on a system
+// with no /proc whose pid a later process got: only the claim's age shows its writer is gone.
+test('it lets one writer at a time in when 24 processes take over a stale lock past an old claim on a running pid with no start time', async () => {
+  const ctx = setupTest();
+
+  const pid = await runGoneProcess();
+
+  const seen = seedLockFile(
+    ctx.root,
+    'lock',
+    `pid=${String(pid)} ts=${new Date().toISOString()}\n`,
+  );
+
+  const claimPath = buildClaimPath(join(ctx.root, 'lock'), seen);
+
+  seedLockFile(
+    ctx.root,
+    basename(claimPath),
+    `pid=${String(process.pid)} ts=${new Date(Date.now() - 3_600_000).toISOString()}\n`,
+  );
+
+  const outcome = await ctx.runContenders(ctx.root);
+
+  expect(outcome).toStrictEqual({
+    exitCodes: Array.from({ length: 24 }, () => 0),
+    overlaps: [],
+  });
+});

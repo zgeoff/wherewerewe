@@ -22,3 +22,17 @@ test('it runs the step before each call from the given one on, and passes each c
     after: null,
   });
 });
+
+test('it passes a process read on without running the step', () => {
+  const real = createLockFiles();
+  const steps: string[] = [];
+
+  const files = buildSteppedLockFiles(real, 0, () => {
+    steps.push('step');
+  });
+
+  expect({ read: files.readProcess(process.pid), steps }).toStrictEqual({
+    read: real.readProcess(process.pid),
+    steps: [],
+  });
+});

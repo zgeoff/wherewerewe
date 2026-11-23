@@ -65,26 +65,63 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
     ...(agent === null ? [] : [buildBindRow(name, 'init', agent, nowMs)]),
   ];
 
-  const created = await createSessionStore(
-    root,
-    {
-      format: '1',
-      name,
-      goal,
-      started: ts,
-      now: null,
-      nowNext: null,
-      nowSet: null,
-      lastWrite: ts,
-      lastNudge: null,
-      importedFrom: null,
-    },
-    rows,
-  );
+  const createStore = () =>
+    createSessionStore(
+      root,
+      {
+        format: '1',
+        name,
+        goal,
+        started: ts,
+        now: null,
+        nowNext: null,
+        nowSet: null,
+        lastWrite: ts,
+        lastNudge: null,
+        importedFrom: null,
+      },
+      rows,
+    );
 
-  return match(created)
-    .with('exists', () => replyRefusal(buildRefusal({ kind: 'session-exists', name }), context))
-    .with('created', () => replyStarted(root, agent, name))
+  const folder = join(root, name);
+
+  if (agent === null) {
+    const created = await createStore();
+
+    return match(created)
+      .with('exists', () => replyRefusal(buildRefusal({ kind: 'session-exists', name }), context))
+      .with('created', () =>
+        replyOK(
+          `Started session ${name} in ${folder}. Name it on each command: www --session ${name}`,
+        ),
+      )
+      .exhaustive();
+  }
+
+  // The binding lock comes first, so a busy lock creates no store and no bind row, and the refusal's
+  // Run line, the same init, starts the session.
+  const locked = await withBindingLock(root, async () => {
+    const created = await createStore();
+
+    if (created === 'created') {
+      await writeBinding(root, agent, name);
+    }
+
+    return created;
+  });
+
+  return match(locked)
+    .with({ kind: 'ran', value: 'exists' }, () =>
+      replyRefusal(buildRefusal({ kind: 'session-exists', name }), context),
+    )
+    .with({ kind: 'ran', value: 'created' }, () =>
+      replyOK(
+        `Started session ${name} in ${folder}. Bound to this ${readHarnessLabel(agent)} session.`,
+      ),
+    )
+    .with({ kind: 'busy' }, (busy) =>
+      replyRefusal(buildRefusal({ kind: 'lock-busy', args, name, pid: busy.pid }), context),
+    )
     .exhaustive();
 }
 
@@ -94,22 +131,6 @@ function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
     stdout: '',
     stderr: formatRefusal(refusal, readRefusalScope(context.args)),
   };
-}
-
-async function replyStarted(root: string, agent: AgentID | null, name: string): Promise<CLIResult> {
-  const folder = join(root, name);
-
-  if (agent === null) {
-    return replyOK(
-      `Started session ${name} in ${folder}. Name it on each command: www --session ${name}`,
-    );
-  }
-
-  await withBindingLock(root, () => writeBinding(root, agent, name));
-
-  return replyOK(
-    `Started session ${name} in ${folder}. Bound to this ${readHarnessLabel(agent)} session.`,
-  );
 }
 
 function replyOK(text: string): CLIResult {

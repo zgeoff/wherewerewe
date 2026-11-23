@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { readProcess } from '../store/read-process.ts';
 import { buildMemoryLockFiles } from './build-memory-lock-files.ts';
 
 test('it creates a file once, reads it back with inode 7, and removes it', () => {
@@ -22,4 +23,10 @@ test('it creates a file once, reads it back with inode 7, and removes it', () =>
 
 test('it throws from readSeen when the file is missing', () => {
   expect(() => buildMemoryLockFiles().readSeen('lock')).toThrow();
+});
+
+test('it reads the processes of the system', () => {
+  const memory = buildMemoryLockFiles();
+
+  expect(memory.files.readProcess(process.pid)).toStrictEqual(readProcess(process.pid));
 });

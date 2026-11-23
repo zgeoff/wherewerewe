@@ -1,12 +1,14 @@
 import { expect, test } from 'bun:test';
 import { readFileSync, readdirSync, utimesSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { buildMemoryLockFiles } from '../test-utils/build-memory-lock-files.ts';
+import { buildNoStartLockFiles } from '../test-utils/build-no-start-lock-files.ts';
 import { buildSteppedLockFiles } from '../test-utils/build-stepped-lock-files.ts';
 import { runGoneProcess } from '../test-utils/run-gone-process.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
+import { buildClaimPath } from './build-claim-path.ts';
 import { createLockFiles } from './create-lock-files.ts';
 import { removeLockIfUnchanged } from './remove-lock-if-unchanged.ts';
 import { takeStoreLock } from './take-store-lock.ts';
@@ -93,7 +95,7 @@ test('it takes over a lock that does not parse once the file is 31 seconds old',
 // A slow writer judges a dead writer's lock stale; from step `fromStep` of its takeover on, a fresh
 // writer tries the lock before each of its file calls. The step after its read is where one fresh
 // writer takes the stale lock over and the next would get in if the slow writer moved that lock.
-test.each([0, 1, 2, 3, 4, 5, 6, 7])(
+test.each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])(
   'it lets in exactly one writer when fresh writers try the lock before each call of a slow takeover from step %i',
   async (fromStep) => {
     const ctx = setupTest();
@@ -120,7 +122,7 @@ test.each([0, 1, 2, 3, 4, 5, 6, 7])(
 // The holder's lock grew 31 s old, so a slow writer takes it over while the holder, still alive,
 // releases it before each of the slow writer's file calls from step `fromStep` on, and a fresh
 // writer then tries the lock.
-test.each([0, 1, 2, 3, 4, 5, 6, 7])(
+test.each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])(
   'it lets in exactly one writer when the old holder releases during a takeover of its lock from step %i',
   (fromStep) => {
     const ctx = setupTest();
@@ -134,7 +136,7 @@ test.each([0, 1, 2, 3, 4, 5, 6, 7])(
 
     const files = buildSteppedLockFiles(ctx.files, fromStep, () => {
       kinds.push(
-        `release ${removeLockIfUnchanged(ctx.lockPath, holderLock, ctx.files)}`,
+        `release ${removeLockIfUnchanged(ctx.lockPath, holderLock, ctx.files, { now: Date.now, probeRemovable: () => true })}`,
         ctx.take(ctx.lockPath).kind,
       );
     });
@@ -162,7 +164,10 @@ test('it never matches a later lock of the same process to an earlier one it jud
 
   const files = buildSteppedLockFiles(memory.files, 2, () => {
     kinds.push(
-      `release ${removeLockIfUnchanged('reused-inode/lock', holderLock, memory.files)}`,
+      `release ${removeLockIfUnchanged('reused-inode/lock', holderLock, memory.files, {
+        now: () => tMs,
+        probeRemovable: () => true,
+      })}`,
       takeStoreLock('reused-inode/lock', memory.files, () => tMs).kind,
     );
   });
@@ -188,5 +193,80 @@ test('it gives up a lock it made more than 30 seconds after its ts, so no writer
   expect({ slow, lock: memory.files.read('slow-publish/lock') }).toStrictEqual({
     slow: { kind: 'held', pid: null },
     lock: null,
+  });
+});
+
+// The writer made its lock at t; before it reads the lock back, the clock steps to t + 31 s, a
+// contender takes the lock over as stale, and the clock steps back to t.
+test('it gives up a lock that another writer took over before it read the lock back', () => {
+  const memory = buildMemoryLockFiles();
+  const clock = { nowMs: Date.parse('2026-03-10T11:43:00.000Z') };
+  const contender: string[] = [];
+
+  const files = buildSteppedLockFiles(memory.files, 1, () => {
+    clock.nowMs = Date.parse('2026-03-10T11:43:31.000Z');
+
+    contender.push(takeStoreLock('paused-publish/lock', memory.files, () => clock.nowMs).kind);
+
+    clock.nowMs = Date.parse('2026-03-10T11:43:00.000Z');
+  });
+
+  const writer = takeStoreLock('paused-publish/lock', files, () => clock.nowMs);
+
+  expect({ writer, contender }).toStrictEqual({
+    writer: { kind: 'held', pid: null },
+    contender: ['taken'],
+  });
+});
+
+// A system with no /proc shows no start time, so a claim whose pid a later, live process got cannot
+// be told from a live claimer until it is past the stale age.
+test.each([
+  [10_000, 'held'],
+  [31_000, 'taken'],
+] as const)(
+  'it takes over a stale lock past a claim of a running pid with no start time %i ms old: %s',
+  async (ageMs, kind) => {
+    const ctx = setupTest();
+
+    const pid = await runGoneProcess();
+
+    const seen = seedLockFile(
+      ctx.folder,
+      'lock',
+      `pid=${String(pid)} ts=${new Date().toISOString()}\n`,
+    );
+
+    seedLockFile(
+      ctx.folder,
+      basename(buildClaimPath(ctx.lockPath, seen)),
+      `pid=${String(process.pid)} ts=${new Date(Date.now() - ageMs).toISOString()}\n`,
+    );
+
+    expect(takeStoreLock(ctx.lockPath, buildNoStartLockFiles(ctx.files), Date.now).kind).toBe(kind);
+  },
+);
+
+// A contender judges the writer's lock stale while the clock reads t + 31 s; the clock steps back to
+// t before the contender re-reads the lock under its claim.
+test('it leaves a lock that is no longer stale when it judges it again under its claim', () => {
+  const memory = buildMemoryLockFiles();
+  const clock = { nowMs: Date.parse('2026-03-10T11:43:00.000Z') };
+
+  takeStoreLock('clock-back/lock', memory.files, () => clock.nowMs);
+
+  const writerLock = memory.readSeen('clock-back/lock');
+
+  const files = buildSteppedLockFiles(memory.files, 2, () => {
+    clock.nowMs = Date.parse('2026-03-10T11:43:00.000Z');
+  });
+
+  clock.nowMs = Date.parse('2026-03-10T11:43:31.000Z');
+
+  const contender = takeStoreLock('clock-back/lock', files, () => clock.nowMs);
+
+  expect({ contender, lock: memory.files.read('clock-back/lock') }).toStrictEqual({
+    contender: { kind: 'held', pid: process.pid },
+    lock: writerLock,
   });
 });

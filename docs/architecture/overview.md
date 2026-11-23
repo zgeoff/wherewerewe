@@ -28,8 +28,9 @@ through a temporary file and a rename, and removes the lock. The journal comes f
 that stops half way leaves a close recorded and its item still open, never an item gone with no
 record. A writer wins the claim file named after the lock and reads the lock again before it removes
 that lock, its own or a stale one, so one writer is inside at a time as long as each write finishes
-within the stale age the store design sets; a write that runs longer can lose the lock to the next
-writer.
+within the stale age the store design sets, measured on the wall clock. A write that runs longer can
+lose the lock to the next writer, and so can a write during which the clock jumps forward by more
+than that age.
 
 ## Finding the session
 
