@@ -26,6 +26,13 @@
   "scripts": {
     "typecheck": "tsrs --fast"
   },
+  "dependencies": {
+    "ts-pattern": "catalog:"
+  },
+  "devDependencies": {
+    "@zgeoff/rig": "catalog:",
+    "@zgeoff/testing": "catalog:"
+  },
   "engines": {
     "bun": ">=1.4.4"
   }

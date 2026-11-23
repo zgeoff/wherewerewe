@@ -38,9 +38,10 @@ Read a feature's file before you run its journey.
 
 <!-- wringer:features -->
 
-| Feature | Summary                             | File                                                     |
-| ------- | ----------------------------------- | -------------------------------------------------------- |
-| help    | Print the help text with `www help` | [references/feature-help.md](references/feature-help.md) |
+| Feature | Summary                                                                             | File                                                       |
+| ------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| help    | Print the help text with `www help`                                                 | [references/feature-help.md](references/feature-help.md)   |
+| notes   | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www` | [references/feature-notes.md](references/feature-notes.md) |
 
 <!-- /wringer:features -->
 
@@ -135,6 +136,11 @@ for its commands.
   `XDG_STATE_HOME` inside the run's folder, so it never touches your own stores or agent settings.
   Each one fails with `check-failed` when `www` exits other than 0 or prints text other than the
   flags expect.
+- `bun verify www run --line '<a www command line>' --expect '<text>'` runs that line as the real
+  `www` and fails with `check-failed` unless it exits 0 and its stdout holds the text.
+- `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
+  refuses the line with exit 3, its stderr holds the text, and one stderr line is `Run: ` followed
+  by the run line.
 - The doctor check `www-help` runs `www help`. When it fails, `www` itself is broken: fix it first.
 
 <!-- /repo -->

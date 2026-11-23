@@ -35,8 +35,15 @@
       "name": "@wherewerewe/cli",
       "version": "0.0.1",
       "bin": {
-        "www": "./src/cli.ts",
         "wherewerewe": "./src/cli.ts",
+        "www": "./src/cli.ts",
+      },
+      "dependencies": {
+        "ts-pattern": "catalog:",
+      },
+      "devDependencies": {
+        "@zgeoff/rig": "catalog:",
+        "@zgeoff/testing": "catalog:",
       },
     },
   },

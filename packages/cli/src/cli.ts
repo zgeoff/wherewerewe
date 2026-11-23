@@ -1,18 +1,14 @@
 #!/usr/bin/env bun
+import { runCLI } from './run-cli.ts';
 
-const helpText = `wherewerewe (www): notes for one long agent session
+const result = await runCLI({
+  argv: process.argv.slice(2),
+  env: process.env,
+  cwd: process.cwd(),
+  now: Date.now,
+});
 
-Usage:
-  www help      print this help
-  www --help    print this help
-`;
+process.stdout.write(result.stdout);
+process.stderr.write(result.stderr);
 
-const [command] = process.argv.slice(2);
-
-if (command === undefined || command === 'help' || command === '--help') {
-  process.stdout.write(helpText);
-} else {
-  process.stderr.write(`www: unknown command '${command}'\n\n${helpText}`);
-
-  process.exitCode = 1;
-}
+process.exitCode = result.exitCode;
