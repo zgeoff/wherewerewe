@@ -118,6 +118,8 @@ export interface AgentID {
   readonly id: string;
 }
 
+export type CheckFlag = 'pr' | 'branch' | 'path' | 'pid';
+
 export interface TypedFlag {
   readonly name: string;
 
@@ -186,6 +188,7 @@ export type RefusalReason =
   | { readonly kind: 'later-command'; readonly command: string }
   | { readonly kind: 'unknown-flag'; readonly flag: string }
   | { readonly kind: 'flag-needs-value'; readonly flag: string }
+  | { readonly kind: 'flag-takes-no-value'; readonly flag: string }
   | { readonly kind: 'flag-not-taken'; readonly command: string; readonly flag: string }
   | { readonly kind: 'wrong-positionals'; readonly command: string; readonly usage: string }
   | {
@@ -232,8 +235,9 @@ export type RefusalReason =
       readonly itemKind: Kind;
     }
   | { readonly kind: 'bad-id'; readonly args: ParsedArgs; readonly id: string }
-  | { readonly kind: 'too-many-checks'; readonly args: ParsedArgs; readonly firstFlag: string }
-  | { readonly kind: 'malformed-check'; readonly args: ParsedArgs; readonly flag: string }
+  | { readonly kind: 'too-many-checks'; readonly args: ParsedArgs; readonly firstFlag: CheckFlag }
+  | { readonly kind: 'malformed-check'; readonly args: ParsedArgs; readonly flag: CheckFlag }
+  | { readonly kind: 'check-not-one-line'; readonly args: ParsedArgs; readonly flag: CheckFlag }
   | {
       readonly kind: 'relative-path';
       readonly args: ParsedArgs;
@@ -247,12 +251,7 @@ export type RefusalReason =
       readonly blockedBy: string;
       readonly openIDs: readonly string[];
     }
-  | {
-      readonly kind: 'session-exists';
-      readonly args: ParsedArgs;
-      readonly name: string;
-      readonly hasAgent: boolean;
-    }
+  | { readonly kind: 'session-exists'; readonly name: string }
   | { readonly kind: 'needs-goal'; readonly args: ParsedArgs }
   | { readonly kind: 'bad-session-name'; readonly args: ParsedArgs; readonly name: string }
   | {
@@ -262,7 +261,8 @@ export type RefusalReason =
     }
   | {
       readonly kind: 'no-agent-id';
-      readonly command: 'attach' | 'detach';
+
+      // the session the command named, or null when it named none
       readonly name: string | null;
     }
   | { readonly kind: 'detach-no-binding'; readonly harness: 'claude' | 'codex' }
@@ -274,10 +274,8 @@ export type RefusalReason =
     }
   | {
       readonly kind: 'no-session';
-      readonly args: ParsedArgs;
       readonly named: string | null;
       readonly sessions: readonly { readonly name: string; readonly day: number | null }[];
-      readonly hasAgent: boolean;
     }
   | { readonly kind: 'hand-kept'; readonly name: string }
   | { readonly kind: 'newer'; readonly name: string; readonly format: string }

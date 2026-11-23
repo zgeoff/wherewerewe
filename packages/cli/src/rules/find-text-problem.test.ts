@@ -3,6 +3,8 @@ import { findTextProblem } from './find-text-problem.ts';
 
 test.each([
   ['', 120, { kind: 'empty' }],
+  ['-', 120, { kind: 'empty' }],
+  ['--', 120, null],
   ['a\tb', 120, { kind: 'not-one-line' }],
   ['a\nb', 120, { kind: 'not-one-line' }],
   ['a\rb', 120, { kind: 'not-one-line' }],

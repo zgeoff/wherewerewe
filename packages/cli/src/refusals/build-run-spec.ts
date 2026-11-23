@@ -12,7 +12,8 @@ export interface RunSpec {
   readonly toArgv: () => string[];
 }
 
-// The refused command as typed, without --session, that a refusal edits into its Run line.
+// The refused command as typed, without --session, that a refusal edits into its Run line. A flag
+// typed twice counts at its last value, as the parser reads it, so a replaced flag keeps one copy.
 export function buildRunSpec(args: ParsedArgs): RunSpec {
   return makeSpec({ command: args.command, positionals: args.positionals, flags: args.flags });
 }
@@ -33,11 +34,17 @@ function makeSpec(state: SpecState): RunSpec {
         positionals: state.positionals.map((word, at) => (at === index ? value : word)),
       }),
     replaceFlag: (name, value) => {
-      const index = state.flags.findIndex((flag) => flag.name === name);
+      const last = state.flags.findLastIndex((flag) => flag.name === name);
 
       return makeSpec({
         ...state,
-        flags: state.flags.map((flag, at) => (at === index ? { name, value } : flag)),
+        flags: state.flags.flatMap((flag, at) => {
+          if (flag.name !== name) {
+            return [flag];
+          }
+
+          return at === last ? [{ name, value }] : [];
+        }),
       });
     },
     addFlag: (name, value) => makeSpec({ ...state, flags: [...state.flags, { name, value }] }),

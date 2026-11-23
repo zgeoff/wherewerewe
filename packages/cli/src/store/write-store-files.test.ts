@@ -1,7 +1,8 @@
 import { expect, test } from 'bun:test';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { seedItem } from '../test-utils/seed-item.ts';
 import { seedSessionStore } from '../test-utils/seed-session-store.ts';
 import { readStore } from './read-store.ts';
 import { writeStoreFiles } from './write-store-files.ts';
@@ -94,4 +95,42 @@ test('it leaves no temporary file behind, and never opens owner.tsv or prs.tsv',
     statSync(join(ctx.folder, 'owner.tsv')).mtimeMs,
     statSync(join(ctx.folder, 'prs.tsv')).mtimeMs,
   ]).toStrictEqual([ownerBefore, prsBefore]);
+});
+
+test('it leaves the items alone when the journal append fails, so a close is never lost', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a', claim: 'Write it' });
+
+  rmSync(join(ctx.folder, 'journal.tsv'));
+  mkdirSync(join(ctx.folder, 'journal.tsv'));
+
+  const written = writeStoreFiles(ctx.folder, {
+    items: [],
+    journal: [
+      {
+        ts: '2026-03-10T10:31:09Z',
+        op: 'done',
+        id: 't-a',
+        by: 'agent',
+        text: 'Write it',
+        why: 'commit 4c1d2e0',
+        extra: null,
+      },
+    ],
+  });
+
+  await expect(written).toReject();
+
+  const read = await readStore(ctx.folder);
+
+  expect(read).toStrictEqual({
+    kind: 'store',
+    store: {
+      folder: ctx.folder,
+      session: expect.objectContaining({ name: 'tide-alerts' }),
+      items: [expect.objectContaining({ id: 't-a' })],
+    },
+  });
 });

@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { match } from 'ts-pattern';
 import type { JournalRow, SessionFile } from '../types.ts';
 import { itemsHeader, journalHeader, ownerHeader, prsHeader } from './constants.ts';
 import { formatJournalRows } from './format-journal-rows.ts';
@@ -37,5 +38,8 @@ export async function createSessionStore(
     return Promise.resolve();
   });
 
-  return locked.kind === 'ran' ? 'created' : 'exists';
+  return match(locked)
+    .with({ kind: 'ran' }, () => 'created' as const)
+    .with({ kind: 'busy' }, () => 'exists' as const)
+    .exhaustive();
 }

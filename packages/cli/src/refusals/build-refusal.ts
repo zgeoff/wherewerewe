@@ -1,10 +1,11 @@
 import { match } from 'ts-pattern';
 import { isItemID } from '../rules/is-item-id.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
-import type { Kind, ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
+import type { CheckFlag, Kind, ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
 import { pickClosestID } from './pick-closest-id.ts';
+import { quoteShellWord } from './quote-shell-word.ts';
 
 const evidencePlaceholder = '<PR, commit or test run>';
 const goalPlaceholder = '<what done means>';
@@ -31,6 +32,9 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     )
     .with({ kind: 'unknown-flag' }, (found) => usage(2, `www: unknown flag "${found.flag}".`))
     .with({ kind: 'flag-needs-value' }, (found) => usage(2, `www: --${found.flag} needs a value.`))
+    .with({ kind: 'flag-takes-no-value' }, (found) =>
+      usage(2, `www: --${found.flag} takes no value.`),
+    )
     .with({ kind: 'flag-not-taken' }, (found) =>
       usage(2, `www: ${found.command} takes no --${found.flag} flag.`),
     )
@@ -42,6 +46,12 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       refuse(
         'www: refused: the text must be one line, with no tab or newline.',
         replaceText(found.args, found.target, '<one line>'),
+      ),
+    )
+    .with({ kind: 'check-not-one-line' }, (found) =>
+      refuse(
+        'www: refused: the text must be one line, with no tab or newline.',
+        buildRunSpec(found.args).replaceFlag(found.flag, '<one line>').toArgv(),
       ),
     )
     .with({ kind: 'text-empty' }, (found) =>
@@ -91,7 +101,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'other-kind' }, (found) =>
       refuse(
         `www: refused: ${found.id} is a ${kindWords[found.itemKind]}. Change its text with set, or pick a new id.`,
-        buildRunSpec(found.args).renameCommand('set').keepCheckFlags().toArgv(),
+        buildOtherKindRun(found),
       ),
     )
     .with({ kind: 'bad-id' }, (found) => {
@@ -121,19 +131,18 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildRunSpec(found.args)
           .renameCommand('where')
           .replacePositional(0, '<new id>')
+          .keepFirstCheck()
           .keepCheckFlags()
           .toArgv(),
       ),
     )
     .with({ kind: 'blocked-by-unknown' }, (found) => buildBlockedByUnknown(found))
-    .with({ kind: 'session-exists' }, (found) => {
-      const argv = found.hasAgent ? ['attach', found.name] : ['--session', found.name];
-
-      return refuse(
-        `www: refused: session ${found.name} exists. Bind this agent session to it.`,
-        argv,
-      );
-    })
+    .with({ kind: 'session-exists' }, (found) =>
+      refuse(`www: refused: session ${found.name} exists. Bind this agent session to it.`, [
+        'attach',
+        found.name,
+      ]),
+    )
     .with({ kind: 'needs-goal' }, (found) =>
       refuse('www: refused: a session needs its goal.', [
         'init',
@@ -154,20 +163,17 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       ),
     )
     .with({ kind: 'attach-no-session' }, (found) => buildAttachNoSession(found))
-    .with({ kind: 'no-agent-id' }, (found) => {
-      const argv =
-        found.command === 'attach' ? ['--session', found.name ?? '<name>'] : ['sessions'];
-
-      return refuse(
+    .with({ kind: 'no-agent-id' }, (found) =>
+      refuse(
         'www: refused: this shell has no agent session id (no CLAUDE_CODE_SESSION_ID or CODEX_SESSION_ID). Name the session on each command.',
-        argv,
-      );
-    })
-    .with({ kind: 'detach-no-binding' }, (found) => {
-      const harness = found.harness === 'claude' ? 'Claude Code' : 'Codex';
-
-      return refuse(`www: refused: this ${harness} session has no binding.`, ['sessions']);
-    })
+        ['--session', found.name ?? '<name>'],
+      ),
+    )
+    .with({ kind: 'detach-no-binding' }, (found) =>
+      refuse(`www: refused: this ${formatHarness(found.harness)} session has no binding.`, [
+        'sessions',
+      ]),
+    )
     .with({ kind: 'lock-busy' }, (found) => {
       const pid = found.pid === null ? 'unknown' : String(found.pid);
 
@@ -241,10 +247,15 @@ function buildKindFull(found: Found<'kind-full'>): Refusal {
   const cap = capWords[found.itemKind].cap;
   const plural = capWords[found.itemKind].plural;
 
-  const argv =
-    found.itemKind === 'rule'
-      ? ['drop', found.oldestID, '--why', '<reason>']
-      : ['done', found.oldestID, '--evidence', evidencePlaceholder];
+  const argv = match(found.itemKind)
+    .with('rule', () => ['drop', found.oldestID, '--why', '<reason>'])
+    .with('task', 'wait', 'where', () => [
+      'done',
+      found.oldestID,
+      '--evidence',
+      evidencePlaceholder,
+    ])
+    .exhaustive();
 
   return refuse(
     `www: refused: the brief holds ${String(cap)} of ${String(cap)} ${plural}. Close one, or replace one with www set.`,
@@ -271,6 +282,16 @@ function formatList(words: readonly string[]): string {
   return words.length === 0 ? 'none' : words.join(', ');
 }
 
+// A rule has no check, so the set that turns the claim into a rule's new text drops the flags.
+function buildOtherKindRun(found: Found<'other-kind'>): string[] {
+  const spec = buildRunSpec(found.args).renameCommand('set');
+
+  return match(found.itemKind)
+    .with('rule', () => spec.keepFlags([]).toArgv())
+    .with('task', 'wait', 'ok', 'where', () => spec.keepCheckFlags().toArgv())
+    .exhaustive();
+}
+
 // Lower-cases, turns each run of characters outside a-z, 0-9 and - into -, trims -, and cuts to
 // the length. When the result still fails the rule, the placeholder stands in.
 function repairID(
@@ -289,7 +310,7 @@ function repairID(
   return isValid(repaired) ? repaired : placeholder;
 }
 
-function buildMalformedCheck(args: ParsedArgs, flag: string): Refusal {
+function buildMalformedCheck(args: ParsedArgs, flag: CheckFlag): Refusal {
   const spec = buildRunSpec(args);
 
   return match(flag)
@@ -311,12 +332,13 @@ function buildMalformedCheck(args: ParsedArgs, flag: string): Refusal {
         spec.replaceFlag('pid', '<process id>').toArgv(),
       ),
     )
-    .otherwise(() =>
+    .with('path', () =>
       refuse(
         'www: refused: --path takes an absolute path.',
         spec.replaceFlag('path', '<absolute path>').toArgv(),
       ),
-    );
+    )
+    .exhaustive();
 }
 
 function buildBlockedByUnknown(found: Found<'blocked-by-unknown'>): Refusal {
@@ -345,6 +367,13 @@ function buildAttachNoSession(found: Found<'attach-no-session'>): Refusal {
   );
 }
 
+function formatHarness(harness: 'claude' | 'codex'): string {
+  return match(harness)
+    .with('claude', () => 'Claude Code')
+    .with('codex', () => 'Codex')
+    .exhaustive();
+}
+
 function buildNoSession(found: Found<'no-session'>): Refusal {
   const list = found.sessions
     .map((session) =>
@@ -362,14 +391,10 @@ function buildNoSession(found: Found<'no-session'>): Refusal {
       ? 'www: no session for this agent.'
       : `www: no session ${found.named} on this machine.`;
 
-  const first = found.hasAgent
-    ? ['attach', '<name>']
-    : ['--session', '<name>', ...buildRunSpec(found.args).toArgv()];
-
   return {
     exitCode: 4,
     lines: [`${head} ${listed}`],
-    runs: [{ www: first }, { www: ['init', '<name>', '--goal', goalPlaceholder] }],
+    runs: [{ www: ['attach', '<name>'] }, { www: ['init', '<name>', '--goal', goalPlaceholder] }],
   };
 }
 
@@ -382,6 +407,6 @@ function buildBrokenStore(found: Found<'broken-store'>): Refusal {
   return {
     exitCode: 3,
     lines: [`www: ${found.name}'s ${where}`],
-    runs: [{ shell: `less ${found.path}` }],
+    runs: [{ shell: `less ${quoteShellWord(found.path)}` }],
   };
 }

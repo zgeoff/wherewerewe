@@ -42,6 +42,11 @@ test.each([
     [{ name: 'branch', value: '../app@fix' }],
     { kind: 'relative', flag: 'branch', absolute: '/app@fix' },
   ],
+  [[{ name: 'path', value: '/tmp/first\tsecond' }], { kind: 'not-one-line', flag: 'path' }],
+  [[{ name: 'path', value: '/tmp/first\nsecond' }], { kind: 'not-one-line', flag: 'path' }],
+  [[{ name: 'path', value: 'rel\tative' }], { kind: 'not-one-line', flag: 'path' }],
+  [[{ name: 'branch', value: '/tmp/first\rsecond@fix' }], { kind: 'not-one-line', flag: 'branch' }],
+  [[{ name: 'branch', value: '/srv/app@fix\nup' }], { kind: 'not-one-line', flag: 'branch' }],
   [[{ name: 'who', value: 'owner' }], { kind: 'none' }],
 ])('it reads the check flags %p as %p', (flags, expected) => {
   const actual: unknown = parseCheckFlags(flags, '/work');

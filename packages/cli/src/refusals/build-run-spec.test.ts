@@ -109,3 +109,43 @@ test('it keeps only the check flags, only the first check, or drops a flag', () 
     ['set', 't-a', 'Write it', '--pid', '5'],
   ]);
 });
+
+test('it replaces the last copy of a flag typed twice, and drops the first', () => {
+  const spec = buildRunSpec({
+    command: 'wait',
+    positionals: ['w-a', 'Answer'],
+    values: {},
+    sessionFlag: null,
+    flags: [
+      { name: 'who', value: 'old' },
+      { name: 'pr', value: 'acme/tool#1' },
+      { name: 'who', value: 'new=team' },
+    ],
+  });
+
+  expect(spec.replaceFlag('who', 'new,team').toArgv()).toStrictEqual([
+    'wait',
+    'w-a',
+    'Answer',
+    '--pr',
+    'acme/tool#1',
+    '--who',
+    'new,team',
+  ]);
+});
+
+test('it keeps no flag when asked to keep none', () => {
+  const spec = buildRunSpec({
+    command: 'task',
+    positionals: ['r-a', 'new note'],
+    values: {},
+    sessionFlag: null,
+    flags: [{ name: 'pid', value: '5' }],
+  });
+
+  expect(spec.renameCommand('set').keepFlags([]).toArgv()).toStrictEqual([
+    'set',
+    'r-a',
+    'new note',
+  ]);
+});

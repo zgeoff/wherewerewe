@@ -1,7 +1,5 @@
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
-import { formatAge } from '../brief/format-age.ts';
-import { getSessionDay } from '../brief/get-session-day.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
@@ -16,8 +14,9 @@ import { createSessionStore } from '../store/create-session-store.ts';
 import { readStore } from '../store/read-store.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeStoreFiles } from '../store/write-store-files.ts';
-import type { AgentID, CLIResult, JournalRow, Refusal, SessionSummary } from '../types.ts';
+import type { AgentID, CLIResult, JournalRow, Refusal } from '../types.ts';
 import { pickTextRefusal } from '../writes/pick-text-refusal.ts';
+import { formatSessionLines } from './format-session-lines.ts';
 import type { CommandContext } from './types.ts';
 
 // init, attach, detach and sessions: the commands that need no resolved session.
@@ -79,26 +78,10 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
     rows,
   );
 
-  if (created === 'exists') {
-    return replyRefusal(
-      buildRefusal({ kind: 'session-exists', args, name, hasAgent: agent !== null }),
-      context,
-    );
-  }
-
-  const folder = join(root, name);
-
-  if (agent === null) {
-    return replyOK(
-      `Started session ${name} in ${folder}. Name it on each command: www --session ${name}`,
-    );
-  }
-
-  await writeBinding(root, agent, name);
-
-  return replyOK(
-    `Started session ${name} in ${folder}. Bound to this ${readHarnessLabel(agent)} session.`,
-  );
+  return match(created)
+    .with('exists', () => replyRefusal(buildRefusal({ kind: 'session-exists', name }), context))
+    .with('created', () => replyStarted(root, agent, name))
+    .exhaustive();
 }
 
 function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
@@ -121,72 +104,102 @@ function buildBindRow(name: string, text: string, agent: AgentID, nowMs: number)
   };
 }
 
+async function replyStarted(root: string, agent: AgentID | null, name: string): Promise<CLIResult> {
+  const folder = join(root, name);
+
+  if (agent === null) {
+    return replyOK(
+      `Started session ${name} in ${folder}. Name it on each command: www --session ${name}`,
+    );
+  }
+
+  await writeBinding(root, agent, name);
+
+  return replyOK(
+    `Started session ${name} in ${folder}. Bound to this ${readHarnessLabel(agent)} session.`,
+  );
+}
+
 function replyOK(text: string): CLIResult {
   return { exitCode: 0, stdout: `${text}\n`, stderr: '' };
 }
 
 function readHarnessLabel(agent: AgentID): string {
-  return agent.harness === 'claude' ? 'Claude Code' : 'Codex';
+  return match(agent.harness)
+    .with('claude', () => 'Claude Code')
+    .with('codex', () => 'Codex')
+    .exhaustive();
 }
 
 async function runAttach(context: CommandContext): Promise<CLIResult> {
-  const args = context.args;
-  const nowMs = context.nowMs;
-  const root = context.root;
-  const name = args.positionals[0] ?? '';
+  const name = context.args.positionals[0] ?? '';
   const agent = findAgentID(context.env);
 
   if (agent === null) {
-    return replyRefusal(buildRefusal({ kind: 'no-agent-id', command: 'attach', name }), context);
+    return replyRefusal(buildRefusal({ kind: 'no-agent-id', name }), context);
   }
 
-  const folder = join(root, name);
+  const folder = join(context.root, name);
   const read = isSessionName(name) ? await readStore(folder) : { kind: 'missing' as const };
 
-  if (read.kind === 'missing') {
-    const summaries = await readSessionSummaries(root);
+  return match(read)
+    .with({ kind: 'store' }, () => attachToStore(context, agent, name))
+    .with({ kind: 'missing' }, async () => {
+      const summaries = await readSessionSummaries(context.root);
 
-    const sessions = summaries.map((summary) => summary.name);
+      const sessions = summaries.map((summary) => summary.name);
 
-    return replyRefusal(buildRefusal({ kind: 'attach-no-session', name, sessions }), context);
-  }
+      return replyRefusal(buildRefusal({ kind: 'attach-no-session', name, sessions }), context);
+    })
+    .with({ kind: 'hand-kept' }, { kind: 'newer' }, { kind: 'broken' }, (unreadable) =>
+      replyRefusal(buildReadRefusal(unreadable, { name, folder }), context),
+    )
+    .exhaustive();
+}
 
-  const readRefusal = buildReadRefusal(read, { name, folder });
-
-  if (readRefusal !== null) {
-    return replyRefusal(readRefusal, context);
-  }
+async function attachToStore(
+  context: CommandContext,
+  agent: AgentID,
+  name: string,
+): Promise<CLIResult> {
+  const folder = join(context.root, name);
 
   const locked = await withStoreLock(
     folder,
     async () => {
-      await writeStoreFiles(folder, { journal: [buildBindRow(name, 'attach', agent, nowMs)] });
-      await writeBinding(root, agent, name);
+      await writeStoreFiles(folder, {
+        journal: [buildBindRow(name, 'attach', agent, context.nowMs)],
+      });
+
+      await writeBinding(context.root, agent, name);
     },
     { waitMs: 2000 },
   );
 
-  if (locked.kind === 'busy') {
-    return replyRefusal(buildRefusal({ kind: 'lock-busy', args, name, pid: locked.pid }), context);
-  }
-
-  return replyOK(`Bound this ${readHarnessLabel(agent)} session to ${name}.`);
+  return match(locked)
+    .with({ kind: 'ran' }, () =>
+      replyOK(`Bound this ${readHarnessLabel(agent)} session to ${name}.`),
+    )
+    .with({ kind: 'busy' }, (busy) =>
+      replyRefusal(
+        buildRefusal({ kind: 'lock-busy', args: context.args, name, pid: busy.pid }),
+        context,
+      ),
+    )
+    .exhaustive();
 }
 
 async function runDetach(context: CommandContext): Promise<CLIResult> {
-  const args = context.args;
-  const nowMs = context.nowMs;
-  const root = context.root;
   const agent = findAgentID(context.env);
 
   if (agent === null) {
     return replyRefusal(
-      buildRefusal({ kind: 'no-agent-id', command: 'detach', name: null }),
+      buildRefusal({ kind: 'no-agent-id', name: context.args.sessionFlag }),
       context,
     );
   }
 
-  const name = await readBinding(root, agent);
+  const name = await readBinding(context.root, agent);
 
   if (name === null) {
     return replyRefusal(
@@ -195,69 +208,79 @@ async function runDetach(context: CommandContext): Promise<CLIResult> {
     );
   }
 
-  const folder = join(root, name);
+  const outcome = await detachFrom(context, agent, name);
+
+  return match(outcome)
+    .with({ kind: 'unbound' }, () =>
+      replyOK(`Unbound this ${readHarnessLabel(agent)} session from ${name}.`),
+    )
+    .with({ kind: 'moved' }, () => runDetach(context))
+    .with({ kind: 'busy' }, (busy) =>
+      replyRefusal(
+        buildRefusal({ kind: 'lock-busy', args: context.args, name, pid: busy.pid }),
+        context,
+      ),
+    )
+    .exhaustive();
+}
+
+type DetachOutcome =
+  | { readonly kind: 'unbound' }
+  | { readonly kind: 'moved' }
+  | { readonly kind: 'busy'; readonly pid: number | null };
+
+// Takes the lock of the session the binding named, then reads the binding again: an attach that
+// ran in between moved it, and this detach starts over on the session it names now.
+async function detachFrom(
+  context: CommandContext,
+  agent: AgentID,
+  name: string,
+): Promise<DetachOutcome> {
+  const folder = join(context.root, name);
   const read = isSessionName(name) ? await readStore(folder) : { kind: 'missing' as const };
 
-  if (read.kind !== 'store') {
-    await removeBinding(root, agent);
+  return match(read)
+    .with({ kind: 'store' }, async () => {
+      const locked = await withStoreLock(
+        folder,
+        () =>
+          removeBoundBinding(context, agent, name, () =>
+            writeStoreFiles(folder, {
+              journal: [buildBindRow(name, 'detach', agent, context.nowMs)],
+            }),
+          ),
+        { waitMs: 2000 },
+      );
 
-    return replyOK(`Unbound this ${readHarnessLabel(agent)} session from ${name}.`);
+      return match(locked)
+        .with({ kind: 'ran' }, (ran) => ran.value)
+        .with({ kind: 'busy' }, (busy): DetachOutcome => ({ kind: 'busy', pid: busy.pid }))
+        .exhaustive();
+    })
+    .with({ kind: 'missing' }, { kind: 'hand-kept' }, { kind: 'newer' }, { kind: 'broken' }, () =>
+      removeBoundBinding(context, agent, name, () => Promise.resolve()),
+    )
+    .exhaustive();
+}
+
+async function removeBoundBinding(
+  context: CommandContext,
+  agent: AgentID,
+  name: string,
+  writeJournal: () => Promise<void>,
+): Promise<DetachOutcome> {
+  if ((await readBinding(context.root, agent)) !== name) {
+    return { kind: 'moved' };
   }
 
-  const locked = await withStoreLock(
-    folder,
-    async () => {
-      await writeStoreFiles(folder, { journal: [buildBindRow(name, 'detach', agent, nowMs)] });
-      await removeBinding(root, agent);
-    },
-    { waitMs: 2000 },
-  );
+  await writeJournal();
+  await removeBinding(context.root, agent);
 
-  if (locked.kind === 'busy') {
-    return replyRefusal(buildRefusal({ kind: 'lock-busy', args, name, pid: locked.pid }), context);
-  }
-
-  return replyOK(`Unbound this ${readHarnessLabel(agent)} session from ${name}.`);
+  return { kind: 'unbound' };
 }
 
 async function runSessions(context: CommandContext): Promise<CLIResult> {
   const summaries = await readSessionSummaries(context.root);
 
-  if (summaries.length === 0) {
-    return replyOK(
-      'No sessions on this machine yet. Run: www init <name> --goal "<what done means>"',
-    );
-  }
-
-  const width = Math.max(...summaries.map((summary) => summary.name.length));
-
-  return replyOK(
-    summaries.map((summary) => formatSummaryLine(summary, width, context.nowMs)).join('\n'),
-  );
-}
-
-function formatSummaryLine(summary: SessionSummary, width: number, nowMs: number): string {
-  const name = summary.name.padEnd(width);
-
-  if (summary.format === '0-by-hand') {
-    return `  ${name}  hand-kept: run www import ${summary.name}`;
-  }
-
-  if (summary.format === null || summary.started === null || summary.goal === null) {
-    return `  ${name}  unreadable session file`;
-  }
-
-  if (summary.format !== '1') {
-    return `  ${name}  format ${summary.format}: this www reads format 1`;
-  }
-
-  const lastWrite =
-    summary.lastWrite === null
-      ? 'last write never'
-      : `last write ${formatAge(nowMs - Date.parse(summary.lastWrite))} ago`;
-
-  const goalChars = Array.from(summary.goal, (character) => character);
-  const goal = goalChars.length > 60 ? `${goalChars.slice(0, 60).join('')}…` : summary.goal;
-
-  return `  ${name}  day ${String(getSessionDay(summary.started, nowMs))}  ${lastWrite}  ${goal}`;
+  return replyOK(formatSessionLines(summaries, context.nowMs));
 }

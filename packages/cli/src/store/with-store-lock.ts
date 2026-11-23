@@ -1,14 +1,4 @@
-import { randomBytes } from 'node:crypto';
-import {
-  closeSync,
-  linkSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  writeSync,
-} from 'node:fs';
+import { closeSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type LockResult<Value> =
@@ -49,7 +39,7 @@ export async function withStoreLock<Value>(
   try {
     return { kind: 'ran', value: await fn() };
   } finally {
-    removeOwn(lockPath, mine);
+    await removeOwn(lockPath, mine);
   }
 }
 
@@ -121,48 +111,85 @@ function isAlive(pid: number): boolean {
   }
 }
 
-// Of two writers that judge one lock stale, only one wins the rename: the other gets ENOENT.
-// When the renamed file differs from the one judged stale, a new holder took the lock in between,
-// so it goes back. Returns whether the stale lock is gone.
+// Removes the lock that was judged stale, when it is still that one. Returns whether the lock is
+// gone or was replaced, so the caller tries to create it again; false means the guard is taken.
 function takeOver(lockPath: string, judgedContent: string): boolean {
-  const renamedPath = `${lockPath}.stale-${String(process.pid)}-${randomBytes(4).toString('hex')}`;
-
-  try {
-    renameSync(lockPath, renamedPath);
-  } catch (error) {
-    if (isErrorCode(error, 'ENOENT')) {
-      return true;
+  return runGuarded(lockPath, () => {
+    if (readIfThere(lockPath) === judgedContent) {
+      unlinkIfThere(lockPath);
     }
-
-    throw error;
-  }
-
-  const renamedContent = readFileSync(renamedPath, 'utf8');
-  const isSame = renamedContent === judgedContent;
-
-  if (!isSame) {
-    try {
-      linkSync(renamedPath, lockPath);
-    } catch (error) {
-      if (!isErrorCode(error, 'EEXIST')) {
-        throw error;
-      }
-    }
-  }
-
-  unlinkSync(renamedPath);
-
-  return isSame;
+  });
 }
 
-function removeOwn(lockPath: string, mine: string): void {
+// Only the guard's holder removes the lock, a takeover or the holder at its end, and it re-reads
+// the lock first, so nobody removes a lock that replaced the one it meant to. The guarded code
+// awaits nothing, so a guard older than the stale age is a crash. Returns whether it ran.
+function runGuarded(lockPath: string, fn: () => void): boolean {
+  const guardPath = `${lockPath}.guard`;
+
+  if (!tryCreate(guardPath, `pid=${String(process.pid)}\n`)) {
+    removeCrashedGuard(guardPath);
+
+    return false;
+  }
+
   try {
-    if (readFileSync(lockPath, 'utf8') === mine) {
-      unlinkSync(lockPath);
+    fn();
+
+    return true;
+  } finally {
+    unlinkIfThere(guardPath);
+  }
+}
+
+function removeCrashedGuard(guardPath: string): void {
+  try {
+    if (Date.now() - statSync(guardPath).mtimeMs > staleMs) {
+      unlinkIfThere(guardPath);
     }
   } catch (error) {
     if (!isErrorCode(error, 'ENOENT')) {
       throw error;
     }
+  }
+}
+
+function unlinkIfThere(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if (!isErrorCode(error, 'ENOENT')) {
+      throw error;
+    }
+  }
+}
+
+function readIfThere(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    if (isErrorCode(error, 'ENOENT')) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+const guardPollMs = 5;
+
+async function removeOwn(lockPath: string, mine: string): Promise<void> {
+  for (;;) {
+    const isRemoved = runGuarded(lockPath, () => {
+      if (readIfThere(lockPath) === mine) {
+        unlinkIfThere(lockPath);
+      }
+    });
+
+    if (isRemoved) {
+      return;
+    }
+
+    await Bun.sleep(guardPollMs);
   }
 }

@@ -285,97 +285,119 @@ test('it cuts a pull request ref over 60 characters to 59 and an ellipsis', () =
   expect(brief).toInclude(`  ${ref.slice(0, 59)}…  opened 3h ago  [OPEN pending]\n`);
 });
 
-test('it renders the worst case, every cap full and every text at its limit, in 52 lines and at most 6,400 characters', () => {
-  const result = 'r'.repeat(15);
-  const waits = buildMockIDs('wait', 4);
-  const tasks = buildMockIDs('task', 6);
+test.each([
+  [
+    'a goal of 25 short words, which wraps to 3 lines',
+    Array.from({ length: 25 }, () => 'goalword'),
+    3,
+    false,
+  ],
+  [
+    'a goal of 4 long words, which wraps to 4 lines',
+    Array.from({ length: 4 }, () => 'g'.repeat(49)),
+    4,
+    true,
+  ],
+])(
+  'it renders the worst case with %s in 52 lines and at most 6,400 characters',
+  (_title, words, goalLines, isCut) => {
+    const result = 'r'.repeat(15);
+    const waits = buildMockIDs('wait', 4);
+    const tasks = buildMockIDs('task', 6);
 
-  const brief = renderBrief(
-    buildMockBriefInput({
-      session: {
-        format: '1',
-        name: 'n'.repeat(24),
-        goal: Array.from({ length: 25 }, () => 'goalword').join(' '),
-        started: '2026-03-02T08:04:11Z',
-        now: tasks[0] ?? '',
-        nowNext: 'n'.repeat(120),
-        nowSet: '2026-03-10T11:40:00Z',
-        lastWrite: '2026-03-10T11:02:00Z',
-        lastNudge: null,
-        importedFrom: null,
-      },
-      ownerNotes: [
-        { id: 'o-1', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[1] ?? null },
-        { id: 'o-2', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[2] ?? null },
-      ],
-      changed: buildMockIDs('chng', 5).map((id) => ({
-        item: buildMockItem({ id, check: 'pid:4', atWrite: result }),
-        result: 'gone',
-      })),
-      items: [
-        ...tasks.map((id) =>
-          buildMockItem({
-            id,
-            claim: 'c'.repeat(120),
-            check: 'pid:4',
-            last: result,
-            extra: { blocked_by: waits[0] ?? '' },
-          }),
-        ),
-        ...waits.map((id) =>
-          buildMockItem({
-            id,
-            kind: 'wait',
-            claim: 'c'.repeat(120),
-            check: 'pid:4',
-            last: result,
-            extra: { who: 'w'.repeat(16) },
-          }),
-        ),
-        ...buildMockIDs('appr', 3).map((id) =>
-          buildMockItem({
-            id,
-            kind: 'ok',
-            claim: 'q'.repeat(120),
-            extra: { who: 'owner', use: 'standing', scope: 's'.repeat(40) },
-          }),
-        ),
-        ...buildMockIDs('rule', 5).map((id) =>
-          buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(120) }),
-        ),
-        ...buildMockIDs('here', 4).map((id) =>
-          buildMockItem({
-            id,
-            kind: 'where',
-            claim: 'c'.repeat(120),
-            check: 'pid:4',
-            last: result,
-          }),
-        ),
-      ],
-      pullRequests: Array.from({ length: 4 }, () => ({
-        ref: 'p'.repeat(60),
-        opened: '2026-03-10T08:43:00Z',
-        result,
-      })),
-      checks: {
-        kind: 'ran',
-        count: 99,
-        seconds: 99.9,
-        unchecked: { count: 99, reason: 'u'.repeat(30) },
-      },
-      resultsNotSaved: 'not-writable',
-    }),
-  );
+    const brief = renderBrief(
+      buildMockBriefInput({
+        session: {
+          format: '1',
+          name: 'n'.repeat(24),
+          goal: words.join(' '),
+          started: '2026-03-02T08:04:11Z',
+          now: tasks[0] ?? '',
+          nowNext: 'n'.repeat(120),
+          nowSet: '2026-03-10T11:40:00Z',
+          lastWrite: '2026-03-10T11:02:00Z',
+          lastNudge: null,
+          importedFrom: null,
+        },
+        ownerNotes: [
+          { id: 'o-1', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[1] ?? null },
+          { id: 'o-2', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[2] ?? null },
+        ],
+        changed: buildMockIDs('chng', 5).map((id) => ({
+          item: buildMockItem({ id, check: 'pid:4', atWrite: result }),
+          result: 'gone',
+        })),
+        items: [
+          ...tasks.map((id) =>
+            buildMockItem({
+              id,
+              claim: 'c'.repeat(120),
+              check: 'pid:4',
+              last: result,
+              extra: { blocked_by: waits[0] ?? '' },
+            }),
+          ),
+          ...waits.map((id) =>
+            buildMockItem({
+              id,
+              kind: 'wait',
+              claim: 'c'.repeat(120),
+              check: 'pid:4',
+              last: result,
+              extra: { who: 'w'.repeat(16) },
+            }),
+          ),
+          ...buildMockIDs('appr', 3).map((id) =>
+            buildMockItem({
+              id,
+              kind: 'ok',
+              claim: 'q'.repeat(120),
+              extra: { who: 'owner', use: 'standing', scope: 's'.repeat(40) },
+            }),
+          ),
+          ...buildMockIDs('rule', 5).map((id) =>
+            buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(120) }),
+          ),
+          ...buildMockIDs('here', 4).map((id) =>
+            buildMockItem({
+              id,
+              kind: 'where',
+              claim: 'c'.repeat(120),
+              check: 'pid:4',
+              last: result,
+            }),
+          ),
+        ],
+        pullRequests: Array.from({ length: 4 }, () => ({
+          ref: 'p'.repeat(60),
+          opened: '2026-03-10T08:43:00Z',
+          result,
+        })),
+        checks: {
+          kind: 'ran',
+          count: 99,
+          seconds: 99.9,
+          unchecked: { count: 99, reason: 'u'.repeat(30) },
+        },
+        resultsNotSaved: 'not-writable',
+      }),
+    );
 
-  expect({
-    lines: brief.split('\n').length - 1,
-    isWithinLimit: Array.from(brief, (character) => character).length <= 6400,
-  }).toStrictEqual({
-    lines: 52,
-    isWithinLimit: true,
-  });
-});
+    expect({
+      lines: brief.split('\n').length - 1,
+      isWithinLimit: Array.from(brief, (character) => character).length <= 6400,
+      goalLines: brief
+        .split('\n')
+        .filter((line) => line.startsWith('GOAL  ') || line.startsWith('      ')).length,
+      hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
+    }).toStrictEqual({
+      lines: 52,
+      isWithinLimit: true,
+      goalLines,
+      hasCutLine: isCut,
+    });
+  },
+);
 
 test('it cuts item lines from the bottom up when the text passes 6,400 characters, and keeps the rest', () => {
   const claim = 'c'.repeat(300);

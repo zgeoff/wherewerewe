@@ -32,20 +32,28 @@ test.each([
 });
 
 test.each([
-  [['init', '<name>']],
-  [['attach', 'tide-alerts']],
-  [['detach']],
-  [['sessions']],
-  [['help']],
-  [['import', 'tide-alerts']],
-  [['--session', 'other', 'task', 't-a']],
-])('it adds no --session to the run %p', (argv) => {
+  [['init', '<name>'], 'Run: www --session tide-alerts init <name>'],
+  [['attach', 'tide-alerts'], 'Run: www --session tide-alerts attach tide-alerts'],
+  [['detach'], 'Run: www --session tide-alerts detach'],
+  [['sessions'], 'Run: www --session tide-alerts sessions'],
+  [['help'], 'Run: www --session tide-alerts help'],
+  [['import', 'tide-alerts'], 'Run: www --session tide-alerts import tide-alerts'],
+])('it keeps --session on the run %p', (argv, expected) => {
   const text = formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },
     { sessionFlag: 'tide-alerts' },
   );
 
-  expect(text.includes('--session tide-alerts')).toBe(false);
+  expect(text).toBe(`www: x\n${expected}\n`);
+});
+
+test('it adds no --session to a run that already names one', () => {
+  const text = formatRefusal(
+    { exitCode: 3, lines: ['www: x'], runs: [{ www: ['--session', 'other', 'task', 't-a'] }] },
+    { sessionFlag: 'tide-alerts' },
+  );
+
+  expect(text).toBe('www: x\nRun: www --session other task t-a\n');
 });
 
 test('it prints a shell run as it is', () => {

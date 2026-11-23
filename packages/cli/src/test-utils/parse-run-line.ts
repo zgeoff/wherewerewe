@@ -1,6 +1,6 @@
 // Splits a `Run: www ...` line into the arguments after `www`. A double-quoted word stays whole,
-// with its escapes undone, and so does a `<placeholder>`, which may hold spaces. It throws on a
-// line that is not a www line.
+// with its escapes undone, and so do a single-quoted word, a backslash-escaped character and a
+// bare `<placeholder>`, which may hold spaces. It throws on a line that is not a www line.
 export function parseRunLine(line: string): readonly string[] {
   const prefix = 'Run: www ';
 
@@ -31,6 +31,14 @@ export function parseRunLine(line: string): readonly string[] {
         text.slice(index + 1, end).replaceAll(/\\(?<escaped>["\\$`])/gu, '$<escaped>');
 
       index = end + 1;
+    } else if (char === "'") {
+      const end = text.indexOf("'", index + 1);
+
+      word = (word ?? '') + text.slice(index + 1, end);
+      index = end + 1;
+    } else if (char === '\\') {
+      word = (word ?? '') + text.charAt(index + 1);
+      index += 2;
     } else if (char === '<') {
       const end = text.indexOf('>', index);
 

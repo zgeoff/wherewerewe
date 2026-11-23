@@ -66,5 +66,19 @@ test.each([
     'the use "often" is not once or standing',
   ],
 ])('it breaks on %s', (_title, text, line, reason) => {
-  expect(parseItemsFile(text)).toStrictEqual({ kind: 'broken', line, reason });
+  expect(parseItemsFile(text)).toStrictEqual({ kind: 'broken', line, reason, items: [] });
+});
+
+test('it keeps the rows that parse beside the first row that does not', () => {
+  const text =
+    `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\n` +
+    `t-b\ttask\tWrite it\t-\t-\t-\t2026-03-10T10:31:09Z\tagent\t-\n` +
+    `t-c\tchore\tx\t-\t-\t-\tw\tagent\t-\n`;
+
+  expect(parseItemsFile(text)).toStrictEqual({
+    kind: 'broken',
+    line: 2,
+    reason: 'expected 9 tab-separated columns, found 2',
+    items: [expect.objectContaining({ id: 't-b' })],
+  });
 });

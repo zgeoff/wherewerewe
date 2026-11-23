@@ -1,8 +1,11 @@
 import { expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from './run-cli.ts';
+import { parseJournalFile } from './store/parse-journal-file.ts';
+import { withStoreLock } from './store/with-store-lock.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
@@ -68,12 +71,102 @@ test.each([
 test('it refuses with exit 4 when neither XDG_STATE_HOME nor HOME names a store folder', async () => {
   const ctx = setupTest();
 
-  const result = await ctx.run(['sessions'], {});
+  const result = await ctx.run([], {});
 
   expect(result).toStrictEqual({
     exitCode: 4,
     stdout: '',
     stderr: 'www: no store folder: set XDG_STATE_HOME or HOME.\nRun: www help\n',
+  });
+});
+
+test('it lists no sessions, and never refuses, when neither XDG_STATE_HOME nor HOME names a store folder', async () => {
+  const ctx = setupTest();
+
+  const result = await ctx.run(['sessions'], {});
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: 'No sessions on this machine yet. Run: www init <name> --goal "<what done means>"\n',
+    stderr: '',
+  });
+});
+
+test('it prints the brief from the rows that parse when one item row is broken, and says what it left out', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  seedStoreFile(
+    join(ctx.stateRoot, 'tide-alerts'),
+    'items.tsv',
+    `${readFileSync(join(ctx.stateRoot, 'tide-alerts', 'items.tsv'), 'utf8')}t-b\ttask\n`,
+  );
+
+  const result = await ctx.run([]);
+
+  expect({
+    exitCode: result.exitCode,
+    hasTask: result.stdout.includes('  t-a         Write it  [no check · 0m]\n'),
+    stderr: result.stderr,
+  }).toStrictEqual({
+    exitCode: 0,
+    hasTask: true,
+    stderr:
+      "www: tide-alerts's items.tsv line 3 does not parse: expected 9 tab-separated columns, found 2. The brief leaves out what it could not read. Fix the file by hand.\n",
+  });
+});
+
+test('it labels a store of a newer format in the session list', async () => {
+  const ctx = setupTest();
+
+  seedStoreFile(join(ctx.stateRoot, 'sample'), 'session', 'format=2\n');
+
+  const result = await ctx.run(['sessions']);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: '  sample  format 2: this www reads format 1\n',
+    stderr: '',
+  });
+});
+
+test('it never journals a detach on a session the binding no longer names', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'alpha-notes');
+  const released = Promise.withResolvers<undefined>();
+  const otherEnv = { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: '9c21-beta' };
+
+  await ctx.run(['init', 'alpha-notes', '--goal', 'Alpha goal']);
+  await ctx.run(['init', 'beta-notes', '--goal', 'Beta goal'], otherEnv);
+
+  const holder = withStoreLock(folder, () => released.promise);
+
+  await waitFor(() => readFileSync(join(folder, 'lock')));
+
+  const detached = ctx.run(['detach']);
+
+  await ctx.run(['attach', 'beta-notes']);
+
+  released.resolve(undefined);
+
+  await holder;
+  await detached;
+
+  const ops = (name: string) =>
+    parseJournalFile(readFileSync(join(ctx.stateRoot, name, 'journal.tsv'), 'utf8')).map(
+      (row) => `${row.op}:${row.text ?? ''}`,
+    );
+
+  expect({
+    alpha: ops('alpha-notes'),
+    beta: ops('beta-notes'),
+    bindingKept: existsSync(join(ctx.stateRoot, '.bindings', 'claude-a1b2-test')),
+  }).toStrictEqual({
+    alpha: ['init:Alpha goal', 'bind:init'],
+    beta: ['init:Beta goal', 'bind:init', 'bind:attach', 'bind:detach'],
+    bindingKept: false,
   });
 });
 

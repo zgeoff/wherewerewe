@@ -13,36 +13,13 @@ export function formatRefusal(refusal: Refusal, typed: RefusalScope): string {
   return [...refusal.lines, ...runs].map((line) => `${line}\n`).join('');
 }
 
-const unscopedCommands: ReadonlySet<string> = new Set([
-  'init',
-  'attach',
-  'detach',
-  'sessions',
-  'help',
-  'import',
-]);
-
 function formatRun(run: RunLine, sessionFlag: string | null): string {
   if ('shell' in run) {
     return run.shell;
   }
 
-  const command = getCommand(run.www);
-
-  const isScoped =
-    sessionFlag !== null && !run.www.includes('--session') && !unscopedCommands.has(command);
-
+  const isScoped = sessionFlag !== null && !run.www.includes('--session');
   const words = isScoped ? ['--session', sessionFlag, ...run.www] : run.www;
 
   return formatCommandLine(words);
-}
-
-function getCommand(argv: readonly string[]): string {
-  const terminator = argv.indexOf('--');
-
-  if (terminator !== -1) {
-    return argv[terminator + 1] ?? '';
-  }
-
-  return argv.find((word) => !word.startsWith('-')) ?? '';
 }

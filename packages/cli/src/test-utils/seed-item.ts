@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern';
 import { readStore } from '../store/read-store.ts';
 import { writeStoreFiles } from '../store/write-store-files.ts';
 import type { Item } from '../types.ts';
@@ -10,9 +11,12 @@ export async function seedItem(
 ): Promise<void> {
   const read = await readStore(folder);
 
-  if (read.kind !== 'store') {
-    throw new Error(`no store to seed in ${folder}`);
-  }
+  const store = match(read)
+    .with({ kind: 'store' }, (found) => found.store)
+    .with({ kind: 'missing' }, { kind: 'hand-kept' }, { kind: 'newer' }, { kind: 'broken' }, () => {
+      throw new Error(`no store to seed in ${folder}`);
+    })
+    .exhaustive();
 
   const item: Item = {
     kind: 'task',
@@ -26,5 +30,5 @@ export async function seedItem(
     ...fields,
   };
 
-  await writeStoreFiles(folder, { items: [...read.store.items, item], journal: [] });
+  await writeStoreFiles(folder, { items: [...store.items, item], journal: [] });
 }

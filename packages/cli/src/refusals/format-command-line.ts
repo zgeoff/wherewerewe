@@ -1,11 +1,12 @@
-// Writes `www` and each argument, quoting an argument that is empty or holds whitespace or a
-// character the shell reads.
+import { quoteShellWord } from './quote-shell-word.ts';
+
+// Writes `www` and each argument, quoted so a shell reads each back as typed. A placeholder that
+// stands for one id, name or reference stays bare, and a text placeholder, such as <claim>, is
+// quoted like any other text, as the design's examples show.
 export function formatCommandLine(argv: readonly string[]): string {
-  return ['www', ...argv.map((argument) => quoteArgument(argument))].join(' ');
+  return ['www', ...argv.map((argument) => formatArgument(argument))].join(' ');
 }
 
-// Placeholders that stand for one id, name or reference. A text placeholder, such as <claim>, is
-// quoted like any other text, as the design's examples show.
 const bareWords: ReadonlySet<string> = new Set([
   '<new id>',
   '<open id>',
@@ -17,15 +18,6 @@ const bareWords: ReadonlySet<string> = new Set([
   '<absolute path>',
 ]);
 
-function quoteArgument(argument: string): string {
-  if (bareWords.has(argument)) {
-    return argument;
-  }
-
-  const needsQuotes =
-    argument === '' || /[\s"'$`\\;&|()*?!{}[\]~]/u.test(argument) || /^<.*>$/u.test(argument);
-
-  return needsQuotes
-    ? `"${argument.replaceAll(/(?<special>["$`\\])/gu, String.raw`\$<special>`)}"`
-    : argument;
+function formatArgument(argument: string): string {
+  return bareWords.has(argument) ? argument : quoteShellWord(argument);
 }

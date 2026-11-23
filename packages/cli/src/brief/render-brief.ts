@@ -1,3 +1,5 @@
+import { match } from 'ts-pattern';
+import { canBlock } from '../rules/can-block.ts';
 import type { Item } from '../types.ts';
 import { formatAge } from './format-age.ts';
 import { formatGoalLines } from './format-goal-lines.ts';
@@ -6,9 +8,10 @@ import { pickFixCommand } from './pick-fix-command.ts';
 import type { BriefInput } from './types.ts';
 
 const maxCharacters = 6400;
+const maxLines = 52;
 
-// Renders every section of the brief in its order. When the text passes 6,400 characters, it
-// drops item lines from the bottom up and says so.
+// Renders every section of the brief in its order. When the text passes 6,400 characters or 52
+// lines, it drops item lines from the bottom up and says so.
 export function renderBrief(input: BriefInput): string {
   const sections = buildItemSections(input);
   const cutOrder = [5, 4, 3, 2, 1, 0];
@@ -16,7 +19,7 @@ export function renderBrief(input: BriefInput): string {
   let cutCount = 0;
   let text = joinBrief(input, sections, cuts, cutCount);
 
-  while (countCharacters(text) > maxCharacters) {
+  while (countCharacters(text) > maxCharacters || countLines(text) > maxLines) {
     const target = cutOrder.find(
       (index) => (sections[index]?.lines.length ?? 0) > (cuts[index] ?? 0),
     );
@@ -96,8 +99,7 @@ function formatTaskTag(item: Item, items: readonly Item[], nowMs: number): strin
   const blocker = item.extra.blocked_by;
 
   const isBlocked =
-    blocker !== undefined &&
-    items.some((other) => other.id === blocker && (other.kind === 'task' || other.kind === 'wait'));
+    blocker !== undefined && items.some((other) => other.id === blocker && canBlock(other.kind));
 
   if (isBlocked) {
     return `blocked by ${blocker}${item.check === null ? '' : ` · ${formatResult(item)}`}`;
@@ -222,33 +224,28 @@ function renderHeader(input: BriefInput): string[] {
     renderChecks(input.checks),
   ].join(' · ');
 
-  if (input.resultsNotSaved === null) {
-    return [first];
-  }
+  const reason = match(input.resultsNotSaved)
+    .with(null, () => null)
+    .with('not-writable', () => 'the store is not writable here')
+    .with('lock-held', () => 'another write held the lock')
+    .exhaustive();
 
-  const reason =
-    input.resultsNotSaved === 'not-writable'
-      ? 'the store is not writable here'
-      : 'another write held the lock';
-
-  return [first, `  results not saved: ${reason}`];
+  return reason === null ? [first] : [first, `  results not saved: ${reason}`];
 }
 
 function renderChecks(checks: BriefInput['checks']): string {
-  if (checks.kind === 'none') {
-    return 'no checks';
-  }
+  return match(checks)
+    .with({ kind: 'none' }, () => 'no checks')
+    .with({ kind: 'not-run' }, (notRun) => `${String(notRun.count)} checks, not run yet`)
+    .with({ kind: 'ran' }, (ran) => {
+      const unchecked =
+        ran.unchecked === null
+          ? ''
+          : ` · ${String(ran.unchecked.count)} unchecked: ${ran.unchecked.reason}`;
 
-  if (checks.kind === 'not-run') {
-    return `${String(checks.count)} checks, not run yet`;
-  }
-
-  const unchecked =
-    checks.unchecked === null
-      ? ''
-      : ` · ${String(checks.unchecked.count)} unchecked: ${checks.unchecked.reason}`;
-
-  return `${String(checks.count)} checks in ${checks.seconds.toFixed(1)}s${unchecked}`;
+      return `${String(ran.count)} checks in ${ran.seconds.toFixed(1)}s${unchecked}`;
+    })
+    .exhaustive();
 }
 
 function renderOwnerNotes(input: BriefInput): string[] {
@@ -308,4 +305,8 @@ function renderNow(input: BriefInput): string[] {
 
 function countCharacters(text: string): number {
   return Array.from(text, (character) => character).length;
+}
+
+function countLines(text: string): number {
+  return text.split('\n').length - 1;
 }

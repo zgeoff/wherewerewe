@@ -107,6 +107,12 @@ test.each([
   [['task', 't-a', 'x', '-z'], { kind: 'unknown-flag', flag: '-z' }],
   [['goal', 'x', '--session'], { kind: 'flag-needs-value', flag: 'session' }],
   [['init', 'tide', '--goal'], { kind: 'flag-needs-value', flag: 'goal' }],
+  [['init', 'new-session', '--goal', '--session'], { kind: 'flag-needs-value', flag: 'goal' }],
+  [['init', 'new-session', '--goal', '-x'], { kind: 'flag-needs-value', flag: 'goal' }],
+  [['task', 't-a', 'x', '--help=yes'], { kind: 'flag-takes-no-value', flag: 'help' }],
+  [['toString'], { kind: 'unknown-command', command: 'toString' }],
+  [['constructor', 'x'], { kind: 'unknown-command', command: 'constructor' }],
+  [['__proto__'], { kind: 'unknown-command', command: '__proto__' }],
   [['done', 't-a', '--why', 'x'], { kind: 'flag-not-taken', command: 'done', flag: 'why' }],
   [['task', 't-a', 'x', '--who', 'me'], { kind: 'flag-not-taken', command: 'task', flag: 'who' }],
   [
@@ -130,5 +136,15 @@ test.each([
 ])('it refuses %p with %p', (argv, reason) => {
   const actual: unknown = parseCLIArgs(argv);
 
-  expect(actual).toStrictEqual({ kind: 'refused', reason });
+  expect(actual).toStrictEqual({ kind: 'refused', reason, sessionFlag: null });
+});
+
+test('it hands back the --session value typed with a command it refuses', () => {
+  const actual: unknown = parseCLIArgs(['--session', 'tide', 'taks']);
+
+  expect(actual).toStrictEqual({
+    kind: 'refused',
+    reason: { kind: 'unknown-command', command: 'taks' },
+    sessionFlag: 'tide',
+  });
 });

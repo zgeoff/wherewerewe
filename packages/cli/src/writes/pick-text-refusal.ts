@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern';
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { findTextProblem } from '../rules/find-text-problem.ts';
 import type { ParsedArgs, RefusalReason, TextTarget } from '../types.ts';
@@ -16,32 +17,41 @@ export function pickTextRefusal(
   onOtherKind: boolean,
 ): RefusalReason | null {
   for (const check of checks) {
-    const problem = findTextProblem(check.text, check.limit);
+    const reason = pickOneTextRefusal(args, check, onOtherKind);
 
-    if (problem?.kind === 'empty') {
-      return { kind: 'text-empty', args, target: check.target };
-    }
-
-    if (problem?.kind === 'not-one-line') {
-      return { kind: 'text-not-one-line', args, target: check.target };
-    }
-
-    if (problem?.kind === 'too-long') {
-      return {
-        kind: 'text-too-long',
-        args,
-        target: check.target,
-        length: problem.length,
-        limit: check.limit,
-      };
-    }
-
-    const label = findCredentialMatch(check.text);
-
-    if (label !== null) {
-      return { kind: 'credential', args, target: check.target, label, onOtherKind };
+    if (reason !== null) {
+      return reason;
     }
   }
 
   return null;
+}
+
+function pickOneTextRefusal(
+  args: ParsedArgs,
+  check: TextCheck,
+  onOtherKind: boolean,
+): RefusalReason | null {
+  const target = check.target;
+
+  return match(findTextProblem(check.text, check.limit))
+    .with({ kind: 'empty' }, (): RefusalReason => ({ kind: 'text-empty', args, target }))
+    .with({ kind: 'not-one-line' }, (): RefusalReason => ({
+      kind: 'text-not-one-line',
+      args,
+      target,
+    }))
+    .with({ kind: 'too-long' }, (problem): RefusalReason => ({
+      kind: 'text-too-long',
+      args,
+      target,
+      length: problem.length,
+      limit: check.limit,
+    }))
+    .with(null, (): RefusalReason | null => {
+      const label = findCredentialMatch(check.text);
+
+      return label === null ? null : { kind: 'credential', args, target, label, onOtherKind };
+    })
+    .exhaustive();
 }

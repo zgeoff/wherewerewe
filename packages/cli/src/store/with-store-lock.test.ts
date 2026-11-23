@@ -1,8 +1,9 @@
 import { expect, test } from 'bun:test';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { seedStaleLock } from '../test-utils/seed-stale-lock.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { withStoreLock } from './with-store-lock.ts';
 
@@ -52,11 +53,8 @@ test('it reports busy with no pid when the lock file does not parse', async () =
 
 test('it takes over a lock whose pid is gone', async () => {
   const ctx = setupTest();
-  const child = Bun.spawn(['bun', '-e', '']);
 
-  await child.exited;
-
-  seedStoreFile(ctx.folder, 'lock', `pid=${String(child.pid)} ts=${new Date().toISOString()}\n`);
+  await seedStaleLock(ctx.folder);
 
   const result = await withStoreLock(ctx.folder, () => Promise.resolve('ran'), { waitMs: 500 });
 
@@ -120,4 +118,49 @@ test('it makes a second writer wait until the first releases the lock', async ()
   await Promise.all([first, second]);
 
   expect(order).toStrictEqual(['first released', 'second ran']);
+});
+
+test('it takes over a stale lock when a crashed writer left its guard behind', async () => {
+  const ctx = setupTest();
+
+  await seedStaleLock(ctx.folder);
+
+  seedStoreFile(ctx.folder, 'lock.guard', 'pid=1\n');
+
+  const longAgoSeconds = (Date.now() - 60_000) / 1000;
+
+  utimesSync(join(ctx.folder, 'lock.guard'), longAgoSeconds, longAgoSeconds);
+
+  const result = await withStoreLock(ctx.folder, () => Promise.resolve('ran'), { waitMs: 500 });
+
+  expect({ result, guardLeft: existsSync(join(ctx.folder, 'lock.guard')) }).toStrictEqual({
+    result: { kind: 'ran', value: 'ran' },
+    guardLeft: false,
+  });
+});
+
+test('it runs one writer at a time when many start together over a stale lock', async () => {
+  const ctx = setupTest();
+
+  await seedStaleLock(ctx.folder);
+
+  const state = { running: 0, mostRunning: 0 };
+
+  const results = await Promise.all(
+    Array.from({ length: 8 }, () =>
+      withStoreLock(ctx.folder, async () => {
+        state.running += 1;
+        state.mostRunning = Math.max(state.mostRunning, state.running);
+
+        await Promise.resolve();
+
+        state.running -= 1;
+      }),
+    ),
+  );
+
+  expect({
+    kinds: results.map((result) => result.kind),
+    mostRunning: state.mostRunning,
+  }).toStrictEqual({ kinds: Array.from({ length: 8 }, () => 'ran'), mostRunning: 1 });
 });

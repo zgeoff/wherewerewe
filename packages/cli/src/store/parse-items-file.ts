@@ -3,7 +3,16 @@ import { itemsHeader } from './constants.ts';
 
 export type ItemsParse =
   | { readonly kind: 'items'; readonly items: Item[] }
-  | { readonly kind: 'broken'; readonly line: number; readonly reason: string };
+  | {
+      readonly kind: 'broken';
+
+      // the first row that does not parse
+      readonly line: number;
+      readonly reason: string;
+
+      // the rows that do parse, which a read prints and a write never uses
+      readonly items: Item[];
+    };
 
 export function parseItemsFile(text: string): ItemsParse {
   const lines = text.split('\n');
@@ -13,22 +22,25 @@ export function parseItemsFile(text: string): ItemsParse {
   }
 
   if (lines[0] !== itemsHeader) {
-    return { kind: 'broken', line: 1, reason: 'the header row is missing or changed' };
+    return { kind: 'broken', line: 1, reason: 'the header row is missing or changed', items: [] };
   }
 
   const items: Item[] = [];
+  let firstBroken: { readonly line: number; readonly reason: string } | null = null;
 
   for (const [index, line] of lines.slice(1).entries()) {
     const parsed = parseItemLine(line);
 
     if (typeof parsed === 'string') {
-      return { kind: 'broken', line: index + 2, reason: parsed };
+      firstBroken ??= { line: index + 2, reason: parsed };
+    } else {
+      items.push(parsed);
     }
-
-    items.push(parsed);
   }
 
-  return { kind: 'items', items };
+  return firstBroken === null
+    ? { kind: 'items', items }
+    : { kind: 'broken', line: firstBroken.line, reason: firstBroken.reason, items };
 }
 
 function parseItemLine(line: string): Item | string {

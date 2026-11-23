@@ -18,6 +18,9 @@ test.each([
     ['task', 't-a', '<claim>', '--pr', '<owner>/<repo>#<number>'],
   ],
   ['Run: www --session tide-alerts', ['--session', 'tide-alerts']],
+  ["Run: www done t-a --evidence 'merged!'", ['done', 't-a', '--evidence', 'merged!']],
+  [String.raw`Run: www task t-a 'it'\''s here!'`, ['task', 't-a', "it's here!"]],
+  [String.raw`Run: www task t-a a\ b`, ['task', 't-a', 'a b']],
 ])('it splits %s into its words', (line, words) => {
   expect(parseRunLine(line)).toStrictEqual(words);
 });

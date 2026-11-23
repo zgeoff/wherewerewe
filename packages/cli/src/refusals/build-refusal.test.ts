@@ -5,6 +5,7 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
+import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 
@@ -486,6 +487,76 @@ test.each([
     fills: [{}],
   },
   {
+    title: 'a path with a newline',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['where', 'wt-a', 'x', '--path', '/tmp/first\nsecond'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text must be one line, with no tab or newline.\nRun: www where wt-a x --path "<one line>"\n',
+    fills: [{ '<one line>': '/srv/app' }],
+  },
+  {
+    title: 'a branch whose path holds a tab',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['where', 'wt-a', 'x', '--branch', '/tmp/first\tsecond@fix'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text must be one line, with no tab or newline.\nRun: www where wt-a x --branch "<one line>"\n',
+    fills: [{ '<one line>': '/srv/app@fix' }],
+  },
+  {
+    title: 'a claim of one dash, which the journal would read as no text',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', '-'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: the claim is empty.\nRun: www task t-a "<claim>"\n',
+    fills: [{ '<claim>': 'Write it' }],
+  },
+  {
+    title: 'a --who typed twice, the last holding a separator',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['wait', 'w-a', 'Answer', '--who', 'old', '--who', 'new=team'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: --who cannot hold ; or =.\nRun: www wait w-a Answer --who new,team\n',
+    fills: [{}],
+  },
+  {
+    title: 'a task with a check on an open rule',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['rule', 'r-a', 'x'],
+    ],
+    files: [],
+    argv: ['task', 'r-a', 'new note', '--pid', '5'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: r-a is a rule. Change its text with set, or pick a new id.\nRun: www set r-a "new note"\n',
+    fills: [{}],
+  },
+  {
+    title: 'a wait with a --who on an open task',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'x'],
+    ],
+    files: [],
+    argv: ['wait', 't-a', 'new note', '--who', 'owner', '--pid', '5'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: t-a is a task. Change its text with set, or pick a new id.\nRun: www set t-a "new note" --pid 5\n',
+    fills: [{}],
+  },
+  {
     title: 'a rule with a check',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
@@ -551,14 +622,16 @@ test.each([
     fills: [{}],
   },
   {
-    title: 'an init of a session that exists, with no agent id',
+    title:
+      'an init of a session that exists, with no agent id (its Run line runs in an agent session)',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: ['init', 'tide-alerts', '--goal', 'Other'],
     env: 'shell',
+    replayEnv: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: session tide-alerts exists. Bind this agent session to it.\nRun: www --session tide-alerts\n',
+      'www: refused: session tide-alerts exists. Bind this agent session to it.\nRun: www attach tide-alerts\n',
     fills: [{}],
   },
   {
@@ -624,7 +697,18 @@ test.each([
     env: 'shell',
     exitCode: 3,
     stderr:
-      'www: refused: this shell has no agent session id (no CLAUDE_CODE_SESSION_ID or CODEX_SESSION_ID). Name the session on each command.\nRun: www sessions\n',
+      'www: refused: this shell has no agent session id (no CLAUDE_CODE_SESSION_ID or CODEX_SESSION_ID). Name the session on each command.\nRun: www --session <name>\n',
+    fills: [{ '<name>': 'tide-alerts' }],
+  },
+  {
+    title: 'a detach that names its session, with no agent session id',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'detach'],
+    env: 'shell',
+    exitCode: 3,
+    stderr:
+      'www: refused: this shell has no agent session id (no CLAUDE_CODE_SESSION_ID or CODEX_SESSION_ID). Name the session on each command.\nRun: www --session tide-alerts\n',
     fills: [{}],
   },
   {
@@ -660,25 +744,27 @@ test.each([
     fills: [],
   },
   {
-    title: 'no session for a shell with no agent id',
+    title: 'no session for a shell with no agent id (its Run lines run in an agent session)',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: ['task', 't-a', 'x'],
     env: 'shell',
+    replayEnv: 'agent',
     exitCode: 4,
     stderr:
-      'www: no session for this agent. Sessions on this machine: tide-alerts (day 1).\nRun: www --session <name> task t-a x\nRun: www init <name> --goal "<what done means>"\n',
+      'www: no session for this agent. Sessions on this machine: tide-alerts (day 1).\nRun: www attach <name>\nRun: www init <name> --goal "<what done means>"\n',
     fills: [{ '<name>': 'tide-alerts' }, { '<name>': 'new-notes', '<what done means>': 'Ship it' }],
   },
   {
-    title: 'a --session that names a missing session',
+    title: 'a --session that names a missing session (its Run lines run in an agent session)',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: ['--session', 'nope-notes', 'task', 't-a', 'x'],
     env: 'shell',
+    replayEnv: 'agent',
     exitCode: 4,
     stderr:
-      'www: no session nope-notes on this machine. Sessions on this machine: tide-alerts (day 1).\nRun: www --session <name> task t-a x\nRun: www init <name> --goal "<what done means>"\n',
+      'www: no session nope-notes on this machine. Sessions on this machine: tide-alerts (day 1).\nRun: www --session nope-notes attach <name>\nRun: www --session nope-notes init <name> --goal "<what done means>"\n',
     fills: [{ '<name>': 'tide-alerts' }, { '<name>': 'new-notes', '<what done means>': 'Ship it' }],
   },
   {
@@ -695,7 +781,7 @@ test.each([
     env: 'agent',
     exitCode: 5,
     stderr:
-      'www: old-notes is a hand-kept store (format 0-by-hand). Convert it first.\nRun: www import old-notes\n',
+      'www: old-notes is a hand-kept store (format 0-by-hand). Convert it first.\nRun: www --session old-notes import old-notes\n',
     fills: [],
   },
   {
@@ -719,7 +805,7 @@ test.each([
         text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\n',
       },
     ],
-    argv: [],
+    argv: ['task', 't-b', 'x'],
     env: 'agent',
     exitCode: 3,
     stderr:
@@ -767,6 +853,46 @@ test.each([
     fills: [{}],
   },
   {
+    title: 'a flag followed by another flag',
+    setup: [],
+    files: [],
+    argv: ['init', 'new-session', '--goal', '--session'],
+    env: 'agent',
+    exitCode: 2,
+    stderr: 'www: --goal needs a value.\nRun: www help\n',
+    fills: [{}],
+  },
+  {
+    title: 'a flag that takes no value, given one',
+    setup: [],
+    files: [],
+    argv: ['task', 't-a', 'x', '--help=yes'],
+    env: 'agent',
+    exitCode: 2,
+    stderr: 'www: --help takes no value.\nRun: www help\n',
+    fills: [{}],
+  },
+  {
+    title: 'a command named like an object property',
+    setup: [],
+    files: [],
+    argv: ['toString'],
+    env: 'agent',
+    exitCode: 2,
+    stderr: 'www: unknown command "toString".\nRun: www help\n',
+    fills: [{}],
+  },
+  {
+    title: 'an unknown command typed with --session',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['--session', 'tide-alerts', 'taks'],
+    env: 'agent',
+    exitCode: 2,
+    stderr: 'www: unknown command "taks".\nRun: www --session tide-alerts help\n',
+    fills: [{}],
+  },
+  {
     title: 'a flag the command does not take',
     setup: [],
     files: [],
@@ -807,6 +933,7 @@ test.each([
   const result = await ctx.run(row.argv, envs[row.env]);
   const after = await ctx.readTree();
 
+  const replayEnv = envs[row.replayEnv ?? row.env];
   const stderr = row.stderr.replaceAll('<STATE>', ctx.stateRoot);
   const runLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
   const filledExitCodes: number[] = [];
@@ -814,7 +941,7 @@ test.each([
   for (const [index, fills] of row.fills.entries()) {
     const argv = buildFilledRunArgv(runLines[index] ?? '', fills);
 
-    const filled = await ctx.run(argv, envs[row.env]);
+    const filled = await ctx.run(argv, replayEnv);
 
     filledExitCodes.push(filled.exitCode);
   }
@@ -858,4 +985,47 @@ test('it refuses a write while another holds the lock for 2 s, names the holder,
 
   expect(after).toStrictEqual(before);
   expect(retried.exitCode).toBe(0);
+});
+
+test('it prints a claim with a shell redirection as one word that a real shell reads back', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+  const refused = await ctx.run(
+    ['task', 't-a', 'phase>draft', '--pr', 'acme/tool#1', '--pid', '5'],
+    ctx.agentEnv,
+  );
+
+  const line = refused.stderr.split('\n').find((text) => text.startsWith('Run: www')) ?? '';
+
+  const words = await readShellWords(line.slice('Run: www '.length));
+  const retried = await ctx.run(words, ctx.agentEnv);
+
+  expect({ words, retried: retried.exitCode }).toStrictEqual({
+    words: ['task', 't-a', 'phase>draft', '--pr', 'acme/tool#1'],
+    retried: 0,
+  });
+});
+
+test('it prints the path of a broken file as one word that a real shell reads back', async () => {
+  const ctx = setupTest();
+  const env = { ...ctx.agentEnv, XDG_STATE_HOME: join(ctx.agentEnv.XDG_STATE_HOME, 'two words') };
+  const folder = join(ctx.agentEnv.XDG_STATE_HOME, 'two words', 'wherewerewe', 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env);
+
+  seedStoreFile(
+    folder,
+    'items.tsv',
+    'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\n',
+  );
+
+  const refused = await ctx.run(['task', 't-b', 'x'], env);
+
+  const line = refused.stderr.split('\n').find((text) => text.startsWith('Run: less')) ?? '';
+
+  const words = await readShellWords(line.slice('Run: '.length));
+
+  expect(words).toStrictEqual(['less', join(folder, 'items.tsv')]);
 });

@@ -1,6 +1,8 @@
+import { match } from 'ts-pattern';
 import { getSessionDay } from '../brief/get-session-day.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import { canBlock } from '../rules/can-block.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { parseCheckFlags } from '../rules/parse-check-flags.ts';
 import type { CheckFlagsResult } from '../rules/parse-check-flags.ts';
@@ -39,7 +41,7 @@ export function pickItemWrite(input: WriteInput): WriteResult {
 
   const kind = isSet ? (existing?.kind ?? 'task') : getKind(args.command);
   const ts = formatTimestamp(nowMs);
-  const ref = checks.kind === 'check' ? checks.ref : null;
+  const ref = pickCheckRef(checks);
 
   const item: Item = {
     id,
@@ -78,11 +80,17 @@ export function pickItemWrite(input: WriteInput): WriteResult {
     reply: (briefLines) => {
       const brief = `Brief: ${String(briefLines)} lines.`;
 
-      if (kind === 'rule') {
-        return `${id}  rule, open. ${brief}`;
-      }
-
-      return `${id}  ${kind}, open, ${item.check === null ? 'no check' : 'no check run'}. ${brief}`;
+      return match(kind)
+        .with('rule', () => `${id}  rule, open. ${brief}`)
+        .with(
+          'task',
+          'wait',
+          'where',
+          'ok',
+          () =>
+            `${id}  ${kind}, open, ${item.check === null ? 'no check' : 'no check run'}. ${brief}`,
+        )
+        .exhaustive();
     },
   };
 }
@@ -96,21 +104,35 @@ function pickCheckRefusal(
   checks: CheckFlagsResult,
   existing: Item | undefined,
 ): RefusalReason | null {
-  if (checks.kind === 'too-many') {
-    return { kind: 'too-many-checks', args, firstFlag: checks.first.flag };
-  }
-
-  if (checks.kind === 'malformed') {
-    return { kind: 'malformed-check', args, flag: checks.flag };
-  }
-
-  if (checks.kind === 'relative') {
-    return { kind: 'relative-path', args, flag: checks.flag, absolute: checks.absolute };
-  }
-
   const isRule = args.command === 'rule' || (args.command === 'set' && existing?.kind === 'rule');
 
-  return isRule && checks.kind === 'check' ? { kind: 'rule-has-check', args } : null;
+  return match(checks)
+    .with({ kind: 'too-many' }, (found): RefusalReason => ({
+      kind: 'too-many-checks',
+      args,
+      firstFlag: found.first.flag,
+    }))
+    .with({ kind: 'malformed' }, (found): RefusalReason => ({
+      kind: 'malformed-check',
+      args,
+      flag: found.flag,
+    }))
+    .with({ kind: 'not-one-line' }, (found): RefusalReason => ({
+      kind: 'check-not-one-line',
+      args,
+      flag: found.flag,
+    }))
+    .with({ kind: 'relative' }, (found): RefusalReason => ({
+      kind: 'relative-path',
+      args,
+      flag: found.flag,
+      absolute: found.absolute,
+    }))
+    .with({ kind: 'check' }, (): RefusalReason | null =>
+      isRule ? { kind: 'rule-has-check', args } : null,
+    )
+    .with({ kind: 'none' }, () => null)
+    .exhaustive();
 }
 
 function pickWhoRefusal(args: ParsedArgs, existing: Item | undefined): RefusalReason | null {
@@ -183,33 +205,52 @@ function pickBlockedByRefusal(input: WriteInput): RefusalReason | null {
     return null;
   }
 
-  const openIDs = store.items
-    .filter((item) => item.kind === 'task' || item.kind === 'wait')
-    .map((item) => item.id);
+  const openIDs = store.items.filter((item) => canBlock(item.kind)).map((item) => item.id);
 
   return openIDs.includes(blockedBy)
     ? null
     : { kind: 'blocked-by-unknown', args, blockedBy, openIDs };
 }
 
-type CappedKind = 'task' | 'wait' | 'rule' | 'where';
-
-const caps: Readonly<Record<CappedKind, number>> = { task: 6, wait: 4, rule: 5, where: 4 };
-
 // The kind's cap, for a new item only.
 function pickCapRefusal(input: WriteInput, id: string, isSet: boolean): RefusalReason | null {
   const kind = getKind(input.args.command);
 
-  if (isSet || kind === 'ok' || input.store.items.some((item) => item.id === id)) {
+  if (isSet || input.store.items.some((item) => item.id === id)) {
     return null;
   }
 
-  const ofKind = input.store.items.filter((item) => item.kind === kind);
+  return match(kind)
+    .with('task', 'wait', 'rule', 'where', (capped) => pickFullKind(input.store.items, capped))
+    .with('ok', () => null)
+    .exhaustive();
+}
+
+type CappedKind = 'task' | 'wait' | 'rule' | 'where';
+
+const caps: Readonly<Record<CappedKind, number>> = { task: 6, wait: 4, rule: 5, where: 4 };
+
+function pickFullKind(items: readonly Item[], kind: CappedKind): RefusalReason | null {
+  const ofKind = items.filter((item) => item.kind === kind);
   const [oldest] = ofKind;
 
   return oldest !== undefined && ofKind.length >= caps[kind]
     ? { kind: 'kind-full', itemKind: kind, oldestID: oldest.id }
     : null;
+}
+
+function pickCheckRef(checks: CheckFlagsResult): string | null {
+  return match(checks)
+    .with({ kind: 'check' }, (found) => found.ref)
+    .with(
+      { kind: 'none' },
+      { kind: 'too-many' },
+      { kind: 'malformed' },
+      { kind: 'not-one-line' },
+      { kind: 'relative' },
+      () => null,
+    )
+    .exhaustive();
 }
 
 function buildExtra(args: ParsedArgs): Extra {

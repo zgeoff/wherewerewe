@@ -18,9 +18,10 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
 focus, `items.tsv` the open items, and `journal.tsv` every write. A write takes the folder's `lock`
-file, rewrites `items.tsv` and `session` through a temporary file and a rename, appends its journal
-rows, and removes the lock. The journal stays closed except for the ids that `done`, `drop` and
-`use` closed, which a write reads to refuse a closed id.
+file, appends its journal rows, rewrites `items.tsv` and `session` through a temporary file and a
+rename, and removes the lock. The journal comes first, so a write that stops half way leaves a close
+recorded and its item still open, never an item gone with no record. The journal stays closed except
+for the ids that `done`, `drop` and `use` closed, which a write reads to refuse a closed id.
 [The store design](../design/wherewerewe/store.md) fixes the formats.
 
 ## Finding the session
@@ -43,5 +44,6 @@ and the refusals.
 
 `www` prints the goal, the item in focus, and the open tasks, waits, approvals, rules and where
 items, in at most 52 lines and 6,400 characters. No check runs yet, so each tag reads
-`not checked yet` or the item's age. [The brief design](../design/wherewerewe/brief.md) fixes the
-layout.
+`not checked yet` or the item's age. When a row of `items.tsv` does not parse, `www` still prints
+the rows that do, and names the broken row on stderr.
+[The brief design](../design/wherewerewe/brief.md) fixes the layout.
