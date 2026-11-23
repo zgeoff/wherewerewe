@@ -4,7 +4,7 @@
   // so knip sees neither
   "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/diet"],
   "workspaces": {
-    ".": { "entry": ["rig.config.ts"] },
+    ".": { "entry": ["rig.config.ts", "scripts/**/*.test.ts"] },
     "packages/*": { "entry": ["src/**/*.test.ts"] }
   }
 }
