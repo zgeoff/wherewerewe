@@ -18,8 +18,8 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
 focus, `items.tsv` the open items, and `journal.tsv` every write. A write reads from the journal
-only the ids that `done`, `drop` and `use` closed, because a session never reuses a closed id.
-[The store design](../design/wherewerewe/store.md) fixes the formats.
+only the ids that `done`, `drop` and `use` closed, because a session never reuses a closed id. See
+[the store design](../design/wherewerewe/store.md) for the formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv` and `session`
 through a temporary file and a rename, and removes the lock. The journal comes first, so a write
@@ -42,7 +42,7 @@ command exits 4, and never falls back to the only session on the machine. See
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
 `rule`, `where`, `set`, `done` and `drop`, and `www` alone prints the brief. A write answers in one
 line that ends with the brief's length. Each refusal prints its text and a `Run:` line with the
-command that fixes it. [The commands design](../design/wherewerewe/commands.md) lists the replies
+command that fixes it. See [the commands design](../design/wherewerewe/commands.md) for the replies
 and the refusals.
 
 ## The brief
@@ -50,5 +50,5 @@ and the refusals.
 `www` prints the goal, the item in focus, and the open tasks, waits, approvals, rules and where
 items, in at most 52 lines and 6,400 characters. No check runs yet, so each tag reads
 `not checked yet` or the item's age. When a row of `items.tsv` does not parse, `www` still prints
-the rows that do, and names the broken row on stderr.
-[The brief design](../design/wherewerewe/brief.md) fixes the layout.
+the rows that do, and names the broken row on stderr. See
+[the brief design](../design/wherewerewe/brief.md) for the layout.

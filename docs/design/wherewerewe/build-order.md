@@ -63,11 +63,11 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] The `notes` and `import` journeys reach their end states. Evidence: the wringer report block in the pull request, with a claim for each, and a green `verify / gate`.
 - [ ] The orchestrating agent's hand-kept store converts. Evidence: after the agent fixes the rows import names, `www import build` exits 0, and `www --session build` prints its brief.
 
-**Pull requests.** Slice 1 is built as three pull requests, each one after the one before it merges:
+**Pull requests.** Build slice 1 as three pull requests, and start each one after the one before it merges:
 
-- 1a, [#11](https://github.com/zgeoff/wherewerewe/issues/11): the store in format 1, session finding, the brief, and `www`, `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`, `rule`, `where`, `set`, `done` and `drop`, with the `notes` feature. It proves the worst-case, two-session, concurrency, packed-tarball and `notes` journey lines, and the write and refusal lines for its commands.
-- 1b, [#12](https://github.com/zgeoff/wherewerewe/issues/12): `ok`, `use`, `decide`, `show` and `log`. It proves the write and refusal lines for its commands.
-- 1c, [#13](https://github.com/zgeoff/wherewerewe/issues/13): `www import`, with the `import` feature. It proves the import, `import` journey and hand-kept store lines, and the hand-kept refusal's `Run:` line.
+- 1a, [#11](https://github.com/zgeoff/wherewerewe/issues/11): the store in format 1, session finding, the brief, and `www`, `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`, `rule`, `where`, `set`, `done` and `drop`, with the `notes` feature. It carries the evidence for the worst-case, two-session, concurrency, packed-tarball and `notes` journey lines, and for the write and refusal lines of its commands.
+- 1b, [#12](https://github.com/zgeoff/wherewerewe/issues/12): `ok`, `use`, `decide`, `show` and `log`. It carries the evidence for the write and refusal lines of its commands.
+- 1c, [#13](https://github.com/zgeoff/wherewerewe/issues/13): `www import`, with the `import` feature. It carries the evidence for the import, `import` journey and hand-kept store lines, and for the hand-kept refusal's `Run:` line.
 
 ## Slice 2: owner notes
 
