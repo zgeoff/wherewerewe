@@ -33,6 +33,7 @@ packages/       the workspace packages
 docs/           the docs index, the architecture docs, the design and the decision records
   architecture/ how the built system works, starting at overview.md
 scripts/        the repo's CI step scripts and the dead-code check
+  verify/       the verify CLI and its registry, run as bun verify
 .agents/skills/ the skills repo-sync copies in
 .github/        the pull request template and the workflows
 ```
@@ -44,9 +45,21 @@ scripts/        the repo's CI step scripts and the dead-code check
 
 ## Commands
 
-- `bun run typecheck`, `bun run lint` and `bun run test` are the local checks. Run them before you push, and fix every failure.
-- `bun run format` fixes formatting, and `bun run check:docs` runs the docs checks.
-- lefthook runs the light checks before a commit and a push. Leave the larger checks to CI, because the host may have little memory.
+- Before you push, run `bun run typecheck`, `bun run lint`, `bun run test` and `bun run check:docs`, and fix every failure.
+- `bun run format` fixes formatting.
+- lefthook fixes the staged files before a commit, and runs the chex baseline before a push.
+- Leave `bun run lint:full`, the type-aware lint, to CI. It can run out of memory on a small host.
+
+## Verify before you hand off
+
+`bun verify` runs the real `www` and drives each feature, such as `help`, through its journey: the `bun verify` lines that stand for what a user types. When a feature's journey reaches its end state, `bun verify done` records a verdict for it. The `verify / gate` check fails a pull request that changes a feature with no verdict in its description.
+
+After your last code change:
+
+1. Load the `verify` skill, and follow its "Check a change" steps for each feature that `bun verify report` marks `changed: true`.
+2. Push the branch and open the pull request, then run `bun verify publish`. It writes the report into the pull request's description, and fails when none is open.
+
+An edit to a feature's files after `done` makes its verdict stale: run its journey and `done` again, then publish again. After you edit the `verify` skill, a feature file or the registry, run `bun verify lint`. When `lint` fails with check `template`, as after a `@wringer/gunshi` bump, follow `bun verify guide maintain`.
 
 ## Commits and pull requests
 

@@ -9,3 +9,6 @@ coverage
 !.env.example
 .claude/settings.local.json
 .DS_Store
+
+# verify CLI run state and evidence
+.wringer/
