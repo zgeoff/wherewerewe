@@ -5,6 +5,7 @@ import { buildWWWArgv } from './build-www-argv.ts';
 import { checkWWWHelp } from './check-www-help.ts';
 import { readStateRoot } from './read-state-root.ts';
 import { readWWWOutput } from './read-www-output.ts';
+import { runWWWLineOnCopy } from './run-www-line-on-copy.ts';
 import { runWWWLine } from './run-www-line.ts';
 
 const wwwOutputSchema = z.strictObject({ exitCode: z.number().int(), firstLine: z.string() });
@@ -61,12 +62,12 @@ export function createVerifyRegistry(): Wringer {
     .command({
       path: ['www', 'refuse'],
       summary:
-        'Run --line, and check that www refuses it with exit 3, --expect, and the line Run: --run',
+        'Run --line on a copy of the run folder, and check that www refuses it with exit 3, --expect, and the line Run: --run',
       effect: 'read',
       args: z.strictObject({ line: z.string(), expect: z.string(), run: z.string() }),
       data: wwwRunSchema,
       run: async (args, ctx) => {
-        const output = await runWWWLine(ctx.exec, readStateRoot(ctx.endpoints), args.line);
+        const output = await runWWWLineOnCopy(ctx.exec, readStateRoot(ctx.endpoints), args.line);
 
         const isRefusal =
           output.exitCode === 3 &&
