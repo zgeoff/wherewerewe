@@ -20,7 +20,7 @@ import { formatItemsFile } from '../store/format-items-file.ts';
 import { formatJournalRows } from '../store/format-journal-rows.ts';
 import { formatSessionFile } from '../store/format-session-file.ts';
 import { isErrorCode } from '../store/is-error-code.ts';
-import { parseSessionFile } from '../store/parse-session-file.ts';
+import { readStore } from '../store/read-store.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeImportFiles } from '../store/write-import-files.ts';
 import type { CLIResult, Refusal } from '../types.ts';
@@ -31,11 +31,7 @@ export async function runImportCommand(context: CommandContext): Promise<CLIResu
   const folder = join(context.root, name);
 
   if (!isSessionName(name) || !existsSync(join(folder, 'session'))) {
-    const summaries = await readSessionSummaries(context.root);
-
-    const sessions = summaries.map((summary) => summary.name);
-
-    return replyRefusal(buildRefusal({ kind: 'import-no-session', name, sessions }), context);
+    return replyNoSession(context, name);
   }
 
   const locked = await withStoreLock(folder, () => importStore(context, name, folder), {
@@ -51,6 +47,14 @@ export async function runImportCommand(context: CommandContext): Promise<CLIResu
       ),
     )
     .exhaustive();
+}
+
+async function replyNoSession(context: CommandContext, name: string): Promise<CLIResult> {
+  const summaries = await readSessionSummaries(context.root);
+
+  const sessions = summaries.map((summary) => summary.name);
+
+  return replyRefusal(buildRefusal({ kind: 'import-no-session', name, sessions }), context);
 }
 
 function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
@@ -72,24 +76,7 @@ async function importStore(
   const format = findFormat(sessionText);
 
   if (format === '1') {
-    const parsed = parseSessionFile(sessionText);
-
-    return parsed.kind === 'broken'
-      ? replyRefusal(
-          buildReadRefusal(
-            { kind: 'broken', file: 'session', line: null, reason: parsed.reason, partial: null },
-            { name, folder },
-          ),
-          context,
-        )
-      : replyRefusal(
-          buildRefusal({
-            kind: 'import-already-format-1',
-            name,
-            hasAgent: findAgentID(context.env) !== null,
-          }),
-          context,
-        );
+    return replyFormat1(context, name, folder);
   }
 
   if (format !== null && format !== '0-by-hand') {
@@ -154,6 +141,33 @@ async function readTextOrNull(path: string): Promise<string | null> {
 
     throw error;
   }
+}
+
+// A store that reads whole is refused as converted already, with a Run line that binds the agent.
+// A broken one gets the refusal every read gives it, so that Run line never fails on it.
+async function replyFormat1(
+  context: CommandContext,
+  name: string,
+  folder: string,
+): Promise<CLIResult> {
+  const read = await readStore(folder);
+
+  return match(read)
+    .with({ kind: 'store' }, () =>
+      replyRefusal(
+        buildRefusal({
+          kind: 'import-already-format-1',
+          name,
+          hasAgent: findAgentID(context.env) !== null,
+        }),
+        context,
+      ),
+    )
+    .with({ kind: 'missing' }, () => replyNoSession(context, name))
+    .with({ kind: 'hand-kept' }, { kind: 'newer' }, { kind: 'broken' }, (unreadable) =>
+      replyRefusal(buildReadRefusal(unreadable, { name, folder }), context),
+    )
+    .exhaustive();
 }
 
 async function readOriginals(folder: string): Promise<HandKeptFiles> {

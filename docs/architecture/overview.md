@@ -110,6 +110,6 @@ approval. A refusal never prints a value that looks like a credential.
 items, in at most 52 lines and 6,400 characters. The brief runs no check: an item with a check shows
 the last result saved in `items.tsv`, or `not checked yet` when none is saved. A task or where item
 with no check reads `no check · <age>`, and a wait with no check reads `<who> · <age>`. A blocked
-task reads `blocked by <id>`, followed by ` · <result>` when it has a check. When a row of
-`items.tsv` does not parse, `www` still prints the rows that do, and names the broken row on stderr.
-See [the brief design](../design/wherewerewe/brief.md) for the layout.
+task reads `blocked by <id>` while that id is open, followed by ` · <result>` when it has a check.
+When a row of `items.tsv` does not parse, `www` still prints the rows that do, and names the broken
+row on stderr. See [the brief design](../design/wherewerewe/brief.md) for the layout.

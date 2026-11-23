@@ -5,7 +5,10 @@ import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from '../run-cli.ts';
 import { withBindingLock } from '../sessions/with-binding-lock.ts';
+import { createImportFiles } from '../store/create-import-files.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
+import { writeImportFiles } from '../store/write-import-files.ts';
+import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedStaleLock } from '../test-utils/seed-stale-lock.ts';
@@ -356,6 +359,7 @@ test('it binds the agent with the Run line of a rerun, after an import stopped b
       ctx.readText('old-notes/import-backup/journal.tsv'),
     ],
     items: ctx.readText('old-notes/items.tsv'),
+    lastRows: ctx.readText('old-notes/journal.tsv').trimEnd().split('\n').slice(-3),
   }).toStrictEqual({
     stopped: {
       session: expect.stringContaining('format=1\n'),
@@ -377,6 +381,11 @@ test('it binds the agent with the Run line of a rerun, after an import stopped b
     backup: [originals.session, originals.items, originals.journal],
     items:
       'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-04-06T09:00:00Z\tagent\t-\n',
+    lastRows: [
+      '2026-03-10T11:43:00Z\timport\told-notes\tagent\t0-by-hand -> 1\t-\t-',
+      '2026-03-10T11:43:00Z\tbind\told-notes\tagent\timport\t-\tharness=claude;agent=a1b2-test',
+      '2026-03-10T11:43:00Z\tbind\told-notes\tagent\tattach\t-\tharness=claude;agent=a1b2-test',
+    ],
   });
 });
 
@@ -395,6 +404,33 @@ test('it refuses a format 1 store with a broken session file, and writes nothing
       exitCode: 3,
       stdout: '',
       stderr: `www: old-notes's session does not parse: the line "bogus line" is not key=value. Fix the file by hand.\nRun: less ${ctx.folder}/session\n`,
+    },
+    unchanged: before,
+  });
+});
+
+test('it refuses a format 1 store with a broken items file by that file, so its Run line never fails', async () => {
+  const ctx = setupTest();
+  const env = { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+  await ctx.run(['init', 'old-notes', '--goal', 'Ship it'], env, nowMs);
+
+  seedStoreFile(
+    ctx.folder,
+    'items.tsv',
+    'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\n',
+  );
+
+  const before = await ctx.readTree();
+  const result = await ctx.run(['import', 'old-notes'], env, nowMs);
+  const after = await ctx.readTree();
+
+  expect({ result, unchanged: after }).toStrictEqual({
+    result: {
+      exitCode: 3,
+      stdout: '',
+      stderr: `www: old-notes's items.tsv line 2 does not parse: expected 9 tab-separated columns, found 2. Fix the row by hand.\nRun: less ${ctx.folder}/items.tsv\n`,
     },
     unchanged: before,
   });
@@ -697,3 +733,66 @@ test.each([
     tree: cleanTree,
   });
 });
+
+// Stops the import's file writes before each of their 26 calls in turn, from the backup to the last
+// rename, then reruns www import on what the stop left on disk.
+test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
+  'it ends a rerun after a stop before file call $step as a clean import does',
+  async (row) => {
+    const clean = setupTest();
+    const restart = setupTest();
+    const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+    const originals = {
+      session: 'name=old-notes\ngoal=Ship it\nstarted=2026-04-06T09:00:00Z\nnow=t-a\n',
+      items:
+        'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-04-06T09:00:00Z\tagent\t-\n',
+      journal: 'ts\top\tid\ttext\n2026-04-06T09:00:00Z\tinit\told-notes\tStart\n',
+    };
+
+    for (const store of [clean, restart]) {
+      seedStoreFile(store.folder, 'session', originals.session);
+      seedStoreFile(store.folder, 'items.tsv', originals.items);
+      seedStoreFile(store.folder, 'journal.tsv', originals.journal);
+    }
+
+    const cleanResult = await clean.run(
+      ['import', 'old-notes'],
+      { XDG_STATE_HOME: clean.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+      nowMs,
+    );
+
+    expect(() => {
+      writeImportFiles(
+        restart.folder,
+        {
+          originals,
+          converted: {
+            session: clean.readText('old-notes/session'),
+            items: clean.readText('old-notes/items.tsv'),
+            journal: clean.readText('old-notes/journal.tsv'),
+          },
+        },
+        buildSteppedImportFiles(createImportFiles(), row.step, () => {
+          throw new Error('stopped');
+        }),
+      );
+    }).toThrow('stopped');
+
+    await seedStaleLock(restart.folder);
+
+    const result = await restart.run(
+      ['import', 'old-notes'],
+      { XDG_STATE_HOME: restart.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+      nowMs,
+    );
+
+    expect({ result, tree: await restart.readTree() }).toStrictEqual({
+      result: {
+        ...cleanResult,
+        stdout: cleanResult.stdout.replaceAll(clean.folder, restart.folder),
+      },
+      tree: await clean.readTree(),
+    });
+  },
+);
