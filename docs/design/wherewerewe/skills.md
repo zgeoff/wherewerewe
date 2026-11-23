@@ -11,22 +11,22 @@ How a skill tells that the session has a store: `www` exits 0. Exit 4 means no s
 | Handoff section         | From the store                                                                                  |
 | ----------------------- | ----------------------------------------------------------------------------------------------- |
 | Goal                    | the brief's `GOAL`                                                                              |
-| Where it stands         | done: `www log --op done`, with each row's evidence; in progress and not started: the tasks under `OPEN`, which the agent splits between the two lists |
+| Where it stands         | done: `www log --op done`, with each row's evidence; in progress and not started: the tasks under `OPEN`, which the agent splits between the two lists, each with its note from `www show <id>`, and each owed note marked as owed |
 | Decided                 | `www log --op decide`, with who decided from `who=` in each row                                 |
-| Approvals               | `APPROVED`; the second list, what still needs the owner's approval, is each wait on `owner`     |
+| Approvals               | `GRANT`, with the owner's words copied whole and the reading beside them, then `APPROVED ONCE`; the second list, what still needs the owner's approval, is what the reading says the owner kept back, and each wait on `owner` |
 | Waiting                 | `WAITING`                                                                                       |
-| Next                    | `NOW`, or, when the brief hides the step, a new one the agent writes with `www now` first        |
+| Next                    | `NOW` and its note, or, when the brief hides the step, a new one the agent writes with `www now` first |
 | Where things are        | `WHERE`                                                                                         |
 | Do it this way          | `RULES`                                                                                         |
 | Ruled out               | `www log --op ruled-out`                                                                        |
 
 ## The changes, one paragraph each
 
-**handoff.** Before it writes the doc, the skill runs `www` and acts on the brief: it closes or updates each item under `CHANGED SINCE WRITTEN`, so the doc starts from true claims. It then fills each section from the table above, and still runs its own Check it step on every claim the store holds no check for. The doc names the wherewerewe session in Where things are, so the next agent can run `www attach <name>` on this machine. The doc stays a file: it reaches an agent on another machine or with no tool, which the store cannot.
+**handoff.** Before it writes the doc, the skill runs `www` and acts on the brief: it closes or updates each item under `CHANGED SINCE WRITTEN`, so the doc starts from true claims. It then fills each section from the table above, and still runs its own Check it step on every claim the store holds no check for. The grant goes into the doc whole, in the owner's words, so an agent on another machine reads the same permission. The doc names the wherewerewe session in Where things are, so the next agent can run `www attach <name>` on this machine. The doc stays a file: it reaches an agent on another machine or with no tool, which the store cannot.
 
-**where-were-we.** In Catch yourself up, the skill runs `www` first, before the handoff doc and the chat history. The brief's `OWNER SAYS` lines and each wait on `owner` become decisions in the reply, and `CHANGED SINCE WRITTEN` gives what happened since the last write. The skill still opens each pull request the brief marks `unchecked`.
+**where-were-we.** In Catch yourself up, the skill runs `www` first, before the handoff doc and the chat history. The brief's `GRANT` tells it what it may do without asking, the `OWNER SAYS` lines and each wait on `owner` become decisions in the reply, and `CHANGED SINCE WRITTEN` gives what happened since the last write. The skill still opens each pull request the brief marks `unchecked`.
 
-**pickup.** When the handoff doc names a wherewerewe session, the skill runs `www attach <name>` before step 3, then `www`. A claim with a check needs no check by hand, since the brief has just run it. The skill checks by hand only the claims the brief shows with `no check`, and the claims in the doc that the store does not hold.
+**pickup.** When the handoff doc names a wherewerewe session, the skill runs `www attach <name>` before step 3, then `www`. A claim with a check needs no check by hand, since the brief has just run it. When the store has no grant and the doc's Approvals section holds the owner's words, the agent records them with `www grant`, with the reading from the doc. The skill checks by hand only the claims the brief shows with `no check`, and the claims in the doc that the store does not hold.
 
 **figure-it-out, later.** Its decision log has columns the journal lacks: phase, evidence and result. Moving the log onto `www decide` needs those three as `--phase`, `--evidence` and `--result`, and a converter for existing `decisions.tsv` files. That is a separate change, after this design is built.
 

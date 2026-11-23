@@ -73,6 +73,8 @@ One command handles every event, so the hook entries never change between versio
 | `PostToolUse`   | matcher `Bash`, timeout 5                  | matcher `Bash`, timeout 5                  | a pull request record, a binding, or one nudge line, as below                                                   |
 | `SubagentStart` | no matcher, timeout 5                      | no matcher, timeout 5                      | the one line naming the session, as `additionalContext`                                                          |
 
+For a bound session whose store needs `www import`, a hand-kept or a format 1 store, `SessionStart` prints the exit 5 text from [commands.md](commands.md) and its `Run:` line in place of the brief, so the agent's next command is the import that lets the next compaction print the brief again.
+
 `PostToolUse` does these, in order, and prints at most one JSON object, `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"<line>"}}`:
 
 1. When the command runs `www` or `wherewerewe` with `init`, `attach` or `import` and a session name, and that session's store exists, it binds its stdin `session_id`. This is the only step that runs for an unbound id; for any other unbound id the hook stops here.
