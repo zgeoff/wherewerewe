@@ -70,6 +70,11 @@ function parseItemLine(line: string): Item | string {
     return `the author "${by}" is not agent, owner or import`;
   }
 
+  // The journal keeps a closed item's claim, where a lone dash means no text.
+  if (claim === '' || claim === '-') {
+    return 'the claim is empty';
+  }
+
   const extra = parseExtra(extraCell);
 
   if (typeof extra === 'string') {

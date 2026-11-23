@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { readFileSync, readdirSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { buildMemoryLockFiles } from '../test-utils/build-memory-lock-files.ts';
 import { buildSteppedLockFiles } from '../test-utils/build-stepped-lock-files.ts';
 import { runGoneProcess } from '../test-utils/run-gone-process.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
@@ -19,7 +20,7 @@ function setupTest() {
     files,
     lockPath: join(folder, 'lock'),
     readLock: () => readFileSync(join(folder, 'lock'), 'utf8'),
-    take: (lockPath: string) => takeStoreLock(lockPath, files, Date.now()),
+    take: (lockPath: string) => takeStoreLock(lockPath, files, Date.now),
   };
 }
 
@@ -107,7 +108,7 @@ test.each([0, 1, 2, 3, 4, 5, 6, 7])(
       kinds.push(ctx.take(ctx.lockPath).kind);
     });
 
-    kinds.push(takeStoreLock(ctx.lockPath, files, Date.now()).kind);
+    kinds.push(takeStoreLock(ctx.lockPath, files, Date.now).kind);
 
     expect({
       taken: kinds.filter((kind) => kind === 'taken').length,
@@ -138,7 +139,7 @@ test.each([0, 1, 2, 3, 4, 5, 6, 7])(
       );
     });
 
-    kinds.push(takeStoreLock(ctx.lockPath, files, Date.now()).kind);
+    kinds.push(takeStoreLock(ctx.lockPath, files, Date.now).kind);
 
     expect({
       taken: kinds.filter((kind) => kind === 'taken').length,
@@ -146,3 +147,46 @@ test.each([0, 1, 2, 3, 4, 5, 6, 7])(
     }).toStrictEqual({ taken: 1, files: ['lock'] });
   },
 );
+
+// A holder makes its lock at time t and releases it after a contender judged it stale at t + 31 s;
+// the clock then goes back to t, and the holder makes a new lock on the same inode while the
+// contender claims the old one.
+test('it never matches a later lock of the same process to an earlier one it judged stale', () => {
+  const memory = buildMemoryLockFiles();
+  const tMs = Date.parse('2026-03-10T11:43:00.000Z');
+  const kinds: string[] = [];
+
+  takeStoreLock('reused-inode/lock', memory.files, () => tMs);
+
+  const holderLock = memory.readSeen('reused-inode/lock');
+
+  const files = buildSteppedLockFiles(memory.files, 2, () => {
+    kinds.push(
+      `release ${removeLockIfUnchanged('reused-inode/lock', holderLock, memory.files)}`,
+      takeStoreLock('reused-inode/lock', memory.files, () => tMs).kind,
+    );
+  });
+
+  const contender = takeStoreLock('reused-inode/lock', files, () => tMs + 31_000);
+
+  expect({ contender: contender.kind, holder: kinds.slice(0, 2) }).toStrictEqual({
+    contender: 'held',
+    holder: ['release removed', 'taken'],
+  });
+});
+
+test('it gives up a lock it made more than 30 seconds after its ts, so no writer takes it over under it', () => {
+  const memory = buildMemoryLockFiles();
+  const clock = { nowMs: Date.parse('2026-03-10T11:43:00.000Z') };
+
+  const files = buildSteppedLockFiles(memory.files, 0, () => {
+    clock.nowMs = Date.parse('2026-03-10T11:43:31.000Z');
+  });
+
+  const slow = takeStoreLock('slow-publish/lock', files, () => clock.nowMs);
+
+  expect({ slow, lock: memory.files.read('slow-publish/lock') }).toStrictEqual({
+    slow: { kind: 'held', pid: null },
+    lock: null,
+  });
+});

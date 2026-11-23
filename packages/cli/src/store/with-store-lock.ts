@@ -40,7 +40,7 @@ async function waitForLock(
   deadlineMs: number,
 ): Promise<LockAttempt> {
   for (;;) {
-    const attempt = takeStoreLock(lockPath, files, Date.now());
+    const attempt = takeStoreLock(lockPath, files, Date.now);
 
     if (attempt.kind === 'taken' || Date.now() >= deadlineMs) {
       return attempt;

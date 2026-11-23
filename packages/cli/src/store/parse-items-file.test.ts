@@ -60,6 +60,18 @@ test.each([
     'the extra "colour=red" is not a known key=value pair',
   ],
   [
+    'a claim of one dash',
+    `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\t-\t-\t-\t-\tw\tagent\t-\n`,
+    2,
+    'the claim is empty',
+  ],
+  [
+    'an empty claim',
+    `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\t\t-\t-\t-\tw\tagent\t-\n`,
+    2,
+    'the claim is empty',
+  ],
+  [
     'a bad use',
     `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\tok\tx\t-\t-\t-\tw\tagent\tuse=often\n`,
     2,

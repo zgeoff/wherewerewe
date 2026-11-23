@@ -9,6 +9,7 @@ import { buildClaimPath } from './build-claim-path.ts';
 import { createLockFiles } from './create-lock-files.ts';
 import { removeLockIfUnchanged } from './remove-lock-if-unchanged.ts';
 import { takeStoreLock } from './take-store-lock.ts';
+import type { LockFileState } from './types.ts';
 
 function setupTest() {
   const folder = createTempDir('remove-lock').path;
@@ -18,7 +19,7 @@ function setupTest() {
     folder,
     files,
     lockPath: join(folder, 'lock'),
-    take: () => takeStoreLock(join(folder, 'lock'), files, Date.now()),
+    take: () => takeStoreLock(join(folder, 'lock'), files, Date.now),
   };
 }
 
@@ -124,3 +125,46 @@ test.each([0, 1, 2, 3, 4])(
     }).toStrictEqual({ removal: 'changed', taken: 0, lock: takerLock, left: ['lock'] });
   },
 );
+
+test('it takes over a chain of 40 claims whose writers each died, with no name growing', async () => {
+  const ctx = setupTest();
+
+  const pid = await runGoneProcess();
+
+  const deadLine = `pid=${String(pid)} ts=2026-03-10T11:43:00.000Z\n`;
+  const seen = seedLockFile(ctx.folder, 'lock', deadLine);
+
+  const chain = Array.from({ length: 40 }).reduce<{ path: string; seen: LockFileState }>(
+    (link) => {
+      const path = buildClaimPath(link.path, link.seen);
+
+      return { path, seen: seedLockFile(ctx.folder, basename(path), deadLine) };
+    },
+    { path: ctx.lockPath, seen },
+  );
+
+  const removal = removeLockIfUnchanged(ctx.lockPath, seen, ctx.files);
+
+  expect({ removal, chain: basename(chain.path).length }).toStrictEqual({
+    removal: 'removed',
+    chain: 'lock.claim-'.length + 16,
+  });
+});
+
+test('it takes over a claim whose pid now belongs to a later process', () => {
+  const ctx = setupTest();
+  const seen = seedLockFile(ctx.folder, 'lock', 'pid=1 ts=2026-03-10T11:43:00.000Z\n');
+
+  seedLockFile(
+    ctx.folder,
+    basename(buildClaimPath(ctx.lockPath, seen)),
+    `pid=${String(process.pid)} ts=2026-03-10T11:43:00.000Z start=1\n`,
+  );
+
+  const removal = removeLockIfUnchanged(ctx.lockPath, seen, ctx.files);
+
+  expect({ removal, left: readdirSync(ctx.folder) }).toStrictEqual({
+    removal: 'removed',
+    left: [],
+  });
+});
