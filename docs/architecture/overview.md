@@ -2,8 +2,8 @@
 
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
 brief when the agent runs `www`. It has the store, the note writes, approvals, decisions, the two
-history reads and the brief. A command it does not have exits 2. Read this before you change the
-package, then open the design doc that the section you change links.
+history reads, the import of a hand-kept store and the brief. A command it does not have exits 2.
+Read this before you change the package, then open the design doc that the section you change links.
 
 ## The package
 
@@ -43,12 +43,15 @@ command exits 4, and never falls back to the only session on the machine. See
 ## Commands and refusals
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
-`rule`, `where`, `set`, `ok`, `decide`, `done`, `drop`, `use`, `show` and `log`, and `www` alone
-prints the brief. A write answers in one line that ends with the brief's length. Each refusal prints
-its text and a `Run:` line with the command that fixes it. See
+`rule`, `where`, `set`, `ok`, `decide`, `done`, `drop`, `use`, `show`, `log` and `import`, and `www`
+alone prints the brief. A write answers in one line that ends with the brief's length. Each refusal
+prints its text and a `Run:` line with the command that fixes it. See
 [the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
 
 ## Approvals and decisions
+
+See [the commands design](../design/wherewerewe/commands.md) for the flags and replies, and
+[the store design](../design/wherewerewe/store.md) for the rows each writes.
 
 `ok` writes an approval as an item that keeps the owner's exact words as its claim, with who gave
 them, where, what they cover and whether they are `--once` or `--standing`. The brief holds three.
@@ -61,6 +64,9 @@ the owner can be replaced only by a decision recorded with `--who owner`.
 
 ## Reading the journal
 
+See [the commands design](../design/wherewerewe/commands.md) for the filters and replies, and
+[the store design](../design/wherewerewe/store.md) for the journal format.
+
 `show <id>` prints one open item, closed item or decision, with the decisions made about it and its
 last 10 journal rows. `log` prints the journal oldest first, kept to the rows that `--since`, `--op`
 and `--id` name, and sorts them by time. Both read the journal in chunks and hold only the rows they
@@ -68,10 +74,27 @@ need, and take no lock. Once the session is found, neither is refused for a miss
 thing: an unknown id lists the open items, and an unreadable journal prints the item without its
 history and says so on stderr. Only a `--since` that `log` cannot read exits 2.
 
+## Importing a hand-kept store
+
+`www import <session>` converts a session folder whose `session` file says `format=0-by-hand`, or
+has no `format` line, to format 1 in place. It takes the session's lock, reads the three hand-kept
+files, and checks every row against the write rules. When any row breaks a rule, it exits 3 with one
+line per row and changes no file. See [the store design](../design/wherewerewe/store.md) for the
+conversion and [the commands design](../design/wherewerewe/commands.md) for the refusal text.
+
+Otherwise it copies `session`, `items.tsv` and `journal.tsv` into `import-backup/` through a
+temporary folder and a rename, so `import-backup/` is either absent or complete. It then writes each
+new file in full to a temporary file, and renames them into place in this order: `owner.tsv`,
+`prs.tsv`, `items.tsv`, `journal.tsv` and `session`. A store whose `session` file still has
+`format=0-by-hand` has not finished importing. A rerun reads the originals from `import-backup/`
+when it exists, ignores a folder named `import-backup.tmp-*`, and converts the store again. It binds
+the agent session that runs it, as `init` does. A store that is format 1 already is refused.
+
 ## The brief
 
 `www` prints the goal, the item in focus, and the open tasks, waits, approvals, rules and where
-items, in at most 52 lines and 6,400 characters. The brief runs no check, so each tag reads
-`not checked yet` or the item's age. When a row of `items.tsv` does not parse, `www` still prints
-the rows that do, and names the broken row on stderr. See
-[the brief design](../design/wherewerewe/brief.md) for the layout.
+items, in at most 52 lines and 6,400 characters. The brief runs no check, so an item with a check
+reads `not checked yet`. A task or where item with no check reads `no check · <age>`, and a wait
+with no check reads `<who> · <age>`. A blocked task reads `blocked by <id>`. When a row of
+`items.tsv` does not parse, `www` still prints the rows that do, and names the broken row on stderr.
+See [the brief design](../design/wherewerewe/brief.md) for the layout.
