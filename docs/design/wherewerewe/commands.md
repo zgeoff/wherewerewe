@@ -51,9 +51,45 @@ Limits: a claim is one line of at most 120 characters. The brief holds at most 6
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-By the end of slice 2d, the block reads with these changes, where `-` marks a line taken out and `+` a line put in. Each slice changes the lines that name what it builds, in the pull request that builds it.
+The block above is the help as built. Slices 2b, 2c and 2d each change it in the pull request that builds them, by the diff below for that slice. Each diff applies to the block as the slice before it leaves it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+
+Slice 2b, notes:
 
 ```diff
+@@ -10,5 +10,5 @@
+ 
+-Write as you go. One id holds one claim, and each write replaces it:
+-  www now <id> "<next step>"
+-  www task <id> "<claim>" [<check>] [--blocked-by <id>]
++Write as you go. One id holds one claim and one note; --note replaces the note:
++  www now <id> "<next step>" [--note "<detail>" [--owed]]
++  www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]
+   www wait <id> "<what>" --who <who> [<check>]
+@@ -17,3 +17,3 @@
+   www where <id> "<what and where, and how to stop it>" [<check>]
+-  www set <id> "<claim>" [<check>]
++  www set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]
+   www decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]
+@@ -21,2 +21,5 @@
+ 
++Notes: --note "<detail>" and --owed work on now and on every item write. A note holds what you
++need on your next turn to that item. An owed note stops done, drop and use until set clears it.
++
+ Close. Each leaves the brief and stays in the journal:
+@@ -34,4 +37,4 @@
+ 
+-Limits: a claim is one line of at most 120 characters. The brief holds at most 6 tasks, 4 waits,
+-3 approvals, 5 rules, 4 where items and 2 owner notes.
++Limits: a claim is one line of at most 120 characters, a note 400. The brief holds at most 6 tasks,
++4 waits, 3 approvals, 5 rules, 4 where items and 2 owner notes.
+ Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
+```
+
+Slice 2c, the grant and format 2:
+
+```diff
+@@ -3,5 +3,6 @@
+ Read. Run www first, after every compaction, and whenever you are unsure:
 -  www                        the brief: goal, owner notes, what changed, now, open work, waits,
 -                             approvals, rules, where things are. Runs every check.
 -  www show <id>              one item or decision: its claim, its check now, its journal rows
@@ -61,37 +97,40 @@ By the end of slice 2d, the block reads with these changes, where `-` marks a li
 +                             open work, waits, the approval, rules, where things are. Runs checks.
 +  www show <id>              one item, decision or the grant (www show grant): its text, its note,
 +                             its check now, its journal rows
-
-+  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
-
--Write as you go. One id holds one claim, and each write replaces it:
--  www now <id> "<next step>"
--  www task <id> "<claim>" [<check>] [--blocked-by <id>]
-+Write as you go. One id holds one claim and one note; --note replaces the note:
-+  www now <id> "<next step>" [--note "<detail>" [--owed]]
-+  www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]
-
+   www log [--since <t>] [--op <op,...>] [--id <id>]
+@@ -14,3 +15,3 @@
+   www wait <id> "<what>" --who <who> [<check>]
 -  www ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>" (--once | --standing)
 +  www ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>"
-
--  www set <id> "<claim>" [<check>]
-+  www set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]
-
+   www rule <id> "<do it this way, and why>"
+@@ -20,2 +21,5 @@
+   www goal "<what done means>"
 +  www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover;
 +            what the owner kept back>"
 +  www grant --reading "<what they cover; what the owner kept back>"
-+
-+Notes: --note "<detail>" and --owed work on now and on every item write. A note holds what you
-+need on your next turn to that item. An owed note stops done, drop and use until set clears it.
-
+ 
+@@ -27,3 +31,3 @@
+   www drop <id> --why "<reason>"
 -  www use <id> --for "<what you did with it>"     spend a --once approval
 +  www use <id> --for "<what you did with it>"     spend the one-time approval
-
--Limits: a claim is one line of at most 120 characters. The brief holds at most 6 tasks, 4 waits,
--3 approvals, 5 rules, 4 where items and 2 owner notes.
+ 
+@@ -37,4 +41,5 @@
+ 
+-Limits: a claim is one line of at most 120 characters, a note 400. The brief holds at most 6 tasks,
+-4 waits, 3 approvals, 5 rules, 4 where items and 2 owner notes.
 +Limits: a claim is one line of at most 120 characters, a note 400, the grant's words 700 and its
 +reading 200. The brief holds at most 6 tasks, 4 waits, 1 approval, 5 rules, 4 where items and
 +2 owner notes.
+ Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
+```
+
+Slice 2d, recap:
+
+```diff
+@@ -10,2 +10,3 @@
+   www sessions               every session on this machine
++  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
+ 
 ```
 
 ### Signatures
@@ -136,7 +175,7 @@ type OwnerNoteID = `o-${number}`; // assigned by say, from o-1
 type Since = `${number}h` | `${number}d` | `day-${number}`;
 ```
 
-- `set` with no claim changes only the note: it keeps the claim, its check, `at_write` and `written`, and runs no probe.
+- `set` with no claim changes only the note: it keeps the claim, its check, `at_write` and `written`, and runs no probe. A check belongs to a claim, so `set` with a check and no claim gets the refusal below, with or without `--note`.
 - A write without `--note` keeps the item's note. `--no-note` clears it.
 - `www grant` with `--quote` replaces the words, where they were given and the reading at once. `www grant --reading` alone replaces only the reading.
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
@@ -166,7 +205,7 @@ Each write prints its reply line on stdout, then the note lines or the older-not
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `task`, `wait`, `rule`, `where`, `ok`, `set` | `<id>  <kind>, open, <check>[, note <k> of 400[, owed]]. Brief: <n> lines.` (a rule and an approval have no `<check>` part; the note part shows when the command wrote a note) |
+| `task`, `wait`, `rule`, `where`, `ok`, `set` | `<id>  <kind>, open, <check>[, note <k> of 400[, owed]]. Brief: <n> lines.` (a rule has no `<check>` part; the note part shows when the command wrote a note) |
 | the same, when the write replaces the claim and keeps a note written before it | the line above, then `  its note is <age> older than this claim. Replace it with www set <id> --note "<detail>", or clear it with www set <id> --no-note` |
 | `set` with only `--note`        | `<id>  note, <k> of 400[, owed]. Brief: <n> lines.`                                               |
 | `set --no-note`                 | `<id>  note cleared. Brief: <n> lines.`                                                           |
@@ -305,16 +344,18 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 | When                                              | The text                                                                                                                                                                                               |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A claim, step or other text is over its limit     | `www: refused: the claim is 152 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.` `Run: www task t-e2e "<claim of at most 120 characters>"`      |
-| A note is over its limit                          | `www: refused: the note is 512 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.` `Run: www set t-flag --note "<note of at most 400 characters>"` |
+| A note is over its limit                          | `www: refused: the note is 512 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.` `Run: www task t-e2e "Write alerts-e2e against staging" --note "<note of at most 400 characters>"` |
 | A text holds a tab or a newline                   | `www: refused: the text must be one line, with no tab or newline.` `Run: www rule r-sim-port "<one line>"`                                                                                             |
 | A kind is full                                    | `www: refused: the brief holds 6 of 6 tasks. Close one, or replace one with www set.` `Run: www done t-e2e --evidence "<PR, commit or test run>"`                                                      |
 | `ok` while the one-time approval is open          | `www: refused: the brief holds 1 of 1 one-time approvals. Spend it with www use, or drop it.` `Run: www use ok-prod-index --for "<what you did with it>"`                                              |
 | `ok --standing`                                   | `www: refused: lasting permission lives in the grant, in the owner's words whole.` `Run: www grant --quote "<the owner's words, whole>" --where chat --reading "<what they cover; what the owner kept back>"` |
 | `done`, `drop` or `use` on an item with an owed note | `www: refused: t-flag has an owed note (2d). Clear it once the work is done, or replace it with a note that is not owed.` then the note, indented 4, then `Run: www set t-flag --no-note` `Run: www set t-flag --note "<detail>"` |
-| `--owed` with no `--note`                         | `www: refused: --owed marks a note, and this command gives none.` `Run: www set t-flag --note "<what is owed>" --owed`                                                                                 |
+| `--owed` with no `--note`                         | `www: refused: --owed marks a note, and this command gives none.` `Run: www task t-e2e "Write alerts-e2e against staging" --note "<what is owed>" --owed`                                                                                 |
 | `set` with no claim, `--note` or `--no-note`      | `www: refused: set needs a claim, --note or --no-note.` `Run: www set t-flag "<claim>"`                                                                                                                |
-| `--note` and `--no-note` together                 | `www: refused: --note replaces the note and --no-note clears it; give one.` `Run: www set t-flag --no-note`                                                                                            |
+| `set` with a check and no claim                   | `www: refused: a check belongs to a claim, and set with no claim changes only the note.` `Run: www set pr-api-77 "<claim>" --pr bosunhq/bosun-api#77` |
+| `--note` and `--no-note` together                 | `www: refused: --note replaces the note and --no-note clears it; give one.` `Run: www set t-flag --note "<the note as typed>"`                                                                                            |
 | `--no-note` on an item with no note               | `www: refused: t-e2e has no note to clear.` `Run: www show t-e2e`                                                                                                                                      |
+| A note write, `done`, `drop` or `use` while a `notes.tsv` row does not parse | `www: tide-alerts's notes.tsv line 3 does not parse: the id repeats an earlier row. Fix the row by hand.` `Run: less /home/sam/.local/state/wherewerewe/tide-alerts/notes.tsv` |
 | `done` has no `--evidence`                        | `www: refused: done needs evidence a reader can open, such as a PR, a commit or a test run. For work you stopped, use drop.` `Run: www done pr-app-61 --evidence "<PR, commit or test run>"`           |
 | `drop` has no `--why`                             | `www: refused: drop needs a reason.` `Run: www drop p-sim --why "<reason>"`                                                                                                                            |
 | `ok` lacks a part                                 | `www: refused: an approval needs the owner's exact words, who gave them, where, and what they cover.` `Run: www ok ok-prod-index --quote "<their exact words>" --who owner --where chat --scope "<what it covers>"` |
@@ -356,6 +397,7 @@ Each refusal exits 3 (exit 4 and 5 where marked), prints its text on stderr, and
 
 - When one upgrade finds more than one of its problems, it prints each problem's lines and one `Run:` line with every flag the problems need.
 - The credential test matches at least these: `ghp_`, `gho_`, `ghs_`, `ghu_`, `github_pat_`, `sk-` followed by 20 or more letters and digits, `xoxb-`, `xoxp-`, `AKIA` followed by 16 capitals or digits, `ops_` followed by 20 or more characters, `-----BEGIN`, and a JWT (`eyJ` then two `.`-separated parts). It applies to notes and to the grant's words and reading.
+- A refusal of a note's text or of `--owed` keeps the refused command and changes only `--note`: a note over its limit, with a tab or a newline, or that looks like a credential gets `--note "<note of at most 400 characters>"`, `--note "<one line>"` or `--note "<where the secret lives>"`. So the `Run:` line passes for a new item, and for an item of any kind.
 - When the agent typed `www` with `--session`, each `Run:` line keeps `--session <name>`.
 
 ## Constraints

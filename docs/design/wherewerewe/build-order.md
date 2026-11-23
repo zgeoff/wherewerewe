@@ -94,8 +94,8 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 **Acceptance.**
 
 - [ ] The `item-notes` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `item-notes`, and a green `verify / gate`.
-- [ ] A store with every cap full, three standing approvals, every text at its limit, a 400-character note on the item in focus and an owed note on every other item renders in at most 52 lines and 6,400 characters. Evidence: the worst-case render test, at 6,374 characters by the arithmetic in brief.md with the 3 standing approval lines in place of the grant and the one-time approval.
-- [ ] The note of the item in focus prints whole under `NOW`, also when the next step is hidden, and every other item with an owed note shows the owed tag. Evidence: brief tests.
+- [ ] A store with every cap full, three standing approvals, every text at its limit, an owed note on every item, 400 characters long on the item in focus, renders in at most 52 lines and 6,400 characters. Evidence: the worst-case render test, at 6,374 characters by the arithmetic in brief.md with the 3 standing approval lines in place of the grant and the one-time approval.
+- [ ] The note of the item in focus prints whole under `NOW`, after its next step and when it has none, and every item with an owed note, the item in focus included, shows the owed tag. Evidence: brief tests.
 - [ ] A 400-character note of words that end at column 85 wraps to 5 lines, and a 200-character goal of 49-character words wraps to 3. Evidence: wrap tests.
 - [ ] `done`, `drop` and `use` refuse while an owed note stands, print the note, and each `Run:` line in the refusal runs. Evidence: one refusal test per command.
 - [ ] `set <id> --note` keeps the claim, its check, `at_write` and `written`, and a close removes the item's `notes.tsv` row while its `note` rows stay in the journal. Evidence: store tests.
@@ -142,7 +142,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] The `checks` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `checks`, and a green `verify / gate`.
 - [ ] Each probe returns each result in its table. Evidence: tests against a stub `gh` on `PATH`, temporary git repos, and a child process the test starts and kills.
 - [ ] A merged pull request, a gone process and a missing path each show under `CHANGED` with the fix command from brief.md, and that command runs as printed on an item with no owed note. Evidence: brief tests that run the printed commands.
-- [ ] The next step hides when the item in focus changes after `now_set`. Evidence: a brief test.
+- [ ] The next step hides when the item in focus changes after `now_set`, and the item's note still prints whole under the `next step hidden` line. Evidence: a brief test.
 - [ ] The day-9 example in brief.md renders as printed, from a store seeded to match it and a stub `gh`. Evidence: a snapshot test.
 - [ ] With `gh` missing, with `gh` failing authentication, and with a probe that never returns, the brief prints within 6 s, tags each probe `unchecked`, and names the reason in the header. Evidence: tests for the three cases.
 - [ ] A read with the store folder read-only prints the brief and the `results not saved` line. Evidence: a test.
@@ -165,6 +165,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] A Codex subagent's shell either finds the parent's session or gets the refusal with the `--session` hint. Evidence: the same Codex test session; the result settles the open question in sessions-and-hooks.md.
 - [ ] For a bound session with a hand-kept or format 1 store, `SessionStart` prints the exit 5 text and its `Run:` line. Evidence: hook tests for both harnesses.
 - [ ] `www doctor` exits 0 on the owner's machine. Evidence: its output, after the owner steps.
+- [ ] `www install`, `www doctor` and `www hook` never open `owner.tsv` for writing. Evidence: the read-only `owner.tsv` test from slice 2 runs each of the three, and finds the file's inode, mode and bytes unchanged.
 
 ## Slice 5: first release
 

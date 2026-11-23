@@ -134,7 +134,7 @@ Codex puts at most about 2,500 tokens of hook output into context. Ids, paths an
 - The grant prints whole on every brief, directly after `GOAL`.
 - A changed item is one whose check result differs from its `at_write`. A result of `unchecked` never counts as changed, and an `at_write` of `-` takes the first result without counting it as changed.
 - When the item in focus changed after `now_set`, or its check reads `MERGED`, `CLOSED`, `gone` or `missing`, the brief hides the next step and prints the `next step hidden` line. The step stays in the journal, and the note still prints.
-- Only the note of the item in focus prints. Every other item with an owed note shows ` · owed` in its tag, or `  [owed]` when its kind has no tag.
+- Only the note of the item in focus prints. Every item with an owed note shows ` · owed` in its tag, or `  [owed]` when its kind has no tag, the item in focus included.
 - A changed row's fix command stays the same when the item has an owed note. Running it gets the owed-note refusal in [commands.md](commands.md), which prints the note whole.
 - A tag shows `blocked by <id>` only while that id is open. Closing the blocker clears the tag on the next read.
 - An item with no check shows its age since `written`, so the reader sees which lines nobody verified.
