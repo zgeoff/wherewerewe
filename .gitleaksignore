@@ -1,0 +1,7 @@
+# Invented credentials that the credential-refusal tests fed to www, in commits before the tests
+# built them at run time. Each line names one commit, file, rule and line.
+f0ab343a3c310f918dac7d42d5d0f4cb51174a9a:packages/cli/src/refusals/build-refusal.test.ts:aws-access-token:404
+f8b35d8ec384bad3aca029c7232855ef135418c9:packages/cli/src/rules/find-credential-match.test.ts:aws-access-token:17
+f8b35d8ec384bad3aca029c7232855ef135418c9:packages/cli/src/rules/find-credential-match.test.ts:gitlab-pat:21
+f8b35d8ec384bad3aca029c7232855ef135418c9:packages/cli/src/rules/find-credential-match.test.ts:stripe-access-token:23
+f8b35d8ec384bad3aca029c7232855ef135418c9:packages/cli/src/rules/find-credential-match.test.ts:stripe-access-token:24

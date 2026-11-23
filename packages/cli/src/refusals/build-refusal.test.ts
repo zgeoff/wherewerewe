@@ -451,7 +451,7 @@ test.each([
       ['task', 't-a', 'x'],
     ],
     files: [],
-    argv: ['done', 't-a', '--evidence', 'AKIAABCDEFGHIJKLMNOP'],
+    argv: ['done', 't-a', '--evidence', `AKIA${'Q'.repeat(16)}`],
     env: 'agent',
     exitCode: 3,
     stderr:

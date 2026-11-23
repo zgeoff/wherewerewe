@@ -14,14 +14,14 @@ test.each([
   ['xoxa-1', 'xoxa-'],
   ['xoxr-1', 'xoxr-'],
   ['xapp-1', 'xapp-'],
-  ['AKIAABCDEFGHIJKLMNOP', 'AKIA'],
+  [`AKIA${'Q'.repeat(16)}`, 'AKIA'],
   ['ops_abcdefghijklmnopqrstuvwx', 'ops_'],
   ['-----BEGIN PRIVATE KEY-----', '-----BEGIN'],
   ['eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl', 'eyJ'],
-  ['glpat-abcdefghijklmnopqrstu', 'glpat-'],
+  [`glpat-${'a'.repeat(21)}`, 'glpat-'],
   ['npm_abcdefghijklmnopqrstu', 'npm_'],
-  ['sk_live_abcdefghijklmnopqrstu', 'sk_live_'],
-  ['rk_live_abcdefghijklmnopqrstu', 'rk_live_'],
+  [`sk_live_${'a'.repeat(21)}`, 'sk_live_'],
+  [`rk_live_${'a'.repeat(21)}`, 'rk_live_'],
   ['AIzaabcdefghijklmnopqrstu', 'AIza'],
 ])('it names the label of %s', (text, label) => {
   expect(findCredentialMatch(text)).toBe(label);
