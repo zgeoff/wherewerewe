@@ -19,9 +19,9 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
 focus, `items.tsv` the open items, and `journal.tsv` every write. A session never reuses a closed
-id, so a write reads from the journal only the ids that `done`, `drop` and `use` closed, and the
-decision numbers and who made each decision. See [the store design](../design/wherewerewe/store.md)
-for the formats.
+id, so a write reads from the journal the ids that `done`, `drop` and `use` closed, the decision
+numbers and who made each decision, and nothing else. See
+[the store design](../design/wherewerewe/store.md) for the formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv` and `session`
 through a temporary file and a rename, and removes the lock. The journal comes first, so a write
