@@ -134,21 +134,16 @@ for its commands.
 
 <!-- repo: commands -->
 
-- `bun verify www <command> ...` runs the real `www <command>` as a process, with `HOME` and
-  `XDG_STATE_HOME` inside the run's folder, so it never touches your own stores or agent settings.
-  Each fails with `check-failed` when `www` exits or prints other than its flags expect.
-- `bun verify www run --line '<a www command line>' --expect '<text>'` runs that line as the real
-  `www` and fails unless it exits 0 and its stdout holds the text.
+- `bun verify www <command> ...` runs the real `www <command>` with `HOME` and `XDG_STATE_HOME`
+  inside the run's folder, so your own stores and agent settings stay untouched. Each fails with
+  `check-failed` when `www` exits or prints other than its flags expect.
+- `bun verify www run --line '<line>' --expect '<text>'` runs that line as `www` and fails unless it
+  exits 0 and its stdout holds the text.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
-  refuses the line with exit 3, its stderr holds the text, and one stderr line is `Run: ` followed
-  by the run line.
-- `bun verify www seed-hand-kept` copies an invented hand-kept store into the run as the session
-  `trial-import`.
-- `bun verify terminal start <program>` starts one of the programs the `local` target names for the
-  `owner-notes` journey, each a real `www` command in a terminal with the agent variables unset,
-  except `say-as-agent`, which sets one. Pass `--session <program>-<n>` to each later `terminal`
-  command.
-- The doctor check `www-help` runs `www help`. When it fails, `www` itself is broken: fix it first.
+  refuses the line with exit 3, and its stderr holds the text and `Run: <run line>`.
+- `bun verify terminal ...` drives `www` in a terminal: see
+  [the owner-notes file](references/feature-owner-notes.md).
+- The doctor check `www-help` runs `www help`. When it fails, `www` is broken: fix it first.
 
 <!-- /repo -->
 
@@ -156,10 +151,10 @@ for its commands.
 
 <!-- repo: registry -->
 
-Declare the target, the commands, the doctor check and the features in the registry,
+Declare the target, commands, doctor check and features in the registry,
 [create-verify-registry.ts](../../../scripts/verify/create-verify-registry.ts), with each feature's
-`paths`, the shared globs and the ignore list. CI runs `bun verify lint` and `bun verify gate` on
-each PR, in the `verify / gate` check.
+`paths`, the shared globs and the ignore list. CI runs `bun verify lint` and `bun verify gate` in
+the `verify / gate` check.
 
 <!-- /repo -->
 

@@ -1,14 +1,21 @@
 # owner-notes
 
 Check that the owner can write and clear a note from a terminal, that the brief shows it first after
-the goal, and that an agent cannot write one. The journey starts a session and a task with the real
-`www`, then runs `say` and `ack` through the terminal driver, which gives `www` a terminal with no
-agent variables (`say-as-agent` sets one, to play an agent), and reads the brief between them. Its
-folders are inside the run's folder under `.wringer/`, so it never touches your own stores.
+the goal, and that an agent cannot write one. Start a session and a task with the real `www`, run
+`say` and `ack` through the terminal driver, and read the brief between them. The driver's programs
+are `say-as-agent`, `say-first`, `say-second`, `say-third` and `ack-first`, defined in
+[build-owner-programs.ts](../../../../scripts/verify/build-owner-programs.ts). Each runs one `say`
+or `ack` line of the session `trial-owner` as a real `www` in a terminal with the agent variables
+unset, except `say-as-agent`, which sets one to play an agent. Pass `--session <program>-<n>` to
+each later `terminal` command. The journey writes only to the run's folder under `.wringer/`, so
+your own stores stay untouched.
 
 ## Journey
 
 Run `bun verify up --restart` first, so no `trial-owner` session exists, then `doctor`.
+
+Give the `refuse` line's `--run` the `Run:` line as `www` prints it, and leave its `<id>` and
+`<what the owner said, as a rule>` placeholders as they are.
 
 ```bash
 bun verify use --feature owner-notes

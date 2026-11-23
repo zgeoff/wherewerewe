@@ -21,9 +21,10 @@ Each session keeps its state in one folder of plain text files under `$XDG_STATE
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
 focus, `items.tsv` the open items, `owner.tsv` the owner's notes that still show, and `journal.tsv`
 every write. `init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A session
-never reuses a closed id, so a write reads from the journal the ids that `done`, `drop` and `use`
-closed, the decision numbers, who made each decision and the highest owner note number, and nothing
-else. See [the store design](../design/wherewerewe/store.md) for the formats.
+never reuses a closed id: a write reads from the journal the ids that `done`, `drop` and `use`
+closed, the decision numbers, who made each decision and, for `say`, the highest note number among
+its `say` rows, and nothing else. See [the store design](../design/wherewerewe/store.md) for the
+formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv` and `session`
 through a temporary file and a rename, and removes the lock. The journal comes first, so a write

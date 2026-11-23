@@ -37,8 +37,8 @@ www --help
 - `www ok` records the owner's approval, and `use` spends one that was given once.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
 - `www done` and `drop` close an item and keep it in the journal.
-- `www say` and `ack` let the owner write a note from a terminal outside any agent. It tops the
-  brief until the owner clears it.
+- `www say` and `ack` let the owner write a note from a terminal outside any agent. The note stays
+  at the top of the brief until the owner clears it.
 - `www import` converts a hand-kept store to format 1 in place, and keeps the originals in
   `import-backup/`.
 - `www show` prints one item or decision with its history, and `log` prints the journal.
