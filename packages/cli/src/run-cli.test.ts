@@ -180,6 +180,31 @@ test('it never journals a detach on a session the binding no longer names', asyn
   });
 });
 
+test('it refuses init while the binding lock is held, and creates no store and no binding', async () => {
+  const ctx = setupTest();
+  const released = Promise.withResolvers<undefined>();
+  const holder = withBindingLock(ctx.stateRoot, () => released.promise);
+
+  await waitFor(() => readFileSync(join(ctx.stateRoot, '.bindings', 'lock')));
+
+  const before = await ctx.readTree();
+  const result = await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  const after = await ctx.readTree();
+
+  released.resolve(undefined);
+
+  await holder;
+
+  expect({ result, unchanged: after }).toStrictEqual({
+    result: {
+      exitCode: 3,
+      stdout: '',
+      stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www init tide-alerts --goal "Ship it"\n`,
+    },
+    unchanged: before,
+  });
+});
+
 test('it leaves a binding that agrees with the journal when an attach and a detach start together', async () => {
   const ctx = setupTest();
   const released = Promise.withResolvers<undefined>();

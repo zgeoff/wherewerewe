@@ -1,71 +1,103 @@
 import { buildClaimPath } from './build-claim-path.ts';
+import { staleLockMs } from './constants.ts';
+import { isSameLockFile } from './is-same-lock-file.ts';
 import { parseLockLine } from './parse-lock-line.ts';
-import { probeProcess } from './probe-process.ts';
-import { readProcessStart } from './read-process-start.ts';
+import { pickLiveness } from './pick-liveness.ts';
 import type { LockFileState, LockFiles } from './types.ts';
 
 export type LockRemoval = 'removed' | 'changed' | 'claimed';
 
-// Two writers are never inside at once: a lock or claim file is removed only by its living creator
-// or by the one caller that won the claim named after that file and re-read it under the claim, and
-// a new lock needs the path empty, so the file cannot change between that re-read and the removal.
+// A lock or claim file is removed only by its living creator or by the one caller that won the
+// claim named after that file and re-read it under the claim, and a new lock needs the path empty,
+// so the file cannot change between that re-read and the removal while the claim holds.
 export function removeLockIfUnchanged(
   path: string,
   seen: LockFileState,
   files: LockFiles,
+  now: () => number,
 ): LockRemoval {
   const claimPath = buildClaimPath(path, seen);
+  const claim = takeClaim(claimPath, files, now);
 
-  if (!takeClaim(claimPath, files)) {
+  if (claim === null) {
     return 'claimed';
   }
 
   try {
-    const current = files.read(path);
-
-    if (current === null || current.ino !== seen.ino || current.content !== seen.content) {
+    if (!isSameLockFile(files.read(path), seen)) {
       return 'changed';
+    }
+
+    if (!probeClaimHeld(claimPath, claim, files, now)) {
+      return 'claimed';
     }
 
     files.remove(path);
 
     return 'removed';
   } finally {
-    files.remove(claimPath);
+    if (isSameLockFile(files.read(claimPath), claim.file)) {
+      files.remove(claimPath);
+    }
   }
 }
 
-// A claim's holder counts as dead by its process alone, never by age: a paused holder that woke
-// after an age-based takeover would remove a lock that is live by then. A dead holder's claim is
-// removed under a claim of its own, since two writers can judge it dead at once.
-function takeClaim(claimPath: string, files: LockFiles): boolean {
-  const start = readProcessStart(process.pid);
-  const line = `pid=${String(process.pid)} ts=${new Date().toISOString()}${start === null ? '' : ` start=${start}`}\n`;
+interface Claim {
+  readonly file: LockFileState;
+  readonly tsMs: number;
+}
+
+// Another caller removes the claim of a dead holder at once, and of a holder whose liveness is
+// unknown once the claim is past the stale age, so a crashed claimer never blocks the store for good.
+// A holder that is alive by its pid and start time keeps its claim however old it grows.
+function takeClaim(claimPath: string, files: LockFiles, now: () => number): Claim | null {
+  const own = files.readProcess(process.pid);
+  const start = own.kind === 'running' ? own.start : null;
 
   for (;;) {
-    if (files.create(claimPath, line) !== null) {
-      return true;
+    const tsMs = now();
+    const line = `pid=${String(process.pid)} ts=${new Date(tsMs).toISOString()}${start === null ? '' : ` start=${start}`}\n`;
+    const created = files.create(claimPath, line);
+
+    if (created !== null) {
+      return { file: created, tsMs };
     }
 
     const holder = files.read(claimPath);
 
-    if (holder !== null && probeHolder(holder.content)) {
-      return false;
+    if (holder !== null && !probeClaimReapable(holder, files, now())) {
+      return null;
     }
 
-    if (holder !== null && removeLockIfUnchanged(claimPath, holder, files) === 'claimed') {
-      return false;
+    if (holder !== null && removeLockIfUnchanged(claimPath, holder, files, now) === 'claimed') {
+      return null;
     }
   }
 }
 
-// The start time, where the system gives one, tells the holder from a later process with its pid.
-function probeHolder(content: string): boolean {
-  const line = parseLockLine(content);
+// A claim file that does not parse was made by hand, as no caller writes one.
+function probeClaimReapable(holder: LockFileState, files: LockFiles, nowMs: number): boolean {
+  const line = parseLockLine(holder.content);
 
   if (line === null) {
-    return false;
+    return true;
   }
 
-  return line.start === null ? probeProcess(line.pid) : readProcessStart(line.pid) === line.start;
+  const liveness = pickLiveness(line, files.readProcess(line.pid));
+
+  return liveness === 'dead' || (liveness === 'unknown' && nowMs - line.tsMs > staleLockMs);
+}
+
+// A holder removes nothing once its claim is gone or past the stale age, so two writers are inside
+// at once only when a holder pauses past the stale age between this check and its removal, the
+// limit the lock's own stale age sets.
+function probeClaimHeld(
+  claimPath: string,
+  claim: Claim,
+  files: LockFiles,
+  now: () => number,
+): boolean {
+  const current = files.read(claimPath);
+
+  return isSameLockFile(current, claim.file) && now() - claim.tsMs <= staleLockMs;
 }

@@ -57,3 +57,11 @@ test('#remove removes the file', () => {
 
   expect(readdirSync(ctx.folder)).toStrictEqual([]);
 });
+
+test('#remove does nothing when the file is gone', () => {
+  const ctx = setupTest();
+
+  expect(() => {
+    ctx.files.remove(ctx.path);
+  }).not.toThrow();
+});

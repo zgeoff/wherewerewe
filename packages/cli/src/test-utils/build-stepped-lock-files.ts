@@ -33,5 +33,6 @@ export function buildSteppedLockFiles(
 
       files.remove(path);
     },
+    readProcess: files.readProcess,
   };
 }

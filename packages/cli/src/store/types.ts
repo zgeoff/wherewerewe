@@ -6,12 +6,22 @@ export interface LockFileState {
   readonly mtimeMs: number;
 }
 
-// The file calls the store lock makes, passed in so a test can run another writer between any two.
+// What the system shows of a pid. `start` is the process start time, null when the system cannot
+// give it, such as with no /proc or an unreadable one.
+export type ProcessState =
+  | { readonly kind: 'gone' }
+  | { readonly kind: 'running'; readonly start: string | null };
+
+// The file and process calls the store lock makes, passed in so a test can run another writer
+// between any two, or show the lock a system with no /proc.
 export interface LockFiles {
   // Makes the file with its whole content in one exclusive step; null when the path exists.
   readonly create: (path: string, content: string) => LockFileState | null;
   readonly read: (path: string) => LockFileState | null;
+
+  // Does nothing when the file is gone.
   readonly remove: (path: string) => void;
+  readonly readProcess: (pid: number) => ProcessState;
 }
 
 export interface ImportFiles {

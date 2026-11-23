@@ -9,10 +9,11 @@ import {
   writeSync,
 } from 'node:fs';
 import { isErrorCode } from './is-error-code.ts';
+import { readProcess } from './read-process.ts';
 import type { LockFileState, LockFiles } from './types.ts';
 
 export function createLockFiles(): LockFiles {
-  return { create: createLockFile, read: readLockFile, remove: unlinkSync };
+  return { create: createLockFile, read: readLockFile, remove: removeLockFile, readProcess };
 }
 
 // The content goes into a file of a name no other writer uses, and a hard link then makes the path
@@ -66,5 +67,15 @@ function openIfFound(path: string): number | null {
     }
 
     throw error;
+  }
+}
+
+function removeLockFile(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if (!isErrorCode(error, 'ENOENT')) {
+      throw error;
+    }
   }
 }

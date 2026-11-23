@@ -1,7 +1,9 @@
+import { readProcess } from '../store/read-process.ts';
 import type { LockFileState, LockFiles } from '../store/types.ts';
 
 // Lock files kept in memory, where every file gets inode 7, as a file system that reuses the
-// inode of each removed file would give. `readSeen` throws when the file is missing.
+// inode of each removed file would give, beside the real process reads. `readSeen` throws when the
+// file is missing.
 export function buildMemoryLockFiles(): {
   readonly files: LockFiles;
   readonly readSeen: (path: string) => LockFileState;
@@ -24,6 +26,7 @@ export function buildMemoryLockFiles(): {
     remove: (path) => {
       entries.delete(path);
     },
+    readProcess,
   };
 
   return {
