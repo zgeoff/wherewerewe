@@ -17,16 +17,16 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
-focus, `items.tsv` the open items, and `journal.tsv` every write. A write reads from the journal
-only the ids that `done`, `drop` and `use` closed, because a session never reuses a closed id. See
+focus, `items.tsv` the open items, and `journal.tsv` every write. A session never reuses a closed
+id, so a write reads from the journal only the ids that `done`, `drop` and `use` closed. See
 [the store design](../design/wherewerewe/store.md) for the formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv` and `session`
 through a temporary file and a rename, and removes the lock. The journal comes first, so a write
 that stops half way leaves a close recorded and its item still open, never an item gone with no
-record. A writer removes a lock, its own or a stale one, only after it wins the claim file named
-after that one lock and reads the lock again, so no other writer gets in while a lock is fresh. Once
-a lock passes the age the store design calls stale, the next writer may take it over, even while its
+record. A writer wins the claim file named after the lock and reads the lock again before it removes
+that lock, its own or a stale one, so no other writer gets in while a lock is fresh. Once a lock is
+older than the stale age in the store design, the next writer may take it over, even while its
 holder still runs.
 
 ## Finding the session
