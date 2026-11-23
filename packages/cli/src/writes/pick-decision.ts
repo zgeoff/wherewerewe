@@ -41,7 +41,14 @@ export function pickDecision(input: WriteInput): WriteResult {
     return refuse({ kind: 'bad-decision-who', args });
   }
 
-  const reason = pickOnRefusal(input, on) ?? pickReplacesRefusal(input, replaces, who);
+  // The journal index skips an id past the safe integers, so it could never count past one.
+  const reason =
+    input.journal.lastDecisionNumber >= Number.MAX_SAFE_INTEGER
+      ? ({
+          kind: 'decision-numbers-used-up',
+          lastNumber: input.journal.lastDecisionNumber,
+        } satisfies RefusalReason)
+      : (pickOnRefusal(input, on) ?? pickReplacesRefusal(input, replaces, who));
 
   if (reason !== null) {
     return refuse(reason);

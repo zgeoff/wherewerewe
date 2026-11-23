@@ -76,7 +76,12 @@ export function pickClose(input: WriteInput): WriteResult {
         ...(command === 'use'
           ? {
               suggestIDs: store.items
-                .filter((candidate) => candidate.kind === 'ok' && candidate.extra.use === 'once')
+                .filter(
+                  (candidate) =>
+                    candidate.kind === 'ok' &&
+                    candidate.extra.use === 'once' &&
+                    !input.journal.closed.has(candidate.id),
+                )
                 .map((candidate) => candidate.id),
             }
           : {}),

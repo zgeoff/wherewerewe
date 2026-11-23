@@ -164,6 +164,56 @@ test.each([
   });
 });
 
+test('it suggests no spent approval for an unknown use id, and reads the id when none is left', () => {
+  const ctx = setupTest();
+
+  const spent = buildMockItem({
+    id: 'ok-a',
+    kind: 'ok',
+    extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+  });
+
+  const closed = new Map([['ok-a', '2026-03-10T10:00:00Z']]);
+
+  const withSpare = ctx.pick(
+    ['use', 'ok-z', '--for', 'checked'],
+    [
+      spent,
+      buildMockItem({
+        id: 'ok-b',
+        kind: 'ok',
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+      }),
+    ],
+    null,
+    closed,
+  );
+
+  const withTask = ctx.pick(
+    ['use', 'ok-z', '--for', 'checked'],
+    [spent, buildMockItem({ id: 't-a' })],
+    null,
+    closed,
+  );
+
+  expect([withSpare, withTask]).toStrictEqual([
+    {
+      kind: 'refused',
+      refusal: expect.objectContaining({
+        lines: ['www: refused: no open item ok-z. Open items: ok-a, ok-b.'],
+        runs: [{ www: ['use', 'ok-b', '--for', 'checked'] }],
+      }),
+    },
+    {
+      kind: 'refused',
+      refusal: expect.objectContaining({
+        lines: ['www: refused: no open item ok-z. Open items: ok-a, t-a.'],
+        runs: [{ www: ['show', 'ok-z'] }],
+      }),
+    },
+  ]);
+});
+
 test('it refuses use with no --for', () => {
   const ctx = setupTest();
 

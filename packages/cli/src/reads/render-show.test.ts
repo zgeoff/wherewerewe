@@ -19,11 +19,17 @@ function setupTest() {
   };
 
   return {
-    show: (id: string, items: readonly Item[], rows: readonly JournalRow[]) =>
+    show: (
+      id: string,
+      items: readonly Item[],
+      rows: readonly JournalRow[],
+      closed: ReadonlyMap<string, string> = new Map(),
+    ) =>
       renderShow({
         id,
         store: { folder: '/state/tide-alerts', session, items },
         rows,
+        closed,
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
       }),
   };
@@ -333,6 +339,24 @@ test('it drops the blocked by part once the blocker is no longer open', () => {
   ];
 
   expect(ctx.show('t-flag', items, [])).toBe(
+    ['t-flag  task, open since day 9, by agent', '  claim (2h): turn on the flag', ''].join('\n'),
+  );
+});
+
+test('it drops the blocked by part when the journal closed the blocker but items.tsv still holds it', () => {
+  const ctx = setupTest();
+
+  const items = [
+    buildMockItem({
+      id: 't-flag',
+      claim: 'turn on the flag',
+      extra: { blocked_by: 'w-apns' },
+      written: '2026-03-10T09:43:00Z',
+    }),
+    buildMockItem({ id: 'w-apns', kind: 'wait', extra: { who: 'sam' } }),
+  ];
+
+  expect(ctx.show('t-flag', items, [], new Map([['w-apns', '2026-03-10T10:00:00Z']]))).toBe(
     ['t-flag  task, open since day 9, by agent', '  claim (2h): turn on the flag', ''].join('\n'),
   );
 });

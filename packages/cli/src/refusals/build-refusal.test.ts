@@ -1816,6 +1816,22 @@ test.each([
     fills: [{}],
   },
   {
+    title: 'a decision when the journal holds the last safe decision number',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'journal.tsv',
+        text: `ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T10:00:00Z\tdecide\td-${String(Number.MAX_SAFE_INTEGER)}\tagent\tRetry\tThe feed flaps\twho=agent\n`,
+      },
+    ],
+    argv: ['decide', 'Retry a 503 3 times', '--why', 'The feed flaps'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: `www: refused: decision numbers are used up after d-${String(Number.MAX_SAFE_INTEGER)}.\nRun: www log --op decide,ruled-out\n`,
+    fills: [{}],
+  },
+  {
     title: "a decision that replaces the owner's decision",
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],

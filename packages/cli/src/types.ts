@@ -259,6 +259,7 @@ export type RefusalReason =
       // 0 when there is none
       readonly lastNumber: number;
     }
+  | { readonly kind: 'decision-numbers-used-up'; readonly lastNumber: number }
   | { readonly kind: 'decision-is-owners'; readonly id: string }
   | {
       readonly kind: 'on-unknown';

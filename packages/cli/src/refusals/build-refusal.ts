@@ -111,6 +111,13 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         ['log', '--op', 'decide,ruled-out'],
       );
     })
+    .with({ kind: 'decision-numbers-used-up' }, (found) =>
+      refuse(`www: refused: decision numbers are used up after d-${String(found.lastNumber)}.`, [
+        'log',
+        '--op',
+        'decide,ruled-out',
+      ]),
+    )
     .with({ kind: 'decision-is-owners' }, (found) =>
       refuse(
         `www: refused: ${found.id} is the owner's decision. Ask the owner, and record the answer with --who owner.`,
@@ -360,12 +367,13 @@ function formatList(words: readonly string[]): string {
 
 function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
   const spec = buildRunSpec(found.args);
-  const closest = pickClosestID(found.id, found.suggestIDs ?? found.openIDs) ?? '<open id>';
+  const closest = pickClosestID(found.id, found.suggestIDs ?? found.openIDs);
 
-  const argv =
-    found.args.command === 'set'
-      ? spec.renameCommand('task').keepCheckFlags().toArgv()
-      : spec.replacePositional(0, closest).toArgv();
+  // A use with no approval left to spend has no id that fills the line, so it reads the id instead.
+  const argv = match({ command: found.args.command, closest })
+    .with({ command: 'set' }, () => spec.renameCommand('task').keepCheckFlags().toArgv())
+    .with({ command: 'use', closest: null }, () => ['show', found.id])
+    .otherwise(() => spec.replacePositional(0, closest ?? '<open id>').toArgv());
 
   return refuse(
     `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,

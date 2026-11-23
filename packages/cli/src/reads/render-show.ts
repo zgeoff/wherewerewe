@@ -10,6 +10,9 @@ export interface ShowInput {
   readonly store: Store;
 
   readonly rows: readonly JournalRow[];
+
+  // the ids the journal closed, so a wait whose rewrite an interrupted write lost reads as closed
+  readonly closed: ReadonlyMap<string, string>;
   readonly nowMs: number;
 }
 
@@ -56,7 +59,7 @@ function renderOpenItem(input: ShowInput, item: Item): string {
     `${item.id}  ${getKindWord(item.kind)}, open since day ${String(since)}, by ${item.by}`,
     ...(item.check === null ? [] : [`check: ${item.check}`]),
     ...(item.extra.who !== undefined && item.kind === 'wait' ? [`waits on ${item.extra.who}`] : []),
-    ...(isBlocked(store, item) ? [`blocked by ${item.extra.blocked_by}`] : []),
+    ...(isBlocked(input, item) ? [`blocked by ${item.extra.blocked_by}`] : []),
   ].join(' · ');
 
   const age = formatAge(input.nowMs - Date.parse(item.written));
@@ -79,8 +82,14 @@ function getDay(store: Store, timeMs: number): number {
   return getSessionDay(store.session.started, timeMs);
 }
 
-function isBlocked(store: Store, item: Item): boolean {
-  return store.items.some((candidate) => candidate.id === item.extra.blocked_by);
+function isBlocked(input: ShowInput, item: Item): boolean {
+  const blocker = item.extra.blocked_by;
+
+  return (
+    blocker !== undefined &&
+    !input.closed.has(blocker) &&
+    input.store.items.some((candidate) => candidate.id === blocker)
+  );
 }
 
 function getClaimWord(item: Item): string {

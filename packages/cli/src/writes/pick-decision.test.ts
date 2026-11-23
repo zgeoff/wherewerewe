@@ -66,6 +66,25 @@ test('it numbers a decision one past the highest in the journal', () => {
   expect(getPickedWrite(picked, 7).change.journal).toMatchObject([{ id: 'd-13' }]);
 });
 
+test('it numbers the decision at the last safe integer and refuses the one after it', () => {
+  const ctx = setupTest();
+  const argv = ['decide', 'Retry a 503 3 times', '--why', 'The feed flaps'];
+  const last = Number.MAX_SAFE_INTEGER;
+  const atEdge = ctx.pick(argv, { lastDecisionNumber: last - 1 });
+  const pastEdge = ctx.pick(argv, { lastDecisionNumber: last });
+
+  expect([getPickedWrite(atEdge, 7).change.journal, pastEdge]).toStrictEqual([
+    [expect.objectContaining({ id: `d-${String(last)}` })],
+    {
+      kind: 'refused',
+      refusal: expect.objectContaining({
+        exitCode: 3,
+        lines: [`www: refused: decision numbers are used up after d-${String(last)}.`],
+      }),
+    },
+  ]);
+});
+
 test('it writes a ruled-out row for --ruled-out', () => {
   const ctx = setupTest();
   const picked = ctx.pick(['decide', 'Poll every minute', '--why', 'Too slow', '--ruled-out'], {});
