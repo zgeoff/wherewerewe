@@ -10,6 +10,8 @@
       "@stylistic/eslint-plugin": "5.10.0",
       "@tsconfig/strictest": "2.0.9",
       "@types/bun": "1.4.4",
+      "@wringer/core": "0.4.1",
+      "@wringer/gunshi": "0.3.10",
       "@zgeoff/agent-hooks": "0.3.2",
       "@zgeoff/bun-test-extended": "0.2.4",
       "@zgeoff/chex": "0.4.7",
@@ -25,7 +27,9 @@
       "oxfmt": "0.77.0",
       "oxlint": "1.92.0",
       "tsrs": "0.25.0-ts7.1.0-beta",
-      "typescript": "7.0.2"
+      "ts-pattern": "5.9.2",
+      "typescript": "7.0.2",
+      "zod": "4.6.7"
     }
   },
   "type": "module",
@@ -41,13 +45,18 @@
     "test": "rig unit",
     "test:related": "rig related",
     "ci:dispatch-publish": "bun scripts/dispatch-publish/dispatch-publish.ts",
-    "check:docs": "chex prose length links readmes skill"
+    "check:docs": "chex prose length links readmes skill",
+    "ci:verify-gate": "bun scripts/verify-gate/run-verify-gate.ts",
+    "verify": "bun scripts/verify/verify.ts",
+    "verify:lint": "bun scripts/verify/verify.ts lint"
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
     "@stylistic/eslint-plugin": "catalog:",
     "@tsconfig/strictest": "catalog:",
     "@types/bun": "catalog:",
+    "@wringer/core": "catalog:",
+    "@wringer/gunshi": "catalog:",
     "@zgeoff/agent-hooks": "catalog:",
     "@zgeoff/bun-test-extended": "catalog:",
     "@zgeoff/chex": "catalog:",
@@ -62,8 +71,10 @@
     "lefthook": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "ts-pattern": "catalog:",
     "tsrs": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   },
   "packageManager": "bun@1.4.4"
 }

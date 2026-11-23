@@ -7,6 +7,8 @@ exact = true
 minimumReleaseAge = 604800
 # each first-party package by its full name, from `bun x @zgeoff/chex dependency-gates`
 minimumReleaseAgeExcludes = [
+  "@wringer/core",
+  "@wringer/gunshi",
   "@zgeoff/agent-hooks",
   "@zgeoff/bun-test-extended",
   "@zgeoff/chex",
