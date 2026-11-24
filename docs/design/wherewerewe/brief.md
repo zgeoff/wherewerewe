@@ -72,7 +72,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | lesson                   | `  <id>  <instruction>  [why: <why>]`                                                         | 349    |
 | decision                 | `  <d-n>  <choice>`, with a choice over 200 characters, such as one imported from a hand-kept journal, cut to 199 and `…`; the heading is `DECISIONS (<n> in force)` | 212    |
 | where                    | `  <id>  <claim>  [<result or no check · age>[ · owed]]`                                      | 166    |
-| open count line          | `  and <m> more open tasks: www show`, or `  and <m> more open tasks: www --session <name> show`; `<m>` is at most 25 | 69 |
+| open count line          | `  and <m> more open tasks: www show`, or `  and <m> more open tasks: www --session <name> show`; `<m>` is at most 29 | 69 |
 | pull request             | `  <ref>  opened <age> ago  [<result>]`; a ref over 60 characters is cut to 59 and `…`        | 98     |
 | pull request overflow    | `  and <n> more: www list prs`, or `  and <n> more: www --session <name> list prs`                | 62     |
 | cut line                 | `  and <n> more: www list <kind>`, or `  and <n> more: www --session <name> list <kind>`; `<kind>` is `waits`, `approvals`, `rules`, `where`, `lessons`, `promises`, `words` or `decisions` | 68 |

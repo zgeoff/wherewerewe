@@ -109,7 +109,7 @@ type Harness = 'claude' | 'codex';
 
 ### The gate
 
-The gate refuses a bound agent session's tool calls after each start, resume and compaction until the agent has read its brief whole with `www`. The hooks put only the goal, the grant and one line into context, and the agent reads the rest by running `www`, so no host's limit on hook output bounds the brief. [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md) Every Codex claim in this section rests on the Codex docs. Codex runs a project hook only after a person trusts it, so no Codex hook has run, and slice 4 proves each claim on a real Codex session ([build-order.md](build-order.md)).
+The gate refuses a bound agent session's tool calls after each start, resume and compaction until the agent has read its brief whole with `www`. The hooks put only the goal, the grant and the two lines of the refusal into context, and the agent reads the rest by running `www`, so no host's limit on hook output bounds the brief. [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md) Every Codex claim in this section rests on the Codex docs. Codex runs a project hook only after a person trusts it, so no Codex hook has run, and slice 4 proves each claim on a real Codex session ([build-order.md](build-order.md)).
 
 The gate uses `SessionStart`, `PreToolUse`, `PostToolUse` and `Stop` on both hosts, and `PostToolUseFailure` on Claude Code. `SessionStart`, `PreToolUse` and `Stop` take no matcher, so `PreToolUse` reaches every tool that reaches a hook. On Codex, the docs say that covers shell calls, `exec_command`, `apply_patch`, MCP tools and local function tools such as `spawn_agent`. Hosted tools such as web search never reach a hook, so they can run before the agent reads the brief, and a `write_stdin` poll is not gated again. `PostToolUse` keeps its matcher `Bash` and its other jobs, and adds the read check. The `SubagentStart` line is unchanged.
 
@@ -152,7 +152,7 @@ The gate changes state only on a hook event, and no rule reads a clock. Each eve
 
 `reads` follows the same rule in every state: a brief command adds 1, each end event takes 1 away, never below 0, `Stop` sets it to 0, and `SessionStart` keeps it. A cell that names no state leaves the state as it is.
 
-The line is the fail-open line, added once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next compaction.` A refusal in `wiped` or `reading` gives the standard reason below. A payload that carries `agent_id` passes and changes nothing in every state, and the table does not apply to it.
+The line is the fail-open line, added once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next resume or compaction.` A refusal in `wiped` or `reading` gives the standard reason below. A payload that carries `agent_id` passes and changes nothing in every state, and the table does not apply to it.
 
 These four invariants hold for every order of events, and each follows from the table:
 

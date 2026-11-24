@@ -5,7 +5,7 @@
 
 ## Decision
 
-After each start, resume and compaction of a bound agent session, the `SessionStart` hook puts the goal, the grant and one line into context, and the agent runs `www` itself for the rest of the brief. The `PreToolUse` and `Stop` hooks refuse the agent's tool calls until a `PostToolUse` hook has seen the main agent read the brief whole. The hooks never write `classifierContext`, and the injected text authorises nothing.
+After each start, resume and compaction of a bound agent session, the `SessionStart` hook puts the goal, the grant and the two lines of the refusal into context, and the agent runs `www` itself for the rest of the brief. The `PreToolUse` and `Stop` hooks refuse the agent's tool calls until a `PostToolUse` hook has seen the main agent read the brief whole. The hooks never write `classifierContext`, and the injected text authorises nothing.
 
 ## Why
 
