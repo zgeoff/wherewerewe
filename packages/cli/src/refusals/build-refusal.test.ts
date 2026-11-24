@@ -1,7 +1,9 @@
 import { expect, test } from 'bun:test';
+import { cpSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { run } from '@zgeoff/testing/process';
 import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
@@ -12,10 +14,26 @@ import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 function setupTest() {
   const root = createTempDir('refusals').path;
   const clock = { nowMs: Date.parse('2026-03-10T11:43:00Z') };
+  const stateRoot = join(root, 'wherewerewe');
+  const snapshot = join(createTempDir('refusals-snapshot').path, 'wherewerewe');
 
   return {
-    stateRoot: join(root, 'wherewerewe'),
-    agentEnv: { XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    stateRoot,
+
+    // Each Run line replays on its own copy of the store as the refused command found it.
+    writeSnapshot: () => {
+      if (existsSync(stateRoot)) {
+        cpSync(stateRoot, snapshot, { recursive: true });
+      }
+    },
+    restoreStore: () => {
+      rmSync(stateRoot, { recursive: true, force: true });
+
+      if (existsSync(snapshot)) {
+        cpSync(snapshot, stateRoot, { recursive: true });
+      }
+    },
+    agentEnv: { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
     run: (
       argv: readonly string[],
       env: Record<string, string | undefined>,
@@ -326,6 +344,33 @@ test.each([
     fills: [{}],
   },
   {
+    title: 'set with a note and --owed on an id that is not open',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'x'],
+    ],
+    files: [],
+    argv: ['set', 't-b', '--note', 'Stop the simulator first', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: no open item t-b. Open items: t-a.\nRun: www task t-b "<claim>" --note "Stop the simulator first" --owed\n',
+    fills: [{ '<claim>': 'Fresh claim' }],
+  },
+  {
+    title: 'set with --no-note on an id that is not open',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'x'],
+    ],
+    files: [],
+    argv: ['set', 't-b', '--no-note'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: no open item t-b. Open items: t-a.\nRun: www task t-b "<claim>"\n',
+    fills: [{ '<claim>': 'Fresh claim' }],
+  },
+  {
     title: 'now on a near miss of an open id',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
@@ -422,6 +467,17 @@ test.each([
     exitCode: 3,
     stderr:
       'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www where s-staging "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'the vault bosun-staging' }],
+  },
+  {
+    title: 'a credential in a claim that carries a note and --owed',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', `token ghp_${'a'.repeat(6)}`, '--note', 'Rotate it Friday.', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www where t-a "<where the secret lives>" --note "Rotate it Friday." --owed\n',
     fills: [{ '<where the secret lives>': 'the vault bosun-staging' }],
   },
   {
@@ -658,6 +714,31 @@ test.each([
     stderr:
       'www: refused: t-a is a task. Change its text with set, or pick a new id.\nRun: www set t-a "new note" --pid 5\n',
     fills: [{}],
+  },
+  {
+    title: 'a task with a note and --owed on an open rule',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['rule', 'r-a', 'x'],
+    ],
+    files: [],
+    argv: ['task', 'r-a', 'New text', '--note', 'Keep the port free.', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: r-a is a rule. Change its text with set, or pick a new id.\nRun: www set r-a "New text" --note "Keep the port free." --owed\n',
+    fills: [{}],
+  },
+  {
+    title: 'a rule with a check, a note and --owed',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['rule', 'r-a', 'x', '--pid', '5', '--note', 'Hold the port.', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a rule has no check. Make the checked thing a where item.\nRun: www where <new id> x --pid 5 --note "Hold the port." --owed\n',
+    fills: [{ '<new id>': 'wt-a' }],
   },
   {
     title: 'a rule with a check',
@@ -2442,8 +2523,8 @@ test.each([
 
   const envs = {
     agent: ctx.agentEnv,
-    shell: { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
-    owner: { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
+    shell: { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
+    owner: { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
     'other-agent': { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: 'c3d4-other' },
   };
 
@@ -2464,6 +2545,8 @@ test.each([
     seedStoreFile(join(ctx.stateRoot, file.session), file.name, file.text);
   }
 
+  ctx.writeSnapshot();
+
   const before = await ctx.readTree();
   const result = await ctx.run(row.argv, envs[row.env], terminals[row.env]);
   const after = await ctx.readTree();
@@ -2471,19 +2554,33 @@ test.each([
   const replayEnv = envs[row.replayEnv ?? row.env];
   const stderr = row.stderr.replaceAll('<STATE>', ctx.stateRoot);
   const runLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
+  const lessLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: less '));
   const filledExitCodes: number[] = [];
+  const lessExitCodes: number[] = [];
 
   for (const [index, fills] of row.fills.entries()) {
     const argv = buildFilledRunArgv(runLines[index] ?? '', fills);
+
+    ctx.restoreStore();
 
     const filled = await ctx.run(argv, replayEnv, terminals[row.replayEnv ?? row.env]);
 
     filledExitCodes.push(filled.exitCode);
   }
 
+  for (const line of lessLines) {
+    const words = await readShellWords(line.slice('Run: '.length));
+
+    // less prints a file as cat does when its output is no terminal, and CI hosts may lack less
+    const paged = await run(['cat', ...words.slice(1)]);
+
+    lessExitCodes.push(paged.exitCode);
+  }
+
   expect(result).toStrictEqual({ exitCode: row.exitCode, stdout: '', stderr });
   expect(after).toStrictEqual(before);
   expect(filledExitCodes).toStrictEqual(row.fills.map(() => 0));
+  expect(lessExitCodes).toStrictEqual(lessLines.map(() => 0));
 });
 
 test('it refuses a write while another holds the lock for 2 s, names the holder, and the same line passes once it is released', async () => {
@@ -2545,7 +2642,13 @@ test('it prints a claim with a shell redirection as one word that a real shell r
 
 test('it prints the path of a broken file as one word that a real shell reads back', async () => {
   const ctx = setupTest();
-  const env = { ...ctx.agentEnv, XDG_STATE_HOME: join(ctx.agentEnv.XDG_STATE_HOME, 'two words') };
+
+  const env = {
+    ...ctx.agentEnv,
+    HOME: join(ctx.agentEnv.HOME, 'two words'),
+    XDG_STATE_HOME: join(ctx.agentEnv.XDG_STATE_HOME, 'two words'),
+  };
+
   const folder = join(ctx.agentEnv.XDG_STATE_HOME, 'two words', 'wherewerewe', 'tide-alerts');
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env);

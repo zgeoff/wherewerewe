@@ -19,7 +19,7 @@ function setupTest() {
     runAsAgent: (argv: readonly string[]) =>
       runCLI({
         argv: ['--session', 'tide-alerts', ...argv],
-        env: { XDG_STATE_HOME: root },
+        env: { HOME: root, XDG_STATE_HOME: root },
         cwd: '/work',
         terminal: { stdin: false, stdout: false },
         now: () => Date.parse('2026-03-10T11:43:00Z'),
@@ -228,7 +228,7 @@ test('it reads a broken owner file as a store with the notes that parse and the 
 
 test('it prints the brief without the broken owner row, names it on stderr, and leaves owner.tsv alone for an agent write', async () => {
   const ctx = setupTest();
-  const env = { XDG_STATE_HOME: ctx.root };
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
 
   const brokenText =
     'id\ttext\tsaid\ton\no-1\tAsk me first\t2026-03-10T11:00:00Z\t-\no-2\tbroken\n';
@@ -485,5 +485,40 @@ test('it prints the brief from the notes that parse, names the broken row, and r
     now: refusal,
     done: refusal,
     notes: brokenText,
+  });
+});
+
+test('it shows an item and prints the log from the notes that parse, and names the broken row on stderr', async () => {
+  const ctx = setupTest();
+
+  const folder = await seedSessionStore(join(ctx.root, 'wherewerewe'), 'tide-alerts');
+
+  await seedItem(folder, { id: 't-a' });
+  await seedItem(folder, { id: 't-b' });
+
+  seedStoreFile(
+    folder,
+    'notes.tsv',
+    'id\towed\twritten\tnote\nt-a\t-\t2026-03-10T11:00:00Z\tfine\nt-b\tmaybe\tw\tx\n',
+  );
+
+  const shown = await ctx.runAsAgent(['show', 't-a']);
+  const logged = await ctx.runAsAgent(['log']);
+
+  const named =
+    "www: tide-alerts's notes.tsv line 3 does not parse: the owed column is not owed or -. ";
+
+  expect({ shown, logged }).toStrictEqual({
+    shown: {
+      exitCode: 0,
+      stdout:
+        't-a  task, open since day 9, by agent\n  claim (1h): Write the parser\n  note (43m): fine\n',
+      stderr: `${named}This read leaves out what it could not read. Fix the file by hand.\n`,
+    },
+    logged: {
+      exitCode: 0,
+      stdout: 'No journal rows match.\n',
+      stderr: `${named}This read leaves out what it could not read. Fix the file by hand.\n`,
+    },
   });
 });

@@ -284,14 +284,14 @@ test('it cuts a pull request ref over 60 characters to 59 and an ellipsis', () =
 
 test.each([
   [
-    'a goal of 25 short words, which wraps to 3 lines',
-    Array.from({ length: 25 }, () => 'goalword'),
+    'a goal of 200 characters in short words, which wraps to 3 lines',
+    [...Array.from({ length: 21 }, () => 'goalword'), 'goalwordsss'],
     3,
     false,
   ],
   [
-    'a goal of 4 long words, which wraps to 3 lines',
-    Array.from({ length: 4 }, () => 'g'.repeat(49)),
+    'a goal of 200 characters in words of 49, which wraps to 3 lines',
+    [...Array.from({ length: 3 }, () => 'g'.repeat(49)), 'g'.repeat(50)],
     3,
     false,
   ],
@@ -395,6 +395,7 @@ test.each([
     );
 
     expect({
+      goalCharacters: words.join(' ').length,
       lines: brief.split('\n').length - 1,
       isWithinLimit: Array.from(brief, (character) => character).length <= 6400,
       goalLines: brief
@@ -403,6 +404,7 @@ test.each([
       hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
       noteLines: brief.split('\n').filter((line) => /^ {4}n+$/u.test(line)).length,
     }).toStrictEqual({
+      goalCharacters: 200,
       lines: 52,
       isWithinLimit: true,
       goalLines,

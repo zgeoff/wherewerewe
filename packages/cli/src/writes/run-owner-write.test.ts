@@ -17,7 +17,7 @@ function setupTest() {
   const run = (argv: readonly string[], isTerminal: boolean) =>
     runCLI({
       argv,
-      env: { XDG_STATE_HOME: root },
+      env: { HOME: root, XDG_STATE_HOME: root },
       cwd: '/work',
       terminal: { stdin: isTerminal, stdout: isTerminal },
       now: () => {

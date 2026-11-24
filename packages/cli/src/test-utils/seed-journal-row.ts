@@ -7,9 +7,12 @@ interface JournalSeed {
   readonly id: string;
   readonly by?: JournalRow['by'];
   readonly extra?: string;
+  readonly text?: string | null;
+  readonly why?: string | null;
 }
 
-// Appends a journal row to a session folder through the store module.
+// Appends a journal row to a session folder through the store module. A row with no text or why
+// gets a claim and a reason.
 export async function seedJournalRow(folder: string, row: JournalSeed): Promise<void> {
   await writeStoreFiles(folder, {
     journal: [
@@ -18,8 +21,8 @@ export async function seedJournalRow(folder: string, row: JournalSeed): Promise<
         op: row.op,
         id: row.id,
         by: row.by ?? 'agent',
-        text: 'a claim',
-        why: 'a reason',
+        text: row.text === undefined ? 'a claim' : row.text,
+        why: row.why === undefined ? 'a reason' : row.why,
         extra: row.extra ?? null,
       },
     ],

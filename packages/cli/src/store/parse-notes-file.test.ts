@@ -26,10 +26,15 @@ test.each([
     2,
     'expected 4 tab-separated columns, found 3',
   ],
-  ['a bad id', `id\towed\twritten\tnote\nT-A\t-\tw\tx\n`, 2, 'the id is not an item id'],
+  [
+    'a bad id',
+    `id\towed\twritten\tnote\nT-A\t-\t2026-03-10T10:31:09Z\tx\n`,
+    2,
+    'the id is not an item id',
+  ],
   [
     'an owed that is neither word',
-    `id\towed\twritten\tnote\nt-a\tyes\tw\tx\n`,
+    `id\towed\twritten\tnote\nt-a\tyes\t2026-03-10T10:31:09Z\tx\n`,
     2,
     'the owed column is not owed or -',
   ],
@@ -37,23 +42,35 @@ test.each([
     'an empty written time',
     `id\towed\twritten\tnote\nt-a\t-\t\tx\n`,
     2,
-    'the written time is empty',
+    'the written time is not an ISO 8601 UTC time to the second, ending in Z',
+  ],
+  [
+    'a written time that is not a time',
+    `id\towed\twritten\tnote\nt-a\t-\tnot-a-time\tx\n`,
+    2,
+    'the written time is not an ISO 8601 UTC time to the second, ending in Z',
+  ],
+  [
+    'a note with a credential',
+    `id\towed\twritten\tnote\nt-a\towed\t2026-03-10T10:31:09Z\tkey AKIA${'Q'.repeat(16)}\n`,
+    2,
+    'the note holds a credential',
   ],
   [
     'an empty note',
-    `id\towed\twritten\tnote\nt-a\t-\tw\t\n`,
+    `id\towed\twritten\tnote\nt-a\t-\t2026-03-10T10:31:09Z\t\n`,
     2,
     'the note is empty, longer than 400 characters or not one line',
   ],
   [
     'a note of 401 characters',
-    `id\towed\twritten\tnote\nt-a\t-\tw\t${'a'.repeat(401)}\n`,
+    `id\towed\twritten\tnote\nt-a\t-\t2026-03-10T10:31:09Z\t${'a'.repeat(401)}\n`,
     2,
     'the note is empty, longer than 400 characters or not one line',
   ],
   [
     'a repeated id',
-    `id\towed\twritten\tnote\nt-a\t-\tw\tx\nt-a\t-\tw\ty\n`,
+    `id\towed\twritten\tnote\nt-a\t-\t2026-03-10T10:31:09Z\tx\nt-a\t-\t2026-03-10T10:31:09Z\ty\n`,
     3,
     'the id repeats an earlier row',
   ],
@@ -68,14 +85,16 @@ test.each([
 
 test('it keeps the rows that parse beside the first broken row', () => {
   expect(
-    parseNotesFile(`id\towed\twritten\tnote\nt-a\t-\tw\tx\nBAD\t-\tw\ty\nt-b\towed\tw\tz\n`),
+    parseNotesFile(
+      `id\towed\twritten\tnote\nt-a\t-\t2026-03-10T10:31:09Z\tx\nBAD\t-\t2026-03-10T10:31:09Z\ty\nt-b\towed\t2026-03-10T10:31:09Z\tz\n`,
+    ),
   ).toStrictEqual({
     kind: 'broken',
     line: 3,
     reason: 'the id is not an item id',
     notes: [
-      { id: 't-a', owed: false, written: 'w', note: 'x' },
-      { id: 't-b', owed: true, written: 'w', note: 'z' },
+      { id: 't-a', owed: false, written: '2026-03-10T10:31:09Z', note: 'x' },
+      { id: 't-b', owed: true, written: '2026-03-10T10:31:09Z', note: 'z' },
     ],
   });
 });

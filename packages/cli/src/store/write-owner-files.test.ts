@@ -19,7 +19,7 @@ function setupTest() {
   const runAsOwner = (argv: readonly string[]) =>
     runCLI({
       argv: ['--session', 'tide-alerts', ...argv],
-      env: { XDG_STATE_HOME: root },
+      env: { HOME: root, XDG_STATE_HOME: root },
       cwd: '/work',
       terminal: { stdin: true, stdout: true },
       now: () => {
@@ -45,7 +45,7 @@ function setupTest() {
     init: () =>
       runCLI({
         argv: ['init', 'tide-alerts', '--goal', 'Ship the glaze timer'],
-        env: { XDG_STATE_HOME: root },
+        env: { HOME: root, XDG_STATE_HOME: root },
         cwd: '/work',
         terminal: { stdin: false, stdout: false },
         now: () => clock.nowMs,

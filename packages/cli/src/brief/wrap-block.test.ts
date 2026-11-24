@@ -13,11 +13,17 @@ test('it wraps a 400-character note of words that end at column 85 to 5 lines', 
   expect(lines.map((line) => line.length)).toStrictEqual([85, 85, 85, 85, 76]);
 });
 
-test('it wraps a 200-character goal of 49-character words to 3 lines', () => {
+test('it wraps a 200-character goal of words of 49 characters to 3 lines', () => {
   const word = 'a'.repeat(49);
-  const goal = [word, word, word, word].join(' ').slice(0, 200);
+  const goal = [word, word, word, 'a'.repeat(50)].join(' ');
 
-  expect(wrapBlock(goal, 'GOAL  ', ' '.repeat(6))).toHaveLength(3);
+  expect({
+    characters: goal.length,
+    lines: wrapBlock(goal, 'GOAL  ', ' '.repeat(6)).length,
+  }).toStrictEqual({
+    characters: 200,
+    lines: 3,
+  });
 });
 
 test('it breaks at the last space that leaves the line 85 to 100 characters long', () => {

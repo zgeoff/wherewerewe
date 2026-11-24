@@ -77,7 +77,7 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
 
   const result = await ctx.run(
     ['import', 'old-notes'],
-    { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
     nowMs,
   );
 
@@ -164,9 +164,13 @@ test('it makes a store that the brief reads', async () => {
     'name=old-notes\ngoal=Ship the kiln alerts\nstarted=2026-03-09T09:00:00Z\n',
   );
 
-  await ctx.run(['import', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+  await ctx.run(['import', 'old-notes'], { HOME: ctx.root, XDG_STATE_HOME: ctx.root }, nowMs);
 
-  const brief = await ctx.run(['--session', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+  const brief = await ctx.run(
+    ['--session', 'old-notes'],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
 
   expect({
     exitCode: brief.exitCode,
@@ -197,7 +201,7 @@ test('it converts the store its name gives, whatever --session says', async () =
 
   const result = await ctx.run(
     ['import', 'old-notes', '--session', 'other-notes'],
-    { XDG_STATE_HOME: ctx.root },
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
     nowMs,
   );
 
@@ -247,7 +251,13 @@ test('it refuses a store with five broken rows, writes nothing, and passes once 
   );
 
   const before = await ctx.readTree();
-  const refused = await ctx.run(['import', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+
+  const refused = await ctx.run(
+    ['import', 'old-notes'],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
+
   const after = await ctx.readTree();
 
   seedStoreFile(
@@ -262,7 +272,11 @@ test('it refuses a store with five broken rows, writes nothing, and passes once 
     'ts\top\tid\ttext\n2026-04-06T09:00:00Z\topen\tq-1\tWhich one\n',
   );
 
-  const retried = await ctx.run(['import', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+  const retried = await ctx.run(
+    ['import', 'old-notes'],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
 
   expect(refused).toStrictEqual({
     exitCode: 3,
@@ -286,7 +300,13 @@ test('it refuses a hand-kept session with CRLF line endings by its rows, not as 
   );
 
   const before = await ctx.readTree();
-  const result = await ctx.run(['import', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+
+  const result = await ctx.run(
+    ['import', 'old-notes'],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
+
   const after = await ctx.readTree();
 
   expect({ result, unchanged: after }).toStrictEqual({
@@ -302,7 +322,7 @@ test('it refuses a hand-kept session with CRLF line endings by its rows, not as 
 
 test('it refuses a store that is format 1 already', async () => {
   const ctx = setupTest();
-  const env = { XDG_STATE_HOME: ctx.root };
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
 
   await ctx.run(['init', 'old-notes', '--goal', 'Ship it'], env, nowMs);
@@ -325,7 +345,7 @@ test('it refuses a store that is format 1 already', async () => {
 // which renames a temporary file over that path: an import stopped after its last rename.
 test('it binds the agent with the Run line of a rerun, after an import stopped before its binding', async () => {
   const ctx = setupTest();
-  const env = { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
 
   const originals = {
@@ -405,7 +425,13 @@ test('it refuses a format 1 store with a broken session file, and writes nothing
   seedStoreFile(ctx.folder, 'session', 'format=1\nname=old-notes\nbogus line\n');
 
   const before = await ctx.readTree();
-  const result = await ctx.run(['import', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+
+  const result = await ctx.run(
+    ['import', 'old-notes'],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
+
   const after = await ctx.readTree();
 
   expect({ result, unchanged: after }).toStrictEqual({
@@ -420,7 +446,7 @@ test('it refuses a format 1 store with a broken session file, and writes nothing
 
 test('it refuses a format 1 store with a broken items file by that file, so its Run line never fails', async () => {
   const ctx = setupTest();
-  const env = { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
 
   await ctx.run(['init', 'old-notes', '--goal', 'Ship it'], env, nowMs);
@@ -450,7 +476,7 @@ test.each([
   { title: 'a name that is no session name', name: 'Nope Notes' },
 ])('it refuses $title, and lists the sessions', async (row) => {
   const ctx = setupTest();
-  const env = { XDG_STATE_HOME: ctx.root };
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env, nowMs);
@@ -471,7 +497,13 @@ test('it refuses a store of a newer format, and writes nothing', async () => {
   seedStoreFile(ctx.folder, 'session', 'format=2\n');
 
   const before = await ctx.readTree();
-  const result = await ctx.run(['import', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+
+  const result = await ctx.run(
+    ['import', 'old-notes'],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
+
   const after = await ctx.readTree();
 
   expect({ result, unchanged: after }).toStrictEqual({
@@ -505,7 +537,13 @@ test('it refuses while another write holds the lock, and names the holder', asyn
   });
 
   const before = await ctx.readTree();
-  const result = await ctx.run(['import', 'old-notes'], { XDG_STATE_HOME: ctx.root }, nowMs);
+
+  const result = await ctx.run(
+    ['import', 'old-notes'],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
+
   const after = await ctx.readTree();
 
   released.resolve(undefined);
@@ -545,7 +583,7 @@ test('it refuses while the binding lock is held, and converts nothing', async ()
 
   const result = await ctx.run(
     ['import', 'old-notes'],
-    { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
     nowMs,
   );
 
@@ -582,7 +620,7 @@ test('it converts nothing when the binding cannot be written', async () => {
   await expect(
     ctx.run(
       ['import', 'old-notes'],
-      { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+      { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
       nowMs,
     ),
   ).toReject();
@@ -724,13 +762,13 @@ test.each([
 
   const cleanResult = await clean.run(
     ['import', 'old-notes'],
-    { XDG_STATE_HOME: clean.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    { HOME: clean.root, XDG_STATE_HOME: clean.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
     nowMs,
   );
 
   const result = await restart.run(
     ['import', 'old-notes'],
-    { XDG_STATE_HOME: restart.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    { HOME: restart.root, XDG_STATE_HOME: restart.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
     nowMs,
   );
 
@@ -767,7 +805,7 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
 
     const cleanResult = await clean.run(
       ['import', 'old-notes'],
-      { XDG_STATE_HOME: clean.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+      { HOME: clean.root, XDG_STATE_HOME: clean.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
       nowMs,
     );
 
@@ -792,7 +830,7 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
 
     const result = await restart.run(
       ['import', 'old-notes'],
-      { XDG_STATE_HOME: restart.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+      { HOME: restart.root, XDG_STATE_HOME: restart.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
       nowMs,
     );
 
@@ -809,7 +847,7 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
 test('it leaves an owner.tsv that exists alone, and the brief shows its row', async () => {
   const ctx = setupTest();
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
-  const env = { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
   const ownerPath = join(ctx.folder, 'owner.tsv');
 
   seedStoreFile(

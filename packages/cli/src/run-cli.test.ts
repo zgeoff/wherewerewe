@@ -5,19 +5,23 @@ import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
+import { formatNotesFile } from './store/format-notes-file.ts';
 import { parseItemsFile } from './store/parse-items-file.ts';
 import { parseJournalFile } from './store/parse-journal-file.ts';
+import { readJournalRows } from './store/read-journal-rows.ts';
+import { readStore } from './store/read-store.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
+import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
 
 function setupTest() {
   const root = createTempDir('run-cli').path;
   const stateRoot = join(root, 'wherewerewe');
-  const agentEnv = { XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+  const agentEnv = { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
   const clock = { nowMs: Date.parse('2026-03-10T11:43:00Z') };
 
   return {
@@ -661,7 +665,7 @@ test('it says how to start a session when there is none', async () => {
 
 test('it names the session on each command when the shell has no agent session id', async () => {
   const ctx = setupTest();
-  const shellEnv = { XDG_STATE_HOME: join(ctx.stateRoot, '..') };
+  const shellEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: join(ctx.stateRoot, '..') };
 
   const started = await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], shellEnv);
   const written = await ctx.run(['--session', 'tide-alerts', 'task', 't-a', 'Write it'], shellEnv);
@@ -676,6 +680,7 @@ test('it finds the session by WHEREWEREWE_SESSION', async () => {
   const ctx = setupTest();
 
   const shellEnv = {
+    HOME: ctx.agentEnv.HOME,
     XDG_STATE_HOME: join(ctx.stateRoot, '..'),
     WHEREWEREWE_SESSION: 'tide-alerts',
   };
@@ -1004,7 +1009,7 @@ test.each([
 
     const before = await ctx.readTree();
 
-    const ownerEnv = { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+    const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
 
     const results = {
       noStdin: await ctx.run(row.argv, ownerEnv, { stdin: false, stdout: true }),
@@ -1066,6 +1071,7 @@ test('it lets say run for an owner with agent variables set to an empty value', 
   const result = await ctx.run(
     ['--session', 'tide-alerts', 'say', 'Ask me first'],
     {
+      HOME: ctx.agentEnv.HOME,
       XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME,
       CLAUDECODE: '',
       CLAUDE_CODE_SESSION_ID: '',
@@ -1104,44 +1110,85 @@ test('it refuses say in an agent shell even with no store folder', async () => {
   expect(result.exitCode).toBe(3);
 });
 
-test('it keeps the claim, check, at_write and written of an item byte for byte when set gives only a note', async () => {
+test('it keeps an item with a saved result byte for byte when set gives only a note', async () => {
   const ctx = setupTest();
   const folder = join(ctx.stateRoot, 'tide-alerts');
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
-  await ctx.run(['task', 't-a', 'Write it', '--pid', '5']);
 
-  const before = readFileSync(join(folder, 'items.tsv'), 'utf8');
+  await seedItem(folder, {
+    id: 't-a',
+    claim: 'Write it',
+    check: 'pid:5',
+    atWrite: 'alive',
+    last: 'gone',
+  });
+
+  const before = await ctx.readTree();
+  const saved = await readStore(folder);
 
   ctx.advance(3_600_000);
 
   const result = await ctx.run(['set', 't-a', '--note', 'Stop the simulator first']);
+  const after = await ctx.readTree();
 
-  const after = readFileSync(join(folder, 'items.tsv'), 'utf8');
-
-  expect({ result: result.stdout, unchanged: after === before }).toStrictEqual({
+  expect({
+    result: result.stdout,
+    saved: saved.kind === 'store' && saved.store.items.map((item) => [item.atWrite, item.last]),
+    itemsKept: after['tide-alerts/items.tsv'] === before['tide-alerts/items.tsv'],
+  }).toStrictEqual({
     result: 't-a  note, 24 of 400. Brief: 6 lines.\n',
-    unchanged: true,
+    saved: [['alive', 'gone']],
+    itemsKept: true,
   });
 });
 
 test('it removes the notes.tsv row when a close finishes, and leaves each note row in the journal', async () => {
   const ctx = setupTest();
   const folder = join(ctx.stateRoot, 'tide-alerts');
+  const emptyNotes = createTempDir('empty-notes').path;
+
+  seedStoreFile(emptyNotes, 'notes.tsv', formatNotesFile([]));
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
   await ctx.run(['task', 't-a', 'Write it', '--note', 'First note', '--owed']);
   await ctx.run(['set', 't-a', '--note', 'Second note']);
+
+  const before = await ctx.readTree();
+
   await ctx.run(['done', 't-a', '--evidence', 'commit 4c1d2e0']);
 
-  const journal = parseJournalFile(readFileSync(join(folder, 'journal.tsv'), 'utf8'));
+  const after = await ctx.readTree();
+  const emptyTree = await readTreeHashes(emptyNotes);
+  const noteRows = await readJournalRows(folder, (row) => row.op === 'note');
 
   expect({
-    notes: readFileSync(join(folder, 'notes.tsv'), 'utf8'),
-    noteRows: journal.filter((row) => row.op === 'note').map((row) => row.text),
+    hadNotes: before['tide-alerts/notes.tsv'] !== emptyTree['notes.tsv'],
+    notes: after['tide-alerts/notes.tsv'] === emptyTree['notes.tsv'],
+    noteRows,
   }).toStrictEqual({
-    notes: 'id\towed\twritten\tnote\n',
-    noteRows: ['First note', 'Second note'],
+    hadNotes: true,
+    notes: true,
+    noteRows: [
+      {
+        ts: expect.any(String),
+        op: 'note',
+        id: 't-a',
+        by: 'agent',
+        text: 'First note',
+        why: null,
+        extra: 'owed=1',
+      },
+      {
+        ts: expect.any(String),
+        op: 'note',
+        id: 't-a',
+        by: 'agent',
+        text: 'Second note',
+        why: null,
+        extra: null,
+      },
+    ],
   });
 });
 
@@ -1182,9 +1229,16 @@ test('it leaves an item open with no note when a task with a note stops after it
   const folder = join(ctx.stateRoot, 'tide-alerts');
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
-  await ctx.run(['task', 't-a', 'Write it', '--note', 'Stop the simulator first', '--owed']);
+  await ctx.run(['task', 't-a', 'Write it']);
 
-  seedStoreFile(folder, 'notes.tsv', 'id\towed\twritten\tnote\n');
+  await seedJournalRow(folder, {
+    ts: '2026-03-10T11:43:02Z',
+    op: 'note',
+    id: 't-a',
+    text: 'Stop the simulator first',
+    why: null,
+    extra: 'owed=1',
+  });
 
   const afterStop = await ctx.run(['show', 't-a']);
   const brief = await ctx.run([]);
@@ -1200,18 +1254,37 @@ test('it leaves an item open with no note when a task with a note stops after it
 
   const afterRerun = await ctx.run(['show', 't-a']);
 
-  expect({
-    afterStop: afterStop.stdout,
-    briefHasOwedTag: brief.stdout.includes('owed'),
-    rerun: rerun.stdout,
-    afterRerun: afterRerun.stdout,
-  }).toStrictEqual({
-    afterStop:
-      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task · day 1 note\n',
-    briefHasOwedTag: false,
-    rerun: 't-a  task, open, no check, note 24 of 400, owed. Brief: 6 lines.\n',
-    afterRerun:
-      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  owed note (0m): Stop the simulator first\n  journal: day 1 task · day 1 note · day 1 task · day 1 note\n',
+  expect({ afterStop, brief, rerun, afterRerun }).toStrictEqual({
+    afterStop: {
+      exitCode: 0,
+      stdout:
+        't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task · day 1 note\n',
+      stderr: '',
+    },
+    brief: {
+      exitCode: 0,
+      stdout: [
+        'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
+        'GOAL  Ship it',
+        'NOW  none. Run: www now <id> "<next step>"',
+        'OPEN (1 of 6)',
+        '  t-a         Write it  [no check · 0m]',
+        'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
+        '',
+      ].join('\n'),
+      stderr: '',
+    },
+    rerun: {
+      exitCode: 0,
+      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 6 lines.\n',
+      stderr: '',
+    },
+    afterRerun: {
+      exitCode: 0,
+      stdout:
+        't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  owed note (0m): Stop the simulator first\n  journal: day 1 task · day 1 note · day 1 task · day 1 note\n',
+      stderr: '',
+    },
   });
 });
 
@@ -1221,22 +1294,31 @@ test('it reads a closed item as closed and drops its notes.tsv row at the next n
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
   await ctx.run(['task', 't-a', 'Write it', '--note', 'Stop the simulator first']);
-
-  const notesText = readFileSync(join(folder, 'notes.tsv'), 'utf8');
-
   await ctx.run(['done', 't-a', '--evidence', 'commit 4c1d2e0']);
 
-  seedStoreFile(folder, 'notes.tsv', notesText);
+  seedStoreFile(
+    folder,
+    'notes.tsv',
+    formatNotesFile([
+      {
+        id: 't-a',
+        owed: false,
+        written: '2026-03-10T11:43:01Z',
+        note: 'Stop the simulator first',
+      },
+    ]),
+  );
 
   const brief = await ctx.run([]);
   const shown = await ctx.run(['show', 't-a']);
   const next = await ctx.run(['task', 't-b', 'More', '--note', 'Another note']);
+  const after = await readStore(folder);
 
   expect({
     brief,
-    shown: shown.stdout.split('\n')[0],
-    next: next.stdout,
-    notes: readFileSync(join(folder, 'notes.tsv'), 'utf8').split('\n').slice(1, -1),
+    shown,
+    next,
+    notes: after.kind === 'store' && after.store.notes.map((note) => note.id),
   }).toStrictEqual({
     brief: {
       exitCode: 0,
@@ -1249,9 +1331,17 @@ test('it reads a closed item as closed and drops its notes.tsv row at the next n
       ].join('\n'),
       stderr: '',
     },
-    shown: 't-a  closed: done on day 1, by agent',
-    next: 't-b  task, open, no check, note 12 of 400. Brief: 6 lines.\n',
-    notes: ['t-b\t-\t2026-03-10T11:43:05Z\tAnother note'],
+    shown: {
+      exitCode: 0,
+      stdout: expect.stringMatching(/^t-a {2}closed: done on day 1, by agent\n/u),
+      stderr: '',
+    },
+    next: {
+      exitCode: 0,
+      stdout: 't-b  task, open, no check, note 12 of 400. Brief: 6 lines.\n',
+      stderr: '',
+    },
+    notes: ['t-b'],
   });
 });
 
@@ -1262,21 +1352,35 @@ test('it keeps the journal row of a set with a note and writes the note on a rer
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
   await ctx.run(['task', 't-a', 'Write it']);
 
-  await seedJournalRow(folder, { ts: '2026-03-10T11:43:02Z', op: 'note', id: 't-a' });
+  await seedJournalRow(folder, {
+    ts: '2026-03-10T11:43:02Z',
+    op: 'note',
+    id: 't-a',
+    text: 'Stop the simulator first',
+    why: null,
+  });
 
   const afterStop = await ctx.run(['show', 't-a']);
   const rerun = await ctx.run(['set', 't-a', '--note', 'Stop the simulator first']);
   const afterRerun = await ctx.run(['show', 't-a']);
 
-  expect({
-    afterStop: afterStop.stdout,
-    rerun: rerun.stdout,
-    afterRerun: afterRerun.stdout,
-  }).toStrictEqual({
-    afterStop:
-      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task · day 1 note\n',
-    rerun: 't-a  note, 24 of 400. Brief: 6 lines.\n',
-    afterRerun:
-      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  note (0m): Stop the simulator first\n  journal: day 1 task · day 1 note · day 1 note\n',
+  expect({ afterStop, rerun, afterRerun }).toStrictEqual({
+    afterStop: {
+      exitCode: 0,
+      stdout:
+        't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task · day 1 note\n',
+      stderr: '',
+    },
+    rerun: {
+      exitCode: 0,
+      stdout: 't-a  note, 24 of 400. Brief: 6 lines.\n',
+      stderr: '',
+    },
+    afterRerun: {
+      exitCode: 0,
+      stdout:
+        't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  note (0m): Stop the simulator first\n  journal: day 1 task · day 1 note · day 1 note\n',
+      stderr: '',
+    },
   });
 });

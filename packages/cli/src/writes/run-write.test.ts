@@ -24,8 +24,8 @@ function setupTest() {
 
   return {
     runAsAgent: (argv: readonly string[]) =>
-      run(argv, { XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' }, false),
-    runAsOwner: (argv: readonly string[]) => run(argv, { XDG_STATE_HOME: root }, true),
+      run(argv, { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' }, false),
+    runAsOwner: (argv: readonly string[]) => run(argv, { HOME: root, XDG_STATE_HOME: root }, true),
     lockOwnerFile: () => {
       chmodSync(ownerPath, 0o444);
     },

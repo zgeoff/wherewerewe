@@ -287,6 +287,133 @@ test('it writes a new item with its owed note, journals the note row after the i
   });
 });
 
+test.each(
+  [
+    {
+      command: 'task',
+      argv: ['task', 't-a', 'Wire it'],
+      items: [],
+      item: { id: 't-a', kind: 'task' as const, claim: 'Wire it', extra: {} },
+      journalOp: 'task',
+      journalExtra: null,
+      replyHead: 't-a  task, open, no check',
+    },
+    {
+      command: 'wait',
+      argv: ['wait', 'w-a', 'The vendor replies', '--who', 'vendor'],
+      items: [],
+      item: {
+        id: 'w-a',
+        kind: 'wait' as const,
+        claim: 'The vendor replies',
+        extra: { who: 'vendor' },
+      },
+      journalOp: 'wait',
+      journalExtra: null,
+      replyHead: 'w-a  wait, open, no check',
+    },
+    {
+      command: 'rule',
+      argv: ['rule', 'r-a', 'Run from api/'],
+      items: [],
+      item: { id: 'r-a', kind: 'rule' as const, claim: 'Run from api/', extra: {} },
+      journalOp: 'rule',
+      journalExtra: null,
+      replyHead: 'r-a  rule, open',
+    },
+    {
+      command: 'where',
+      argv: ['where', 'wh-a', 'Kiln simulator'],
+      items: [],
+      item: { id: 'wh-a', kind: 'where' as const, claim: 'Kiln simulator', extra: {} },
+      journalOp: 'where',
+      journalExtra: null,
+      replyHead: 'wh-a  where, open, no check',
+    },
+    {
+      command: 'ok',
+      argv: buildOkArgv('--once'),
+      items: [],
+      item: {
+        id: 'ok-merge',
+        kind: 'ok' as const,
+        claim: 'merge the alert PRs yourself',
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' as const },
+      },
+      journalOp: 'ok',
+      journalExtra: 'use=once',
+      replyHead: 'ok-merge  ok, open, no check',
+    },
+    {
+      command: 'set with a claim',
+      argv: ['set', 't-a', 'Wire it again'],
+      items: [buildMockItem({ id: 't-a' })],
+      item: { id: 't-a', kind: 'task' as const, claim: 'Wire it again', extra: {} },
+      journalOp: 'set',
+      journalExtra: null,
+      replyHead: 't-a  task, open, no check',
+    },
+  ].flatMap((row) => [
+    { row, owed: true },
+    { row, owed: false },
+  ]),
+)('it writes $found.row.command with owed $owed, with its whole change and reply', (found) => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick(
+      [...found.row.argv, '--note', 'Stop the simulator', ...(found.owed ? ['--owed'] : [])],
+      found.row.items,
+    ),
+    6,
+  );
+
+  expect(picked).toStrictEqual({
+    change: {
+      items: [
+        {
+          check: null,
+          atWrite: null,
+          last: null,
+          written: '2026-03-10T11:43:00Z',
+          by: 'agent',
+          ...found.row.item,
+        },
+      ],
+      notes: [
+        {
+          id: found.row.item.id,
+          owed: found.owed,
+          written: '2026-03-10T11:43:00Z',
+          note: 'Stop the simulator',
+        },
+      ],
+      session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
+      journal: [
+        {
+          ts: '2026-03-10T11:43:00Z',
+          op: found.row.journalOp,
+          id: found.row.item.id,
+          by: 'agent',
+          text: found.row.item.claim,
+          why: null,
+          extra: found.row.journalExtra,
+        },
+        {
+          ts: '2026-03-10T11:43:00Z',
+          op: 'note',
+          id: found.row.item.id,
+          by: 'agent',
+          text: 'Stop the simulator',
+          why: null,
+          extra: found.owed ? 'owed=1' : null,
+        },
+      ],
+    },
+    reply: `${found.row.replyHead}, note 18 of 400${found.owed ? ', owed' : ''}. Brief: 6 lines.`,
+  });
+});
+
 test('it writes a note that is not owed with no owed part in the reply or the journal', () => {
   const ctx = setupTest();
   const picked = getPickedWrite(ctx.pick(['rule', 'r-a', 'Run from api/', '--note', 'Why'], []), 6);
