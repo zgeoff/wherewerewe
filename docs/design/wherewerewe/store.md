@@ -200,7 +200,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 
 ## Versions
 
-- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. The item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks.
+- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. The other item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
 - A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
