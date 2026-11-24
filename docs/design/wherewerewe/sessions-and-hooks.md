@@ -146,7 +146,7 @@ The gate changes state only on a hook event, and no rule reads a clock. Each eve
 
 | State | `SessionStart` | brief command | other call | whole | cut | failed | `Stop` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `wiped` | `wiped`, `spare=1`, `reads` kept; prints the goal, the grant and the two lines | `reading`; passes | refused | `read` | no change | no change | blocks when `stop_hook_active` is false, and passes when it is true |
+| `wiped` | `wiped`, `spare=1`, `reads` kept; prints the goal, the grant and the two lines | `reading`; passes | refused | `read` | no change | no change | blocks when `stop_hook_active` is false; when it is true, `failed`, and passes |
 | `reading` | the same | passes | refused | `read` | `cut` when `reads` reaches 0 | `failed` when `reads` reaches 0 | `failed`; passes |
 | `cut` | the same | `reading`; passes | with `spare=1`, refused with the cut reason and `spare=0`; with `spare=0`, `open`, and passes with the line | `read` | no change | no change | passes |
 | `failed` | the same | passes | `open`; passes with the line | `read` | no change | no change | passes |
@@ -220,7 +220,7 @@ The gate never stops an agent for long: after a read ends with no whole brief, i
 - When a hook cannot start, fails or times out, both hosts run the call. `www install` never sets `onFailure: "block"`.
 - When the brief command ends with no whole read, the state is `failed`, and the next call that is not a `www` command passes with the fail-open line. That covers `www` missing from the agent's `PATH`, a crash, exit 4, exit 5, and a brief over Claude Code's limit. The reason is in `www`'s own output, already in context. A `www` that the host refuses before it runs may send no end event, on either host, so the state becomes `failed` when the turn ends.
 - When a Codex read is cut, the gate refuses one call with the cut reason, and no more however many retries are cut; the agent can read again with `max_output_tokens`. A failed retry opens the gate on the next call.
-- `Stop` blocks only while the state is `wiped`, and never when `stop_hook_active` is true. So it blocks at most once per turn while the state stays `wiped`, on either host, below Claude Code's cap of 8 consecutive continues.
+- `Stop` blocks only while the state is `wiped`, and never when `stop_hook_active` is true. So it blocks at most once per turn while the state stays `wiped`, on either host, below Claude Code's cap of 8 consecutive continues. A `Stop` that passes in `wiped` writes `failed`, so the next turn's first call that is not a `www` command passes with the fail-open line instead of meeting a gate the agent was already stopped on once.
 
 #### What counts as a whole read
 
