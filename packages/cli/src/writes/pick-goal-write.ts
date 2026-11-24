@@ -1,5 +1,6 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
@@ -37,7 +38,7 @@ export function pickGoalArgsRefusal(args: ParsedArgs): RefusalReason | null {
       {
         target: { label: 'goal', place: { positional: 0 } },
         text: args.positionals[0] ?? '',
-        limit: 200,
+        limit: textLimits.goal,
       },
     ],
     false,

@@ -2,6 +2,7 @@ import { formatAge } from '../brief/format-age.ts';
 import { wrapBlock } from '../brief/wrap-block.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import {
   buildChangedNotes,
@@ -85,7 +86,7 @@ export function pickNowArgsRefusal(args: ParsedArgs): RefusalReason | null {
         {
           target: { label: 'next step', place: { positional: 1 } },
           text: args.positionals[1] ?? '',
-          limit: 120,
+          limit: textLimits.nextStep,
         },
       ],
       false,

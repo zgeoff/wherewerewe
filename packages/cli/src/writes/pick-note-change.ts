@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { formatTimestamp } from '../format-timestamp.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { JournalRow, Note, ParsedArgs, RefusalReason, Store } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 
@@ -43,7 +44,7 @@ export function pickNoteTextRefusal(args: ParsedArgs): RefusalReason | null {
     ? null
     : pickTextRefusal(
         args,
-        [{ target: { label: 'note', place: { flag: 'note' } }, text, limit: 400 }],
+        [{ target: { label: 'note', place: { flag: 'note' } }, text, limit: textLimits.note }],
         false,
       );
 }

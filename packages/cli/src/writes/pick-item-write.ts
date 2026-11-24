@@ -10,6 +10,7 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { itemCaps } from '../rules/item-caps.ts';
 import { parseCheckFlags } from '../rules/parse-check-flags.ts';
 import type { CheckFlagsResult } from '../rules/parse-check-flags.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { Extra, Item, Kind, Note, ParsedArgs, RefusalReason, Store } from '../types.ts';
 import {
   buildChangedNotes,
@@ -211,10 +212,10 @@ interface ApprovalText {
 }
 
 const approvalFlags: readonly ApprovalText[] = [
-  { flag: 'quote', limit: 120 },
-  { flag: 'who', limit: 16 },
-  { flag: 'where', limit: 16 },
-  { flag: 'scope', limit: 40 },
+  { flag: 'quote', limit: textLimits.quote },
+  { flag: 'who', limit: textLimits.approvalWho },
+  { flag: 'where', limit: textLimits.approvalWhere },
+  { flag: 'scope', limit: textLimits.approvalScope },
 ];
 
 function pickApprovalRefusal(args: ParsedArgs): RefusalReason | null {
@@ -270,7 +271,13 @@ function pickClaimRefusal(
     ? null
     : pickTextRefusal(
         args,
-        [{ target: { label: 'claim', place: { positional: 1 } }, text: claim, limit: 120 }],
+        [
+          {
+            target: { label: 'claim', place: { positional: 1 } },
+            text: claim,
+            limit: textLimits.claim,
+          },
+        ],
         existing !== undefined && existing.kind !== 'where',
       );
 }
@@ -324,7 +331,7 @@ function pickWhoRefusal(args: ParsedArgs, existing: Item | undefined): RefusalRe
 
   const reason = pickTextRefusal(
     args,
-    [{ target: { label: 'who', place: { flag: 'who' } }, text: who, limit: 16 }],
+    [{ target: { label: 'who', place: { flag: 'who' } }, text: who, limit: textLimits.waitWho }],
     existing !== undefined && existing.kind !== 'where',
   );
 
@@ -417,9 +424,9 @@ function pickFullKind(
     : null;
 }
 
-// `<k> of 400`, then `, owed` for an owed note.
+// `<k> of <note limit>`, then `, owed` for an owed note.
 function formatNotePart(note: Note): string {
-  return `${String(Array.from(note.note, (character) => character).length)} of 400${note.owed ? ', owed' : ''}`;
+  return `${String(Array.from(note.note, (character) => character).length)} of ${String(textLimits.note)}${note.owed ? ', owed' : ''}`;
 }
 
 function pickCheckRef(checks: CheckFlagsResult): string | null {

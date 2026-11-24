@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
@@ -10,6 +10,7 @@ import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import type { PullRequestRow } from '../types.ts';
+import { checkLimits } from './check-limits.ts';
 import { runChecks } from './run-checks.ts';
 
 function setupTest() {
@@ -150,7 +151,7 @@ printf '%s' '${ctx.passing}'`,
     items.map((item) => item.id),
     items,
     [],
-    { deadlineMs: 5000, env: ctx.env, now: ctx.now },
+    { deadlineMs: checkLimits.deadlineMs, env: ctx.env, now: ctx.now },
   );
 
   const startedBeforeRelease = await waitFor(async () => {
@@ -274,4 +275,42 @@ test('it writes nothing in a repo: the files of .git hold the same hashes after 
 
   expect(Object.keys(before)).toContain('index');
   expect(after).toStrictEqual(before);
+});
+
+test('it runs no git fetch, pull, push, ls-remote or remote update in any probe', async () => {
+  const root = createTempDir('probe-git-verbs').path;
+  const bin = join(root, 'bin');
+  const log = join(root, 'git-calls');
+
+  const repo = await seedGitRepo(root);
+
+  const realGit = Bun.which('git');
+
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(log, '');
+  seedStubCommand(bin, 'git', `echo "$*" >> "${log}"\nexec "${realGit}" "$@"`);
+
+  const env = { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test', PATH: bin };
+
+  const run = (argv: readonly string[]) =>
+    runCLI({ argv, env, cwd: '/work', terminal: { stdin: false, stdout: false }, now: () => 0 });
+
+  await run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await run(['where', 'wt-a', 'A tree', '--path', repo.folder]);
+  await run(['where', 'br-a', 'A branch', '--branch', `${repo.folder}@main`]);
+  await run([]);
+  await run(['show', 'br-a']);
+  await run(['show', 'wt-a']);
+
+  const calls = readFileSync(log, 'utf8')
+    .split('\n')
+    .filter((line) => line !== '');
+
+  const forbidden = calls.filter(
+    (call) =>
+      call.includes('remote update') ||
+      call.split(' ').some((word) => ['fetch', 'pull', 'push', 'ls-remote'].includes(word)),
+  );
+
+  expect({ ran: calls.length > 0, forbidden }).toStrictEqual({ ran: true, forbidden: [] });
 });

@@ -237,7 +237,7 @@ test('it refuses standing approvals with no --may, and its Run line adds the gra
     "www: refused: garden-beds holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
     '  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api',
     '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds',
-    'Run: www import garden-beds --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
+    'Run: www import garden-beds --may <what the owner allows, in their words> --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
   ]);
 });
 
@@ -356,7 +356,7 @@ test('it refuses every problem at once, each with its lines, and one Run line th
     '  ok-b     "push the garden-api tags" · garden-api  [2d]',
     'www: refused: format 2 keeps the id grant for the grant, and garden-beds has an item grant. Drop it, and write it again under a new id after the upgrade.',
     'www: refused: --drop nope names no item in garden-beds. Items: ok-merge, ok-deploy, ok-wipe, t-valves, t-timer, r-tests, ok-b, grant.',
-    'Run: www import garden-beds --drop ok-wipe --drop grant --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
+    'Run: www import garden-beds --drop ok-wipe --drop grant --may <what the owner allows, in their words> --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
   ]);
 });
 
@@ -429,7 +429,7 @@ test('it prints no credential from a stored approval or a --drop value, in a lin
     '  ok-merge   "<where the secret lives>" · garden-api',
     '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds',
     'www: refused: --drop <where the secret lives> names no item in garden-beds. Items: ok-merge, ok-deploy, ok-wipe, t-valves, t-timer, r-tests.',
-    'Run: www import garden-beds --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
+    'Run: www import garden-beds --may <what the owner allows, in their words> --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
   ]);
 });
 

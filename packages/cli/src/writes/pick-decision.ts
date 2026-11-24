@@ -1,5 +1,6 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
@@ -71,7 +72,13 @@ export function pickDecisionArgsRefusal(args: ParsedArgs): RefusalReason | null 
 
   const choiceReason = pickTextRefusal(
     args,
-    [{ target: { label: 'decision', place: { positional: 0 } }, text: choice, limit: 200 }],
+    [
+      {
+        target: { label: 'decision', place: { positional: 0 } },
+        text: choice,
+        limit: textLimits.decision,
+      },
+    ],
     false,
   );
 
@@ -85,7 +92,7 @@ export function pickDecisionArgsRefusal(args: ParsedArgs): RefusalReason | null 
 
   const whyReason = pickTextRefusal(
     args,
-    [{ target: { label: 'reason', place: { flag: 'why' } }, text: why, limit: 200 }],
+    [{ target: { label: 'reason', place: { flag: 'why' } }, text: why, limit: textLimits.why }],
     false,
   );
 

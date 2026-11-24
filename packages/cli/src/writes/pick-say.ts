@@ -1,6 +1,7 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { isItemID } from '../rules/is-item-id.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
@@ -79,7 +80,7 @@ export function pickSayArgsRefusal(args: ParsedArgs): RefusalReason | null {
       {
         target: { label: 'owner note', place: { positional: 0 } },
         text: args.positionals[0] ?? '',
-        limit: 160,
+        limit: textLimits.ownerNote,
       },
     ],
     false,
