@@ -26,6 +26,6 @@ The gate never stops an agent for long. It changes state only on hook events, an
 
 ## Consequences
 
-- A session whose `www` fails goes on without its brief, and `www`'s own output, already in context, says why.
+- A session whose `www` fails goes on without its brief, and the reason is in `www`'s own output, already in context.
 - When the permission step refuses `www`, the gate stays shut until the turn ends. The allow rules that `www install` writes keep `www` from reaching that step.
-- Claude Code takes a sixth hook entry, for `PostToolUseFailure`. Codex reports a failed shell call through `PostToolUse` with its exit code, as its docs say.
+- Claude Code takes a sixth hook entry, for `PostToolUseFailure`. Codex fires `PostToolUse` after a failed shell call too, as its docs say, and the hook sorts the call by its output. The Codex docs do not say whether a rejected or sandbox-refused call fires any hook, so the gate closes that case at the end of the turn on both hosts.
