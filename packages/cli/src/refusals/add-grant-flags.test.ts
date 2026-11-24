@@ -8,8 +8,8 @@ test('it adds all three flags in order to a command that typed none', () => {
 
   expect(addGrantFlags(buildRunSpec(args), new Set()).toArgv()).toStrictEqual([
     'grant',
-    '--quote',
-    "<the owner's words, whole>",
+    '--may',
+    '<what the owner allows, in their words>',
     '--where',
     'chat',
     '--reading',
@@ -24,8 +24,8 @@ test('it adds only the flags that the command did not type', () => {
     'grant',
     '--where',
     'terminal',
-    '--quote',
-    "<the owner's words, whole>",
+    '--may',
+    '<what the owner allows, in their words>',
     '--reading',
     '<what they cover; what the owner kept back>',
   ]);

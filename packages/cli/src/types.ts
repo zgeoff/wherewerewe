@@ -50,10 +50,19 @@ export interface Note {
 }
 
 export interface Grant {
-  // the owner's words, 1 to 700 characters, one line: www grant turns each line break into a space
-  readonly words: string;
+  // what the owner allows, one bullet each in the owner's words; at least one
+  readonly may: readonly string[];
 
-  // the agent's reading of what the words cover and what the owner kept back, 1 to 200 characters
+  // what the owner did not grant, one bullet each in the owner's words
+  readonly not: readonly string[];
+
+  // what the owner ruled out, one bullet each in the owner's words
+  readonly never: readonly string[];
+
+  // where the grant applies, in the owner's words, 1 to 40 characters; null when the owner gave none
+  readonly scope: string | null;
+
+  // the agent's reading of what the bullets cover and what the owner kept back, 1 to 200 characters
   readonly reading: string;
 
   // where the owner gave the words, 1 to 16 characters, no ';' or '='
@@ -68,7 +77,7 @@ export interface SessionFile {
   readonly name: string;
   readonly goal: string;
 
-  // null when the session holds no grant; the four grant keys are empty on disk
+  // null when the session holds no grant: no bullet lines, and the other grant keys empty on disk
   readonly grant: Grant | null;
   readonly started: string;
 
@@ -215,6 +224,9 @@ interface ArgValues {
   readonly where?: string | undefined;
   readonly scope?: string | undefined;
   readonly quote?: string | undefined;
+  readonly may?: string[] | undefined;
+  readonly not?: string[] | undefined;
+  readonly never?: string[] | undefined;
   readonly reading?: string | undefined;
   readonly drop?: string[] | undefined;
   readonly why?: string | undefined;
@@ -262,7 +274,8 @@ type TextLabel =
   | 'where'
   | 'scope'
   | 'quote'
-  | 'words'
+  | 'bullet'
+  | "grant's scope"
   | 'reading'
   | 'owner note'
   | 'decision'
@@ -272,7 +285,12 @@ type TextLabel =
 // Where a text sits in the typed command.
 export interface TextTarget {
   readonly label: TextLabel;
-  readonly place: { readonly positional: number } | { readonly flag: string };
+
+  // a flag that repeats, such as --may, names the value by its place among that flag's values
+  readonly place:
+    | { readonly positional: number }
+    | { readonly flag: string }
+    | { readonly flag: string; readonly occurrence: number };
 }
 
 export interface SessionSummary {
@@ -350,6 +368,11 @@ export type RefusalReason =
       readonly kind: 'grant-words-too-long';
       readonly args: ParsedArgs;
       readonly length: number;
+    }
+  | {
+      readonly kind: 'grant-too-many-bullets';
+      readonly args: ParsedArgs;
+      readonly count: number;
     }
   | { readonly kind: 'decide-needs-why'; readonly args: ParsedArgs }
   | { readonly kind: 'bad-decision-who'; readonly args: ParsedArgs }

@@ -5,6 +5,7 @@ import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
 import { formatList } from './format-list.ts';
+import { replaceGrantBullets } from './replace-grant-bullets.ts';
 
 type UpgradeRefusalReason = Extract<RefusalReason, { kind: 'upgrade-refused' }>;
 
@@ -61,7 +62,7 @@ function buildProblemLines(
       `www: refused: format 2 keeps the id grant for the grant, and ${name} has an item grant. Drop it, and write it again under a new id after the upgrade.`,
     ])
     .with({ kind: 'grant-needs-part' }, () => [
-      "www: refused: a grant needs the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
     ])
     .with({ kind: 'grant-text' }, (found) => [...buildReason(found.reason).lines])
     .with({ kind: 'drop-unknown' }, (found) => [
@@ -118,37 +119,68 @@ function dropAllButNewest(spec: RunSpec, approvals: readonly ApprovalLine[]): Ru
     .reduce((current, approval) => current.addFlag('drop', approval.id), spec);
 }
 
-// The Run line of the text problem alone holds the value that replaces the flag's text.
+interface FlagPlace {
+  readonly flag: string;
+
+  // the value's place among the flag's values, for a flag that repeats; null for one that does not
+  readonly occurrence: number | null;
+}
+
+// The Run line of the text problem alone holds the value that replaces the flag's text. Too many
+// bullets or too many words replace every bullet, as that problem's own Run line does.
 function replaceTextFlag(
   spec: RunSpec,
   reason: RefusalReason,
   buildReason: (reason: RefusalReason) => Refusal,
 ): RunSpec {
-  const flag = match(reason)
+  const place: FlagPlace | null = match(reason)
     .with(
       { kind: 'text-too-long' },
       { kind: 'text-not-one-line' },
       { kind: 'text-empty' },
       { kind: 'credential' },
-      (text) => ('flag' in text.target.place ? text.target.place.flag : null),
+      (text): FlagPlace | null =>
+        'flag' in text.target.place
+          ? {
+              flag: text.target.place.flag,
+              occurrence: 'occurrence' in text.target.place ? text.target.place.occurrence : null,
+            }
+          : null,
     )
-    .with({ kind: 'grant-words-too-long' }, () => 'quote')
-    .with({ kind: 'extra-has-separator' }, (separator) => separator.flag)
+    .with({ kind: 'extra-has-separator' }, (separator) => ({
+      flag: separator.flag,
+      occurrence: null,
+    }))
     .otherwise(() => null);
+
+  if (reason.kind === 'grant-words-too-long' || reason.kind === 'grant-too-many-bullets') {
+    return replaceGrantBullets(spec, reason.args.flags);
+  }
 
   const [run] = buildReason(reason).runs;
   const argv = run !== undefined && 'www' in run ? run.www : [];
-  const value = flag === null ? null : readFlagValue(argv, flag);
+  const value = place === null ? null : readFlagValue(argv, place.flag, place.occurrence ?? 0);
 
-  return flag === null || value === null ? spec : spec.replaceFlag(flag, value);
+  if (place === null || value === null) {
+    return spec;
+  }
+
+  return place.occurrence === null
+    ? spec.replaceFlag(place.flag, value)
+    : spec.replaceFlagAt(place.flag, place.occurrence, value);
 }
 
-// The value of --flag in a Run line's words, typed as --flag value or --flag=value.
-function readFlagValue(argv: readonly string[], flag: string): string | null {
-  const at = argv.findIndex((word) => word === `--${flag}` || word.startsWith(`--${flag}=`));
-  const word = argv.at(at);
+// The value of the given occurrence of --flag in a Run line's words, typed as --flag value or
+// --flag=value.
+function readFlagValue(argv: readonly string[], flag: string, occurrence: number): string | null {
+  const places = argv.flatMap((word, at) =>
+    word === `--${flag}` || word.startsWith(`--${flag}=`) ? [at] : [],
+  );
 
-  if (at === -1 || word === undefined) {
+  const at = places.at(occurrence);
+  const word = at === undefined ? undefined : argv.at(at);
+
+  if (at === undefined || word === undefined) {
     return null;
   }
 

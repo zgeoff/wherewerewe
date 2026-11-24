@@ -105,8 +105,8 @@ test('it refuses ok --standing and sends the owner words to the grant', () => {
         {
           www: [
             'grant',
-            '--quote',
-            "<the owner's words, whole>",
+            '--may',
+            '<what the owner allows, in their words>',
             '--where',
             'terminal',
             '--reading',

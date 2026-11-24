@@ -51,6 +51,9 @@ const options = {
   where: { type: 'string' },
   scope: { type: 'string' },
   quote: { type: 'string' },
+  may: { type: 'string', multiple: true },
+  not: { type: 'string', multiple: true },
+  never: { type: 'string', multiple: true },
   reading: { type: 'string' },
   drop: { type: 'string', multiple: true },
   why: { type: 'string' },
@@ -77,6 +80,7 @@ const options = {
 
 const checkFlags = ['pr', 'branch', 'path', 'pid'];
 const noteFlags = ['note', 'owed'];
+const grantFlags = ['may', 'not', 'never', 'scope', 'where', 'reading'];
 
 interface CommandShape {
   readonly counts: readonly number[];
@@ -92,9 +96,9 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ['detach', { counts: [0], usage: 'no arguments', flags: [] }],
   ['init', { counts: [1], usage: '<name>', flags: ['goal'] }],
   ['attach', { counts: [1], usage: '<name>', flags: [] }],
-  ['import', { counts: [1], usage: '<name>', flags: ['quote', 'where', 'reading', 'drop'] }],
+  ['import', { counts: [1], usage: '<name>', flags: [...grantFlags, 'drop'] }],
   ['goal', { counts: [1], usage: '"<what done means>"', flags: [] }],
-  ['grant', { counts: [0], usage: 'no arguments', flags: ['quote', 'where', 'reading'] }],
+  ['grant', { counts: [0], usage: 'no arguments', flags: grantFlags }],
   ['now', { counts: [2], usage: '<id> "<next step>"', flags: noteFlags }],
   [
     'task',

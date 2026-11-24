@@ -174,7 +174,7 @@ test.each([
   { command: 'goal', argv: ['goal', 'Ship more', '--session', 'sample'], isOwner: false },
   {
     command: 'grant',
-    argv: ['grant', '--quote', 'Go.', '--where', 'chat', '--reading', 'r', '--session', 'sample'],
+    argv: ['grant', '--may', 'Go.', '--where', 'chat', '--reading', 'r', '--session', 'sample'],
     isOwner: false,
   },
   { command: 'now', argv: ['now', 't-valves', 'go', '--session', 'sample'], isOwner: false },
@@ -606,12 +606,13 @@ test.each([
     },
   ],
   [
-    'grant --quote',
+    'grant --may',
     [['init', 'tide-alerts', '--goal', 'Ship it']],
-    ['grant', '--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
+    ['grant', '--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
     {
       env: {},
-      stdout: 'grant: 18 of 700 characters, reading 13 of 200. Brief: 7 lines.\n',
+      stdout:
+        'grant: 18 of 700 characters in 1 of 12 bullets, reading 13 of 200. Brief: 7 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -619,7 +620,7 @@ test.each([
     'grant --reading',
     [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
-      ['grant', '--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
+      ['grant', '--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
     ],
     ['grant', '--reading', 'covers merges and nothing else'],
     {
@@ -680,7 +681,7 @@ test.each([
       stdout: [
         'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
         'GOAL  Ship it',
-        `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"`,
+        `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
         'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',
@@ -1231,7 +1232,7 @@ test('it names the agent as the writer of the words the format 2 upgrade set', a
   await ctx.run([
     'import',
     'sample',
-    '--quote',
+    '--may',
     'Merge the garden-api pull requests yourself.',
     '--where',
     'chat',
@@ -1241,15 +1242,15 @@ test('it names the agent as the writer of the words the format 2 upgrade set', a
 
   const result = await ctx.run(['--session', 'sample', 'show', 'grant']);
 
-  expect(result.stdout.split('\n').at(0)).toMatch(
-    /^grant {2}from the owner in chat, words set on day \d+ by agent, reading set on day \d+$/u,
+  expect(result.stdout.split('\n').at(1)).toMatch(
+    /^ {2}words \(\d+m\), set on day \d+ by agent:$/u,
   );
 });
 
 test("it names the agent as the writer of the words when the agent writes the owner's words again in the same second", async () => {
   const ctx = setupTest();
   const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
-  const grant = ['--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
+  const grant = ['--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
 
@@ -1267,9 +1268,10 @@ test("it names the agent as the writer of the words when the agent writes the ow
   expect(result).toStrictEqual({
     exitCode: 0,
     stdout: [
-      'grant  from the owner in chat, words set on day 1 by agent, reading set on day 1',
-      '  words (0m): "Merge it yourself."',
-      '  reading (0m): covers merges',
+      'grant  from the owner in chat',
+      '  words (0m), set on day 1 by agent:',
+      '  may    • Merge it yourself.',
+      '  reading (0m), set on day 1: covers merges',
       '  journal: day 1 grant · day 1 grant',
       '',
     ].join('\n'),
@@ -1280,7 +1282,7 @@ test("it names the agent as the writer of the words when the agent writes the ow
 test('it names the agent as the writer of the words after the owner replaces the reading alone in the same second', async () => {
   const ctx = setupTest();
   const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
-  const grant = ['--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
+  const grant = ['--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
 
@@ -1306,9 +1308,10 @@ test('it names the agent as the writer of the words after the owner replaces the
   expect(result).toStrictEqual({
     exitCode: 0,
     stdout: [
-      'grant  from the owner in chat, words set on day 1 by agent, reading set on day 1',
-      '  words (0m): "Merge it yourself."',
-      '  reading (0m): covers merges and nothing else',
+      'grant  from the owner in chat',
+      '  words (0m), set on day 1 by agent:',
+      '  may    • Merge it yourself.',
+      '  reading (0m), set on day 1: covers merges and nothing else',
       '  journal: day 1 grant · day 1 grant · day 1 grant',
       '',
     ].join('\n'),
@@ -1492,7 +1495,7 @@ test('it leaves an item open with no note when a task with a note stops after it
       stdout: [
         'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
         'GOAL  Ship it',
-        `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"`,
+        `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
         'OPEN (1 of 6)',
         '  t-a         Write it  [no check · 0m]',
@@ -1552,7 +1555,7 @@ test('it reads a closed item as closed and drops its notes.tsv row at the next n
       stdout: [
         'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
         'GOAL  Ship it',
-        `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"`,
+        `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
         'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',

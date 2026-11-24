@@ -69,7 +69,7 @@ export function pickImport(hand: HandKeptStore, options: ImportOptions): ImportP
     };
   }
 
-  const parts = buildUpgradeParts(allItems, options.args.values, options);
+  const parts = buildUpgradeParts(allItems, options.args, options);
   const converted = parts.items;
   const carried = facts.journal.map((row) => convertRow(row));
   const base = buildSession(hand, options.name, facts);

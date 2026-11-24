@@ -5,6 +5,7 @@ export interface RunSpec {
   readonly replacePositional: (index: number, value: string) => RunSpec;
   readonly addPositional: (value: string) => RunSpec;
   readonly replaceFlag: (name: string, value: string) => RunSpec;
+  readonly replaceFlagAt: (name: string, occurrence: number, value: string) => RunSpec;
   readonly addFlag: (name: string, value: string) => RunSpec;
   readonly addFlagBefore: (beforeName: string, name: string, value: string) => RunSpec;
   readonly addWord: (word: string) => RunSpec;
@@ -63,6 +64,15 @@ function makeSpec(state: SpecState): RunSpec {
 
           return at === last ? [{ name, value }] : [];
         }),
+      });
+    },
+    replaceFlagAt: (name, occurrence, value) => {
+      const places = state.flags.flatMap((flag, at) => (flag.name === name ? [at] : []));
+      const place = places.at(occurrence);
+
+      return makeSpec({
+        ...state,
+        flags: state.flags.map((flag, at) => (at === place ? { name, value } : flag)),
       });
     },
     addFlag: (name, value) => makeSpec({ ...state, flags: [...state.flags, { name, value }] }),

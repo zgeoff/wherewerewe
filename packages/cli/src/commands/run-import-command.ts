@@ -12,6 +12,7 @@ import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
 import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatRefusal } from '../refusals/format-refusal.ts';
+import { countGrantWords } from '../rules/count-grant-words.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { findAgentID } from '../sessions/find-agent-id.ts';
 import { readSessionSummaries } from '../sessions/read-session-summaries.ts';
@@ -200,9 +201,7 @@ async function writeWithBinding(
 }
 
 function describeGrant(grant: Grant | null): string {
-  return grant === null
-    ? 'no grant'
-    : `grant ${String(Array.from(grant.words, (character) => character).length)} of 700 characters`;
+  return grant === null ? 'no grant' : `grant ${String(countGrantWords(grant))} of 700 characters`;
 }
 
 // A store that reads whole is refused as converted already, with a Run line that binds the agent.

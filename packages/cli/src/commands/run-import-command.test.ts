@@ -82,7 +82,7 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
     [
       'import',
       'old-notes',
-      '--quote',
+      '--may',
       'Push the alert branches yourself.',
       '--where',
       'terminal',
@@ -120,7 +120,7 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
   }).toStrictEqual({
     files: {
       session:
-        'format=2\nname=old-notes\ngoal=Ship the kiln alerts\ngrant=Push the alert branches yourself.\ngrant_reading=covers pushes to the alert branches\ngrant_where=terminal\ngrant_set=2026-03-10T11:43:00Z\nstarted=2026-04-06T09:00:00Z\nnow=t-alerts\nnow_next=write the rule test\nnow_set=2026-04-07T10:15:00Z\nlast_write=2026-04-07T09:40:00Z\nlast_nudge=\nimported_from=0-by-hand\n',
+        'format=2\nname=old-notes\ngoal=Ship the kiln alerts\ngrant_may=Push the alert branches yourself.\ngrant_scope=\ngrant_reading=covers pushes to the alert branches\ngrant_where=terminal\ngrant_set=2026-03-10T11:43:00Z\nstarted=2026-04-06T09:00:00Z\nnow=t-alerts\nnow_next=write the rule test\nnow_set=2026-04-07T10:15:00Z\nlast_write=2026-04-07T09:40:00Z\nlast_nudge=\nimported_from=0-by-hand\n',
       items: [
         'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra',
         't-alerts\ttask\tAlert rule fires above 1,280 °C\tpr:kilnworks/pottery-app#12\t-\t-\t2026-04-07T10:15:00Z\tagent\tblocked_by=w-probe',
@@ -144,7 +144,7 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
         '2026-04-07T09:30:00Z\tuse\tok-once\timport\tmerged the setup PR\t-\t-',
         '2026-04-07T09:40:00Z\tdrop\tt-spike\timport\tthe old probe is gone\t-\t-',
         '2026-03-10T11:43:00Z\tdrop\tok-push\tagent\tpush the alert branches yourself\tfolded into the grant by the format 2 upgrade\t-',
-        '2026-03-10T11:43:00Z\tgrant\tgrant\tagent\tPush the alert branches yourself.\tcovers pushes to the alert branches\twhere=terminal',
+        '2026-03-10T11:43:00Z\tgrant\tgrant\tagent\tmay: Push the alert branches yourself.\tcovers pushes to the alert branches\twhere=terminal',
         '2026-03-10T11:43:00Z\timport\told-notes\tagent\t0-by-hand -> 2\t-\t-',
         '2026-03-10T11:43:00Z\tbind\told-notes\tagent\timport\t-\tharness=claude;agent=a1b2-test',
         '',
@@ -963,7 +963,7 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
   });
 
   const filled = buildFilledRunArgv(runLine ?? '', {
-    "<the owner's words, whole>": 'Merge and deploy to the staging beds yourself.',
+    '<what the owner allows, in their words>': 'Merge and deploy to the staging beds yourself.',
     '<what they cover; what the owner kept back>': 'covers garden-api merges and staging deploys',
   });
 
@@ -973,7 +973,7 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
   expect({
     upgraded,
     backup: formatOneFiles.map((file) => ctx.readText(`old-notes/format-1-backup/${file}`)),
-    session: ctx.readText('old-notes/session').split('\n').slice(0, 7),
+    session: ctx.readText('old-notes/session').split('\n').slice(0, 8),
     itemIDs: ctx
       .readText('old-notes/items.tsv')
       .split('\n')
@@ -992,7 +992,8 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
       'format=2',
       'name=old-notes',
       'goal=Ship soil-moisture alerts for the garden irrigation app',
-      'grant=Merge and deploy to the staging beds yourself.',
+      'grant_may=Merge and deploy to the staging beds yourself.',
+      'grant_scope=',
       'grant_reading=covers garden-api merges and staging deploys',
       'grant_where=chat',
       'grant_set=2026-03-10T11:43:00Z',
@@ -1016,7 +1017,7 @@ test('it finishes a stopped upgrade from format-1-backup/ into the store a clean
   const argv = [
     'import',
     'old-notes',
-    '--quote',
+    '--may',
     'Merge and deploy to the staging beds yourself.',
     '--where',
     'chat',
@@ -1066,5 +1067,114 @@ test('it finishes a stopped upgrade from format-1-backup/ into the store a clean
       stdout: cleanResult.stdout.replaceAll(clean.folder, ctx.folder),
     },
     tree: await readTreeHashes(clean.folder),
+  });
+});
+
+test('it upgrades a format 1 store with --may, --not, --never and --scope, and writes the bullet lines and the grant journal row', async () => {
+  const ctx = setupTest();
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+  seedFormat1Store(ctx.stateRoot, 'old-notes');
+
+  const upgraded = await ctx.run(
+    [
+      'import',
+      'old-notes',
+      '--may',
+      'water the beds',
+      '--may',
+      'mow the lawn',
+      '--not',
+      'prune the roses',
+      '--never',
+      'dig up the roses',
+      '--scope',
+      'garden-api',
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering and mowing',
+    ],
+    { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    nowMs,
+  );
+
+  const journal = ctx.readText('old-notes/journal.tsv').split('\n');
+
+  expect({
+    firstLine: upgraded.stdout.split('\n').at(0),
+    exitCode: upgraded.exitCode,
+    session: ctx.readText('old-notes/session').split('\n').slice(0, 11),
+    grantRow: journal.find((line) => line.includes('\tgrant\tgrant\t')),
+  }).toStrictEqual({
+    firstLine: `Upgraded old-notes to format 2: grant 67 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in ${ctx.folder}/format-1-backup/.`,
+    exitCode: 0,
+    session: [
+      'format=2',
+      'name=old-notes',
+      'goal=Ship soil-moisture alerts for the garden irrigation app',
+      'grant_may=water the beds',
+      'grant_may=mow the lawn',
+      'grant_not=prune the roses',
+      'grant_never=dig up the roses',
+      'grant_scope=garden-api',
+      'grant_reading=covers watering and mowing',
+      'grant_where=chat',
+      'grant_set=2026-03-10T11:43:00Z',
+    ],
+    grantRow:
+      '2026-03-10T11:43:00Z\tgrant\tgrant\tagent\tmay: water the beds • mow the lawn · not: prune the roses · never: dig up the roses · scope: garden-api\tcovers watering and mowing\twhere=chat',
+  });
+});
+
+test('it refuses an upgrade with a second bullet of 121 characters and one Run line that fixes it and drops the extra one-time approvals', async () => {
+  const ctx = setupTest();
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
+
+  seedFormat1Store(ctx.stateRoot, 'old-notes');
+
+  seedStoreFile(
+    ctx.folder,
+    'items.tsv',
+    `${ctx.readText('old-notes/items.tsv')}ok-tags\tok\tpush the garden-api tags\t-\t-\t-\t2026-03-08T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=once\n`,
+  );
+
+  const refused = await ctx.run(
+    [
+      'import',
+      'old-notes',
+      '--may',
+      'water the beds',
+      '--may',
+      'b'.repeat(121),
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env,
+    nowMs,
+  );
+
+  const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www'));
+
+  const filled = buildFilledRunArgv(runLine ?? '', {
+    '<bullet of at most 120 characters>': 'mow the lawn',
+  });
+
+  const upgraded = await ctx.run(filled, env, nowMs);
+
+  expect({
+    exitCode: refused.exitCode,
+    runLine,
+    upgradedExit: upgraded.exitCode,
+    session: ctx.readText('old-notes/session').split('\n').slice(3, 6),
+  }).toStrictEqual({
+    exitCode: 3,
+    runLine:
+      'Run: www import old-notes --may "water the beds" --may "<bullet of at most 120 characters>" --where chat --reading "covers watering" --drop ok-wipe',
+    upgradedExit: 0,
+    session: ['grant_may=water the beds', 'grant_may=mow the lawn', 'grant_scope='],
   });
 });

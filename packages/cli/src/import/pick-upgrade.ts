@@ -98,7 +98,7 @@ export function pickUpgrade(files: Format1Files, options: UpgradeOptions): Upgra
     };
   }
 
-  const parts = buildUpgradeParts(items, args.values, options);
+  const parts = buildUpgradeParts(items, args, options);
 
   const keptIDs = new Set(parts.items.map((item) => item.id));
 

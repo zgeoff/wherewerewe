@@ -63,7 +63,7 @@ test('it renders each section of one invented store in order', () => {
     [
       'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 1 checks, not run yet',
       'GOAL  Ship tide alerts in bosun-api and bosun-app.',
-      `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"`,
+      `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
       'NOW  pr-api-77 · set 1h ago',
       '  next: watch CI, then request review',
       'OPEN (2 of 6)',
@@ -89,7 +89,7 @@ test('it leaves empty sections out and says NOW is none with the command to set 
   expect(brief.split('\n').slice(0, 4)).toStrictEqual([
     'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · no checks',
     'GOAL  Ship tide alerts in bosun-api and bosun-app.',
-    `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"`,
+    `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
     'NOW  none. Run: www now <id> "<next step>"',
   ]);
 
@@ -184,7 +184,7 @@ test('it puts the item in focus first among the tasks and pads a long id with tw
   expect(brief.split('\n').slice(0, 9)).toStrictEqual([
     'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks',
     'GOAL  Ship it',
-    `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"`,
+    `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
     'NOW  task-with-a-long-id · set 3m ago',
     '  next: go',
     'OPEN (2 of 6)',
@@ -302,7 +302,7 @@ test.each([
     false,
   ],
 ])(
-  'it renders the worst case with %s in 63 lines and at most 7,000 characters',
+  'it renders the worst case with %s in 73 lines and at most 7,200 characters',
   (_title, words, goalLines, isCut) => {
     const result = 'r'.repeat(15);
     const waits = buildMockIDs('wait', 4);
@@ -321,7 +321,10 @@ test.each([
         session: {
           format: '2',
           grant: {
-            words: buildSpacedText(700),
+            may: Array.from({ length: 7 }, () => 'm'.repeat(90)),
+            not: Array.from({ length: 5 }, () => 'x'.repeat(6)),
+            never: [],
+            scope: 's'.repeat(40),
             reading: buildSpacedText(200),
             where: 'w'.repeat(16),
             set: '2026-03-03T09:00:00Z',
@@ -409,20 +412,22 @@ test.each([
     expect({
       goalCharacters: words.join(' ').length,
       lines: brief.split('\n').length - 1,
-      isWithinLimit: Array.from(brief, (character) => character).length <= 7000,
+      isWithinLimit: Array.from(brief, (character) => character).length <= 7200,
       grantLines: brief
         .split('\n')
-        .filter((line) => /^(?: {2}"| {3}g| {2}reading: | {4}g)/u.test(line)).length,
+        .filter((line) =>
+          /^(?:GRANT {2}| {2}(?:may|not) +• | {9}• | {11}m| {2}reading: | {4}g)/u.test(line),
+        ).length,
       goalLines: brief
         .split('\n')
-        .filter((line) => line.startsWith('GOAL  ') || line.startsWith('      ')).length,
+        .filter((line) => line.startsWith('GOAL  ') || /^ {6}\S/u.test(line)).length,
       hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
       noteLines: brief.split('\n').filter((line) => /^ {4}n+$/u.test(line)).length,
     }).toStrictEqual({
       goalCharacters: 200,
-      lines: 63,
+      lines: 73,
       isWithinLimit: true,
-      grantLines: 12,
+      grantLines: 23,
       goalLines,
       hasCutLine: isCut,
       noteLines: 5,
@@ -581,14 +586,20 @@ test('it tags every item with an owed note, the item in focus included, and no i
 });
 
 test('it prints the grant whole and ends the last kept section with the cut line, when 12 tasks and 10 rules pass the limits', () => {
-  const words = buildSpacedText(700);
+  const mayBullet = buildSpacedText(120).replaceAll('g', 'x');
+  const may = Array.from({ length: 5 }, () => mayBullet);
   const reading = buildSpacedText(200);
+  const not = buildSpacedText(60).replaceAll('g', 'k');
+  const scope = 's'.repeat(40);
 
   const brief = renderBrief(
     buildMockBriefInput({
       session: buildMockSession({
         grant: {
-          words,
+          may,
+          not: [not],
+          never: [],
+          scope,
           reading,
           where: 'chat',
           set: '2026-03-03T09:00:00Z',
@@ -606,18 +617,24 @@ test('it prints the grant whole and ends the last kept section with the cut line
   const lines = brief.split('\n');
   const cutAt = lines.findIndex((line) => line.includes('lines cut to fit; run www show <id>)'));
 
+  const grantLines = lines.filter((line) =>
+    /^(?:GRANT {2}| {2}(?:may|not) +• | {9}• | {11}[xk]| {2}reading: | {4}g)/u.test(line),
+  );
+
   expect({
-    isWithinLines: lines.length - 1 <= 63,
-    isWithinLimit: Array.from(brief, (character) => character).length <= 7000,
-    grantLines: lines.filter((line) => /^(?: {2}"| {3}g| {2}reading: | {4}g)/u.test(line)).length,
-    hasWholeWords: brief.includes(words.slice(0, 80)) && brief.includes(words.slice(-60)),
+    isWithinLines: lines.length - 1 <= 73,
+    isWithinLimit: Array.from(brief, (character) => character).length <= 7200,
+    grantLines: grantLines.length,
+    mayCharacters: grantLines.join('').split('x').length - 1,
+    notCharacters: grantLines.join('').split('k').length - 1,
     cutEndsLastSection: lines[cutAt - 1]?.startsWith('  rule'),
     footerFollowsCut: lines[cutAt + 1]?.startsWith('Write as you go:'),
   }).toStrictEqual({
     isWithinLines: true,
     isWithinLimit: true,
-    grantLines: 12,
-    hasWholeWords: true,
+    grantLines: 15,
+    mayCharacters: 5 * 115,
+    notCharacters: 58,
     cutEndsLastSection: true,
     footerFollowsCut: true,
   });

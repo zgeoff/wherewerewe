@@ -207,7 +207,7 @@ test('it shows each note first after the goal, and refuses a third until one is 
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
 NOW  none. Run: www now <id> "<next step>"
@@ -221,7 +221,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (2) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
   o-2  Use readings  [on t-a · 0m]
@@ -242,7 +242,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-2  Use readings  [on t-a · 0m]
 NOW  none. Run: www now <id> "<next step>"
@@ -256,7 +256,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 NOW  none. Run: www now <id> "<next step>"
 OPEN (1 of 6)
   t-a         Write it  [no check · 0m]

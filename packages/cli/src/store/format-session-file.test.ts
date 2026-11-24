@@ -23,7 +23,7 @@ test('it writes the keys in the design order, the grant keys empty with no grant
       'format=2',
       'name=tide-alerts',
       'goal=Ship it = done',
-      'grant=',
+      'grant_scope=',
       'grant_reading=',
       'grant_where=',
       'grant_set=',
@@ -38,14 +38,17 @@ test('it writes the keys in the design order, the grant keys empty with no grant
   );
 });
 
-test('it writes the four grant keys after the goal when the session holds a grant', () => {
+test('it writes the bullet lines in order, then the four grant keys, after the goal', () => {
   const text = formatSessionFile({
     format: '2',
     name: 'tide-alerts',
     goal: 'Ship it',
     grant: {
-      words: 'Merge the alert PRs yourself.',
-      reading: 'covers merges on green CI',
+      may: ['water the beds', 'mow the lawn'],
+      not: ['prune the roses'],
+      never: ['dig up the roses'],
+      scope: 'in the east garden',
+      reading: 'covers watering and mowing',
       where: 'chat',
       set: '2026-03-03T09:00:00Z',
     },
@@ -58,15 +61,20 @@ test('it writes the four grant keys after the goal when the session holds a gran
     importedFrom: null,
   });
 
-  expect(text.split('\n').slice(0, 8)).toStrictEqual([
+  expect(text.split('\n').slice(0, 13)).toStrictEqual([
     'format=2',
     'name=tide-alerts',
     'goal=Ship it',
-    'grant=Merge the alert PRs yourself.',
-    'grant_reading=covers merges on green CI',
+    'grant_may=water the beds',
+    'grant_may=mow the lawn',
+    'grant_not=prune the roses',
+    'grant_never=dig up the roses',
+    'grant_scope=in the east garden',
+    'grant_reading=covers watering and mowing',
     'grant_where=chat',
     'grant_set=2026-03-03T09:00:00Z',
     'started=2026-03-02T08:04:11Z',
+    'now=',
   ]);
 });
 
@@ -88,13 +96,16 @@ test('it writes imported_from only when set, and the file reads back the same', 
   expect(parseSessionFile(formatSessionFile(session))).toStrictEqual({ kind: 'session', session });
 });
 
-test('it reads back a grant of 700 characters of words and a reading of 200', () => {
+test('it reads back a grant of 12 bullets and a 40-character scope, 700 characters in all, with a reading of 200', () => {
   const session: SessionFile = {
     format: '2',
     name: 'tide-alerts',
     goal: 'Ship it',
     grant: {
-      words: 'w'.repeat(700),
+      may: ['m'.repeat(55), 'm'.repeat(55), 'm'.repeat(55), 'm'.repeat(55)],
+      not: ['n'.repeat(55), 'n'.repeat(55), 'n'.repeat(55), 'n'.repeat(55)],
+      never: ['v'.repeat(55), 'v'.repeat(55), 'v'.repeat(55), 'v'.repeat(55)],
+      scope: 's'.repeat(40),
       reading: 'r'.repeat(200),
       where: 'terminal-123456789'.slice(0, 16),
       set: '2026-03-03T09:00:00Z',

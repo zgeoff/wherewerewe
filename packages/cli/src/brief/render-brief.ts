@@ -5,13 +5,14 @@ import { formatAge } from './format-age.ts';
 import { formatGoalLines } from './format-goal-lines.ts';
 import { getSessionDay } from './get-session-day.ts';
 import { pickFixCommand } from './pick-fix-command.ts';
+import { renderGrantBullets } from './render-grant-bullets.ts';
 import type { BriefInput } from './types.ts';
 import { wrapBlock } from './wrap-block.ts';
 
-const maxCharacters = 7000;
-const maxLines = 63;
+const maxCharacters = 7200;
+const maxLines = 73;
 
-// Renders every section of the brief in its order. When the text passes 7,000 characters or 63
+// Renders every section of the brief in its order. When the text passes 7,200 characters or 73
 // lines, it drops item lines from the bottom up and says so. The header, goal, grant, owner notes,
 // changed rows, the note under NOW and the footer are never cut.
 export function renderBrief(input: BriefInput): string {
@@ -262,7 +263,7 @@ function renderChecks(checks: BriefInput['checks']): string {
 }
 
 const noGrantLine =
-  'GRANT  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"';
+  'GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"';
 
 function renderGrant(input: BriefInput): string[] {
   const grant = input.session.grant;
@@ -272,10 +273,11 @@ function renderGrant(input: BriefInput): string[] {
   }
 
   const age = formatAge(input.nowMs - Date.parse(grant.set));
+  const scope = grant.scope === null ? '' : ` · ${grant.scope}`;
 
   return [
-    `GRANT  from the owner in ${grant.where}, ${age} ago`,
-    ...wrapBlock(`"${grant.words}"`, '  ', '   '),
+    `GRANT  from the owner in ${grant.where}, ${age} ago${scope}`,
+    ...renderGrantBullets(grant),
     ...wrapBlock(grant.reading, '  reading: ', '    '),
   ];
 }

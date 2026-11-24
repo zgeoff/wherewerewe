@@ -1,15 +1,9 @@
 import { formatTimestamp } from '../format-timestamp.ts';
-import { normaliseWords } from '../rules/normalise-words.ts';
-import type { Extra, Grant, Item, JournalRow } from '../types.ts';
+import { formatGrantText } from '../rules/format-grant-text.ts';
+import type { Extra, Grant, Item, JournalRow, ParsedArgs } from '../types.ts';
+import { toGrantWords } from '../writes/to-grant-words.ts';
 import type { UpgradeApproval } from './collect-upgrade-problems.ts';
 import type { Format1Item } from './types.ts';
-
-interface UpgradeFlagValues {
-  readonly quote?: string | undefined;
-  readonly where?: string | undefined;
-  readonly reading?: string | undefined;
-  readonly drop?: readonly string[] | undefined;
-}
 
 interface UpgradeOptions {
   readonly nowMs: number;
@@ -59,19 +53,21 @@ export function toApprovals(items: readonly Format1Item[]): UpgradeApproval[] {
 // grant and its journal row.
 export function buildUpgradeParts(
   items: readonly Format1Item[],
-  flags: UpgradeFlagValues,
+  args: ParsedArgs,
   options: UpgradeOptions,
 ): UpgradeParts {
+  const flags = args.values;
+
   const drops = new Set(flags.drop);
 
   const removed = items.filter((item) => isStanding(item) || drops.has(item.id));
   const ts = formatTimestamp(options.nowMs);
 
   const grant: Grant | null =
-    flags.quote === undefined
+    flags.may === undefined
       ? null
       : {
-          words: normaliseWords(flags.quote),
+          ...toGrantWords(args),
           reading: flags.reading ?? '',
           where: flags.where ?? '',
           set: ts,
@@ -103,7 +99,7 @@ export function buildUpgradeParts(
               op: 'grant',
               id: 'grant',
               by: options.byOwner ? 'owner' : 'agent',
-              text: grant.words,
+              text: formatGrantText(grant),
               why: grant.reading,
               extra: `where=${grant.where}`,
             } satisfies JournalRow,

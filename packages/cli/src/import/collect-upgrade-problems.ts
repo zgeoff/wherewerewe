@@ -41,7 +41,7 @@ export function collectUpgradeProblems(facts: UpgradeFacts): UpgradeProblem[] {
   const textReasons = pickGrantTextRefusals(args);
 
   return [
-    ...(standing.length > 0 && args.values.quote === undefined
+    ...(standing.length > 0 && args.values.may === undefined
       ? [
           {
             kind: 'needs-grant' as const,

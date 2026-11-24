@@ -23,7 +23,7 @@ function setupTest() {
   };
 
   const grantFlags = [
-    '--quote',
+    '--may',
     'Merge and deploy to the staging beds yourself.',
     '--where',
     'chat',
@@ -101,7 +101,10 @@ test('it folds the standing approvals into the grant and keeps the one-time appr
       name: 'garden-beds',
       goal: 'Ship soil-moisture alerts for the garden irrigation app',
       grant: {
-        words: 'Merge and deploy to the staging beds yourself.',
+        may: ['Merge and deploy to the staging beds yourself.'],
+        not: [],
+        never: [],
+        scope: null,
         reading: 'covers garden-api merges and staging deploys',
         where: 'chat',
         set: '2026-03-10T11:43:00Z',
@@ -152,7 +155,7 @@ test('it folds the standing approvals into the grant and keeps the one-time appr
         op: 'grant',
         id: 'grant',
         by: 'agent',
-        text: 'Merge and deploy to the staging beds yourself.',
+        text: 'may: Merge and deploy to the staging beds yourself.',
         why: 'covers garden-api merges and staging deploys',
         extra: 'where=chat',
       },
@@ -224,14 +227,14 @@ test('it removes the one-time approval that --drop names, with a drop row of its
   ]).toStrictEqual([['t-valves', 't-timer', 'r-tests'], 0, ['dropped by the format 2 upgrade']]);
 });
 
-test('it refuses standing approvals with no --quote, and its Run line adds the grant flags', () => {
+test('it refuses standing approvals with no --may, and its Run line adds the grant flags', () => {
   const ctx = setupTest();
 
   expect(ctx.readRefusal(ctx.pick([]))).toStrictEqual([
     "www: refused: garden-beds holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
     '  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api',
     '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds',
-    "Run: www import garden-beds --quote <the owner's words, whole> --where chat --reading <what they cover; what the owner kept back>",
+    'Run: www import garden-beds --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
   ]);
 });
 
@@ -255,16 +258,55 @@ test.each([
       'www: refused: --drop nope names no item in garden-beds. Items: ok-wipe, t-valves, t-timer, r-tests.',
   },
   {
-    title: 'only --quote',
-    argv: ['--quote', 'Go.'],
+    title: 'only --may',
+    argv: ['--may', 'Go.'],
     first:
-      "www: refused: a grant needs the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
   },
   {
-    title: 'words of 701 characters',
-    argv: ['--quote', 'w'.repeat(701), '--where', 'chat', '--reading', 'r'],
+    title: 'only --not',
+    argv: ['--not', 'Go.', '--where', 'chat', '--reading', 'r'],
     first:
-      "www: refused: the grant's words are 701 characters, and the limit is 700. The grant holds the owner's words whole, so it takes a statement of at most 700 characters.",
+      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+  },
+  {
+    title: 'words of 701 characters across bullets and scope',
+    argv: [
+      ...Array.from({ length: 5 }, () => ['--may', 'w'.repeat(120)]).flat(),
+      '--not',
+      'n'.repeat(100),
+      '--scope',
+      's',
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ],
+    first:
+      "www: refused: the grant's words are 701 characters in its bullets and scope, and the limit is 700.",
+  },
+  {
+    title: 'a bullet of 121 characters',
+    argv: ['--may', 'b'.repeat(121), '--where', 'chat', '--reading', 'r'],
+    first:
+      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
+  },
+  {
+    title: '13 bullets',
+    argv: [
+      ...Array.from({ length: 13 }, () => ['--may', 'water']).flat(),
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ],
+    first:
+      'www: refused: the grant has 13 bullets, and the limit is 12. Put two parts that belong together in one bullet.',
+  },
+  {
+    title: 'a scope of 41 characters',
+    argv: ['--may', 'Go.', '--scope', 's'.repeat(41), '--where', 'chat', '--reading', 'r'],
+    first: "www: refused: the grant's scope is 41 characters, and the limit is 40.",
   },
 ])('it refuses $title, and writes nothing', (row) => {
   const ctx = setupTest();
@@ -276,8 +318,12 @@ test.each([
     'three one-time approvals': once,
     'an item named grant': `${noStanding}${grantRow}`,
     'a --drop that names no item': noStanding,
-    'only --quote': ctx.files.items,
-    'words of 701 characters': ctx.files.items,
+    'only --may': ctx.files.items,
+    'only --not': noStanding,
+    'words of 701 characters across bullets and scope': ctx.files.items,
+    'a bullet of 121 characters': ctx.files.items,
+    '13 bullets': ctx.files.items,
+    'a scope of 41 characters': ctx.files.items,
   };
 
   const picked = ctx.pick(row.argv, { files: { items: itemsByTitle[row.title] } });
@@ -299,7 +345,7 @@ test('it refuses every problem at once, each with its lines, and one Run line th
     '  ok-b     "push the garden-api tags" · garden-api  [2d]',
     'www: refused: format 2 keeps the id grant for the grant, and garden-beds has an item grant. Drop it, and write it again under a new id after the upgrade.',
     'www: refused: --drop nope names no item in garden-beds. Items: ok-merge, ok-deploy, ok-wipe, t-valves, t-timer, r-tests, ok-b, grant.',
-    "Run: www import garden-beds --drop ok-wipe --drop grant --quote <the owner's words, whole> --where chat --reading <what they cover; what the owner kept back>",
+    'Run: www import garden-beds --drop ok-wipe --drop grant --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
   ]);
 });
 
@@ -372,22 +418,96 @@ test('it prints no credential from a stored approval or a --drop value, in a lin
     '  ok-merge   "<text with no secret in it>" · garden-api',
     '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds',
     'www: refused: --drop <text with no secret in it> names no item in garden-beds. Items: ok-merge, ok-deploy, ok-wipe, t-valves, t-timer, r-tests.',
-    "Run: www import garden-beds --quote <the owner's words, whole> --where chat --reading <what they cover; what the owner kept back>",
+    'Run: www import garden-beds --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
   ]);
 });
 
-test('it fixes the words and the reading in one Run line when both are over their limits', () => {
+test('it fixes the bullets and the reading in one Run line when both are over their limits', () => {
   const ctx = setupTest();
   const items = ctx.dropLines(ctx.files.items, ['ok-merge', 'ok-deploy']);
 
   const picked = ctx.pick(
-    ['--quote', 'w'.repeat(701), '--where', 'chat', '--reading', 'r'.repeat(201)],
+    [
+      ...Array.from({ length: 5 }, () => ['--may', 'w'.repeat(120)]).flat(),
+      '--not',
+      'n'.repeat(100),
+      '--scope',
+      's',
+      '--where',
+      'chat',
+      '--reading',
+      'r'.repeat(201),
+    ],
     { files: { items } },
   );
 
   expect(ctx.readRefusal(picked)).toStrictEqual([
-    "www: refused: the grant's words are 701 characters, and the limit is 700. The grant holds the owner's words whole, so it takes a statement of at most 700 characters.",
+    "www: refused: the grant's words are 701 characters in its bullets and scope, and the limit is 700.",
     'www: refused: the reading is 201 characters, and the limit is 200.',
-    "Run: www import garden-beds --quote <the owner's words, at most 700 characters> --where chat --reading <reading of at most 200 characters>",
+    'Run: www import garden-beds --may <what the owner allows, in their words> --not <what the owner did not grant, in their words> --scope s --where chat --reading <reading of at most 200 characters>',
+  ]);
+});
+
+test('it writes the bullets, the scope and the grant journal row of an upgrade with --may, --not, --never and --scope', () => {
+  const ctx = setupTest();
+
+  const picked = ctx.pickUpgraded([
+    '--may',
+    'Merge the garden-api pull requests yourself.',
+    '--may',
+    'Deploy to the staging beds.',
+    '--not',
+    'Wipe the staging sensor table.',
+    '--never',
+    'Touch the prod beds.',
+    '--scope',
+    'garden-api and staging',
+    '--where',
+    'chat',
+    '--reading',
+    'covers merges and staging deploys',
+  ]);
+
+  expect({
+    grant: picked.session.grant,
+    grantRow: picked.journalRows.find((row) => row.op === 'grant'),
+  }).toStrictEqual({
+    grant: {
+      may: ['Merge the garden-api pull requests yourself.', 'Deploy to the staging beds.'],
+      not: ['Wipe the staging sensor table.'],
+      never: ['Touch the prod beds.'],
+      scope: 'garden-api and staging',
+      reading: 'covers merges and staging deploys',
+      where: 'chat',
+      set: '2026-03-10T11:43:00Z',
+    },
+    grantRow: {
+      ts: '2026-03-10T11:43:00Z',
+      op: 'grant',
+      id: 'grant',
+      by: 'agent',
+      text: 'may: Merge the garden-api pull requests yourself. • Deploy to the staging beds. · not: Wipe the staging sensor table. · never: Touch the prod beds. · scope: garden-api and staging',
+      why: 'covers merges and staging deploys',
+      extra: 'where=chat',
+    },
+  });
+});
+
+test('it refuses a second bullet of 121 characters with one Run line that replaces only that bullet and adds --drop', () => {
+  const ctx = setupTest();
+  const once = ctx.files.items.replaceAll('use=standing', 'use=once');
+
+  const picked = ctx.pick(
+    ['--may', 'water the beds', '--may', 'b'.repeat(121), '--where', 'chat', '--reading', 'r'],
+    { files: { items: once } },
+  );
+
+  expect(ctx.readRefusal(picked)).toStrictEqual([
+    'www: refused: garden-beds holds 3 one-time approvals, and format 2 holds 1. Drop all but one.',
+    '  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api  [7d]',
+    '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds  [6d]',
+    '  ok-wipe    "you can wipe the staging sensor table once" · staging sensor table  [5d]',
+    'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
+    'Run: www import garden-beds --may water the beds --may <bullet of at most 120 characters> --where chat --reading r --drop ok-merge --drop ok-deploy',
   ]);
 });

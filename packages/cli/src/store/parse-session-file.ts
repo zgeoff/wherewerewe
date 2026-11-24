@@ -1,3 +1,5 @@
+import { countGrantWords } from '../rules/count-grant-words.ts';
+import { grantLimits } from '../rules/grant-limits.ts';
 import type { Grant, SessionFile } from '../types.ts';
 
 export type SessionParse =
@@ -11,7 +13,10 @@ const knownKeys: ReadonlySet<string> = new Set([
   'format',
   'name',
   'goal',
-  'grant',
+  'grant_may',
+  'grant_not',
+  'grant_never',
+  'grant_scope',
   'grant_reading',
   'grant_where',
   'grant_set',
@@ -24,16 +29,25 @@ const knownKeys: ReadonlySet<string> = new Set([
   'imported_from',
 ]);
 
+const bulletKeys: ReadonlySet<string> = new Set(['grant_may', 'grant_not', 'grant_never']);
+
 export function parseSessionFile(text: string): SessionParse {
   const pairs = new Map<string, string>();
+  const bullets = new Map<string, string[]>();
 
   let badLine: string | null = null;
+  let repeatedKey: string | null = null;
 
   for (const line of text.split('\n')) {
     const split = line.indexOf('=');
+    const key = line.slice(0, split);
 
-    if (line !== '' && split > 0) {
-      pairs.set(line.slice(0, split), line.slice(split + 1));
+    if (line !== '' && split > 0 && bulletKeys.has(key)) {
+      bullets.set(key, [...(bullets.get(key) ?? []), line.slice(split + 1)]);
+    } else if (line !== '' && split > 0) {
+      repeatedKey ??= pairs.has(key) ? key : null;
+
+      pairs.set(key, line.slice(split + 1));
     } else if (line !== '' && badLine === null) {
       badLine = line;
     }
@@ -64,6 +78,10 @@ export function parseSessionFile(text: string): SessionParse {
     return { kind: 'broken', reason: `the key ${unknownKey} is not in format 2` };
   }
 
+  if (repeatedKey !== null) {
+    return { kind: 'broken', reason: `the key ${repeatedKey} repeats` };
+  }
+
   const name = pairs.get('name');
   const goal = pairs.get('goal');
   const started = pairs.get('started');
@@ -76,7 +94,7 @@ export function parseSessionFile(text: string): SessionParse {
     return { kind: 'broken', reason: 'started is required' };
   }
 
-  const grant = parseGrant(pairs);
+  const grant = parseGrant(pairs, bullets);
 
   if (typeof grant === 'string') {
     return { kind: 'broken', reason: grant };
@@ -100,39 +118,74 @@ export function parseSessionFile(text: string): SessionParse {
   };
 }
 
-const grantLimits = [
-  { key: 'grant', limit: 700 },
-  { key: 'grant_reading', limit: 200 },
-  { key: 'grant_where', limit: 16 },
-] as const;
-
-// The four grant keys are all set or all empty. Returns a reason when they are neither, or when
-// one is over its limit.
-function parseGrant(pairs: ReadonlyMap<string, string>): Grant | string | null {
-  const words = pairs.get('grant') ?? '';
+// A grant has at least one grant_may line and sets grant_reading, grant_where and grant_set; with
+// no grant, the file has no bullet lines and those keys and grant_scope are empty. Returns a reason
+// when the keys are neither, or when a value or the owner's words pass a limit.
+function parseGrant(
+  pairs: ReadonlyMap<string, string>,
+  bullets: ReadonlyMap<string, readonly string[]>,
+): Grant | string | null {
+  const may = bullets.get('grant_may') ?? [];
+  const not = bullets.get('grant_not') ?? [];
+  const never = bullets.get('grant_never') ?? [];
+  const scope = pairs.get('grant_scope') ?? '';
   const reading = pairs.get('grant_reading') ?? '';
   const where = pairs.get('grant_where') ?? '';
   const set = pairs.get('grant_set') ?? '';
-  const values = [words, reading, where, set];
+  const all = [...may, ...not, ...never];
 
-  if (values.every((value) => value === '')) {
+  if (all.length === 0 && [scope, reading, where, set].every((value) => value === '')) {
     return null;
   }
 
-  if (values.some((value) => value === '')) {
-    return 'the grant keys are not all set or all empty';
+  if (may.length === 0 || [reading, where, set].some((value) => value === '')) {
+    return 'a grant needs a grant_may line and grant_reading, grant_where and grant_set';
   }
 
-  const over = grantLimits.find(
-    (entry) =>
-      Array.from(pairs.get(entry.key) ?? '', (character) => character).length > entry.limit,
+  const limitProblem = findLimitProblem([
+    ...all.map((bullet) => ({ name: 'a grant bullet', value: bullet, limit: grantLimits.bullet })),
+    { name: 'the key grant_scope', value: scope, limit: grantLimits.scope },
+    { name: 'the key grant_reading', value: reading, limit: grantLimits.reading },
+    { name: 'the key grant_where', value: where, limit: grantLimits.where },
+  ]);
+
+  if (limitProblem !== null) {
+    return limitProblem;
+  }
+
+  if (all.some((bullet) => bullet === '')) {
+    return 'a grant bullet is empty';
+  }
+
+  if (all.length > grantLimits.bullets) {
+    return `the grant has ${String(all.length)} bullets, and the limit is ${String(grantLimits.bullets)}`;
+  }
+
+  const words = { may, not, never, scope: scope === '' ? null : scope };
+  const count = countGrantWords(words);
+
+  if (count > grantLimits.words) {
+    return `the grant's words are ${String(count)} characters, and the limit is ${String(grantLimits.words)}`;
+  }
+
+  return { ...words, reading, where, set };
+}
+
+interface LimitedValue {
+  // how the reason names the value, such as the key grant_where
+  readonly name: string;
+  readonly value: string;
+  readonly limit: number;
+}
+
+function findLimitProblem(values: readonly LimitedValue[]): string | null {
+  const over = values.find(
+    (entry) => Array.from(entry.value, (character) => character).length > entry.limit,
   );
 
-  if (over !== undefined) {
-    return `the key ${over.key} is ${String(Array.from(pairs.get(over.key) ?? '', (character) => character).length)} characters, and the limit is ${String(over.limit)}`;
-  }
-
-  return { words, reading, where, set };
+  return over === undefined
+    ? null
+    : `${over.name} is ${String(Array.from(over.value, (character) => character).length)} characters, and the limit is ${String(over.limit)}`;
 }
 
 function toOptional(pairs: ReadonlyMap<string, string>, key: string): string | null {

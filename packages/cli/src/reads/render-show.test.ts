@@ -482,14 +482,14 @@ test('it prints no note line for an item with no note', () => {
   expect(text).not.toInclude('note (');
 });
 
-test("it prints commands.md's show grant example after the reading alone was replaced", () => {
+test('it prints show grant with a scope and three groups, after the reading alone was replaced', () => {
   const ctx = setupTest();
 
-  const grantWords =
-    "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from the prod push certificate and the prod database, and don't publish a tidekit release.";
+  const grantText =
+    'may: water the beds • mow the lawn · not: prune the roses · never: dig up the roses • spray the hives · scope: in the east garden';
 
   const grantReading =
-    'covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases';
+    'covers watering and mowing in the east garden with the hose from the shed; kept back: pruning, the roses and the hives';
 
   const text = ctx.show(
     'grant',
@@ -500,8 +500,8 @@ test("it prints commands.md's show grant example after the reading alone was rep
         op: 'grant',
         id: 'grant',
         by: 'agent',
-        text: grantWords,
-        why: 'covers merges',
+        text: grantText,
+        why: 'covers watering',
         extra: 'where=chat',
       }),
       buildMockJournalRow({
@@ -509,14 +509,17 @@ test("it prints commands.md's show grant example after the reading alone was rep
         op: 'grant',
         id: 'grant',
         by: 'agent',
-        text: grantWords,
+        text: grantText,
         why: grantReading,
         extra: 'where=chat;reading=1',
       }),
     ],
     {
       grant: {
-        words: grantWords,
+        may: ['water the beds', 'mow the lawn'],
+        not: ['prune the roses'],
+        never: ['dig up the roses', 'spray the hives'],
+        scope: 'in the east garden',
         reading: grantReading,
         where: 'chat',
         set: '2026-03-03T09:00:00Z',
@@ -526,16 +529,57 @@ test("it prints commands.md's show grant example after the reading alone was rep
 
   expect(text).toBe(
     [
-      'grant  from the owner in chat, words set on day 2 by agent, reading set on day 9',
-      '  words (7d): "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every',
-      '    review finding is answered. Deploy either app to staging whenever you need to, and wipe or',
-      '    reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our',
-      "    fork. Keep away from the prod push certificate and the prod database, and don't publish a",
-      '    tidekit release."',
-      '  reading (12m): covers merges in both repos on green CI with findings answered, staging deploys,',
-      '    the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit',
-      '    merges and releases',
+      'grant  from the owner in chat · in the east garden',
+      '  words (7d), set on day 2 by agent:',
+      '  may    • water the beds',
+      '         • mow the lawn',
+      '  not    • prune the roses',
+      '  never  • dig up the roses  • spray the hives',
+      '  reading (12m), set on day 9: covers watering and mowing in the east garden with the hose from the',
+      '    shed; kept back: pruning, the roses and the hives',
       '  journal: day 2 grant · day 9 grant',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it prints show grant with no scope and one group, the heading and the reading kept', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'owner',
+        text: 'may: water the beds',
+        why: 'covers watering',
+        extra: 'where=terminal',
+      }),
+    ],
+    {
+      grant: {
+        may: ['water the beds'],
+        not: [],
+        never: [],
+        scope: null,
+        reading: 'covers watering',
+        where: 'terminal',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect(text).toBe(
+    [
+      'grant  from the owner in terminal',
+      '  words (7d), set on day 2 by owner:',
+      '  may    • water the beds',
+      '  reading (7d), set on day 2: covers watering',
+      '  journal: day 2 grant',
       '',
     ].join('\n'),
   );
@@ -553,7 +597,7 @@ test('it names the owner as the one who set the words when the agent replaces th
         op: 'grant',
         id: 'grant',
         by: 'owner',
-        text: 'Merge it yourself.',
+        text: 'may: Merge it yourself.',
         why: 'covers merges',
         extra: 'where=chat',
       }),
@@ -562,14 +606,17 @@ test('it names the owner as the one who set the words when the agent replaces th
         op: 'grant',
         id: 'grant',
         by: 'agent',
-        text: 'Merge it yourself.',
+        text: 'may: Merge it yourself.',
         why: 'covers merges and deploys',
         extra: 'where=chat;reading=1',
       }),
     ],
     {
       grant: {
-        words: 'Merge it yourself.',
+        may: ['Merge it yourself.'],
+        not: [],
+        never: [],
+        scope: null,
         reading: 'covers merges and deploys',
         where: 'chat',
         set: '2026-03-03T09:00:00Z',
@@ -577,9 +624,13 @@ test('it names the owner as the one who set the words when the agent replaces th
     },
   );
 
-  expect(text.split('\n').at(0)).toBe(
-    'grant  from the owner in chat, words set on day 2 by owner, reading set on day 2',
-  );
+  expect([
+    text.split('\n').at(1),
+    text.split('\n').find((line) => line.startsWith('  reading (')),
+  ]).toStrictEqual([
+    '  words (7d), set on day 2 by owner:',
+    '  reading (7d), set on day 2: covers merges and deploys',
+  ]);
 });
 
 test('it names the agent as the one who set the words when the agent writes the same words in the same second', () => {
@@ -594,7 +645,7 @@ test('it names the agent as the one who set the words when the agent writes the 
         op: 'grant',
         id: 'grant',
         by: 'owner',
-        text: 'Merge it yourself.',
+        text: 'may: Merge it yourself.',
         why: 'covers merges',
         extra: 'where=chat',
       }),
@@ -603,14 +654,17 @@ test('it names the agent as the one who set the words when the agent writes the 
         op: 'grant',
         id: 'grant',
         by: 'agent',
-        text: 'Merge it yourself.',
+        text: 'may: Merge it yourself.',
         why: 'covers merges and deploys',
         extra: 'where=chat',
       }),
     ],
     {
       grant: {
-        words: 'Merge it yourself.',
+        may: ['Merge it yourself.'],
+        not: [],
+        never: [],
+        scope: null,
         reading: 'covers merges and deploys',
         where: 'chat',
         set: '2026-03-03T09:00:00Z',
@@ -618,9 +672,13 @@ test('it names the agent as the one who set the words when the agent writes the 
     },
   );
 
-  expect(text.split('\n').at(0)).toBe(
-    'grant  from the owner in chat, words set on day 2 by agent, reading set on day 2',
-  );
+  expect([
+    text.split('\n').at(1),
+    text.split('\n').find((line) => line.startsWith('  reading (')),
+  ]).toStrictEqual([
+    '  words (7d), set on day 2 by agent:',
+    '  reading (7d), set on day 2: covers merges and deploys',
+  ]);
 });
 
 test('it names the writer of the newest words when an earlier write in the same second held other words', () => {
@@ -635,7 +693,7 @@ test('it names the writer of the newest words when an earlier write in the same 
         op: 'grant',
         id: 'grant',
         by: 'owner',
-        text: 'Merge it yourself.',
+        text: 'may: Merge it yourself.',
         why: 'covers merges',
         extra: 'where=chat',
       }),
@@ -644,14 +702,17 @@ test('it names the writer of the newest words when an earlier write in the same 
         op: 'grant',
         id: 'grant',
         by: 'agent',
-        text: 'Deploy it yourself.',
+        text: 'may: Deploy it yourself.',
         why: 'covers deploys',
         extra: 'where=chat',
       }),
     ],
     {
       grant: {
-        words: 'Deploy it yourself.',
+        may: ['Deploy it yourself.'],
+        not: [],
+        never: [],
+        scope: null,
         reading: 'covers deploys',
         where: 'chat',
         set: '2026-03-03T09:00:00Z',
@@ -659,9 +720,13 @@ test('it names the writer of the newest words when an earlier write in the same 
     },
   );
 
-  expect(text.split('\n').at(0)).toBe(
-    'grant  from the owner in chat, words set on day 2 by agent, reading set on day 2',
-  );
+  expect([
+    text.split('\n').at(1),
+    text.split('\n').find((line) => line.startsWith('  reading (')),
+  ]).toStrictEqual([
+    '  words (7d), set on day 2 by agent:',
+    '  reading (7d), set on day 2: covers deploys',
+  ]);
 });
 
 test.each([
@@ -669,7 +734,7 @@ test.each([
     'other words',
     {
       ts: '2026-03-04T09:00:00Z',
-      text: 'Deploy it yourself.',
+      text: 'may: Deploy it yourself.',
       why: 'covers merges',
       extra: 'where=chat',
     },
@@ -678,7 +743,7 @@ test.each([
     'the same words and a new reading',
     {
       ts: '2026-03-04T09:00:00Z',
-      text: 'Merge it yourself.',
+      text: 'may: Merge it yourself.',
       why: 'covers deploys',
       extra: 'where=chat',
     },
@@ -687,7 +752,7 @@ test.each([
     'the same words and a new reading in the same second',
     {
       ts: '2026-03-03T09:00:00Z',
-      text: 'Merge it yourself.',
+      text: 'may: Merge it yourself.',
       why: 'covers deploys',
       extra: 'where=chat',
     },
@@ -696,7 +761,7 @@ test.each([
     'the same words and reading from a new where',
     {
       ts: '2026-03-04T09:00:00Z',
-      text: 'Merge it yourself.',
+      text: 'may: Merge it yourself.',
       why: 'covers merges',
       extra: 'where=terminal',
     },
@@ -705,7 +770,7 @@ test.each([
     'the same words and reading as a row with no reading=1',
     {
       ts: '2026-03-04T09:00:00Z',
-      text: 'Merge it yourself.',
+      text: 'may: Merge it yourself.',
       why: 'covers merges',
       extra: 'where=chat',
     },
@@ -724,7 +789,7 @@ test.each([
           op: 'grant',
           id: 'grant',
           by: 'owner',
-          text: 'Merge it yourself.',
+          text: 'may: Merge it yourself.',
           why: 'covers merges',
           extra: 'where=chat',
         }),
@@ -732,7 +797,10 @@ test.each([
       ],
       {
         grant: {
-          words: 'Merge it yourself.',
+          may: ['Merge it yourself.'],
+          not: [],
+          never: [],
+          scope: null,
           reading: 'covers merges',
           where: 'chat',
           set: '2026-03-03T09:00:00Z',
@@ -740,9 +808,13 @@ test.each([
       },
     );
 
-    expect(text.split('\n').at(0)).toBe(
-      'grant  from the owner in chat, words set on day 2 by owner, reading set on day 2',
-    );
+    expect([
+      text.split('\n').at(1),
+      text.split('\n').find((line) => line.startsWith('  reading (')),
+    ]).toStrictEqual([
+      '  words (7d), set on day 2 by owner:',
+      '  reading (7d), set on day 2: covers merges',
+    ]);
   },
 );
 
@@ -750,6 +822,6 @@ test('it prints the none line for show grant when the session holds no grant', (
   const ctx = setupTest();
 
   expect(ctx.show('grant', [], [])).toBe(
-    'grant  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"\n',
+    'grant  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"\n',
   );
 });

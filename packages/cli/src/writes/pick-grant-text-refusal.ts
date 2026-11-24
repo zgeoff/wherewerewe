@@ -1,58 +1,74 @@
-import { normaliseWords } from '../rules/normalise-words.ts';
+import { countGrantWords } from '../rules/count-grant-words.ts';
+import { grantLimits } from '../rules/grant-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { TextCheck } from './pick-text-refusal.ts';
-
-const wordsLimit = 700;
-const readingLimit = 200;
-const whereLimit = 16;
+import { toGrantWords } from './to-grant-words.ts';
 
 // The first problem in the grant's texts, in the order pickGrantTextRefusals lists them.
 export function pickGrantTextRefusal(args: ParsedArgs): RefusalReason | null {
   return pickGrantTextRefusals(args).at(0) ?? null;
 }
 
-// The problems in the grant's texts, one for each flag typed: the words over their limit first, then
-// the reading, then the words and --where for their other rules. A command that fixes every flag in
-// one Run line needs them all.
+const bulletFlags = ['may', 'not', 'never'] as const;
+
+// The problems in the grant's texts, in the order a refusal prints them. Too many bullets or words
+// replace every bullet in the Run line, so each bullet's own problem waits until those are fixed. A
+// command that fixes every flag in one Run line needs them all.
 export function pickGrantTextRefusals(args: ParsedArgs): RefusalReason[] {
-  const words = args.values.quote === undefined ? undefined : normaliseWords(args.values.quote);
+  const words = toGrantWords(args);
+  const count = words.may.length + words.not.length + words.never.length;
+  const length = countGrantWords(words);
 
-  const wordsTooLong: RefusalReason[] =
-    words !== undefined && Array.from(words, (character) => character).length > wordsLimit
-      ? [
+  const whole: RefusalReason[] = [
+    ...(count > grantLimits.bullets
+      ? [{ kind: 'grant-too-many-bullets' as const, args, count }]
+      : []),
+    ...(length > grantLimits.words
+      ? [{ kind: 'grant-words-too-long' as const, args, length }]
+      : []),
+  ];
+
+  const bulletChecks: TextCheck[] =
+    whole.length > 0
+      ? []
+      : bulletFlags.flatMap((flag) =>
+          words[flag].map((bullet, occurrence) => ({
+            target: { label: 'bullet' as const, place: { flag, occurrence } },
+            text: bullet,
+            limit: grantLimits.bullet,
+          })),
+        );
+
+  const otherChecks: TextCheck[] = [
+    ...(words.scope === null
+      ? []
+      : [
           {
-            kind: 'grant-words-too-long',
-            args,
-            length: Array.from(words, (character) => character).length,
+            target: { label: "grant's scope" as const, place: { flag: 'scope' } },
+            text: words.scope,
+            limit: grantLimits.scope,
           },
-        ]
-      : [];
+        ]),
+    ...(args.values.where === undefined
+      ? []
+      : [
+          {
+            target: { label: 'where' as const, place: { flag: 'where' } },
+            text: args.values.where,
+            limit: grantLimits.where,
+          },
+        ]),
+  ];
 
-  const readingChecks: TextCheck[] =
+  const readingCheck: TextCheck[] =
     args.values.reading === undefined
       ? []
       : [
           {
             target: { label: 'reading', place: { flag: 'reading' } },
             text: args.values.reading,
-            limit: readingLimit,
-          },
-        ];
-
-  const wordsChecks: TextCheck[] =
-    words === undefined
-      ? []
-      : [{ target: { label: 'words', place: { flag: 'quote' } }, text: words, limit: wordsLimit }];
-
-  const whereChecks: TextCheck[] =
-    args.values.where === undefined
-      ? []
-      : [
-          {
-            target: { label: 'where', place: { flag: 'where' } },
-            text: args.values.where,
-            limit: whereLimit,
+            limit: grantLimits.reading,
           },
         ];
 
@@ -62,14 +78,15 @@ export function pickGrantTextRefusals(args: ParsedArgs): RefusalReason[] {
     ? [{ kind: 'extra-has-separator', args, flag: 'where', value: where }]
     : [];
 
-  const readingReason = pickTextRefusal(args, readingChecks, false);
-  const wordsReason = wordsTooLong.length > 0 ? null : pickTextRefusal(args, wordsChecks, false);
-  const whereReason = pickTextRefusal(args, whereChecks, false);
+  const textReasons = [...readingCheck, ...bulletChecks, ...otherChecks].flatMap((check) => {
+    const reason = pickTextRefusal(args, [check], false);
 
-  return [
-    ...wordsTooLong,
-    ...(readingReason === null ? [] : [readingReason]),
-    ...(wordsReason === null ? [] : [wordsReason]),
-    ...(whereReason === null ? separator : [whereReason]),
-  ];
+    return reason === null ? [] : [reason];
+  });
+
+  const isWhereRefused = textReasons.some(
+    (reason) => 'target' in reason && reason.target.label === 'where',
+  );
+
+  return [...whole, ...textReasons, ...(isWhereRefused ? [] : separator)];
 }

@@ -1,8 +1,10 @@
 import { match } from 'ts-pattern';
 import { formatAge } from '../brief/format-age.ts';
 import { getSessionDay } from '../brief/get-session-day.ts';
+import { renderGrantBullets } from '../brief/render-grant-bullets.ts';
 import { wrapBlock } from '../brief/wrap-block.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
+import { formatGrantText } from '../rules/format-grant-text.ts';
 import { getKindWord } from '../rules/get-kind-word.ts';
 import type { Item, JournalRow, Store } from '../types.ts';
 
@@ -55,7 +57,7 @@ export function renderShow(input: ShowInput): string {
 }
 
 const noGrantLine =
-  'grant  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"';
+  'grant  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"';
 
 // A write that stops after its journal row leaves a row `session` lacks. Only a full row at `set`
 // and a `reading=1` row since count, and only when they hold the grant's words and where. A full
@@ -76,7 +78,7 @@ function renderGrant(input: ShowInput): string {
 
     return (
       (readingOnly ? atMs >= setMs : atMs === setMs) &&
-      row.text === grant.words &&
+      row.text === formatGrantText(grant) &&
       findExtraValue(row.extra, 'where') === grant.where
     );
   });
@@ -93,11 +95,17 @@ function renderGrant(input: ShowInput): string {
   const wordsAge = formatAge(input.nowMs - Date.parse(grant.set));
   const readingAge = formatAge(input.nowMs - Date.parse(readingRow?.ts ?? grant.set));
   const days = rows.map((row) => `day ${String(getDay(input.store, Date.parse(row.ts)))} grant`);
+  const scope = grant.scope === null ? '' : ` · ${grant.scope}`;
 
   const lines = [
-    `grant  from the owner in ${grant.where}, words set on day ${String(wordsDay)} by ${wordsRow?.by ?? 'unknown'}, reading set on day ${String(readingDay)}`,
-    ...wrapBlock(`"${grant.words}"`, `  words (${wordsAge}): `, '    '),
-    ...wrapBlock(grant.reading, `  reading (${readingAge}): `, '    '),
+    `grant  from the owner in ${grant.where}${scope}`,
+    `  words (${wordsAge}), set on day ${String(wordsDay)} by ${wordsRow?.by ?? 'unknown'}:`,
+    ...renderGrantBullets(grant),
+    ...wrapBlock(
+      grant.reading,
+      `  reading (${readingAge}), set on day ${String(readingDay)}: `,
+      '    ',
+    ),
     ...(days.length === 0 ? [] : [`  journal: ${days.join(' · ')}`]),
   ];
 

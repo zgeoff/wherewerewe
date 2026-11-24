@@ -173,7 +173,7 @@ test.each([
         exitCode: 0,
         stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 NOW  none. Run: www now <id> "<next step>"
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
@@ -233,7 +233,7 @@ test.each([
         exitCode: 0,
         stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
 NOW  none. Run: www now <id> "<next step>"

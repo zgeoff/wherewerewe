@@ -263,7 +263,7 @@ test('it prints the brief without the broken owner row, names it on stderr, and 
       exitCode: 0,
       stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [43m]
 NOW  none. Run: www now <id> "<next step>"
@@ -334,7 +334,7 @@ test.each([
         exitCode: 0,
         stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 ${row.section}NOW  none. Run: www now <id> "<next step>"
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
@@ -365,7 +365,7 @@ test('it prints the brief and still takes an agent write when a folder stands in
       exitCode: 0,
       stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
-GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 NOW  none. Run: www now <id> "<next step>"
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,

@@ -1253,7 +1253,7 @@ test('it converts a store to format 2 with no grant when it holds no standing ap
   }).toStrictEqual({ format: '2', grant: null, ops: ['import'], importText: '0-by-hand -> 2' });
 });
 
-test('it refuses a standing token with no --quote, and prints the flags that fix it', () => {
+test('it refuses a standing token with no --may, and prints the flags that fix it', () => {
   const picked = pickImport(buildHandKeptApprovals(['standing']), {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
@@ -1275,8 +1275,8 @@ test('it refuses a standing token with no --quote, and prints the flags that fix
           www: [
             'import',
             'old-notes',
-            '--quote',
-            "<the owner's words, whole>",
+            '--may',
+            '<what the owner allows, in their words>',
             '--where',
             'chat',
             '--reading',
@@ -1295,7 +1295,7 @@ test('it folds a standing token into the grant: no item, a drop row, then the gr
       args: buildParsedArgs([
         'import',
         'old-notes',
-        '--quote',
+        '--may',
         'Merge it\nyourself.',
         '--where',
         'chat',
@@ -1315,7 +1315,10 @@ test('it folds a standing token into the grant: no item, a drop row, then the gr
   }).toStrictEqual({
     items: ['ok-1'],
     grant: {
-      words: 'Merge it yourself.',
+      may: ['Merge it yourself.'],
+      not: [],
+      never: [],
+      scope: null,
       reading: 'covers merges',
       where: 'chat',
       set: '2026-03-10T11:43:00Z',
@@ -1329,7 +1332,7 @@ test('it folds a standing token into the grant: no item, a drop row, then the gr
         'folded into the grant by the format 2 upgrade',
         null,
       ],
-      ['grant', 'grant', 'owner', 'Merge it yourself.', 'covers merges', 'where=chat'],
+      ['grant', 'grant', 'owner', 'may: Merge it yourself.', 'covers merges', 'where=chat'],
       ['import', 'old-notes', 'agent', '0-by-hand -> 2', null, null],
     ],
   });

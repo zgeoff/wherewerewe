@@ -2481,10 +2481,10 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nRun: www import old-notes --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nRun: www import old-notes --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
-        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what the owner allows, in their words>': 'Merge it yourself.',
         '<what they cover; what the owner kept back>': 'covers merges',
       },
     ],
@@ -2593,7 +2593,7 @@ test.each([
     fills: [{}],
   },
   {
-    title: 'an upgrade with a reading and words that are both over their limits',
+    title: 'an upgrade with a reading and bullets that are both over their limits',
     format1: 'old-notes',
     setup: [],
     files: [
@@ -2607,8 +2607,11 @@ test.each([
     argv: [
       'import',
       'old-notes',
-      '--quote',
-      'w'.repeat(701),
+      ...Array.from({ length: 5 }, () => ['--may', 'w'.repeat(120)]).flat(),
+      '--not',
+      'n'.repeat(100),
+      '--scope',
+      's',
       '--where',
       'chat',
       '--reading',
@@ -2617,10 +2620,11 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the grant\'s words are 701 characters, and the limit is 700. The grant holds the owner\'s words whole, so it takes a statement of at most 700 characters.\nwww: refused: the reading is 201 characters, and the limit is 200.\nRun: www import old-notes --quote "<the owner\'s words, at most 700 characters>" --where chat --reading "<reading of at most 200 characters>"\n',
+      'www: refused: the grant\'s words are 701 characters in its bullets and scope, and the limit is 700.\nwww: refused: the reading is 201 characters, and the limit is 200.\nRun: www import old-notes --may "<what the owner allows, in their words>" --not "<what the owner did not grant, in their words>" --scope s --where chat --reading "<reading of at most 200 characters>"\n',
     fills: [
       {
-        "<the owner's words, at most 700 characters>": 'Merge it yourself.',
+        '<what the owner allows, in their words>': 'Merge it yourself.',
+        '<what the owner did not grant, in their words>': 'Prune the roses.',
         '<reading of at most 200 characters>': 'covers merges',
       },
     ],
@@ -2638,7 +2642,7 @@ test.each([
     fills: [],
   },
   {
-    title: 'an upgrade with only --quote',
+    title: 'an upgrade with only --may',
     format1: 'old-notes',
     setup: [],
     files: [
@@ -2649,15 +2653,15 @@ test.each([
       },
       { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
     ],
-    argv: ['import', 'old-notes', '--quote', 'Merge it yourself.'],
+    argv: ['import', 'old-notes', '--may', 'Merge it yourself.'],
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --quote "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --may "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [{ '<what they cover; what the owner kept back>': 'covers merges' }],
   },
   {
-    title: 'an upgrade with grant words of 701 characters',
+    title: 'an upgrade with grant words of 701 characters across bullets and scope',
     format1: 'old-notes',
     setup: [],
     files: [
@@ -2671,8 +2675,11 @@ test.each([
     argv: [
       'import',
       'old-notes',
-      '--quote',
-      'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+      ...Array.from({ length: 5 }, () => ['--may', 'w'.repeat(120)]).flat(),
+      '--not',
+      'n'.repeat(100),
+      '--scope',
+      's',
       '--where',
       'chat',
       '--reading',
@@ -2681,8 +2688,43 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the grant\'s words are 701 characters, and the limit is 700. The grant holds the owner\'s words whole, so it takes a statement of at most 700 characters.\nRun: www import old-notes --quote "<the owner\'s words, at most 700 characters>" --where chat --reading "covers merges"\n',
-    fills: [{ "<the owner's words, at most 700 characters>": 'Merge it yourself.' }],
+      'www: refused: the grant\'s words are 701 characters in its bullets and scope, and the limit is 700.\nRun: www import old-notes --may "<what the owner allows, in their words>" --not "<what the owner did not grant, in their words>" --scope s --where chat --reading "covers merges"\n',
+    fills: [
+      {
+        '<what the owner allows, in their words>': 'Merge it yourself.',
+        '<what the owner did not grant, in their words>': 'Prune the roses.',
+      },
+    ],
+  },
+  {
+    title: 'an upgrade with a second --may of 121 characters',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: [
+      'import',
+      'old-notes',
+      '--may',
+      'Water the beds.',
+      '--may',
+      'b'.repeat(121),
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.\nRun: www import old-notes --may "Water the beds." --may "<bullet of at most 120 characters>" --where chat --reading "covers watering"\n',
+    fills: [{ '<bullet of at most 120 characters>': 'Mow the lawn.' }],
   },
   {
     title: 'an upgrade that meets every problem at once',
@@ -2700,10 +2742,10 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: old-notes holds 1 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge  "merge the garden-api PRs yourself once CI is green" · garden-api\nwww: refused: old-notes holds 2 one-time approvals, and format 2 holds 1. Drop all but one.\n  ok-wipe  "you can wipe the staging sensor table once" · staging sensor table  [5d]\n  ok-tags  "push the garden-api tags" · garden-api  [2d]\nwww: refused: format 2 keeps the id grant for the grant, and old-notes has an item grant. Drop it, and write it again under a new id after the upgrade.\nwww: refused: --drop nope names no item in old-notes. Items: ok-merge, ok-wipe, ok-tags, grant.\nRun: www import old-notes --drop ok-wipe --drop grant --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: old-notes holds 1 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge  "merge the garden-api PRs yourself once CI is green" · garden-api\nwww: refused: old-notes holds 2 one-time approvals, and format 2 holds 1. Drop all but one.\n  ok-wipe  "you can wipe the staging sensor table once" · staging sensor table  [5d]\n  ok-tags  "push the garden-api tags" · garden-api  [2d]\nwww: refused: format 2 keeps the id grant for the grant, and old-notes has an item grant. Drop it, and write it again under a new id after the upgrade.\nwww: refused: --drop nope names no item in old-notes. Items: ok-merge, ok-wipe, ok-tags, grant.\nRun: www import old-notes --drop ok-wipe --drop grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
-        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what the owner allows, in their words>': 'Merge it yourself.',
         '<what they cover; what the owner kept back>': 'covers merges',
       },
     ],
@@ -2728,10 +2770,10 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: lasting permission lives in the grant, in the owner\'s words whole.\nRun: www grant --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: lasting permission lives in the grant, in the owner\'s words whole.\nRun: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
-        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what the owner allows, in their words>': 'Merge it yourself.',
         '<what they cover; what the owner kept back>': 'covers merges',
       },
     ],
@@ -2744,24 +2786,35 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
-        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what the owner allows, in their words>': 'Merge it yourself.',
         '<what they cover; what the owner kept back>': 'covers merges',
       },
     ],
   },
   {
-    title: 'a grant with only --quote',
+    title: 'a grant with only --may',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
-    argv: ['grant', '--quote', 'Merge it yourself.'],
+    argv: ['grant', '--may', 'Merge it yourself.'],
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --quote "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --may "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [{ '<what they cover; what the owner kept back>': 'covers merges' }],
+  },
+  {
+    title: 'a grant with only --not and no --may',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['grant', '--not', 'Prune the roses.', '--where', 'chat', '--reading', 'covers watering'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --not "Prune the roses." --where chat --reading "covers watering" --may "<what the owner allows, in their words>"\n',
+    fills: [{ '<what the owner allows, in their words>': 'Water the beds.' }],
   },
   {
     title: 'a grant with only --where',
@@ -2771,10 +2824,10 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --where chat --quote "<the owner\'s words, whole>" --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --where chat --may "<what the owner allows, in their words>" --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
-        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what the owner allows, in their words>': 'Merge it yourself.',
         '<what they cover; what the owner kept back>': 'covers merges',
       },
     ],
@@ -2787,17 +2840,20 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: tide-alerts has no grant, so there is no reading to replace.\nRun: www grant --quote "<the owner\'s words, whole>" --where "<where>" --reading "covers merges"\n',
-    fills: [{ "<the owner's words, whole>": 'Merge it yourself.', '<where>': 'chat' }],
+      'www: refused: tide-alerts has no grant, so there is no reading to replace.\nRun: www grant --may "<what the owner allows, in their words>" --where "<where>" --reading "covers merges"\n',
+    fills: [{ '<what the owner allows, in their words>': 'Merge it yourself.', '<where>': 'chat' }],
   },
   {
-    title: 'grant words of 701 characters',
+    title: 'grant words of 701 characters across bullets and scope',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: [
       'grant',
-      '--quote',
-      'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+      ...Array.from({ length: 5 }, () => ['--may', 'w'.repeat(120)]).flat(),
+      '--not',
+      'n'.repeat(100),
+      '--scope',
+      's',
       '--where',
       'chat',
       '--reading',
@@ -2806,8 +2862,80 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the grant\'s words are 701 characters, and the limit is 700. The grant holds the owner\'s words whole, so it takes a statement of at most 700 characters.\nRun: www grant --quote "<the owner\'s words, at most 700 characters>" --where chat --reading "covers merges"\n',
-    fills: [{ "<the owner's words, at most 700 characters>": 'Merge it yourself.' }],
+      'www: refused: the grant\'s words are 701 characters in its bullets and scope, and the limit is 700.\nRun: www grant --may "<what the owner allows, in their words>" --not "<what the owner did not grant, in their words>" --scope s --where chat --reading "covers merges"\n',
+    fills: [
+      {
+        '<what the owner allows, in their words>': 'Merge it yourself.',
+        '<what the owner did not grant, in their words>': 'Prune the roses.',
+      },
+    ],
+  },
+  {
+    title: 'a grant of 13 bullets',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      ...Array.from({ length: 12 }, () => ['--may', 'Water.']).flat(),
+      '--never',
+      'Dig up the roses.',
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the grant has 13 bullets, and the limit is 12. Put two parts that belong together in one bullet.\nRun: www grant --may "<what the owner allows, in their words>" --never "<what the owner ruled out, in their words>" --where chat --reading "covers watering"\n',
+    fills: [
+      {
+        '<what the owner allows, in their words>': 'Water the beds.',
+        '<what the owner ruled out, in their words>': 'Dig up the roses.',
+      },
+    ],
+  },
+  {
+    title: 'a grant with a second --may of 121 characters',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      'Water the beds.',
+      '--may',
+      'b'.repeat(121),
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.\nRun: www grant --may "Water the beds." --may "<bullet of at most 120 characters>" --where chat --reading "covers watering"\n',
+    fills: [{ '<bullet of at most 120 characters>': 'Mow the lawn.' }],
+  },
+  {
+    title: 'a grant scope of 41 characters',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      'Water the beds.',
+      '--scope',
+      's'.repeat(41),
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the grant\'s scope is 41 characters, and the limit is 40.\nRun: www grant --may "Water the beds." --scope "<grant\'s scope of at most 40 characters>" --where chat --reading "covers watering"\n',
+    fills: [{ "<grant's scope of at most 40 characters>": 'the east garden' }],
   },
   {
     title: 'a grant reading of 201 characters',
@@ -2815,7 +2943,7 @@ test.each([
     files: [],
     argv: [
       'grant',
-      '--quote',
+      '--may',
       'Merge it yourself.',
       '--where',
       'chat',
@@ -2825,16 +2953,18 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the reading is 201 characters, and the limit is 200.\nRun: www grant --quote "Merge it yourself." --where chat --reading "<reading of at most 200 characters>"\n',
+      'www: refused: the reading is 201 characters, and the limit is 200.\nRun: www grant --may "Merge it yourself." --where chat --reading "<reading of at most 200 characters>"\n',
     fills: [{ '<reading of at most 200 characters>': 'covers merges' }],
   },
   {
-    title: 'a credential in the grant words',
+    title: 'a credential in a grant bullet',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: [
       'grant',
-      '--quote',
+      '--may',
+      'Water the beds.',
+      '--not',
       `token ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}`,
       '--where',
       'chat',
@@ -2844,8 +2974,29 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --quote "<where the secret lives>" --where chat --reading "covers merges"\n',
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may "Water the beds." --not "<where the secret lives>" --where chat --reading "covers merges"\n',
     fills: [{ '<where the secret lives>': 'the vault item for the owner' }],
+  },
+  {
+    title: 'a credential in the grant scope',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      'Water the beds.',
+      '--scope',
+      ['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join(''),
+      '--where',
+      'chat',
+      '--reading',
+      'covers merges',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may "Water the beds." --scope "<where the secret lives>" --where chat --reading "covers merges"\n',
+    fills: [{ '<where the secret lives>': 'the east garden' }],
   },
   {
     title: 'a credential in the grant reading',
@@ -2853,7 +3004,7 @@ test.each([
     files: [],
     argv: [
       'grant',
-      '--quote',
+      '--may',
       'Merge it yourself.',
       '--where',
       'chat',
@@ -2863,7 +3014,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --quote "Merge it yourself." --where chat --reading "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may "Merge it yourself." --where chat --reading "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'covers merges' }],
   },
   {
@@ -2872,7 +3023,7 @@ test.each([
     files: [],
     argv: [
       'grant',
-      '--quote',
+      '--may',
       'Merge it yourself.',
       '--where',
       'wwwwwwwwwwwwwwwww',
@@ -2882,7 +3033,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the where is 17 characters, and the limit is 16. Write what is true now; the story belongs in a PR or a commit.\nRun: www grant --quote "Merge it yourself." --where "<where of at most 16 characters>" --reading "covers merges"\n',
+      'www: refused: the where is 17 characters, and the limit is 16. Write what is true now; the story belongs in a PR or a commit.\nRun: www grant --may "Merge it yourself." --where "<where of at most 16 characters>" --reading "covers merges"\n',
     fills: [{ '<where of at most 16 characters>': 'chat' }],
   },
   {
@@ -2891,7 +3042,7 @@ test.each([
     files: [],
     argv: [
       'grant',
-      '--quote',
+      '--may',
       'Merge it yourself.',
       '--where',
       'chat;x',
@@ -2901,7 +3052,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: --where cannot hold ; or =.\nRun: www grant --quote "Merge it yourself." --where chat,x --reading "covers merges"\n',
+      'www: refused: --where cannot hold ; or =.\nRun: www grant --may "Merge it yourself." --where chat,x --reading "covers merges"\n',
     fills: [{}],
   },
   {

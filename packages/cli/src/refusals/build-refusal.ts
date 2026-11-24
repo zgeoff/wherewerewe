@@ -3,7 +3,7 @@ import { getKindWord } from '../rules/get-kind-word.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { noSecretPlaceholder, redactCredential } from '../rules/redact-credential.ts';
-import type { ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
+import type { ParsedArgs, Refusal, RefusalReason } from '../types.ts';
 import { buildApprovalRefusal } from './build-approval-refusal.ts';
 import { buildMalformedCheckRefusal } from './build-malformed-check-refusal.ts';
 import { buildNoteRefusal } from './build-note-refusal.ts';
@@ -15,6 +15,7 @@ import { formatList } from './format-list.ts';
 import { pickClosestID } from './pick-closest-id.ts';
 import { quoteShellWord } from './quote-shell-word.ts';
 import { refuse } from './refuse.ts';
+import { replaceText } from './replace-text.ts';
 
 const evidencePlaceholder = '<PR, commit or test run>';
 const goalPlaceholder = '<what done means>';
@@ -109,6 +110,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'grant-needs-part' },
       { kind: 'grant-reading-no-grant' },
       { kind: 'grant-words-too-long' },
+      { kind: 'grant-too-many-bullets' },
       (found) => buildApprovalRefusal(found),
     )
     .with({ kind: 'decide-needs-why' }, (found) =>
@@ -333,7 +335,8 @@ function buildTooLong(found: Found<'text-too-long'>): Refusal {
       'quote',
       () => 'Write what is true now, and put the detail in its note with --note.',
     )
-    .with('reading', () => null)
+    .with('bullet', () => 'Give each part of the grant its own --may, --not or --never.')
+    .with('reading', "grant's scope", () => null)
     .otherwise(() => 'Write what is true now; the story belongs in a PR or a commit.');
 
   return refuse(
@@ -342,14 +345,7 @@ function buildTooLong(found: Found<'text-too-long'>): Refusal {
   );
 }
 
-function replaceText(args: ParsedArgs, target: TextTarget, value: string): string[] {
-  const spec: RunSpec = buildRunSpec(args);
-
-  return 'positional' in target.place
-    ? spec.replacePositional(target.place.positional, value).toArgv()
-    : spec.replaceFlag(target.place.flag, value).toArgv();
-}
-
+const grantLabels: ReadonlySet<string> = new Set(['bullet', "grant's scope", 'reading']);
 const itemWriteCommands: ReadonlySet<string> = new Set(['task', 'wait', 'rule', 'where', 'set']);
 
 function buildCredentialRun(found: Found<'credential'>): string[] {
@@ -357,7 +353,7 @@ function buildCredentialRun(found: Found<'credential'>): string[] {
     return replaceText(found.args, found.target, '<where the secret lives>');
   }
 
-  if (found.target.label === 'words' || found.target.label === 'reading') {
+  if (grantLabels.has(found.target.label)) {
     return replaceText(found.args, found.target, '<where the secret lives>');
   }
 
