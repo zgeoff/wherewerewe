@@ -1223,6 +1223,76 @@ test('it lets say run for an owner with agent variables set to an empty value', 
   });
 });
 
+test("it names the agent as the writer of the words when the agent writes the owner's words again in the same second", async () => {
+  const ctx = setupTest();
+  const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+  const grant = ['--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ownerEnv, {
+    stdin: true,
+    stdout: true,
+  });
+
+  ctx.advance(-1000);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ctx.agentEnv);
+
+  const result = await ctx.run(['--session', 'tide-alerts', 'show', 'grant'], ctx.agentEnv);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: [
+      'grant  from the owner in chat, words set on day 1 by agent, reading set on day 1',
+      '  words (0m): "Merge it yourself."',
+      '  reading (0m): covers merges',
+      '  journal: day 1 grant · day 1 grant',
+      '',
+    ].join('\n'),
+    stderr: '',
+  });
+});
+
+test('it names the agent as the writer of the words after the owner replaces the reading alone in the same second', async () => {
+  const ctx = setupTest();
+  const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+  const grant = ['--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ownerEnv, {
+    stdin: true,
+    stdout: true,
+  });
+
+  ctx.advance(-1000);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ctx.agentEnv);
+
+  ctx.advance(-1000);
+
+  await ctx.run(
+    ['--session', 'tide-alerts', 'grant', '--reading', 'covers merges and nothing else'],
+    ownerEnv,
+    { stdin: true, stdout: true },
+  );
+
+  const result = await ctx.run(['--session', 'tide-alerts', 'show', 'grant'], ctx.agentEnv);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: [
+      'grant  from the owner in chat, words set on day 1 by agent, reading set on day 1',
+      '  words (0m): "Merge it yourself."',
+      '  reading (0m): covers merges and nothing else',
+      '  journal: day 1 grant · day 1 grant · day 1 grant',
+      '',
+    ].join('\n'),
+    stderr: '',
+  });
+});
+
 test('it exits 2 for a parse error in say before it checks for an owner terminal', async () => {
   const ctx = setupTest();
 

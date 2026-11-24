@@ -57,8 +57,9 @@ export function renderShow(input: ShowInput): string {
 const noGrantLine =
   'grant  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"';
 
-// A reading alone keeps the words and their time, and its row has `reading=1` in `extra`. The
-// words' row is the newest grant row without it, and the reading's row is the newest grant row.
+// A `reading=1` row replaced the reading alone; every other grant row wrote words, where and
+// reading. A write that stops after its journal row leaves a row `session` lacks, so each lookup
+// takes the newest row that holds what the grant holds.
 function renderGrant(input: ShowInput): string {
   const grant = input.store.session.grant;
 
@@ -67,8 +68,15 @@ function renderGrant(input: ShowInput): string {
   }
 
   const rows = input.rows.filter((row) => row.id === 'grant' && row.op === 'grant');
-  const wordsRow = rows.findLast((row) => !(row.extra ?? '').split(';').includes('reading=1'));
-  const readingRow = rows.at(-1);
+
+  const wordsRow = rows.findLast(
+    (row) =>
+      findExtraValue(row.extra, 'reading') !== '1' &&
+      row.text === grant.words &&
+      findExtraValue(row.extra, 'where') === grant.where,
+  );
+
+  const readingRow = rows.findLast((row) => row.text === grant.words && row.why === grant.reading);
   const wordsDay = getDay(input.store, Date.parse(wordsRow?.ts ?? grant.set));
   const readingDay = getDay(input.store, Date.parse(readingRow?.ts ?? grant.set));
   const wordsAge = formatAge(input.nowMs - Date.parse(grant.set));
