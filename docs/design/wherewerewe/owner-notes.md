@@ -19,13 +19,13 @@ flowchart LR
 
 ```text
 $ www --session tide-alerts say "The reading misses tidekit: the grant covers opening PRs there, never merging them."
-o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: <n> lines.
+o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: <t> of <limit> tokens.
 
 $ www --session tide-alerts say "Use the recorded tide fixtures for e2e, not the live feed" --on t-e2e
-o-3  owner note on t-e2e. It shows in every brief until you run: www --session tide-alerts ack o-3. Brief: <n> lines.
+o-3  owner note on t-e2e. It shows in every brief until you run: www --session tide-alerts ack o-3. Brief: <t> of <limit> tokens.
 
 $ www --session tide-alerts ack o-2
-o-2  cleared. Kept in the journal. Brief: <n> lines.
+o-2  cleared. Kept in the journal. Brief: <t> of <limit> tokens.
 ```
 
 - `say` and `ack` run only when both hold: stdin and stdout are terminals, and none of `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CODEX_SESSION_ID`, `CODEX_THREAD_ID` or `CODEX_CI` is set.
@@ -33,8 +33,9 @@ o-2  cleared. Kept in the journal. Brief: <n> lines.
 - No agent command reads `owner.tsv` for writing. Only `say` and `ack` do.
 - Print owner notes in the brief right after the goal and the grant, before every other section. Take the line format from [brief.md](brief.md).
 - The owner corrects the grant's reading with a plain `say`, as in `o-2` above: `--on` takes an item id, and the grant is no item. The agent then rewrites the reading with `www grant --reading`, and the owner clears the note with `ack` once the brief shows the new reading.
-- The owner reads what the session kept with `www --session <name> recap`: the grant, the notes on open items, the decisions and the closes since a time, in at most 55 lines, and it ends with the `say` command, with `--session <name>`, that corrects what it shows. Take its sections from [commands.md](commands.md). `recap` writes nothing, so it runs from any shell, with no terminal test: the owner runs it from a terminal outside any agent, and an agent may run it too.
+- The owner reads what the session kept with `www --session <name> recap`: the grant, the notes on open items, the promises, the decisions and the closes since a time, in at most 61 lines, and it ends with the `say` command, with `--session <name>`, that corrects what it shows. Take its sections from [commands.md](commands.md). `recap` writes nothing, so it runs from any shell, with no terminal test: the owner runs it from a terminal outside any agent, and an agent may run it too.
 - At most 2 notes show; a third `say` is refused until the owner clears one.
+- After a grant changes, the owner pastes the output of [`www goal --paste`](commands.md#www-goal---paste) as a `/goal`.
 - An agent's `Run:` line in a refusal never suggests `say` or `ack`.
 
 ## What this does not protect against
@@ -52,6 +53,7 @@ The owner checks by reading `www --session <name> recap` every so often, and `ww
 
 - **A terminal outside any agent, and no signing.** Signing would need a key the agent cannot read, on a machine where the agent reads every file the owner can. [0005](../../decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md)
 - **Only the owner clears a note.** A note the agent could clear would stop the agent's next read from seeing it.
+- **The owner's words are not owner notes.** The agent writes them with `www words`, in the owner's exact words and with where they were said, and they hold taste and principles. The agent acts on an owner note and only the owner clears it, while the owner's words permit nothing and close with `www drop`. [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 - **What the owner says in chat is the agent's to record.** The agent writes it as a rule, a wait, a decision with `--who owner`, a one-time approval with the owner's quote, or the grant in the owner's words; it never becomes an owner note.
 
 ## Builder decides
