@@ -122,11 +122,13 @@ last 10 journal rows. `log` prints the journal oldest first, kept to the rows th
 and `--id` name, and sorts them by time. `recap` prints one screen for the owner: the grant as the
 brief prints it, the notes on open items, and the decisions and closes since `--since`, which
 defaults to `24h`. Each section has a row limit and an overflow line, whose command prints the rest,
-and the whole screen is at most 55 lines of at most 100 characters. The three reads read the journal
-in chunks and hold only the rows they need, take no lock, run no check and write nothing. Once the
-session is found and its store is format 2, none is refused for a missing or unreadable thing: an
-unknown id lists the open items, and an unreadable journal prints the item or the recap without its
-history and says so on stderr. Only a `--since` that `log` or `recap` cannot read exits 2.
+and the whole screen is at most 55 lines of at most 100 characters. A `--since` value longer than 7
+characters makes the two overflow lines that repeat it longer, so their commands still run. The
+three reads read the journal in chunks and hold only the rows they need, take no lock, run no check
+and write nothing. Once the session is found and its store is format 2, none is refused for a
+missing or unreadable thing: an unknown id lists the open items, and an unreadable journal prints
+the item or the recap without its history and says so on stderr. Only a `--since` that `log` or
+`recap` cannot read exits 2.
 
 ## Importing a hand-kept store
 

@@ -28,9 +28,9 @@ export interface RecapInput {
   readonly nowMs: number;
 }
 
-// One screen of at most 55 lines of at most 100 characters. Each stored text is redacted before
-// its line is cut. The grant's lines, the overflow lines and the footer are never cut, so each
-// command runs as printed.
+// One screen of at most 55 lines of at most 100 characters, except an overflow line whose --since
+// passes 7 characters. Each stored text is redacted before its line is cut. The grant's lines, the
+// overflow lines and the footer are never cut, so each command runs as printed.
 export function renderRecap(input: RecapInput): string {
   const lines = [
     renderHeader(input),
