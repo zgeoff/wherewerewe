@@ -365,7 +365,7 @@ function pickFullKind(items: readonly Item[], kind: Kind): RefusalReason | null 
 
 // `<k> of 400`, then `, owed` for an owed note.
 function formatNotePart(note: Note): string {
-  return `${String([...note.note].length)} of 400${note.owed ? ', owed' : ''}`;
+  return `${String(Array.from(note.note, (character) => character).length)} of 400${note.owed ? ', owed' : ''}`;
 }
 
 function pickCheckRef(checks: CheckFlagsResult): string | null {
