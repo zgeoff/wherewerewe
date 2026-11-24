@@ -18,7 +18,19 @@ const bareWords: ReadonlySet<string> = new Set([
   '<absolute path>',
 ]);
 
+// A flag joined to a value that starts with a dash prints as --flag="<value>", the form a refusal
+// tells the agent to type.
 function formatArgument(argument: string, typedWords: readonly string[]): string {
+  const joined = /^(?<flag>--[a-z][a-z-]*=)(?<value>-.*)$/su.exec(argument)?.groups;
+  const flag = joined?.['flag'];
+  const value = joined?.['value'];
+
+  if (flag !== undefined && value !== undefined) {
+    const quoted = quoteShellWord(value);
+
+    return `${flag}${quoted === value ? `"${quoted}"` : quoted}`;
+  }
+
   return bareWords.has(argument) && !typedWords.includes(argument)
     ? argument
     : quoteShellWord(argument);

@@ -1,11 +1,12 @@
 import type { CheckRef } from '../types.ts';
+import { lineBreakPattern } from './line-break-pattern.ts';
 
 export function parseCheckRef(text: string): CheckRef | null {
   const split = text.indexOf(':');
   const kind = text.slice(0, split);
   const value = text.slice(split + 1);
 
-  if (split < 1 || /[\t\n\r]/u.test(value)) {
+  if (split < 1 || lineBreakPattern.test(value)) {
     return null;
   }
 

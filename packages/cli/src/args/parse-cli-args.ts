@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { match } from 'ts-pattern';
 import type { ParsedArgs, RefusalReason, TypedFlag } from '../types.ts';
+import { joinDashValues } from './join-dash-values.ts';
 
 export type ParseResult =
   | { readonly kind: 'args'; readonly args: ParsedArgs }
@@ -11,38 +12,6 @@ export type ParseResult =
       // the --session value typed, when the parser got far enough to read it
       readonly sessionFlag: string | null;
     };
-
-// Reads the argv once, with every command's options, then checks the command and its shape.
-// `-h`, `--help` and `help` alone give the command `help`.
-export function parseCLIArgs(argv: readonly string[]): ParseResult {
-  try {
-    return checkArgs(argv);
-  } catch (error) {
-    if (!(error instanceof Error) || !('code' in error)) {
-      throw error;
-    }
-
-    const flag =
-      /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
-      /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
-      '';
-
-    const name = flag.replace(/^-+/u, '');
-
-    const reason = match(error.code)
-      .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', (): RefusalReason => ({ kind: 'unknown-flag', flag }))
-      .with('ERR_PARSE_ARGS_INVALID_OPTION_VALUE', (): RefusalReason =>
-        isStringOption(name)
-          ? { kind: 'flag-needs-value', flag: name }
-          : { kind: 'flag-takes-no-value', flag: name },
-      )
-      .otherwise(() => {
-        throw error;
-      });
-
-    return { kind: 'refused', reason, sessionFlag: pickSessionFlag(argv) };
-  }
-}
 
 const options = {
   session: { type: 'string' },
@@ -77,6 +46,47 @@ const options = {
   'no-note': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
+
+const flagTypes: ReadonlyMap<string, 'string' | 'boolean'> = new Map(
+  Object.entries(options).map(([name, option]) => [name, option.type]),
+);
+
+// Reads the argv once, with every command's options, then checks the command and its shape.
+// `-h`, `--help` and `help` alone give the command `help`.
+export function parseCLIArgs(argv: readonly string[]): ParseResult {
+  try {
+    return checkArgs(argv);
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error)) {
+      throw error;
+    }
+
+    const flag =
+      /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
+      /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
+      '';
+
+    const name = flag.replace(/^-+/u, '');
+    const joined = joinDashValues(argv, flagTypes);
+
+    const reason = match(error.code)
+      .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', (): RefusalReason => ({ kind: 'unknown-flag', flag }))
+      .with('ERR_PARSE_ARGS_INVALID_OPTION_VALUE', (): RefusalReason => {
+        if (joined !== null) {
+          return { kind: 'flag-value-has-dash', flag: joined.flag, argv: joined.argv };
+        }
+
+        return isStringOption(name)
+          ? { kind: 'flag-needs-value', flag: name }
+          : { kind: 'flag-takes-no-value', flag: name };
+      })
+      .otherwise(() => {
+        throw error;
+      });
+
+    return { kind: 'refused', reason, sessionFlag: pickSessionFlag(argv) };
+  }
+}
 
 const checkFlags = ['pr', 'branch', 'path', 'pid'];
 const noteFlags = ['note', 'owed'];

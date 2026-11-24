@@ -1,5 +1,8 @@
 import { countGrantWords } from '../rules/count-grant-words.ts';
+import { findCredentialMatch } from '../rules/find-credential-match.ts';
+import { findTextProblem } from '../rules/find-text-problem.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
+import { isUTCTime } from '../rules/is-utc-time.ts';
 import type { Grant, SessionFile } from '../types.ts';
 
 export type SessionParse =
@@ -120,7 +123,7 @@ export function parseSessionFile(text: string): SessionParse {
 
 // A grant has at least one grant_may line and sets grant_reading, grant_where and grant_set; with
 // no grant, the file has no bullet lines and those keys and grant_scope are empty. Returns a reason
-// when the keys are neither, or when a value or the owner's words pass a limit.
+// when the keys are neither, or when a value holds what www grant refuses.
 function parseGrant(
   pairs: ReadonlyMap<string, string>,
   bullets: ReadonlyMap<string, readonly string[]>,
@@ -142,19 +145,29 @@ function parseGrant(
     return 'a grant needs a grant_may line and grant_reading, grant_where and grant_set';
   }
 
-  const limitProblem = findLimitProblem([
+  const textProblem = findGrantTextProblem([
     ...all.map((bullet) => ({ name: 'a grant bullet', value: bullet, limit: grantLimits.bullet })),
-    { name: 'the key grant_scope', value: scope, limit: grantLimits.scope },
+    ...(scope === ''
+      ? []
+      : [{ name: 'the key grant_scope', value: scope, limit: grantLimits.scope }]),
     { name: 'the key grant_reading', value: reading, limit: grantLimits.reading },
     { name: 'the key grant_where', value: where, limit: grantLimits.where },
   ]);
 
-  if (limitProblem !== null) {
-    return limitProblem;
+  if (textProblem !== null) {
+    return textProblem;
   }
 
-  if (all.some((bullet) => bullet === '')) {
-    return 'a grant bullet is empty';
+  if (all.some((bullet) => bullet.includes('•'))) {
+    return 'a grant bullet holds •';
+  }
+
+  if (/[;=]/u.test(where)) {
+    return 'the key grant_where holds ; or =';
+  }
+
+  if (!isUTCTime(set)) {
+    return 'the key grant_set is not a UTC time';
   }
 
   if (all.length > grantLimits.bullets) {
@@ -171,21 +184,39 @@ function parseGrant(
   return { ...words, reading, where, set };
 }
 
-interface LimitedValue {
+interface GrantText {
   // how the reason names the value, such as the key grant_where
   readonly name: string;
   readonly value: string;
   readonly limit: number;
 }
 
-function findLimitProblem(values: readonly LimitedValue[]): string | null {
-  const over = values.find(
-    (entry) => Array.from(entry.value, (character) => character).length > entry.limit,
-  );
+// The first problem a write would refuse in one of the grant's texts. A reason never quotes the
+// value, so a credential stays off the terminal.
+function findGrantTextProblem(texts: readonly GrantText[]): string | null {
+  for (const text of texts) {
+    const problem = findTextProblem(text.value, text.limit);
 
-  return over === undefined
-    ? null
-    : `${over.name} is ${String(Array.from(over.value, (character) => character).length)} characters, and the limit is ${String(over.limit)}`;
+    if (problem?.kind === 'empty') {
+      return `${text.name} is empty`;
+    }
+
+    if (problem?.kind === 'not-one-line') {
+      return `${text.name} holds a tab or a line break`;
+    }
+
+    if (problem?.kind === 'too-long') {
+      return `${text.name} is ${String(problem.length)} characters, and the limit is ${String(text.limit)}`;
+    }
+
+    const label = findCredentialMatch(text.value);
+
+    if (label !== null) {
+      return `${text.name} looks like a credential (it matches ${label})`;
+    }
+  }
+
+  return null;
 }
 
 function toOptional(pairs: ReadonlyMap<string, string>, key: string): string | null {

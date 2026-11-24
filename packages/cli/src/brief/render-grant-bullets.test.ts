@@ -51,19 +51,3 @@ test('it wraps a long bullet under its own text, and starts the next never bulle
     '         • spray the hives',
   ]);
 });
-
-test('it gives a never bullet that holds a • a line of its own', () => {
-  expect(
-    renderGrantBullets({
-      may: ['water the beds'],
-      not: [],
-      never: ['dig up the roses', 'spray • the hives', 'mow the meadow'],
-      scope: null,
-    }),
-  ).toStrictEqual([
-    '  may    • water the beds',
-    '  never  • dig up the roses',
-    '         • spray • the hives',
-    '         • mow the meadow',
-  ]);
-});

@@ -307,6 +307,13 @@ export type RefusalReason =
   | { readonly kind: 'later-command'; readonly command: string }
   | { readonly kind: 'unknown-flag'; readonly flag: string }
   | { readonly kind: 'flag-needs-value'; readonly flag: string }
+  | {
+      readonly kind: 'flag-value-has-dash';
+      readonly flag: string;
+
+      // the command as typed, without --session, with each dash value joined to its flag by =
+      readonly argv: readonly string[];
+    }
   | { readonly kind: 'flag-takes-no-value'; readonly flag: string }
   | { readonly kind: 'flag-not-taken'; readonly command: string; readonly flag: string }
   | { readonly kind: 'wrong-positionals'; readonly command: string; readonly usage: string }
@@ -373,6 +380,15 @@ export type RefusalReason =
       readonly kind: 'grant-too-many-bullets';
       readonly args: ParsedArgs;
       readonly count: number;
+    }
+  | {
+      readonly kind: 'bullet-has-mark';
+      readonly args: ParsedArgs;
+      readonly flag: 'may' | 'not' | 'never';
+
+      // the bullet's place among that flag's values
+      readonly occurrence: number;
+      readonly bullet: string;
     }
   | { readonly kind: 'decide-needs-why'; readonly args: ParsedArgs }
   | { readonly kind: 'bad-decision-who'; readonly args: ParsedArgs }

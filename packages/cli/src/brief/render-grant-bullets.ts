@@ -8,8 +8,8 @@ const groups = [
 ] as const;
 
 // The grant's bullets under their labels, each group left out when it has none. A never bullet
-// joins the line before when that line holds whole never bullets, neither holds a •, and the line
-// stays within 100 characters; may and not bullets take a line each.
+// joins the line before when that line holds whole never bullets and stays within 100 characters;
+// may and not bullets take a line each. No bullet holds a •, so the mark always starts a bullet.
 export function renderGrantBullets(words: GrantWords): string[] {
   return groups.flatMap((group) => renderGroup(group.label, words[group.key], group.isShared));
 }
@@ -32,13 +32,7 @@ function renderGroup(label: string, bullets: readonly string[], isShared: boolea
       const last = current.lines.at(-1);
       const joined = `${last ?? ''}${gap}${bullet}`;
 
-      if (
-        isShared &&
-        current.isOpen &&
-        last !== undefined &&
-        !bullet.includes('•') &&
-        countCodePoints(joined) <= maxWidth
-      ) {
+      if (isShared && current.isOpen && last !== undefined && countCodePoints(joined) <= maxWidth) {
         return { lines: [...current.lines.slice(0, -1), joined], isOpen: true };
       }
 
@@ -47,7 +41,7 @@ function renderGroup(label: string, bullets: readonly string[], isShared: boolea
 
       return {
         lines: [...current.lines, ...wrapped],
-        isOpen: wrapped.length === 1 && !bullet.includes('•'),
+        isOpen: wrapped.length === 1,
       };
     },
     { lines: [], isOpen: false },

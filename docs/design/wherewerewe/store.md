@@ -67,7 +67,7 @@ last_nudge=2026-03-10T10:40:00Z  # written by the hook; empty until the first nu
 imported_from=0-by-hand          # only in a store that www import converted from a hand-kept store
 ```
 
-A store with a grant has at least one `grant_may` line and sets `grant_reading`, `grant_where` and `grant_set`. A store with no grant has no `grant_may`, `grant_not` or `grant_never` line, and writes `grant_scope`, `grant_reading`, `grant_where` and `grant_set` empty. The bullet lines keep the order the owner gave them in. A grant holds at most 12 bullets, and its bullets and scope together hold at most 700 characters of the owner's words. Every key but the three bullet keys appears once.
+A store with a grant has at least one `grant_may` line and sets `grant_reading`, `grant_where` and `grant_set`. A store with no grant has no `grant_may`, `grant_not` or `grant_never` line, and writes `grant_scope`, `grant_reading`, `grant_where` and `grant_set` empty. The bullet lines keep the order the owner gave them in. A grant holds at most 12 bullets, and its bullets and scope together hold at most 700 characters of the owner's words. Every key but the three bullet keys appears once. A `session` whose grant keys hold a value `www grant` would refuse, such as a tab, a lone `-`, a `•` in a bullet, a `;` in `grant_where`, a value that looks like a credential, a value or a grant over its limit, or a `grant_set` that is no UTC time, does not parse. Every command that reads the store then refuses with the text in [commands.md](commands.md), and names the problem without quoting the value.
 
 ### items.tsv
 
@@ -185,7 +185,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 ## Constraints
 
 - Every file is UTF-8 with LF line endings, and every `.tsv` starts with its header row.
-- A cell or a `session` value never holds a tab or a newline: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
+- A cell or a `session` value never holds a tab or a line break, a Unicode line or paragraph separator among them: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
 - A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where` or `--scope` that holds one.
 - `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row.
 - `notes.tsv` holds only notes on open items, at most one per item, and at most 22 rows in format 1 and 20 in format 2. A missing `notes.tsv` reads as no notes.

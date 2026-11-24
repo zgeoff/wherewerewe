@@ -17,7 +17,8 @@ type ApprovalRefusalReason = Extract<
       | 'grant-needs-part'
       | 'grant-reading-no-grant'
       | 'grant-words-too-long'
-      | 'grant-too-many-bullets';
+      | 'grant-too-many-bullets'
+      | 'bullet-has-mark';
   }
 >;
 
@@ -83,5 +84,14 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
         replaceGrantBullets(buildRunSpec(found.args), found.args.flags).toArgv(),
       ),
     )
+    .with({ kind: 'bullet-has-mark' }, (found) => {
+      const fixed = found.bullet.replaceAll('•', '-');
+      const bullet = fixed === '-' ? '<bullet>' : fixed;
+
+      return refuse(
+        'www: refused: a bullet cannot hold •, which the brief prints before each bullet.',
+        buildRunSpec(found.args).replaceFlagAt(found.flag, found.occurrence, bullet).toArgv(),
+      );
+    })
     .exhaustive();
 }

@@ -148,6 +148,51 @@ test.each([
     { kind: 'broken', reason: 'the key grant_where is 17 characters, and the limit is 16' },
   ],
   [
+    'a grant bullet with a tab',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water\tthe beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'a grant bullet holds a tab or a line break' },
+  ],
+  [
+    'a grant bullet with a line separator',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water\u2028the beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'a grant bullet holds a tab or a line break' },
+  ],
+  [
+    'a grant bullet of a lone dash',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=-\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'a grant bullet is empty' },
+  ],
+  [
+    'a grant bullet with the bullet mark',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water • mow\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'a grant bullet holds •' },
+  ],
+  [
+    'a grant bullet that looks like a credential',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=token ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'a grant bullet looks like a credential (it matches ghp_)' },
+  ],
+  [
+    'a grant scope of a lone dash',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=-\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'the key grant_scope is empty' },
+  ],
+  [
+    'a grant reading with a paragraph separator',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=r\u2029s\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'the key grant_reading holds a tab or a line break' },
+  ],
+  [
+    'a grant place with a separator',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=chat;x\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'the key grant_where holds ; or =' },
+  ],
+  [
+    'a grant set that is no UTC time',
+    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=yesterday\n`,
+    { kind: 'broken', reason: 'the key grant_set is not a UTC time' },
+  ],
+  [
     'a repeated grant_scope key',
     'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=one\ngrant_scope=two\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
     { kind: 'broken', reason: 'the key grant_scope repeats' },

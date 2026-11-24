@@ -5,6 +5,7 @@ import { isSessionName } from '../rules/is-session-name.ts';
 import { noSecretPlaceholder, redactCredential } from '../rules/redact-credential.ts';
 import type { ParsedArgs, Refusal, RefusalReason } from '../types.ts';
 import { buildApprovalRefusal } from './build-approval-refusal.ts';
+import { buildArgvRefusal } from './build-argv-refusal.ts';
 import { buildMalformedCheckRefusal } from './build-malformed-check-refusal.ts';
 import { buildNoteRefusal } from './build-note-refusal.ts';
 import { buildOwnerRefusal } from './build-owner-refusal.ts';
@@ -26,22 +27,16 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'no-store-folder' }, () =>
       usage(4, 'www: no store folder: set XDG_STATE_HOME or HOME.'),
     )
-    .with({ kind: 'unknown-command' }, (found) =>
-      usage(2, `www: unknown command "${found.command}".`),
-    )
-    .with({ kind: 'later-command' }, (found) =>
-      usage(2, `www: "${found.command}" comes in a later version of www.`),
-    )
-    .with({ kind: 'unknown-flag' }, (found) => usage(2, `www: unknown flag "${found.flag}".`))
-    .with({ kind: 'flag-needs-value' }, (found) => usage(2, `www: --${found.flag} needs a value.`))
-    .with({ kind: 'flag-takes-no-value' }, (found) =>
-      usage(2, `www: --${found.flag} takes no value.`),
-    )
-    .with({ kind: 'flag-not-taken' }, (found) =>
-      usage(2, `www: ${found.command} takes no --${found.flag} flag.`),
-    )
-    .with({ kind: 'wrong-positionals' }, (found) =>
-      usage(2, `www: ${found.command} takes ${found.usage}.`),
+    .with(
+      { kind: 'unknown-command' },
+      { kind: 'later-command' },
+      { kind: 'unknown-flag' },
+      { kind: 'flag-needs-value' },
+      { kind: 'flag-value-has-dash' },
+      { kind: 'flag-takes-no-value' },
+      { kind: 'flag-not-taken' },
+      { kind: 'wrong-positionals' },
+      (found) => buildArgvRefusal(found),
     )
     .with({ kind: 'text-too-long' }, (found) => buildTooLong(found))
     .with({ kind: 'text-not-one-line' }, (found) =>
@@ -111,6 +106,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'grant-reading-no-grant' },
       { kind: 'grant-words-too-long' },
       { kind: 'grant-too-many-bullets' },
+      { kind: 'bullet-has-mark' },
       (found) => buildApprovalRefusal(found),
     )
     .with({ kind: 'decide-needs-why' }, (found) =>

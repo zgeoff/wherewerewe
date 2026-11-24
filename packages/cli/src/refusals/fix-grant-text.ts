@@ -35,6 +35,10 @@ export function fixGrantText(
       flag: separator.flag,
       occurrence: null,
     }))
+    .with({ kind: 'bullet-has-mark' }, (mark) => ({
+      flag: mark.flag,
+      occurrence: mark.occurrence,
+    }))
     .otherwise(() => null);
 
   if (reason.kind === 'grant-words-too-long' || reason.kind === 'grant-too-many-bullets') {
