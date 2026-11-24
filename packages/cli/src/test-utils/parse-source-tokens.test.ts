@@ -95,3 +95,39 @@ test.each([
 ])('it reads a slash after $title as a regex', (row) => {
   expect(parseSourceTokens(row.source).map((token) => token.value)).toContain('/a b/');
 });
+
+test('it reads the slash after a doubled non-null assertion as a division, so the read after it shows', () => {
+  const words = parseSourceTokens('const r = value!! / Number(process.env.HOME);')
+    .filter((token) => token.kind === 'word')
+    .map((token) => [token.value, token.line]);
+
+  expect(words).toContainEqual(['process', 1]);
+});
+
+test('it reads a regex after a not at the start of a line as one token, with no word from inside it', () => {
+  const tokens = parseSourceTokens('const v = x\n!/process.env.HOME/.test(text);');
+
+  expect({
+    regex: tokens.filter((token) => token.kind === 'other').map((token) => token.value),
+    hasProcess: tokens.some((token) => token.kind === 'word' && token.value === 'process'),
+  }).toStrictEqual({ regex: ['/process.env.HOME/'], hasProcess: false });
+});
+
+test.each([
+  { title: 'an LF', breakText: '\n' },
+  { title: 'a CR LF', breakText: '\r\n' },
+  { title: 'a CR', breakText: '\r' },
+])(
+  'it reads a backslash before $title in a string as a line continuation that counts its line',
+  (row) => {
+    const backslash = String.fromCodePoint(92);
+    const tokens = parseSourceTokens(`"a${backslash}${row.breakText}b";\nnext;`);
+
+    expect(tokens.map((token) => [token.value, token.line])).toStrictEqual([
+      ['ab', 1],
+      [';', 2],
+      ['next', 3],
+      [';', 3],
+    ]);
+  },
+);

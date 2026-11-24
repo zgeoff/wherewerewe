@@ -1,5 +1,13 @@
 import { expect, test } from 'bun:test';
-import { chmodSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -12,6 +20,7 @@ import { writeUpgradeFiles } from '../store/write-upgrade-files.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
+import { parseRunLine } from '../test-utils/parse-run-line.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
@@ -963,10 +972,15 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
     sameListing: listing,
   });
 
-  const filled = buildFilledRunArgv(runLine ?? '', {
-    '<what the owner allows, in their words>': 'Merge and deploy to the staging beds yourself.',
-    '<what they cover; what the owner kept back>': 'covers garden-api merges and staging deploys',
-  });
+  const mayWords = ['Merge the garden-api PRs yourself.', 'Deploy to the staging beds yourself.'];
+
+  const filled = buildFilledRunArgv(
+    runLine ?? '',
+    {
+      '<what they cover; what the owner kept back>': 'covers garden-api merges and staging deploys',
+    },
+    mayWords,
+  );
 
   const upgraded = await ctx.run(filled, env, nowMs);
   const rerun = await ctx.run(['import', 'old-notes'], env, nowMs);
@@ -974,7 +988,7 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
   expect({
     upgraded,
     backup: formatOneFiles.map((file) => ctx.readText(`old-notes/format-1-backup/${file}`)),
-    session: ctx.readText('old-notes/session').split('\n').slice(0, 8),
+    session: ctx.readText('old-notes/session').split('\n').slice(0, 9),
     itemIDs: ctx
       .readText('old-notes/items.tsv')
       .split('\n')
@@ -985,7 +999,7 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
   }).toStrictEqual({
     upgraded: {
       exitCode: 0,
-      stdout: `Upgraded old-notes to format 2: grant 46 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in ${ctx.folder}/format-1-backup/.\n  ok-merge had a note: Turn the staging pump flag back off before merging the pump change.\n`,
+      stdout: `Upgraded old-notes to format 2: grant 70 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in ${ctx.folder}/format-1-backup/.\n  ok-merge had a note: Turn the staging pump flag back off before merging the pump change.\n`,
       stderr: '',
     },
     backup: originals,
@@ -993,7 +1007,8 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
       'format=2',
       'name=old-notes',
       'goal=Ship soil-moisture alerts for the garden irrigation app',
-      'grant_may=Merge and deploy to the staging beds yourself.',
+      'grant_may=Merge the garden-api PRs yourself.',
+      'grant_may=Deploy to the staging beds yourself.',
       'grant_scope=',
       'grant_reading=covers garden-api merges and staging deploys',
       'grant_where=chat',
@@ -1244,8 +1259,66 @@ test.each([
       ],
       approvalLines: 2,
       runLine:
-        'Run: www import old-notes --not "<what the owner did not grant, in their words>" --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"',
+        'Run: www import old-notes --not "<what the owner did not grant, in their words>" --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>" --may "<what the owner allows, in their words>"',
       upgradedExit: 0,
     });
   },
 );
+
+test('it adds one --may placeholder for each of six standing approvals of 116 characters, and a Run line that fills in and upgrades', async () => {
+  const ctx = setupTest();
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
+  const folder = seedFormat1Store(ctx.stateRoot, 'old-notes');
+
+  const quotes = ['a', 'b', 'c', 'd', 'e', 'f'].map((letter) =>
+    `water the ${letter}`.padEnd(116, letter),
+  );
+
+  const rows = quotes.map(
+    (quote, index) =>
+      `ok-${String(index)}\tok\t${quote}\t-\t-\t-\t2026-03-03T09:0${String(index)}:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=standing`,
+  );
+
+  const items = readFileSync(join(folder, 'items.tsv'), 'utf8')
+    .split('\n')
+    .filter((line) => !line.startsWith('ok-'));
+
+  writeFileSync(join(folder, 'items.tsv'), [items[0], ...rows, ...items.slice(1)].join('\n'));
+
+  const journal = readFileSync(join(folder, 'journal.tsv'), 'utf8')
+    .split('\n')
+    .filter((line) => !line.includes('\tok-'));
+
+  writeFileSync(
+    join(folder, 'journal.tsv'),
+    [
+      ...journal.slice(0, 2),
+      ...quotes.map(
+        (quote, index) =>
+          `2026-03-03T09:0${String(index)}:00Z\tok\tok-${String(index)}\tagent\t${quote}\t-\tuse=standing`,
+      ),
+      ...journal.slice(2),
+    ].join('\n'),
+  );
+
+  const refused = await ctx.run(
+    ['import', 'old-notes', '--not', 'hold', '--where', 'chat', '--reading', 'garden'],
+    env,
+    nowMs,
+  );
+
+  const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www')) ?? '';
+  const words = parseRunLine(runLine);
+  const placeholder = '<what the owner allows, in their words>';
+  const remaining = [...quotes];
+  const filled = words.map((word) => (word === placeholder ? (remaining.shift() ?? word) : word));
+
+  const upgraded = await ctx.run(filled, env, nowMs);
+
+  expect({
+    exitCode: refused.exitCode,
+    placeholders: words.filter((word) => word === placeholder).length,
+    upgraded: [upgraded.exitCode, upgraded.stderr],
+  }).toStrictEqual({ exitCode: 3, placeholders: 6, upgraded: [0, ''] });
+});

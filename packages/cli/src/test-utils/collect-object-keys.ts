@@ -15,6 +15,9 @@ export function collectObjectKeys(source: string): Set<string> {
 
   const stack: Frame[] = [];
 
+  // for each frame, whether its position is inside a default value, which holds no pattern
+  const defaults: boolean[] = [];
+
   for (const [at, token] of tokens.entries()) {
     const key =
       stack.at(-1) === 'object' && isPropertyStart(tokens, at) ? findKey(tokens, at) : null;
@@ -23,31 +26,33 @@ export function collectObjectKeys(source: string): Set<string> {
       keys.add(key);
     }
 
-    if (token.kind === 'punct' && token.value === '{') {
-      const isPattern =
-        assignedOpens.has(at) ||
-        isDeclaration(tokens.at(at - 1)) ||
-        ((stack.at(-1) === 'params' || stack.at(-1) === 'pattern') &&
-          tokens.at(at - 1)?.value !== '=');
+    const isPatternSite =
+      (stack.at(-1) === 'params' || stack.at(-1) === 'pattern') && defaults.at(-1) !== true;
 
+    if (token.kind === 'punct' && token.value === '{') {
+      const isPattern = assignedOpens.has(at) || isDeclaration(tokens.at(at - 1)) || isPatternSite;
       const frame: Frame = isPattern ? 'pattern' : 'object';
 
       stack.push(frame);
+      defaults.push(false);
     } else if (token.kind === 'punct' && token.value === '[') {
       // an array pattern inside a parameter or a pattern is a pattern, and so is each { in it
-      const isPattern =
-        (stack.at(-1) === 'params' || stack.at(-1) === 'pattern') &&
-        tokens.at(at - 1)?.value !== '=';
-
-      const frame: Frame = isPattern ? 'pattern' : 'other';
+      const frame: Frame = isPatternSite ? 'pattern' : 'other';
 
       stack.push(frame);
+      defaults.push(false);
     } else if (token.kind === 'punct' && token.value === '(') {
       const frame: Frame = paramOpens.has(at) ? 'params' : 'other';
 
       stack.push(frame);
+      defaults.push(false);
     } else if (token.kind === 'punct' && '})]'.includes(token.value)) {
       stack.pop();
+      defaults.pop();
+    } else if (token.kind === 'punct' && token.value === '=' && isAssignment(tokens, at)) {
+      defaults[defaults.length - 1] = true;
+    } else if (token.kind === 'punct' && token.value === ',') {
+      defaults[defaults.length - 1] = false;
     }
   }
 
@@ -100,13 +105,58 @@ function findParameterOpens(tokens: readonly SourceToken[]): Set<number> {
       const isArrow = after?.value === '=' && tokens.at(at + 2)?.value === '>';
       const isHead = before?.kind === 'word' && headWords.has(before.value);
 
-      if (open !== undefined && !isHead && (isArrow || after?.value === '{')) {
+      const hasBody =
+        after?.value === '{' || (after?.value === ':' && isBodyAfterType(tokens, at + 2));
+
+      if (open !== undefined && !isHead && (isArrow || hasBody)) {
         params.add(open);
       }
     }
   }
 
   return params;
+}
+
+// Whether the type that starts at the index is followed by a function body or an arrow: a `{` or an
+// `=>` at the type's own depth, after a name or a closing bracket. A `{` that starts the type, or
+// follows `|`, `&`, `<` or `,`, is an object type, which the walk skips.
+function isBodyAfterType(tokens: readonly SourceToken[], start: number): boolean {
+  const closers: Readonly<Record<string, string>> = { '(': ')', '[': ']', '{': '}', '<': '>' };
+  const stack: string[] = [];
+
+  for (let at = start; at < tokens.length; at += 1) {
+    const token = tokens.at(at);
+    const value = token?.kind === 'punct' ? token.value : '';
+    const previous = tokens.at(at - 1);
+
+    if (
+      stack.length === 0 &&
+      value === '{' &&
+      previous?.value !== ':' &&
+      !'|&<,('.includes(previous?.value ?? ' ')
+    ) {
+      return true;
+    }
+
+    if (stack.length === 0 && value === '=' && tokens.at(at + 1)?.value === '>') {
+      return true;
+    }
+
+    if (
+      stack.length === 0 &&
+      (value === ';' || value === '=' || value === ',' || '})]'.includes(value || ' '))
+    ) {
+      return false;
+    }
+
+    if (value in closers) {
+      stack.push(closers[value] ?? '');
+    } else if (stack.at(-1) === value && value !== '') {
+      stack.pop();
+    }
+  }
+
+  return false;
 }
 
 function isPropertyStart(tokens: readonly SourceToken[], at: number): boolean {
@@ -145,4 +195,13 @@ function isDeclaration(token: SourceToken | undefined): boolean {
     token?.kind === 'word' &&
     (token.value === 'const' || token.value === 'let' || token.value === 'var')
   );
+}
+
+// Whether the `=` at the index is an assignment or a default, and no part of `==`, `=>`, `<=`, `>=`
+// or `!=`.
+function isAssignment(tokens: readonly SourceToken[], at: number): boolean {
+  const before = tokens.at(at - 1)?.value;
+  const after = tokens.at(at + 1)?.value;
+
+  return !'=!<>'.includes(before ?? ' ') && after !== '=' && after !== '>';
 }

@@ -106,9 +106,7 @@ function scanString(cursor: Cursor, quote: string): void {
     }
 
     if (char === '\\') {
-      value += cursor.source.charAt(cursor.at + 1);
-      cursor.line += cursor.source.charAt(cursor.at + 1) === '\n' ? 1 : 0;
-      cursor.at += 2;
+      value += readEscape(cursor);
     } else {
       value += char;
       cursor.at += 1;
@@ -118,6 +116,30 @@ function scanString(cursor: Cursor, quote: string): void {
   cursor.at += 1;
 
   cursor.tokens.push({ kind: 'string', value, line: startLine });
+}
+
+// Reads a backslash and the character after it, and returns the text they add to the value. An
+// escaped line break, LF, CR LF or CR, is a line continuation: it adds nothing and counts its line.
+function readEscape(cursor: Cursor): string {
+  const escaped = cursor.source.charAt(cursor.at + 1);
+
+  if (escaped === '\r' && cursor.source.charAt(cursor.at + 2) === '\n') {
+    cursor.line += 1;
+    cursor.at += 3;
+
+    return '';
+  }
+
+  if (escaped === '\n' || escaped === '\r') {
+    cursor.line += 1;
+    cursor.at += 2;
+
+    return '';
+  }
+
+  cursor.at += 2;
+
+  return escaped;
 }
 
 function scanTemplate(cursor: Cursor): void {
@@ -135,9 +157,7 @@ function scanTemplate(cursor: Cursor): void {
     }
 
     if (char === '\\') {
-      text += cursor.source.charAt(cursor.at + 1);
-      cursor.line += cursor.source.charAt(cursor.at + 1) === '\n' ? 1 : 0;
-      cursor.at += 2;
+      text += readEscape(cursor);
     } else if (char === '$' && cursor.source.charAt(cursor.at + 1) === '{') {
       cursor.at += 2;
 
@@ -214,27 +234,31 @@ function isRegexStart(cursor: Cursor): boolean {
   return (
     previous.kind === 'punct' &&
     !isStep &&
-    !isNonNullAssertion(cursor, previous, beforePrevious) &&
+    !isNonNullAssertion(cursor, cursor.tokens.length - 1) &&
     !')]'.includes(previous.value)
   );
 }
 
-// A `!` straight after an operand, a name, a `)` or a `]`, ends that operand, so a slash after it
-// divides. After a keyword or punctuation, a `!` is a not, and a slash after it starts a regex.
-function isNonNullAssertion(
-  cursor: Cursor,
-  previous: SourceToken,
-  beforePrevious: SourceToken | undefined,
-): boolean {
-  if (previous.value !== '!' || beforePrevious === undefined) {
+// A `!` straight after an operand on its own line, a name, a `)`, a `]` or another such `!`, ends
+// that operand, so a slash after it divides. After a keyword, punctuation or a line break, a `!` is
+// a not, and a slash after it starts a regex.
+function isNonNullAssertion(cursor: Cursor, index: number): boolean {
+  const bang = cursor.tokens[index];
+  const operand = cursor.tokens[index - 1];
+
+  if (bang?.value !== '!' || operand === undefined || operand.line !== bang.line) {
     return false;
   }
 
-  if (beforePrevious.kind === 'word') {
-    return !regexPrecedingWords.has(beforePrevious.value);
+  if (operand.kind === 'word') {
+    return !regexPrecedingWords.has(operand.value);
   }
 
-  return beforePrevious !== cursor.headEnd && ')]'.includes(beforePrevious.value);
+  if (operand.value === '!') {
+    return isNonNullAssertion(cursor, index - 1);
+  }
+
+  return operand !== cursor.headEnd && ')]'.includes(operand.value);
 }
 
 function scanRegex(cursor: Cursor): void {

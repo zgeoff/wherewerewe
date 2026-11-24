@@ -2571,7 +2571,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nRun: www import old-notes --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nRun: www import old-notes --may "<what the owner allows, in their words>" --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
         '<what the owner allows, in their words>': 'Merge it yourself.',
@@ -2595,7 +2595,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nwww: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --not "Replant the north beds." --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nwww: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --not "Replant the north beds." --may "<what the owner allows, in their words>" --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
         '<what the owner allows, in their words>': 'Merge it yourself.',

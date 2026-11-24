@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
+import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { findCredentialMatch } from './rules/find-credential-match.ts';
 import { runCLI } from './run-cli.ts';
@@ -23,6 +24,8 @@ import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from './test-utils/seed-format-1-store.ts';
+import { seedGhAnswers } from './test-utils/seed-gh-answers.ts';
+import { seedGitRepo } from './test-utils/seed-git-repo.ts';
 import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedLockFile } from './test-utils/seed-lock-file.ts';
@@ -250,9 +253,15 @@ test.each([
   seedFormat1Store(ctx.stateRoot, 'sample');
   seedStoreFile(join(ctx.stateRoot, '.bindings'), 'claude-a1b2-test', 'name=sample\n');
 
+  const stubDir = createTempDir('run-cli-format1-gh').path;
+  const marker = join(stubDir, 'ran');
+
+  writeFileSync(join(stubDir, 'gh'), `#!/bin/sh\ntouch ${marker}\nexit 1\n`);
+  chmodSync(join(stubDir, 'gh'), 0o755);
+
   const before = await ctx.readTree();
 
-  const agentEnv = ctx.agentEnv;
+  const agentEnv = { ...ctx.agentEnv, PATH: stubDir };
   const ownerEnv = { HOME: agentEnv.HOME, XDG_STATE_HOME: agentEnv.XDG_STATE_HOME };
   const env = row.isOwner ? ownerEnv : agentEnv;
   const terminal = row.isOwner ? { stdin: true, stdout: true } : null;
@@ -266,8 +275,15 @@ test.each([
     exitCode: result.exitCode,
     stdout: result.stdout,
     isFormat1Refusal: stderrLines.some((line) => line.includes('sample is format 1')),
+    probed: existsSync(marker),
     unchanged: after,
-  }).toStrictEqual({ exitCode: 5, stdout: '', isFormat1Refusal: true, unchanged: before });
+  }).toStrictEqual({
+    exitCode: 5,
+    stdout: '',
+    isFormat1Refusal: true,
+    probed: false,
+    unchanged: before,
+  });
 });
 
 test.each(['sessions', 'help'])(
@@ -1796,20 +1812,18 @@ test.each([
   await ctx.run(['task', 't-b', 'Draw it']);
   await ctx.run(['done', 't-b', '--evidence', 'merged']);
 
-  // no probe runs before the checks of a later slice exist, so the stub gh guards that slice
   writeFileSync(join(stubDir, 'gh'), `#!/bin/sh\ntouch ${marker}\nexit 1\n`);
   chmodSync(join(stubDir, 'gh'), 0o755);
   seedLockFile(folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
 
   const before = await ctx.readTree();
 
-  const path = `${stubDir}:${process.env['PATH'] ?? ''}`;
   const base = row.env === 'agent' ? ctx.agentEnv : ctx.ownerEnv;
   const terminal = row.env === 'agent' ? null : ctx.ownerTerminal;
 
   const result = await ctx.run(
     ['--session', 'tide-alerts', 'recap'],
-    { ...base, PATH: path },
+    { ...base, PATH: stubDir },
     terminal,
   );
 
@@ -2697,5 +2711,84 @@ test('it counts the brief of its own environment in a task write reply, with no 
     replies: [true, true, true],
     noHostEqualsCodex: true,
     noHostBelowClaude: true,
+  });
+});
+
+test.each([
+  { command: 'now', argv: ['now', 't-a', 'go on'] },
+  { command: 'set', argv: ['set', 't-a', 'Write it again'] },
+  { command: 'done', argv: ['done', 't-a', '--evidence', 'merged'] },
+])(
+  'it ends the reply of $command on an item with a 400-character note with its status line',
+  async (row) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 't-a', 'Write it', '--note', buildSpacedText(400)]);
+
+    const result = await ctx.run(row.argv);
+
+    const lines = result.stdout.trimEnd().split('\n');
+
+    expect({
+      exitCode: result.exitCode,
+      last: /Brief: \d+ lines\.$/u.test(lines.at(-1) ?? ''),
+      statusLines: lines.filter((line) => /Brief: \d+ lines\.$/u.test(line)).length,
+      firstIsNote: lines[0]?.startsWith('    ') || (lines[0] ?? '').startsWith('  its note'),
+    }).toStrictEqual({ exitCode: 0, last: true, statusLines: 1, firstIsNote: true });
+  },
+);
+
+test('it fills at_write and last of two checks that were never run, and writes no changed row', async () => {
+  const ctx = setupTest();
+  const bin = createTempDir('run-cli-old-store').path;
+
+  const repo = await seedGitRepo(ctx.stateRoot);
+
+  linkCommands(bin, ['git']);
+  seedGhAnswers(bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });
+
+  const env = { ...ctx.agentEnv, PATH: bin };
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env);
+  await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#77'], env);
+  await ctx.run(['where', 'wt-a', 'A tree', '--path', repo.folder], env);
+
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+  const itemsPath = join(folder, 'items.tsv');
+
+  writeFileSync(
+    itemsPath,
+    readFileSync(itemsPath, 'utf8')
+      .split('\n')
+      .map((line, row) =>
+        row === 0 || line === ''
+          ? line
+          : line
+              .split('\t')
+              .map((cell, index) => (index === 4 || index === 5 ? '-' : cell))
+              .join('\t'),
+      )
+      .join('\n'),
+  );
+
+  const brief = await ctx.run([], env);
+
+  const items = parseItemsFile(readFileSync(itemsPath, 'utf8'), '2').items;
+  const journal = readFileSync(join(folder, 'journal.tsv'), 'utf8');
+
+  expect({
+    exitCode: brief.exitCode,
+    hasChanged: brief.stdout.includes('CHANGED SINCE WRITTEN'),
+    filled: items.map((item) => [item.atWrite, item.last]),
+    changedRows: journal.split('\n').filter((line) => line.split('\t')[1] === 'changed').length,
+  }).toStrictEqual({
+    exitCode: 0,
+    hasChanged: false,
+    filled: [
+      ['OPEN passing', 'OPEN passing'],
+      ['clean', 'clean'],
+    ],
+    changedRows: 0,
   });
 });

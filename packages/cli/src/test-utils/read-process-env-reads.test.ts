@@ -196,3 +196,18 @@ test.each([
 
   expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
 });
+
+test('it reports an optional bracket read of env that an escaped line feed splits', () => {
+  const packageDir = createTempDir('process-env-split').path;
+  const backslash = String.fromCodePoint(92);
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    `const a = 1;\nconst h = process?.["en${backslash}\nv"].HOME;\n`,
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2']);
+});
