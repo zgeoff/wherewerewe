@@ -1,6 +1,10 @@
 import { expect, test } from 'bun:test';
 import { redactJoinedCredentials } from './redact-joined-credentials.ts';
 
+function setupTest() {
+  return { redactJoinedCredentials };
+}
+
 test.each([
   ['no credential', 'lint\tand\ttest', 'lint\tand\ttest'],
   [
@@ -19,9 +23,13 @@ test.each([
     '<where the secret lives> done',
   ],
 ])('it redacts on the raw text for %s', (_title, text, expected) => {
-  expect(redactJoinedCredentials(text, /\t/u)).toBe(expected);
+  const ctx = setupTest();
+
+  expect(ctx.redactJoinedCredentials(text, /\t/u)).toBe(expected);
 });
 
 test('it leaves a credential that a character outside the joiner splits to the word redaction', () => {
-  expect(redactJoinedCredentials(['gh', ' ', 'p_abc'].join(''), /\t/u)).toBe('gh p_abc');
+  const ctx = setupTest();
+
+  expect(ctx.redactJoinedCredentials(['gh', ' ', 'p_abc'].join(''), /\t/u)).toBe('gh p_abc');
 });
