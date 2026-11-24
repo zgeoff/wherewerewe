@@ -118,17 +118,18 @@ See [the commands design](../design/wherewerewe/commands.md) for the filters and
 [the store design](../design/wherewerewe/store.md) for the journal format.
 
 `show <id>` prints one open item, closed item or decision, with the decisions made about it and its
-last 10 journal rows. `log` prints the journal oldest first, kept to the rows that `--since`, `--op`
-and `--id` name, and sorts them by time. `recap` prints one screen for the owner: the grant as the
-brief prints it, the notes on open items, and the decisions and closes since `--since`, which
-defaults to `24h`. Each section has a row limit and an overflow line, whose command prints the rest,
-and the whole screen is at most 55 lines. Each line is at most 100 characters, except the two
-overflow lines that repeat a `--since` value longer than 7 characters, which stay whole so their
-commands run. The three reads read the journal in chunks and hold only the rows they need, take no
-lock, run no check and write nothing. Once the session is found and its store is format 2, none is
-refused for a missing or unreadable thing: an unknown id lists the open items, and an unreadable
-journal prints the item or the recap without its history and says so on stderr. Only a `--since`
-that `log` or `recap` cannot read exits 2.
+last 10 journal rows. `show` with no id lists every open task in full and reads no journal. `log`
+prints the journal oldest first, kept to the rows that `--since`, `--op` and `--id` name, and sorts
+them by time. `recap` prints one screen for the owner: the grant as the brief prints it, the notes
+on open items, and the decisions and closes since `--since`, which defaults to `24h`. Each section
+has a row limit and an overflow line, whose command prints the rest, and the whole screen is at most
+55 lines. Each line is at most 100 characters, except the two overflow lines that repeat a `--since`
+value longer than 7 characters, which stay whole so their commands run. The three reads read the
+journal in chunks and hold only the rows they need, take no lock, run no check and write nothing.
+Once the session is found and its store is format 2, none is refused for a missing or unreadable
+thing: an unknown id lists the open items, and an unreadable journal prints the item or the recap
+without its history and says so on stderr. Only a `--since` that `log` or `recap` cannot read
+exits 2.
 
 ## Importing a hand-kept store
 
@@ -180,12 +181,16 @@ table.
 ## The brief
 
 `www` prints the goal, the grant, the item in focus with its note, and the open tasks, waits, the
-one-time approval, rules and where items, in at most 73 lines and 7,200 characters. The grant prints
-whole after the goal and is never cut. Its bullets sit under `may`, `not` and `never`: each `may`
-and `not` bullet takes a line of its own, and short `never` bullets share a line. Only the note of
-the item in focus prints, and every item with an owed note is tagged `owed`. The goal, each grant
-bullet, the reading and the note wrap at 100 columns by the rule in the brief design, at most 3
-changed rows and 1 pull request row show, and the footer is one line.
+one-time approval, rules and where items, in the budget of the agent that reads it: at most 82 lines
+and 9,000 characters for Claude Code, and 73 lines and 7,200 characters for Codex and for a reader
+with no known host. The host comes from the reader's environment, `CLAUDE_CODE_SESSION_ID` for
+Claude Code and `CODEX_SESSION_ID` or `CODEX_THREAD_ID` for Codex, never from the store. The open
+tasks print in the order of the brief design, as many as fit, and a count line names `www show`,
+which lists the rest. The grant prints whole after the goal and is never cut. Its bullets sit under
+`may`, `not` and `never`: each `may` and `not` bullet takes a line of its own, and short `never`
+bullets share a line. Only the note of the item in focus prints, and every item with an owed note is
+tagged `owed`. The goal, each grant bullet, the reading and the note wrap at 100 columns by the rule
+in the brief design, at most 3 changed rows and 1 pull request row show, and the footer is one line.
 
 The brief runs no check: an item with a check shows the last result saved in `items.tsv`, or
 `not checked yet` when none is saved. A task or where item with no check reads `no check · <age>`,

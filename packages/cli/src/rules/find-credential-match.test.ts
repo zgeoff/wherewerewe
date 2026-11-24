@@ -5,7 +5,7 @@ import { findCredentialMatch, findCredentialSpan } from './find-credential-match
 test.each(buildCredentialSamples().map((entry) => [entry.name, `token ${entry.sample}`] as const))(
   'it names the %s pattern in a text that holds its sample',
   (name, text) => {
-    expect(findCredentialMatch(text)).toBe(name);
+    expect(findCredentialMatch(text)).toStrictEqual(name);
   },
 );
 

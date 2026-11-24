@@ -14,6 +14,8 @@ import { readStore } from './store/read-store.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
 import { buildCredentialSamples } from './test-utils/build-credential-samples.ts';
 import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
+import { buildMockIDs } from './test-utils/build-mock-ids.ts';
+import { countBriefLines } from './test-utils/count-brief-lines.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
@@ -22,6 +24,9 @@ import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedLockFile } from './test-utils/seed-lock-file.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
+import { seedTasks } from './test-utils/seed-tasks.ts';
+import { seedWorstCaseStore } from './test-utils/seed-worst-case-store.ts';
+import type { CLIResult } from './types.ts';
 
 function setupTest() {
   const root = createTempDir('run-cli').path;
@@ -84,6 +89,7 @@ test.each([
   [['doctor', 'x'], 'www: "doctor" comes in a later version of www.\nRun: www help\n'],
   [['task', 't-a'], 'www: task takes <id> "<claim>".\nRun: www help\n'],
   [['recap', 'x'], 'www: recap takes no arguments.\nRun: www help\n'],
+  [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www help\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],
     'www: unknown flag "--bogus".\nRun: www --session sample help\n',
@@ -177,6 +183,8 @@ test('it labels a format 1 store in the session list with the command that upgra
 test.each([
   { command: 'brief', argv: ['--session', 'sample'], isOwner: false },
   { command: 'show', argv: ['show', 't-valves', '--session', 'sample'], isOwner: false },
+  { command: 'show', argv: ['show', '--session', 'sample'], isOwner: false },
+  { command: 'show', argv: ['show', '--session', 'sample'], isOwner: true },
   { command: 'log', argv: ['log', '--session', 'sample'], isOwner: false },
   { command: 'recap', argv: ['recap', '--session', 'sample'], isOwner: false },
   { command: 'recap', argv: ['recap', '--session', 'sample'], isOwner: true },
@@ -846,7 +854,7 @@ test('it replaces an open item of the same kind in place, keeping its row and re
   const brief = await ctx.run([]);
 
   expect(brief.stdout.split('\n').slice(4, 8)).toStrictEqual([
-    'OPEN (2 of 6)',
+    'OPEN (2 of 30)',
     '  t-a         First claim, written again  [no check · 0m]',
     '  t-b         Second claim  [no check · 0m]',
     'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
@@ -1506,7 +1514,7 @@ test('it leaves an item open with no note when a task with a note stops after it
         'GOAL  Ship it',
         `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
-        'OPEN (1 of 6)',
+        'OPEN (1 of 30)',
         '  t-a         Write it  [no check · 0m]',
         'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',
@@ -2003,5 +2011,380 @@ test('it prints the Run line of a broken store whose path holds a line break as 
     exitCode: 3,
     lines: 3,
     words: ['less', join(folder, 'session')],
+  });
+});
+
+test('it writes a 30th task, refuses a 31st new task, and rewrites an open task with 30 open', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedTasks(join(ctx.stateRoot, 'tide-alerts'), 29);
+
+  const thirtieth = await ctx.run(['task', 't-30', 'Thirtieth']);
+  const thirtyFirst = await ctx.run(['task', 't-31', 'Thirty-first']);
+  const rewritten = await ctx.run(['set', 't-30', 'Thirtieth, reworded']);
+
+  expect({
+    thirtieth: [thirtieth.exitCode, thirtieth.stderr],
+    thirtyFirst: [thirtyFirst.exitCode, thirtyFirst.stderr.split('\n')[0]],
+    rewritten: [rewritten.exitCode, rewritten.stderr],
+  }).toStrictEqual({
+    thirtieth: [0, ''],
+    thirtyFirst: [
+      3,
+      'www: refused: the session holds 30 of 30 tasks. Close one, or replace one with www set.',
+    ],
+    rewritten: [0, ''],
+  });
+});
+
+test('it refuses the 31st task with a Run line that runs, then writes it', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedTasks(join(ctx.stateRoot, 'tide-alerts'), 30);
+
+  const refused = await ctx.run(['--session', 'tide-alerts', 'task', 't-31', 'Thirty-first']);
+
+  const runLine = refused.stderr.split('\n')[1] ?? '';
+  const oldest = buildMockIDs('t-', 30)[0] ?? '';
+  const argv = buildFilledRunArgv(runLine, { '<PR, commit or test run>': 'commit 4c1d2e0' });
+
+  const closed = await ctx.run(argv);
+  const written = await ctx.run(['--session', 'tide-alerts', 'task', 't-31', 'Thirty-first']);
+
+  expect({
+    exitCode: refused.exitCode,
+    runLine,
+    closed: closed.exitCode,
+    written: written.exitCode,
+  }).toStrictEqual({
+    exitCode: 3,
+    runLine: `Run: www --session tide-alerts done ${oldest} --evidence "<PR, commit or test run>"`,
+    closed: 0,
+    written: 0,
+  });
+});
+
+test('it lists every open task with www show and a note whole', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+  await ctx.run(['task', 't-b', 'Test it', '--note', 'Run the suite twice.', '--owed']);
+
+  const result = await ctx.run(['show']);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: [
+      'OPEN (2 of 30)',
+      '  t-b         Test it  [no check · 0m · owed]',
+      '    owed note (0m): Run the suite twice.',
+      '  t-a         Write it  [no check · 0m]',
+      '',
+    ].join('\n'),
+    stderr: '',
+  });
+});
+
+test('it refuses www show with no session with exit 4', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const result = await ctx.run(['show'], ctx.ownerEnv);
+
+  expect({ exitCode: result.exitCode, stdout: result.stdout }).toStrictEqual({
+    exitCode: 4,
+    stdout: '',
+  });
+});
+
+test('it lists the task rows that parse when one item row is broken, and names the row', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  seedStoreFile(
+    join(ctx.stateRoot, 'tide-alerts'),
+    'items.tsv',
+    `${readFileSync(join(ctx.stateRoot, 'tide-alerts', 'items.tsv'), 'utf8')}t-b\ttask\n`,
+  );
+
+  const result = await ctx.run(['show']);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: 'OPEN (1 of 30)\n  t-a         Write it  [no check · 0m]\n',
+    stderr:
+      "www: tide-alerts's items.tsv line 3 does not parse: expected 9 tab-separated columns, found 2. This read leaves out what it could not read. Fix the file by hand.\n",
+  });
+});
+
+test.each(
+  buildCredentialSamples()
+    .slice(0, 3)
+    .map((entry) => [entry.name, entry.sample, entry.tail] as const),
+)(
+  'it prints a %s credential in a claim as the placeholder in www show and in the brief, and drops a note row that holds one',
+  async (_name, sample, tail) => {
+    const ctx = setupTest();
+    const folder = join(ctx.stateRoot, 'tide-alerts');
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 't-a', 'Write it']);
+
+    await seedItem(folder, { id: 't-b', claim: `Rotate ${sample} soon` });
+
+    seedStoreFile(
+      folder,
+      'notes.tsv',
+      `${formatNotesFile([])}t-a\t-\t2026-03-10T10:43:00Z\tholds ${sample}\n`,
+    );
+
+    const shown = await ctx.run(['show']);
+    const brief = await ctx.run([]);
+
+    const output = [shown, brief].map((result) => result.stdout + result.stderr).join('');
+
+    expect({
+      leaked: output.includes(tail),
+      placeholderInShow: shown.stdout.includes('<where the secret lives>'),
+      placeholderInBrief: brief.stdout.includes('<where the secret lives>'),
+      namesNoteRow: shown.stderr.includes('the note holds a credential'),
+    }).toStrictEqual({
+      leaked: false,
+      placeholderInShow: true,
+      placeholderInBrief: true,
+      namesNoteRow: true,
+    });
+  },
+);
+
+test('it counts the brief of its own host in a task write reply', async () => {
+  const ctx = setupTest();
+
+  const codexEnv = {
+    HOME: ctx.agentEnv.HOME,
+    XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME,
+    CODEX_SESSION_ID: 'c9-test',
+  };
+
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', 20);
+
+  await ctx.run(['attach', 'tide-alerts'], codexEnv);
+
+  const claudeReply = await ctx.run(['task', 't-w1', 'One more']);
+  const claudeBrief = await ctx.run([]);
+  const codexReply = await ctx.run(['task', 't-w2', 'And another'], codexEnv);
+  const codexBrief = await ctx.run([], codexEnv);
+
+  const claudeLines = countBriefLines(claudeBrief.stdout);
+  const codexLines = countBriefLines(codexBrief.stdout);
+
+  expect({
+    claudeReply: claudeReply.stdout.includes(`Brief: ${String(claudeLines)} lines.`),
+    codexReply: codexReply.stdout.includes(`Brief: ${String(codexLines)} lines.`),
+    claudeLines,
+    codexLines,
+  }).toStrictEqual({
+    claudeReply: true,
+    codexReply: true,
+    claudeLines: expect.toBeWithin(74, 83),
+    codexLines: expect.toBeWithin(60, 74),
+  });
+});
+
+// Each row sizes the brief so that the count line's width decides how many task rows print: the
+// brief that names its session prints one row fewer than the brief that does not.
+test.each([
+  {
+    host: 'Codex',
+    taskCount: 20,
+    env: { CODEX_SESSION_ID: 'c9-test' },
+    nowLength: 40,
+    noteWords: null,
+  },
+  {
+    host: 'Claude Code',
+    taskCount: 29,
+    env: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    nowLength: 120,
+    noteWords: 3,
+  },
+])('it counts the brief that www --session prints in a $host task write reply', async (row) => {
+  const ctx = setupTest();
+  const name = 'n'.repeat(24);
+  const env = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME, ...row.env };
+  const focus = buildMockIDs('task', row.taskCount)[0] ?? '';
+
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, row.taskCount);
+
+  await ctx.run(['attach', name], env);
+
+  if (row.noteWords !== null) {
+    seedStoreFile(
+      join(ctx.stateRoot, name),
+      'notes.tsv',
+      formatNotesFile([
+        {
+          id: focus,
+          owed: true,
+          written: '2026-03-10T09:00:00Z',
+          note: Array.from({ length: row.noteWords }, () => 'n'.repeat(81)).join(' '),
+        },
+      ]),
+    );
+  }
+
+  await ctx.run(['now', focus, 'n'.repeat(row.nowLength)], env);
+
+  const reply = await ctx.run(['--session', name, 'task', 't-w1', 'One more'], env);
+  const brief = await ctx.run(['--session', name], env);
+  const bound = await ctx.run([], env);
+
+  const briefLines = countBriefLines(brief.stdout);
+
+  expect({
+    hasCountLine: brief.stdout.includes(`more open tasks: www --session ${name} show\n`),
+    linesDifferFromBound: briefLines !== countBriefLines(bound.stdout),
+    replyLines: reply.stdout.includes(`Brief: ${String(briefLines)} lines.`),
+  }).toStrictEqual({ hasCountLine: true, linesDifferFromBound: true, replyLines: true });
+});
+
+test.each([
+  {
+    title: 'the owner terminal, which has no agent variable',
+    host: 'none',
+    maxLines: 73,
+    maxCharacters: 7200,
+  },
+  { title: 'a Codex session', host: 'codex', maxLines: 73, maxCharacters: 7200 },
+  { title: 'a Claude Code session', host: 'claude', maxLines: 82, maxCharacters: 9000 },
+  { title: 'both agent variables', host: 'both', maxLines: 82, maxCharacters: 9000 },
+] as const)('it prints the brief of $title within its budget', async (row) => {
+  const ctx = setupTest();
+  const base = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+
+  const envs = {
+    none: { ...base, WHEREWEREWE_SESSION: 'tide-alerts' },
+    codex: { ...base, CODEX_SESSION_ID: 'c9-test' },
+    claude: { ...base, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    both: { ...base, CLAUDE_CODE_SESSION_ID: 'a1b2-test', CODEX_SESSION_ID: 'c9-test' },
+  };
+
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', 30);
+
+  await ctx.run(['attach', 'tide-alerts'], envs.codex);
+
+  const brief = await ctx.run([], envs[row.host]);
+
+  expect({
+    lines: countBriefLines(brief.stdout),
+    characters: Array.from(brief.stdout, (character) => character).length,
+  }).toStrictEqual({
+    lines: expect.toBeWithin(60, row.maxLines + 1),
+    characters: expect.toBeWithin(5000, row.maxCharacters + 1),
+  });
+});
+
+test('it prints a count line whose command runs as printed, with and without --session', async () => {
+  const ctx = setupTest();
+  const name = 'n'.repeat(24);
+
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, 30);
+
+  const named = await ctx.run(['--session', name], ctx.ownerEnv);
+
+  const countLine = named.stdout.split('\n').find((line) => line.includes('more open tasks')) ?? '';
+
+  const words = await readShellWords(countLine.slice(countLine.indexOf(': ') + 2));
+  const listed = await ctx.run(words.slice(1), ctx.ownerEnv);
+  const bound = await ctx.run([]);
+
+  const boundLine = bound.stdout.split('\n').find((line) => line.includes('more open tasks')) ?? '';
+
+  const boundWords = await readShellWords(boundLine.slice(boundLine.indexOf(': ') + 2));
+  const boundList = await ctx.run(boundWords.slice(1));
+
+  expect({
+    namedLine: countLine,
+    namedLines: countBriefLines(named.stdout),
+    namedWithinLimit: Array.from(named.stdout, (character) => character).length <= 7200,
+    listedExit: listed.exitCode,
+    listedAll: buildMockIDs('task', 30).every((id) => listed.stdout.includes(id)),
+    boundLine,
+    boundListExit: boundList.exitCode,
+    boundListAll: buildMockIDs('task', 30).every((id) => boundList.stdout.includes(id)),
+  }).toStrictEqual({
+    namedLine: expect.stringMatching(
+      new RegExp(`^ {2}and \\d+ more open tasks: www --session ${name} show$`, 'u'),
+    ),
+    namedLines: expect.toBeWithin(60, 74),
+    namedWithinLimit: true,
+    listedExit: 0,
+    listedAll: true,
+    boundLine: expect.stringMatching(/^ {2}and \d+ more open tasks: www show$/u),
+    boundListExit: 0,
+    boundListAll: true,
+  });
+});
+
+test('it prints more task rows to a Claude Code session than to a Codex session, and each count line runs as printed', async () => {
+  const ctx = setupTest();
+
+  const codexEnv = {
+    HOME: ctx.agentEnv.HOME,
+    XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME,
+    CODEX_SESSION_ID: 'c9-test',
+  };
+
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', 30);
+
+  await ctx.run(['attach', 'tide-alerts'], codexEnv);
+
+  const claude = await ctx.run([]);
+  const codex = await ctx.run([], codexEnv);
+
+  const allIDs = buildMockIDs('task', 30);
+
+  const listCommand = async (brief: CLIResult, env: Record<string, string | undefined>) => {
+    const line =
+      brief.stdout.split('\n').find((candidate) => candidate.includes('more open tasks')) ?? '';
+
+    const words = await readShellWords(line.slice(line.indexOf(': ') + 2));
+
+    return ctx.run(words.slice(1), env);
+  };
+
+  const claudeList = await listCommand(claude, ctx.agentEnv);
+  const codexList = await listCommand(codex, codexEnv);
+
+  const taskRow = /^ {2}task\d\d/u;
+  const claudeRows = claude.stdout.split('\n').filter((line) => taskRow.test(line));
+  const codexRows = codex.stdout.split('\n').filter((line) => taskRow.test(line));
+
+  expect({
+    claudeMore: claudeRows.length > codexRows.length,
+    claudeCount: claude.stdout.includes('more open tasks: www show'),
+    codexCount: codex.stdout.includes('more open tasks: www show'),
+    claudeList: {
+      exitCode: claudeList.exitCode,
+      hasEveryID: allIDs.every((id) => claudeList.stdout.includes(id)),
+    },
+    codexList: {
+      exitCode: codexList.exitCode,
+      hasEveryID: allIDs.every((id) => codexList.stdout.includes(id)),
+    },
+  }).toStrictEqual({
+    claudeMore: true,
+    claudeCount: true,
+    codexCount: true,
+    claudeList: { exitCode: 0, hasEveryID: true },
+    codexList: { exitCode: 0, hasEveryID: true },
   });
 });

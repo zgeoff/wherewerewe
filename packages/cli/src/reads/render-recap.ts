@@ -106,7 +106,7 @@ function renderNotes(input: RecapInput): string[] {
 
   return [
     cutRedactedLine(
-      `NOTES (${String(shown.length)} of ${String(noted.length)} open items with a note) · owed first, then newest`,
+      `NOTES (${String(shown.length)} of ${String(noted.length)} notes, on ${String(input.items.length)} open items) · owed first, then newest`,
     ),
     ...shown.flatMap((entry) => {
       const item = entry.item;
@@ -127,7 +127,7 @@ function renderNotes(input: RecapInput): string[] {
     ...(unnoted.length > 0
       ? [
           cutRedactedLine(
-            `  no note: ${unnoted.map((item) => redactCredentialWords(item.id)).join(', ')}`,
+            `  other open items (${String(unnoted.length)}): ${unnoted.map((item) => redactCredentialWords(item.id)).join(', ')}`,
           ),
         ]
       : []),

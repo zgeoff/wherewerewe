@@ -47,6 +47,7 @@ Read a feature's file before you run its journey.
 | item-notes  | Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close | [references/feature-item-notes.md](references/feature-item-notes.md)   |
 | grant       | Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant      | [references/feature-grant.md](references/feature-grant.md)             |
 | recap       | Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines     | [references/feature-recap.md](references/feature-recap.md)             |
+| tasks       | Open 20 tasks, read them in the brief under each host, and list every open task with `www show`               | [references/feature-tasks.md](references/feature-tasks.md)             |
 
 <!-- /wringer:features -->
 

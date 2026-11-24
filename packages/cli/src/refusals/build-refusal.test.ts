@@ -7,6 +7,7 @@ import { run } from '@zgeoff/testing/process';
 import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
+import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
@@ -220,19 +221,29 @@ test.each([
     title: 'a full set of tasks',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
-      ['task', 't-a', 'x'],
-      ['task', 't-b', 'x'],
-      ['task', 't-c', 'x'],
-      ['task', 't-d', 'x'],
-      ['task', 't-e', 'x'],
-      ['task', 't-f', 'x'],
+      ...buildMockIDs('t-', 30).map((id) => ['task', id, 'x']),
     ],
     files: [],
-    argv: ['task', 't-g', 'x'],
+    argv: ['task', 't-31', 'x'],
     env: 'agent',
     exitCode: 3,
-    stderr:
-      'www: refused: the brief holds 6 of 6 tasks. Close one, or replace one with www set.\nRun: www done t-a --evidence "<PR, commit or test run>"\n',
+    stderr: `www: refused: the session holds 30 of 30 tasks. Close one, or replace one with www set.\nRun: www done ${buildMockIDs('t-', 30)[0]} --evidence "<PR, commit or test run>"\n`,
+    fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
+  },
+  {
+    title: 'a full set of tasks whose oldest owes a note',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-01', 'x', '--note', 'Turn the flag off first', '--owed'],
+      ...buildMockIDs('t-', 30)
+        .slice(1)
+        .map((id) => ['task', id, 'x']),
+    ],
+    files: [],
+    argv: ['task', 't-31', 'x'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: `www: refused: the session holds 30 of 30 tasks. Close one, or replace one with www set.\nRun: www done ${buildMockIDs('t-', 30)[1]} --evidence "<PR, commit or test run>"\n`,
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
@@ -249,7 +260,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the brief holds 4 of 4 waits. Close one, or replace one with www set.\nRun: www done w-a --evidence "<PR, commit or test run>"\n',
+      'www: refused: the session holds 4 of 4 waits. Close one, or replace one with www set.\nRun: www done w-a --evidence "<PR, commit or test run>"\n',
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
@@ -266,7 +277,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the brief holds 4 of 4 where items. Close one, or replace one with www set.\nRun: www done wt-a --evidence "<PR, commit or test run>"\n',
+      'www: refused: the session holds 4 of 4 where items. Close one, or replace one with www set.\nRun: www done wt-a --evidence "<PR, commit or test run>"\n',
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
@@ -284,7 +295,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the brief holds 5 of 5 rules. Close one, or replace one with www set.\nRun: www drop r-a --why "<reason>"\n',
+      'www: refused: the session holds 5 of 5 rules. Close one, or replace one with www set.\nRun: www drop r-a --why "<reason>"\n',
     fills: [{ '<reason>': 'stopped' }],
   },
   {
@@ -1509,7 +1520,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the brief holds 1 of 1 one-time approvals. Spend it with www use, or drop it.\nRun: www use ok-a --for "<what you did with it>"\n',
+      'www: refused: the session holds 1 of 1 one-time approvals. Spend it with www use, or drop it.\nRun: www use ok-a --for "<what you did with it>"\n',
     fills: [{ '<what you did with it>': 'merged it' }],
   },
   {
@@ -1844,6 +1855,16 @@ test.each([
     stderr:
       'www: refused: --who on a decision is owner or agent.\nRun: www decide "Retry a 503 3 times" --why "The feed flaps" --who "<owner or agent>"\n',
     fills: [{ '<owner or agent>': 'owner' }],
+  },
+  {
+    title: 'a decision whose text holds both words that --who takes, which no sample can stand for',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['decide', 'owner and agent', '--why', 'why', '--who', 'nobody'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: --who on a decision is owner or agent.\nRun: www help\n',
+    fills: [],
   },
   {
     title: 'a decision on a near miss of an open id',

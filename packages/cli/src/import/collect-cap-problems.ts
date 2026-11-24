@@ -3,7 +3,7 @@ import type { Kind } from '../types.ts';
 import type { Question } from './types.ts';
 
 const capWords = {
-  task: { cap: 6, plural: 'tasks' },
+  task: { cap: 30, plural: 'tasks' },
   wait: { cap: 4, plural: 'waits' },
   ok: { cap: 3, plural: 'approvals' },
   rule: { cap: 5, plural: 'rules' },

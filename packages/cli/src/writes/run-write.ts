@@ -20,6 +20,9 @@ export interface WriteRequest {
   readonly args: ParsedArgs;
   readonly cwd: string;
   readonly nowMs: number;
+
+  // the agent that runs the write, which sets the budget of the brief it counts
+  readonly host: 'claude' | 'codex' | null;
   readonly pick: (input: WriteInput) => WriteResult;
 }
 
@@ -89,7 +92,10 @@ async function writeOnce(input: WriteRequest, store: Store): Promise<RunWriteRes
         notes: write.change.notes ?? store.notes,
       };
 
-      const briefLines = renderBrief(buildBriefInput(written, input.nowMs)).split('\n').length - 1;
+      const briefLines =
+        renderBrief(
+          buildBriefInput(written, input.nowMs, input.args.sessionFlag, input.host),
+        ).split('\n').length - 1;
 
       return { kind: 'replied', reply: write.reply(briefLines) };
     })

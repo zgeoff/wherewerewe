@@ -1,12 +1,12 @@
 # recap
 
 Check that the owner can read one screen of what a session kept, and correct it from what it prints.
-A user starts a session, writes a grant, two items with a note and one without, closes an item with
-its evidence, records six decisions, and runs `www recap`. The recap prints the grant in bullets,
-both notes with the owed one first, the item with no note, the close with its evidence, and five of
-the six decisions with an overflow line. The user runs the overflow line's command and reads the
-sixth decision. The journey runs the real `www` as a process, with its home and state folders inside
-the run's folder under `.wringer/`, so it never touches your own stores.
+A user starts a session, writes a grant, two items with a note, one without and a fourth that it
+closes with its evidence, records six decisions, and runs `www recap`. The recap prints the grant in
+bullets, both notes with the owed one first, the item with no note, the close with its evidence, and
+five of the six decisions with an overflow line. The user runs the overflow line's command and reads
+the sixth decision. The journey runs the real `www` as a process, with its home and state folders
+inside the run's folder under `.wringer/`, so it never touches your own stores.
 
 ## Journey
 
@@ -28,11 +28,11 @@ bun verify www run --line 'www --session trial-recap decide "Poll the feed every
 bun verify www run --line 'www --session trial-recap decide "Draw docks with the map SDK markers" --why "Custom markers drop frames on old phones"' --expect 'd-5  decision.'
 bun verify www run --line 'www --session trial-recap decide "Hide docks closed for repair" --why "A closed dock sends riders to a dead end"' --expect 'd-6  decision.'
 bun verify www run --line 'www --session trial-recap recap' --expect '  may    • merge the dock map PRs once CI is green'
-bun verify www run --line 'www --session trial-recap recap' --expect 'NOTES (2 of 2 open items with a note) · owed first, then newest'
+bun verify www run --line 'www --session trial-recap recap' --expect 'NOTES (2 of 2 notes, on 3 open items) · owed first, then newest'
 bun verify www run --line 'www --session trial-recap recap' --expect $'  t-flag      Turn on the dock_map flag in staging\n    owed note ('
 bun verify www run --line 'www --session trial-recap recap' --expect $'): Turn the dock_map flag off in staging before this closes: QA shares it.\n  t-dock      Draw the docks on the map\n    note ('
 bun verify www run --line 'www --session trial-recap recap' --expect '): The dock feed sends lat and lng swapped for the old stations; swap them back in the …'
-bun verify www run --line 'www --session trial-recap recap' --expect '  no note: r-tests'
+bun verify www run --line 'www --session trial-recap recap' --expect '  other open items (1): r-tests'
 bun verify www run --line 'www --session trial-recap recap' --expect '  t-icons     done · commit 7d2e4a1'
 bun verify www run --line 'www --session trial-recap recap' --expect $'  d-1  Cluster docks below zoom 12 · why: Single pins overlap downtown\n  d-2  Cache the dock feed for 30 s · why: The feed rate-limits at 2 calls a second\n  d-3  Show empty docks in grey · why: Riders asked for it in the beta\n  d-4  ruled out: Poll the feed every second · why: It hits the rate limit\n  d-5  Draw docks with the map SDK markers · why: Custom markers drop frames on old phones\n  and 1 more: www --session trial-recap log --op decide,ruled-out --since 24h'
 bun verify www run --line 'www --session trial-recap log --op decide,ruled-out --since 24h' --expect 'Hide docks closed for repair'

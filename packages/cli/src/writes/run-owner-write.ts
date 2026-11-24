@@ -17,6 +17,9 @@ export interface OwnerWriteRequest {
   readonly args: ParsedArgs;
   readonly cwd: string;
   readonly nowMs: number;
+
+  // the agent that runs the write, which sets the budget of the brief it counts
+  readonly host: 'claude' | 'codex' | null;
   readonly pick: (input: WriteInput) => OwnerWriteResult;
 }
 
@@ -95,7 +98,11 @@ async function writeOnce(input: OwnerWriteRequest, store: Store): Promise<RunWri
       writeOwnerFiles(input.folder, write.change);
 
       const written = { ...store, ownerNotes: write.change.notes };
-      const briefLines = renderBrief(buildBriefInput(written, input.nowMs)).split('\n').length - 1;
+
+      const briefLines =
+        renderBrief(
+          buildBriefInput(written, input.nowMs, input.args.sessionFlag, input.host),
+        ).split('\n').length - 1;
 
       return { kind: 'replied', reply: write.reply(briefLines) };
     })

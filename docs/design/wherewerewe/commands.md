@@ -1,7 +1,7 @@
 # The commands
 
 - **Status:** agreed
-- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
 
 `www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note below that line, and a claim write that keeps an older note adds the older-note line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
 
@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, as built through slice 2d, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2d and decision record 0009, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -17,8 +17,8 @@ www (wherewerewe): what is true now in one long agent session, in one short brie
 Read. Run www first, after every compaction, and whenever you are unsure:
   www                        the brief: goal, grant, owner notes, what changed, now and its note,
                              open work, waits, the approval, rules, where things are. Runs checks.
-  www show <id>              one item, decision or the grant (www show grant): its text, its note,
-                             its check now, its journal rows
+  www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
+                             its check now, its journal rows. With no id, every open task in full
   www log [--since <t>] [--op <op,...>] [--id <id>]
                              the journal, oldest first. <t> is 24h, 3d or day-7
   www sessions               every session on this machine
@@ -56,12 +56,12 @@ Setup:   www install [--print]   www doctor
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a grant bullet 120, the grant's
-words 700 in at most 12 bullets, and its reading 200. The brief holds at most 6 tasks, 4 waits,
+words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
 1 approval, 5 rules, 4 where items and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2d, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs below are what those slices changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 2d and decision record 0009, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs and the task limit's diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -147,12 +147,29 @@ Slice 2d, recap:
  
 ```
 
+The task limit, decision record 0009:
+
+```diff
+@@ -5,4 +5,4 @@
+                               open work, waits, the approval, rules, where things are. Runs checks.
+-  www show <id>              one item, decision or the grant (www show grant): its text, its note,
+-                             its check now, its journal rows
++  www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
++                             its check now, its journal rows. With no id, every open task in full
+   www log [--since <t>] [--op <op,...>] [--id <id>]
+@@ -44,3 +44,3 @@
+ Limits: a claim is one line of at most 120 characters, a note 400, a grant bullet 120, the grant's
+-words 700 in at most 12 bullets, and its reading 200. The brief holds at most 6 tasks, 4 waits,
++words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
+ 1 approval, 5 rules, 4 where items and 2 owner notes.
+```
+
 ### Signatures
 
 ```ts
 // cli module: each subcommand and the store call it makes
 www();                                            // brief.md
-www.show(id: ItemID | DecisionID | 'grant');
+www.show(id?: ItemID | DecisionID | 'grant');      // no id: every open task
 www.log(opts: { since?: Since; op?: string[]; id?: string });
 www.recap(opts: { since?: Since });               // default 24h
 www.sessions();
@@ -294,6 +311,18 @@ pr-api-77  task, open since day 7, by agent · check: pr:bosunhq/bosun-api#77
   decisions: d-19 queue the alert in the job, not the request (day 7) · d-23 retry a 503 3 times (day 9)
   journal: day 7 task · day 8 set · day 9 note · day 9 set · day 9 changed
 
+$ www show
+OPEN (4 of 30)
+  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07  [OPEN failing]
+    note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
+    s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
+    unused import in the retry helper, not on the retry logic.
+  t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
+    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: staging
+    is shared with the harbour team, who demo on Thursday.
+  pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
+  t-e2e       Write alerts-e2e against staging  [no check · 3d]
+
 $ www show grant
 grant  from the owner in chat · in bosun-api, bosun-app and tidekit
   words (7d), set on day 2 by agent:
@@ -318,6 +347,7 @@ day 9  11:51  done      pr-app-61  agent  Alert settings screen: in review
 - Each `log` row shows the day, the time, the op, the id, who (the `who=` value for a decision, otherwise `by`), the text, and `why:` on its own line when the row has one.
 - A `grant` row prints its text as [store.md](store.md) keeps it, the bullets and scope in one line, and labels its second line `reading:` in place of `why:`.
 - A `note` row with `owed=1` shows `owed: ` before its text, and a row with `cleared=1` shows `note cleared` as its text. A `note` row carried from a hand-kept store shows `import` as who.
+- `www show` with no id prints every open task in the brief's order, each row as the brief prints it and its note whole. It runs no check, so each tag shows the result saved by the last read.
 - `www show <id>` prints the item's note whole, as `note (<age>):` or `owed note (<age>):`, wrapped as the brief wraps a note, with each further line indented 4.
 - `www show grant` prints where the owner gave the words and the scope, the bullets as the brief prints them, the reading whole, and the journal days of every `grant` row. With no grant, it prints `grant  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`.
 
@@ -338,14 +368,14 @@ GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
     staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit
     merges and releases
-NOTES (3 of 3 open items with a note) · owed first, then newest
+NOTES (3 of 3 notes, on 13 open items) · owed first, then newest
   t-flag      Turn on the tide_alerts flag in staging config
     owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…
   pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, …
   wt-tz       bosun-api worktree for the time zone fix, branch tz-fix
     note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads it…
-  no note: pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-sim-port, p-sim,…
+  other open items (10): pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-si…
 DECIDED SINCE day 8 12:00Z (2)
   d-23  Retry a 503 from the tide feed 3 times, 2 s apart · why: The feed returns 503 for about 4 s…
   d-24  ruled out: Queue failed alerts for the next tide · why: a queued alert lands after low water
@@ -361,20 +391,20 @@ Correct: www --session tide-alerts say "<text>" [--on <id>]
 | --------- | --------------------------------------------------------------------------------------------- | ------------- |
 | header    | `<name> · day <d> · recap since day <d> <HH:MMZ> (<t>) · <n> writes`                         | 1             |
 | `GRANT`   | the grant, exactly as the brief prints it, or `GRANT  none. Run: www --session <name> show grant` | 23            |
-| `NOTES`   | `NOTES (<k> of <m> open items with a note) · owed first, then newest`, `<k>` the items printed and `<m>` the open items with a note; then the open items with a note, owed first, then newest by the note's time, ties in `notes.tsv` order: the item line, with an approval's quote in double quotes, then `    note (<age>): <note>` or `    owed note (<age>): <note>`; at most 6 items, then `  and <n> more with a note: www --session <name> log --op note`, then `  no note: <ids>` for the open items with no note, in `items.tsv` order | 15 |
+| `NOTES`   | `NOTES (<k> of <m> notes, on <o> open items) · owed first, then newest`, `<k>` the items printed, `<m>` the open items with a note and `<o>` the open items; then the open items with a note, owed first, then newest by the note's time, ties in `notes.tsv` order: the item line, with an approval's quote in double quotes, then `    note (<age>): <note>` or `    owed note (<age>): <note>`; at most 6 items, then `  and <n> more with a note: www --session <name> log --op note`, then `  other open items (<n>): <ids>` for the open items with no note, in `items.tsv` order, cut at 100 characters | 15 |
 | `DECIDED SINCE` | `decide` and `ruled-out` rows since `<t>`, oldest first: `  <d-n>  [ruled out: ]<choice> · why: <reason>`; the 5 oldest, then `  and <n> more: www --session <name> log --op decide,ruled-out --since <t>`, which prints every row since `<t>` | 7 |
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; the 5 oldest, then `  and <n> more: www --session <name> log --op done,drop,use --since <t>`, which prints every row since `<t>` | 7 |
 | footer    | `Whole text: www [--session <name>] show <id>` and `Correct: www [--session <name>] say "<text>" [--on <id>]`, with `--session <name>` as the next paragraph says | 2             |
 
-`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 of 0 open items with a note) · owed first, then newest` and the `no note:` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
+`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 of 0 notes, on <o> open items) · owed first, then newest` and the `other open items` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
 
 The recap reads from the start of the session when `<t>` falls before it, so the header and the two `SINCE` headings print `day 1` and the start's time, and the commands keep `<t>` as typed. When `journal.tsv` cannot be read, the header shows `journal unreadable` in place of `<n> writes`, `DECIDED SINCE` and `CLOSED SINCE` are left out, and stderr names the reason, as `show` does.
 
 The owner runs the recap from a terminal that has no binding, so the no-grant line and the three overflow lines always carry `--session <name>`, with `<name>` the name of the session's folder, and each runs as printed. A recap run with `--session` prints it in both footer lines. A recap in a bound session, with no `--session`, prints neither, and the footer's two lines run there as printed.
 
-The recap is at most 55 lines: 1 + 23 + (1 heading + 6 × 2 + 1 overflow + 1 no-note line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 2 = 55. Every line is at most 100 characters, except a `SINCE` overflow line when `<t>` is longer than 7 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer's two lines with a 24-character name are 60 and 72, and each other line that would pass 100 is cut to 99 characters and `…`, after a credential in a stored text becomes `<where the secret lives>`, so the cut counts the placeholder. The grant's lines, the overflow lines and the footer's two lines are never cut, so each command runs as printed, and each overflow line stays within 100 for a `<t>` of at most 7 characters. A longer `<t>`, such as `0000024h`, adds each character past 7 to the two `SINCE` overflow lines, which stay whole so their commands run as typed. So the recap is at most 55 × 100 + 55 = 5,555 characters, plus 2 for each character of `<t>` past 7.
+The recap is at most 55 lines: 1 + 23 + (1 heading + 6 × 2 + 1 overflow + 1 other-items line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 2 = 55. Every line is at most 100 characters, except a `SINCE` overflow line when `<t>` is longer than 7 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer's two lines with a 24-character name are 60 and 72, and each other line that would pass 100 is cut to 99 characters and `…`, after a credential in a stored text becomes `<where the secret lives>`, so the cut counts the placeholder. The grant's lines, the overflow lines and the footer's two lines are never cut, so each command runs as printed, and each overflow line stays within 100 for a `<t>` of at most 7 characters. A longer `<t>`, such as `0000024h`, adds each character past 7 to the two `SINCE` overflow lines, which stay whole so their commands run as typed. So the recap is at most 55 × 100 + 55 = 5,555 characters, plus 2 for each character of `<t>` past 7.
 
-With counts of at most 4 digits where no cap applies, at most 20 open items and a header of 87 characters, the widest lines sum to at most 4,159 characters, or 4,172 when a header is cut at 100, under the bound of 5,555.
+With counts of at most 4 digits where no cap applies, at most 44 open items and a header of 87 characters, the widest lines sum to at most 4,160 characters, or 4,173 when a header is cut at 100, under the bound of 5,555. In `NOTES`, `<m>` is at most 44, and with 6 items printed the overflow count is at most 38. Both have 2 digits, and the overflow line stays at 79 characters.
 
 ## Refusals
 
@@ -385,8 +415,8 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | A claim, step or other text is over its limit     | `www: refused: the claim is 152 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.` `Run: www task t-e2e "<claim of at most 120 characters>"`      |
 | A note is over its limit                          | `www: refused: the note is 512 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.` `Run: www task t-e2e "Write alerts-e2e against staging" --note "<note of at most 400 characters>"` |
 | A text holds a tab or a line break, a Unicode line or paragraph separator among them, except a line break in a grant bullet or the grant's scope, which `www grant` turns into a space | `www: refused: the text must be one line, with no tab or newline.` `Run: www rule r-sim-port "<one line>"`                                                                                             |
-| A kind is full                                    | `www: refused: the brief holds 6 of 6 tasks. Close one, or replace one with www set.` `Run: www done t-e2e --evidence "<PR, commit or test run>"`                                                      |
-| `ok` while the one-time approval is open          | `www: refused: the brief holds 1 of 1 one-time approvals. Spend it with www use, or drop it.` `Run: www use ok-prod-index --for "<what you did with it>"`                                              |
+| A kind is full                                    | `www: refused: the session holds 30 of 30 tasks. Close one, or replace one with www set.` `Run: www done t-e2e --evidence "<PR, commit or test run>"`                                                      |
+| `ok` while the one-time approval is open          | `www: refused: the session holds 1 of 1 one-time approvals. Spend it with www use, or drop it.` `Run: www use ok-prod-index --for "<what you did with it>"`                                              |
 | `ok --standing`                                   | `www: refused: lasting permission lives in the grant, in the owner's words whole.` `Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"` |
 | `done`, `drop` or `use` on an item with an owed note | `www: refused: t-flag has an owed note (2d). Clear it once the work is done, or replace it with a note that is not owed.` then the note, indented 4, then `Run: www set t-flag --no-note` `Run: www set t-flag --note "<detail>"` |
 | `--owed` with no `--note`                         | `www: refused: --owed marks a note, and this command gives none.` `Run: www task t-e2e "Write alerts-e2e against staging" --note "<what is owed>" --owed`                                                                                 |
@@ -440,6 +470,8 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | Import finds rows that break a rule               | `www: refused: import found 3 rows that break the rules, and wrote nothing.` then one line per row, such as `items.tsv line 9 (r-models): the claim is 151 characters, and the limit is 120.` and `journal.tsv: 6 open waits (q-2, q-4, q-5, q-6, q-7, q-8), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`, then `Run: www import build` |
 | A `--since` that is not `24h`, `3d` or `day-7`, a value such as `-2h` that starts with a dash included, or one that names a time past the year 9999 (exit 2) | `www: --since takes 24h, 3d or day-7.` `Run: www log --since 24h` or `Run: www recap --since 24h`, the command that was typed |
 | An unknown command or flag (exit 2)               | `www: unknown command "taks".` `Run: www help`                                                                                                                                                         |
+| `show` with two ids (exit 2)                      | `www: show takes [<id>].` `Run: www help`                                                                                                         |
+| `decide` with a `--who` other than `owner` or `agent` | `www: refused: --who on a decision is owner or agent.` `Run: www decide "Retry a 503 3 times" --why "The feed flaps" --who "<owner or agent>"` |
 
 - When `www grant` or one upgrade finds more than one problem, it prints each problem's lines and one `Run:` line with every flag the problems need, so the filled line passes. `--drop` repeats once per id, such as `--drop ok-wipe --drop grant`.
 - The `Run:` line of a reading over its limit is the refused command with only the reading replaced, so `www grant --may … --reading …` and `www import … --reading …` keep their other flags.
@@ -451,7 +483,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 - A word after `--` in a `Run:` line is one positional. `www` never splits it or reads it as a flag, so `-- t-a '--may=x'` keeps `--may=x` as the claim.
 - No output line holds text that the credential test matches. Each match, with the rest of its word, in a refusal's text, a `Run:` line, a key or an id read from the store, or an unknown command or flag, prints as `<where the secret lives>`. A flag whose value is replaced keeps its flag, as `--may "<where the secret lives>"`. A `Run:` word whose quotes would complete a match, such as `--may="-ops_…"` with 19 characters after `ops_`, prints as the placeholder too, so no quote is lost. A credential refusal names the pattern without its `_` or `-`, as `it matches the ghp pattern`, so the name is no match itself.
 - A placeholder is a word the refusal wrote for a value only the agent knows. A value the agent typed is never a placeholder, even one that reads like `<…>`, so the checks read it as text.
-- Before it prints a `Run:` line, `www` fills each placeholder with a sample. The sample is a word that appears in no other word of the line, so `www` can tell it from a typed value, and it meets the placeholder's own rule: an id or a session name gets a valid id, a check flag a value of its form, and a decision's `--who` gets `owner` or `agent`. `www` then puts the filled line through its parser and through each check the command runs before it reads the store, by calling the functions the write calls: each text's checks for empty, one line, length and a credential, the item id, the session name, the check flags, the approval's parts, and for `grant` and `import` the grant's parts and texts. When the filled line would be refused, `www` prints that refusal and its own `Run:` line instead, and checks the new line the same way. After the third refusal in a row, the `Run:` line is `www help`. Checks that read the store run only when the agent runs the line: whether an id is open or closed, whether an id already holds another kind, a kind's cap, and whether a `set` gives a rule a check. Their rows in the table above are refusals the agent can still get from a printed `Run:` line.
+- Before it prints a `Run:` line, `www` fills each placeholder with a sample. The sample is a word that appears in no other word of the line, so `www` can tell it from a typed value, and it meets the placeholder's own rule: an id or a session name gets a valid id, a check flag a value of its form, and a decision's `--who` gets `owner` or `agent`. `www` then puts the filled line through its parser and through each check the command runs before it reads the store, by calling the functions the write calls: each text's checks for empty, one line, length and a credential, the item id, the session name, the check flags, the approval's parts, and for `grant` and `import` the grant's parts and texts. When the filled line would be refused, `www` prints that refusal and its own `Run:` line instead, and checks the new line the same way. After the third refusal in a row, the `Run:` line is `www help`. When the line's other words hold both `owner` and `agent`, no `--who` sample meets the sample rule, and the `Run:` line is `www help`. Checks that read the store run only when the agent runs the line: whether an id is open or closed, whether an id already holds another kind, a kind's cap, and whether a `set` gives a rule a check. Their rows in the table above are refusals the agent can still get from a printed `Run:` line.
 
 ## Constraints
 

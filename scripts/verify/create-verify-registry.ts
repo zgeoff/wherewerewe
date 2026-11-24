@@ -53,10 +53,19 @@ export function createVerifyRegistry(): Wringer {
     .command({
       path: ['www', 'run'],
       summary: 'Run the `www` command line --line, and check that it exits 0 and prints --expect',
-      args: z.strictObject({ line: z.string(), expect: z.string() }),
+      args: z.strictObject({
+        line: z.string(),
+        expect: z.string(),
+        host: z.enum(['claude', 'codex']).optional(),
+      }),
       data: wwwRunSchema,
       run: async (args, ctx) => {
-        const output = await runWWWLine(ctx.exec, readStateRoot(ctx.endpoints), args.line);
+        const output = await runWWWLine(
+          ctx.exec,
+          readStateRoot(ctx.endpoints),
+          args.line,
+          args.host,
+        );
 
         if (output.exitCode !== 0 || !output.stdout.includes(args.expect)) {
           throw new WringerError('check-failed', {
@@ -196,6 +205,12 @@ export function createVerifyRegistry(): Wringer {
       name: 'recap',
       summary:
         'Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
+    .feature({
+      name: 'tasks',
+      summary:
+        'Open 20 tasks, read them in the brief under each host, and list every open task with `www show`',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
     .shared(

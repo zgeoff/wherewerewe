@@ -153,15 +153,49 @@ test.each(
 
 test('it ends at www help after three refusals in a row', () => {
   const settled = settleRefusal(
-    { exitCode: 2, lines: ['www: x'], runs: [{ www: ['goal', 'a', 'b'] }] },
+    {
+      exitCode: 3,
+      lines: ['www: x'],
+      runs: [{ www: ['task', 'Bad Id', '', '--pr', 'nope'] }],
+    },
     { sessionFlag: null, cwd: '/' },
   );
 
   expect(settled).toStrictEqual({
     refusal: {
-      exitCode: 2,
-      lines: ['www: goal takes "<what done means>".'],
+      exitCode: 3,
+      lines: ['www: refused: --pr takes <owner>/<repo>#<number>, such as bosunhq/bosun-api#77.'],
       runs: [{ www: ['help'] }],
+    },
+    scope: { sessionFlag: null, cwd: '/' },
+  });
+});
+
+test('it keeps the Run line of the second refusal when two refusals in a row settle it', () => {
+  const settled = settleRefusal(
+    {
+      exitCode: 3,
+      lines: ['www: x'],
+      runs: [{ www: ['task', 'ok-id', '', '--pr', 'nope'] }],
+    },
+    { sessionFlag: null, cwd: '/' },
+  );
+
+  expect(settled).toStrictEqual({
+    refusal: {
+      exitCode: 3,
+      lines: ['www: refused: --pr takes <owner>/<repo>#<number>, such as bosunhq/bosun-api#77.'],
+      runs: [
+        {
+          www: [
+            'task',
+            'ok-id',
+            { placeholder: '<claim>' },
+            '--pr',
+            { placeholder: '<owner>/<repo>#<number>', shape: 'pr' },
+          ],
+        },
+      ],
     },
     scope: { sessionFlag: null, cwd: '/' },
   });
