@@ -1223,6 +1223,29 @@ test('it lets say run for an owner with agent variables set to an empty value', 
   });
 });
 
+test('it names the agent as the writer of the words the format 2 upgrade set', async () => {
+  const ctx = setupTest();
+
+  seedFormat1Store(ctx.stateRoot, 'sample');
+
+  await ctx.run([
+    'import',
+    'sample',
+    '--quote',
+    'Merge the garden-api pull requests yourself.',
+    '--where',
+    'chat',
+    '--reading',
+    'covers garden-api merges',
+  ]);
+
+  const result = await ctx.run(['--session', 'sample', 'show', 'grant']);
+
+  expect(result.stdout.split('\n').at(0)).toMatch(
+    /^grant {2}from the owner in chat, words set on day \d+ by agent, reading set on day \d+$/u,
+  );
+});
+
 test("it names the agent as the writer of the words when the agent writes the owner's words again in the same second", async () => {
   const ctx = setupTest();
   const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };

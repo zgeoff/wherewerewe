@@ -57,9 +57,9 @@ export function renderShow(input: ShowInput): string {
 const noGrantLine =
   'grant  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"';
 
-// A write that stops after its journal row leaves a row `session` lacks. A landed full row is
-// written at `set`, and a landed `reading=1` row after it, so only those rows that hold the
-// grant's words and where count: the words' row is the newest full one, the reading's the newest.
+// A write that stops after its journal row leaves a row `session` lacks. Only a full row at `set`
+// and a `reading=1` row since count, and only when they hold the grant's words and where. A full
+// row that also holds the reading wrote the words, so it wins over a newer full row.
 function renderGrant(input: ShowInput): string {
   const grant = input.store.session.grant;
 
@@ -81,8 +81,13 @@ function renderGrant(input: ShowInput): string {
     );
   });
 
-  const wordsRow = held.findLast((row) => findExtraValue(row.extra, 'reading') !== '1');
   const readingRow = held.findLast((row) => row.why === grant.reading);
+
+  const wordsRow =
+    readingRow !== undefined && findExtraValue(readingRow.extra, 'reading') !== '1'
+      ? readingRow
+      : held.findLast((row) => findExtraValue(row.extra, 'reading') !== '1');
+
   const wordsDay = getDay(input.store, Date.parse(wordsRow?.ts ?? grant.set));
   const readingDay = getDay(input.store, Date.parse(readingRow?.ts ?? grant.set));
   const wordsAge = formatAge(input.nowMs - Date.parse(grant.set));

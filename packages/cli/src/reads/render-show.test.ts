@@ -665,18 +665,50 @@ test('it names the writer of the newest words when an earlier write in the same 
 });
 
 test.each([
-  ['other words', { text: 'Deploy it yourself.', why: 'covers merges', extra: 'where=chat' }],
+  [
+    'other words',
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'Deploy it yourself.',
+      why: 'covers merges',
+      extra: 'where=chat',
+    },
+  ],
   [
     'the same words and a new reading',
-    { text: 'Merge it yourself.', why: 'covers deploys', extra: 'where=chat' },
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'Merge it yourself.',
+      why: 'covers deploys',
+      extra: 'where=chat',
+    },
+  ],
+  [
+    'the same words and a new reading in the same second',
+    {
+      ts: '2026-03-03T09:00:00Z',
+      text: 'Merge it yourself.',
+      why: 'covers deploys',
+      extra: 'where=chat',
+    },
   ],
   [
     'the same words and reading from a new where',
-    { text: 'Merge it yourself.', why: 'covers merges', extra: 'where=terminal' },
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'Merge it yourself.',
+      why: 'covers merges',
+      extra: 'where=terminal',
+    },
   ],
   [
     'the same words and reading as a row with no reading=1',
-    { text: 'Merge it yourself.', why: 'covers merges', extra: 'where=chat' },
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'Merge it yourself.',
+      why: 'covers merges',
+      extra: 'where=chat',
+    },
   ],
 ])(
   'it dates and names the grant from the rows it holds when a later write of %s stopped after its journal row',
@@ -696,13 +728,7 @@ test.each([
           why: 'covers merges',
           extra: 'where=chat',
         }),
-        buildMockJournalRow({
-          ts: '2026-03-04T09:00:00Z',
-          op: 'grant',
-          id: 'grant',
-          by: 'agent',
-          ...stopped,
-        }),
+        buildMockJournalRow({ op: 'grant', id: 'grant', by: 'agent', ...stopped }),
       ],
       {
         grant: {
