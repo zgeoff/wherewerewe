@@ -33,9 +33,7 @@ export function buildArgvRefusal(reason: ArgvRefusalReason): Refusal {
       ),
     )
     .with({ kind: 'flag-takes-no-value' }, (found) => usage(`www: --${found.flag} takes no value.`))
-    .with({ kind: 'flag-not-taken' }, (found) =>
-      usage(`www: ${found.command} takes no --${found.flag} flag.`),
-    )
+    .with({ kind: 'flag-not-taken' }, (found) => buildFlagNotTaken(found))
     .with({ kind: 'wrong-positionals' }, (found) =>
       usage(`www: ${found.command} takes ${found.usage}.`),
     )
@@ -44,4 +42,26 @@ export function buildArgvRefusal(reason: ArgvRefusalReason): Refusal {
 
 function usage(line: string, argv: readonly RunWord[] = ['help']): Refusal {
   return { exitCode: 2, lines: [line], runs: [{ www: argv }] };
+}
+
+function buildFlagNotTaken(found: Extract<ArgvRefusalReason, { kind: 'flag-not-taken' }>): Refusal {
+  if (found.line === null || found.taken.length === 0) {
+    return usage(`www: ${found.command} takes no --${found.flag} flag.`);
+  }
+
+  return {
+    exitCode: 2,
+    lines: [
+      `www: ${found.command} takes no --${found.flag} flag. It takes ${joinFlags(found.taken)}.`,
+    ],
+    runs: [{ usage: found.line }],
+  };
+}
+
+// `--a`, `--a and --b`, or `--a, --b and --c`.
+function joinFlags(flags: readonly string[]): string {
+  const named = flags.map((flag) => `--${flag}`);
+  const last = named.at(-1);
+
+  return named.length === 1 ? (last ?? '') : `${named.slice(0, -1).join(', ')} and ${last ?? ''}`;
 }

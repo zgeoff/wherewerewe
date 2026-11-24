@@ -78,6 +78,9 @@ interface CommandShape {
   readonly counts: readonly number[];
   readonly usage: string;
   readonly flags: readonly string[];
+
+  // the command's line in the help text, after `www`, which a refused flag prints as its Run line
+  readonly line?: string;
 }
 
 // A map, so a command named like an inherited object property, such as toString, is unknown.
@@ -86,23 +89,56 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ['help', { counts: [0], usage: 'no arguments', flags: [] }],
   ['sessions', { counts: [0], usage: 'no arguments', flags: [] }],
   ['detach', { counts: [0], usage: 'no arguments', flags: [] }],
-  ['init', { counts: [1], usage: '<name>', flags: ['goal'] }],
+  ['init', { counts: [1], usage: '<name>', flags: ['goal'], line: 'init <name> --goal "<goal>"' }],
   ['attach', { counts: [1], usage: '<name>', flags: [] }],
-  ['import', { counts: [1], usage: '<name>', flags: [...grantFlags, 'drop'] }],
+  [
+    'import',
+    { counts: [1], usage: '<name>', flags: [...grantFlags, 'drop'], line: 'import <name>' },
+  ],
   ['goal', { counts: [1], usage: '"<what done means>"', flags: [] }],
-  ['grant', { counts: [0], usage: 'no arguments', flags: grantFlags }],
-  ['now', { counts: [2], usage: '<id> "<next step>"', flags: noteFlags }],
+  [
+    'grant',
+    {
+      counts: [0],
+      usage: 'no arguments',
+      flags: grantFlags,
+      line: 'grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"] --where <where> --reading "<what they cover; what the owner kept back>"',
+    },
+  ],
+  [
+    'now',
+    {
+      counts: [2],
+      usage: '<id> "<next step>"',
+      flags: noteFlags,
+      line: 'now <id> "<next step>" [--note "<detail>" [--owed]]',
+    },
+  ],
   [
     'task',
-    { counts: [2], usage: '<id> "<claim>"', flags: [...checkFlags, ...noteFlags, 'blocked-by'] },
+    {
+      counts: [2],
+      usage: '<id> "<claim>"',
+      flags: [...checkFlags, ...noteFlags, 'blocked-by'],
+      line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
+    },
   ],
-  ['wait', { counts: [2], usage: '<id> "<what>"', flags: [...checkFlags, ...noteFlags, 'who'] }],
+  [
+    'wait',
+    {
+      counts: [2],
+      usage: '<id> "<what>"',
+      flags: [...checkFlags, ...noteFlags, 'who'],
+      line: 'wait <id> "<what>" --who <who> [<check>]',
+    },
+  ],
   [
     'rule',
     {
       counts: [2],
       usage: '<id> "<do it this way, and why>"',
       flags: [...checkFlags, ...noteFlags],
+      line: 'rule <id> "<do it this way, and why>"',
     },
   ],
   [
@@ -111,32 +147,63 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
       counts: [2],
       usage: '<id> "<what and where, and how to stop it>"',
       flags: [...checkFlags, ...noteFlags],
+      line: 'where <id> "<what and where, and how to stop it>" [<check>]',
     },
   ],
   [
     'set',
-    { counts: [1, 2], usage: '<id> ["<claim>"]', flags: [...checkFlags, ...noteFlags, 'no-note'] },
+    {
+      counts: [1, 2],
+      usage: '<id> ["<claim>"]',
+      flags: [...checkFlags, ...noteFlags, 'no-note'],
+      line: 'set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]',
+    },
   ],
-  ['done', { counts: [1], usage: '<id>', flags: ['evidence'] }],
-  ['drop', { counts: [1], usage: '<id>', flags: ['why'] }],
+  [
+    'done',
+    {
+      counts: [1],
+      usage: '<id>',
+      flags: ['evidence'],
+      line: 'done <id> --evidence "<PR, commit or test run>"',
+    },
+  ],
+  ['drop', { counts: [1], usage: '<id>', flags: ['why'], line: 'drop <id> --why "<reason>"' }],
   [
     'ok',
     {
       counts: [1],
       usage: '<id>',
       flags: ['quote', 'who', 'where', 'scope', 'once', 'standing', ...noteFlags],
+      line: 'ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>"',
     },
   ],
-  ['use', { counts: [1], usage: '<id>', flags: ['for'] }],
+  [
+    'use',
+    { counts: [1], usage: '<id>', flags: ['for'], line: 'use <id> --for "<what you did with it>"' },
+  ],
   [
     'decide',
-    { counts: [1], usage: '"<choice>"', flags: ['why', 'on', 'who', 'ruled-out', 'replaces'] },
+    {
+      counts: [1],
+      usage: '"<choice>"',
+      flags: ['why', 'on', 'who', 'ruled-out', 'replaces'],
+      line: 'decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]',
+    },
   ],
-  ['say', { counts: [1], usage: '"<text>"', flags: ['on'] }],
+  ['say', { counts: [1], usage: '"<text>"', flags: ['on'], line: 'say "<text>" [--on <id>]' }],
   ['ack', { counts: [1], usage: 'o-<n>', flags: [] }],
   ['show', { counts: [0, 1], usage: '[<id>]', flags: [] }],
-  ['log', { counts: [0], usage: 'no arguments', flags: ['since', 'op', 'id'] }],
-  ['recap', { counts: [0], usage: 'no arguments', flags: ['since'] }],
+  [
+    'log',
+    {
+      counts: [0],
+      usage: 'no arguments',
+      flags: ['since', 'op', 'id'],
+      line: 'log [--since <t>] [--op <op,...>] [--id <id>]',
+    },
+  ],
+  ['recap', { counts: [0], usage: 'no arguments', flags: ['since'], line: 'recap [--since <t>]' }],
 ]);
 
 const laterCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);
@@ -199,7 +266,13 @@ function checkArgs(argv: readonly string[]): ParseResult {
   const stray = args.flags.find((flag) => !shape.flags.includes(flag.name));
 
   if (stray !== undefined) {
-    return refuse({ kind: 'flag-not-taken', command, flag: stray.name });
+    return refuse({
+      kind: 'flag-not-taken',
+      command,
+      flag: stray.name,
+      taken: shape.flags,
+      line: shape.line ?? null,
+    });
   }
 
   if (!shape.counts.includes(rest.length)) {

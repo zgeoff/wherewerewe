@@ -1,3 +1,5 @@
+import type { UpgradeProblem } from './import/types.ts';
+
 export type Kind = 'task' | 'wait' | 'ok' | 'rule' | 'where';
 
 type Author = 'agent' | 'owner' | 'import';
@@ -211,7 +213,12 @@ export type PlaceholderShape = 'id' | 'path' | 'branch' | 'pr' | 'pid' | 'who';
 export type RunWord = string | Placeholder;
 
 // A shell Run line holds the words of a command other than www, each quoted as it prints.
-export type RunLine = { readonly www: readonly RunWord[] } | { readonly shell: readonly string[] };
+export type RunLine =
+  | { readonly www: readonly RunWord[] }
+  | { readonly shell: readonly string[] }
+
+  // a usage line: the text of a command's help line after `www`, printed as it stands
+  | { readonly usage: string };
 
 export interface Refusal {
   readonly exitCode: 2 | 3 | 4 | 5;
@@ -353,7 +360,15 @@ export type RefusalReason =
       readonly argv: readonly string[];
     }
   | { readonly kind: 'flag-takes-no-value'; readonly flag: string }
-  | { readonly kind: 'flag-not-taken'; readonly command: string; readonly flag: string }
+  | {
+      readonly kind: 'flag-not-taken';
+      readonly command: string;
+      readonly flag: string;
+
+      // the flags the command takes, and its help line after `www`; null for a command with no flags
+      readonly taken: readonly string[];
+      readonly line: string | null;
+    }
   | { readonly kind: 'wrong-positionals'; readonly command: string; readonly usage: string }
   | {
       readonly kind: 'text-too-long';
@@ -552,29 +567,4 @@ export type RefusalReason =
       readonly path: string;
       readonly line: number | null;
       readonly reason: string;
-    };
-
-export interface ApprovalLine {
-  readonly id: string;
-  readonly quote: string;
-  readonly scope: string;
-
-  // ISO 8601 UTC to the second, with Z
-  readonly written: string;
-
-  // the age of a one-time approval, such as 5d; null for a standing one
-  readonly age: string | null;
-}
-
-// What an upgrade or an import checks before it writes.
-export type UpgradeProblem =
-  | { readonly kind: 'needs-grant'; readonly approvals: readonly ApprovalLine[] }
-  | { readonly kind: 'too-many-once'; readonly approvals: readonly ApprovalLine[] }
-  | { readonly kind: 'grant-id' }
-  | { readonly kind: 'grant-needs-part' }
-  | { readonly kind: 'grant-text'; readonly reason: RefusalReason }
-  | {
-      readonly kind: 'drop-unknown';
-      readonly id: string;
-      readonly open: readonly string[];
     };

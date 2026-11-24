@@ -101,7 +101,6 @@ test.each(
         ['extra'],
         ['--since', faultCredential],
         [`--since=${faultCredential}`],
-        ...(command === 'recap' ? [['--op', 'decide']] : []),
       ].map((flags) => ({ command, argv: [command, ...session, ...flags] })),
     ),
   ),

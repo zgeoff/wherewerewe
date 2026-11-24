@@ -167,6 +167,26 @@ test('it copies the format 1 files into format-1-backup/ and writes the four new
   });
 });
 
+test('it leaves owner.tsv and prs.tsv as they were, and out of format-1-backup/', () => {
+  const ctx = setupTest();
+
+  ctx.copyStore();
+
+  const before = ['owner.tsv', 'prs.tsv'].map((file) =>
+    readFileSync(join(ctx.folder, file), 'utf8'),
+  );
+
+  writeUpgradeFiles(ctx.folder, ctx.readUpgradeWrite());
+
+  expect({
+    kept: ['owner.tsv', 'prs.tsv'].map((file) => readFileSync(join(ctx.folder, file), 'utf8')),
+    backup: readdirSync(join(ctx.folder, 'format-1-backup')).toSorted(),
+  }).toStrictEqual({
+    kept: before,
+    backup: ['items.tsv', 'journal.tsv', 'notes.tsv', 'session'],
+  });
+});
+
 test('it keeps the first backup when format-1-backup/ exists, so the true originals stay', () => {
   const ctx = setupTest();
 

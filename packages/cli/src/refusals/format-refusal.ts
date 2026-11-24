@@ -20,9 +20,15 @@ export function formatRefusal(refusal: Refusal, scope: RefusalScope): string {
 }
 
 function formatRun(run: RunLine, scope: RefusalScope): string {
-  return 'shell' in run
-    ? run.shell.map((word) => formatShellWord(word)).join(' ')
-    : formatCommandLine(toPrintedWords(run.www, scope.sessionFlag));
+  if ('shell' in run) {
+    return run.shell.map((word) => formatShellWord(word)).join(' ');
+  }
+
+  if ('usage' in run) {
+    return `${formatCommandLine(toPrintedWords([], scope.sessionFlag))} ${run.usage}`;
+  }
+
+  return formatCommandLine(toPrintedWords(run.www, scope.sessionFlag));
 }
 
 // A word whose quoted form the credential test matches prints as the quoted placeholder, so the
