@@ -1,5 +1,7 @@
+import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { findTextProblem } from '../rules/find-text-problem.ts';
 import { isItemID } from '../rules/is-item-id.ts';
+import { isUTCTime } from '../rules/is-utc-time.ts';
 import type { Note } from '../types.ts';
 import { notesHeader } from './constants.ts';
 
@@ -69,12 +71,16 @@ function parseNoteLine(line: string): Note | string {
     return 'the owed column is not owed or -';
   }
 
-  if (written === '') {
-    return 'the written time is empty';
+  if (!isUTCTime(written)) {
+    return 'the written time is not an ISO 8601 UTC time to the second, ending in Z';
   }
 
   if (findTextProblem(note, 400) !== null) {
     return 'the note is empty, longer than 400 characters or not one line';
+  }
+
+  if (findCredentialMatch(note) !== null) {
+    return 'the note holds a credential';
   }
 
   return { id, owed: owed === 'owed', written, note };

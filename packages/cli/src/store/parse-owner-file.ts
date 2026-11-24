@@ -1,5 +1,6 @@
 import { findTextProblem } from '../rules/find-text-problem.ts';
 import { isItemID } from '../rules/is-item-id.ts';
+import { isUTCTime } from '../rules/is-utc-time.ts';
 import type { OwnerNote } from '../types.ts';
 import { ownerHeader } from './constants.ts';
 
@@ -51,8 +52,6 @@ export function parseOwnerFile(text: string): OwnerParse {
     : { kind: 'broken', line: firstBroken.line, reason: firstBroken.reason, notes };
 }
 
-const saidFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u;
-
 function parseOwnerLine(line: string): OwnerNote | string {
   const cells = line.split('\t');
   const [id, text, said, on] = cells;
@@ -75,7 +74,7 @@ function parseOwnerLine(line: string): OwnerNote | string {
     return 'the text is empty, longer than 160 characters or not one line';
   }
 
-  if (!saidFormat.test(said) || !isRealTime(said)) {
+  if (!isUTCTime(said)) {
     return 'the said time is not an ISO 8601 UTC time to the second, ending in Z';
   }
 
@@ -84,13 +83,4 @@ function parseOwnerLine(line: string): OwnerNote | string {
   }
 
   return { id, text, said, on: on === '-' ? null : on };
-}
-
-// Date.parse rolls an impossible date, such as 02-30, into the next month, so compare the round trip.
-function isRealTime(said: string): boolean {
-  const parsedAtMs = Date.parse(said);
-
-  return (
-    !Number.isNaN(parsedAtMs) && new Date(parsedAtMs).toISOString() === said.replace('Z', '.000Z')
-  );
 }

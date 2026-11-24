@@ -218,7 +218,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
           .renameCommand('where')
           .replacePositional(0, '<new id>')
           .keepFirstCheck()
-          .keepCheckFlags()
+          .keepCheckAndNoteFlags()
           .toArgv(),
       ),
     )
@@ -349,7 +349,10 @@ function buildCredentialRun(found: Found<'credential'>): string[] {
   if (itemWriteCommands.has(found.args.command)) {
     const id = found.onOtherKind ? '<new id>' : (found.args.positionals[0] ?? '<new id>');
 
-    return ['where', id, '<where the secret lives>'];
+    return buildRunSpec({ ...found.args, positionals: [id, '<where the secret lives>'] })
+      .renameCommand('where')
+      .keepFlags(['note', 'owed'])
+      .toArgv();
   }
 
   return replaceText(found.args, found.target, noSecretPlaceholder);
@@ -422,7 +425,7 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
 
   // A use with no approval left to spend has no id that fills the line, so it reads the id instead.
   const argv = match({ command: found.args.command, closest })
-    .with({ command: 'set' }, () => spec.renameCommand('task').keepCheckFlags().toArgv())
+    .with({ command: 'set' }, () => buildTaskForSet(spec, found.args).toArgv())
     .with({ command: 'use', closest: null }, () => ['show', found.id])
     .otherwise(() => spec.replacePositional(0, closest ?? '<open id>').toArgv());
 
@@ -432,6 +435,13 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
   );
 }
 
+// A set with no claim changes only a note, so the task that makes the missing item takes a claim.
+function buildTaskForSet(spec: RunSpec, args: ParsedArgs): RunSpec {
+  const task = spec.renameCommand('task').keepCheckAndNoteFlags();
+
+  return args.positionals.length === 1 ? task.addPositional('<claim>') : task;
+}
+
 // A rule has no check, so the set that turns the claim into a rule's new text drops the flags.
 function buildOtherKindRun(found: Found<'other-kind'>): string[] {
   const typed = buildRunSpec(found.args);
@@ -439,13 +449,13 @@ function buildOtherKindRun(found: Found<'other-kind'>): string[] {
   // ok takes its words in --quote, so the set that replaces it takes them as the claim
   const spec = (
     found.args.command === 'ok'
-      ? typed.keepFlags([]).addPositional(found.args.values.quote ?? '<claim>')
+      ? typed.keepFlags(['note', 'owed']).addPositional(found.args.values.quote ?? '<claim>')
       : typed
   ).renameCommand('set');
 
   return match(found.itemKind)
-    .with('rule', () => spec.keepFlags([]).toArgv())
-    .with('task', 'wait', 'ok', 'where', () => spec.keepCheckFlags().toArgv())
+    .with('rule', () => spec.keepFlags(['note', 'owed']).toArgv())
+    .with('task', 'wait', 'ok', 'where', () => spec.keepCheckAndNoteFlags().toArgv())
     .exhaustive();
 }
 

@@ -23,7 +23,10 @@ function formatRun(run: RunLine, typed: RefusalScope): string {
     return run.shell;
   }
 
-  const isScoped = sessionFlag !== null && !run.www.includes('--session');
+  // a word after -- is a positional, so a --session there is not the flag
+  const endOfFlags = run.www.indexOf('--');
+  const flagWords = endOfFlags === -1 ? run.www : run.www.slice(0, endOfFlags);
+  const isScoped = sessionFlag !== null && !flagWords.includes('--session');
   const words = isScoped ? ['--session', sessionFlag, ...run.www] : run.www;
 
   return formatCommandLine(words, typed.typedWords);
