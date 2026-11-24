@@ -15,6 +15,9 @@ test.each([
   ['do-4', true],
   ['d-x', true],
   ['t_a', false],
+  ['grant', false],
+  ['grants', true],
+  ['g-rant', true],
 ])('it answers %s with %p', (id, expected) => {
   expect(isItemID(id)).toBe(expected);
 });

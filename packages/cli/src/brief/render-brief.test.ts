@@ -4,13 +4,15 @@ import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { renderBrief } from './render-brief.ts';
 
 test('it renders each section of one invented store in order', () => {
   const brief = renderBrief(
     buildMockBriefInput({
       session: {
-        format: '1',
+        format: '2',
+        grant: null,
         name: 'tide-alerts',
         goal: 'Ship tide alerts in bosun-api and bosun-app.',
         started: '2026-03-02T08:04:11Z',
@@ -44,7 +46,7 @@ test('it renders each section of one invented store in order', () => {
           id: 'ok-merge',
           kind: 'ok',
           claim: 'merge the alert PRs yourself once CI is green',
-          extra: { who: 'owner', use: 'standing', scope: 'bosun-api, bosun-app' },
+          extra: { who: 'owner', scope: 'bosun-api, bosun-app' },
         }),
         buildMockItem({ id: 'r-api-tests', kind: 'rule', claim: 'Run the API tests from api/' }),
         buildMockItem({
@@ -61,6 +63,7 @@ test('it renders each section of one invented store in order', () => {
     [
       'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 1 checks, not run yet',
       'GOAL  Ship tide alerts in bosun-api and bosun-app.',
+      `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
       'NOW  pr-api-77 · set 1h ago',
       '  next: watch CI, then request review',
       'OPEN (2 of 6)',
@@ -68,8 +71,8 @@ test('it renders each section of one invented store in order', () => {
       '  t-e2e       Write alerts-e2e against staging  [no check · 3d]',
       'WAITING (1 of 4)',
       '  w-apns      upload the staging push key to the vault  [owner · 2d]',
-      'APPROVED (1 of 3)',
-      '  ok-merge    "merge the alert PRs yourself once CI is green" · standing · bosun-api, bosun-app',
+      'APPROVED ONCE (1 of 1)',
+      '  ok-merge    "merge the alert PRs yourself once CI is green" · bosun-api, bosun-app',
       'RULES (1 of 5)',
       '  r-api-tests Run the API tests from api/',
       'WHERE (1 of 4)',
@@ -83,9 +86,10 @@ test('it renders each section of one invented store in order', () => {
 test('it leaves empty sections out and says NOW is none with the command to set it', () => {
   const brief = renderBrief(buildMockBriefInput({}));
 
-  expect(brief.split('\n').slice(0, 3)).toStrictEqual([
+  expect(brief.split('\n').slice(0, 4)).toStrictEqual([
     'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · no checks',
     'GOAL  Ship tide alerts in bosun-api and bosun-app.',
+    `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
     'NOW  none. Run: www now <id> "<next step>"',
   ]);
 
@@ -158,7 +162,8 @@ test('it puts the item in focus first among the tasks and pads a long id with tw
   const brief = renderBrief(
     buildMockBriefInput({
       session: {
-        format: '1',
+        format: '2',
+        grant: null,
         name: 'tide-alerts',
         goal: 'Ship it',
         started: '2026-03-02T08:04:11Z',
@@ -176,9 +181,10 @@ test('it puts the item in focus first among the tasks and pads a long id with tw
     }),
   );
 
-  expect(brief.split('\n').slice(0, 8)).toStrictEqual([
+  expect(brief.split('\n').slice(0, 9)).toStrictEqual([
     'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks',
     'GOAL  Ship it',
+    `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
     'NOW  task-with-a-long-id · set 3m ago',
     '  next: go',
     'OPEN (2 of 6)',
@@ -252,7 +258,7 @@ test('it renders owner notes, changed rows with their overflow, and pull request
     }),
   );
 
-  expect(brief.split('\n').slice(2, 16)).toStrictEqual([
+  expect(brief.split('\n').slice(3, 17)).toStrictEqual([
     'OWNER SAYS (2) · act on it; only the owner clears it',
     '  o-2  Ask me first.  [2h]',
     '  o-3  Mind the cert.  [on pr-api-77 · 2h]',
@@ -296,7 +302,7 @@ test.each([
     false,
   ],
 ])(
-  'it renders the worst case with %s in 52 lines and at most 6,400 characters',
+  'it renders the worst case with %s in 73 lines and at most 7,200 characters',
   (_title, words, goalLines, isCut) => {
     const result = 'r'.repeat(15);
     const waits = buildMockIDs('wait', 4);
@@ -305,7 +311,7 @@ test.each([
     const ids = [
       ...tasks,
       ...waits,
-      ...buildMockIDs('appr', 3),
+      ...buildMockIDs('appr', 1),
       ...buildMockIDs('rule', 5),
       ...buildMockIDs('here', 4),
     ];
@@ -313,7 +319,16 @@ test.each([
     const brief = renderBrief(
       buildMockBriefInput({
         session: {
-          format: '1',
+          format: '2',
+          grant: {
+            may: Array.from({ length: 7 }, () => 'm'.repeat(90)),
+            not: Array.from({ length: 5 }, () => 'x'.repeat(6)),
+            never: [],
+            scope: 's'.repeat(40),
+            reading: buildSpacedText(200),
+            where: 'w'.repeat(16),
+            set: '2026-03-03T09:00:00Z',
+          },
           name: 'n'.repeat(24),
           goal: words.join(' '),
           started: '2026-03-02T08:04:11Z',
@@ -358,12 +373,12 @@ test.each([
               extra: { who: 'w'.repeat(16) },
             }),
           ),
-          ...buildMockIDs('appr', 3).map((id) =>
+          ...buildMockIDs('appr', 1).map((id) =>
             buildMockItem({
               id,
               kind: 'ok',
               claim: 'q'.repeat(120),
-              extra: { who: 'owner', use: 'standing', scope: 's'.repeat(40) },
+              extra: { who: 'owner', scope: 's'.repeat(40) },
             }),
           ),
           ...buildMockIDs('rule', 5).map((id) =>
@@ -397,16 +412,22 @@ test.each([
     expect({
       goalCharacters: words.join(' ').length,
       lines: brief.split('\n').length - 1,
-      isWithinLimit: Array.from(brief, (character) => character).length <= 6400,
+      isWithinLimit: Array.from(brief, (character) => character).length <= 7200,
+      grantLines: brief
+        .split('\n')
+        .filter((line) =>
+          /^(?:GRANT {2}| {2}(?:may|not) +• | {9}• | {11}m| {2}reading: | {4}g)/u.test(line),
+        ).length,
       goalLines: brief
         .split('\n')
-        .filter((line) => line.startsWith('GOAL  ') || line.startsWith('      ')).length,
+        .filter((line) => line.startsWith('GOAL  ') || /^ {6}\S/u.test(line)).length,
       hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
       noteLines: brief.split('\n').filter((line) => /^ {4}n+$/u.test(line)).length,
     }).toStrictEqual({
       goalCharacters: 200,
-      lines: 52,
+      lines: 73,
       isWithinLimit: true,
+      grantLines: 23,
       goalLines,
       hasCutLine: isCut,
       noteLines: 5,
@@ -414,8 +435,8 @@ test.each([
   },
 );
 
-test('it cuts item lines from the bottom up when the text passes 6,400 characters, and keeps the rest', () => {
-  const claim = 'c'.repeat(300);
+test('it cuts item lines from the bottom up when the text passes 7,000 characters, and keeps the rest', () => {
+  const claim = 'c'.repeat(450);
   const ids = ['task-0', 'task-1', 'task-2', 'task-3', 'task-4', 'task-5'];
 
   const brief = renderBrief(
@@ -442,7 +463,7 @@ test('it cuts item lines from the bottom up when the text passes 6,400 character
   const lines = brief.split('\n');
 
   expect({
-    isWithinLimit: Array.from(brief, (character) => character).length <= 6400,
+    isWithinLimit: Array.from(brief, (character) => character).length <= 7000,
     keepsHeader: lines[0]?.startsWith('tide-alerts · day 9'),
     keepsOwner: brief.includes('OWNER SAYS (1)') && brief.includes('o-1  Ask me first.'),
     keepsChanged: brief.includes('CHANGED SINCE WRITTEN (1)'),
@@ -486,7 +507,7 @@ test.each([
     }),
   );
 
-  expect(brief.split('\n').slice(2, 5)).toStrictEqual(expected);
+  expect(brief.split('\n').slice(3, 6)).toStrictEqual(expected);
 });
 
 test('it prints the note under NOW when the item has no next step', () => {
@@ -500,7 +521,7 @@ test('it prints the note under NOW when the item has no next step', () => {
     }),
   );
 
-  expect(brief.split('\n').slice(2, 4)).toStrictEqual([
+  expect(brief.split('\n').slice(3, 5)).toStrictEqual([
     'NOW  t-a · set 1h ago · note 1h ago',
     '    Stop the simulator',
   ]);
@@ -539,7 +560,7 @@ test('it tags every item with an owed note, the item in focus included, and no i
           id: 'ok-a',
           kind: 'ok',
           claim: 'go ahead',
-          extra: { who: 'owner', use: 'once', scope: 'api' },
+          extra: { who: 'owner', scope: 'api' },
         }),
         buildMockItem({ id: 'r-a', kind: 'rule' }),
         buildMockItem({ id: 'r-b', kind: 'rule' }),
@@ -558,8 +579,63 @@ test('it tags every item with an owed note, the item in focus included, and no i
   expect(brief.split('\n').filter((line) => line.includes('owed]'))).toStrictEqual([
     '  t-a         Write the parser  [no check · 1h · owed]',
     '  w-a         Write the parser  [owner · 1h · owed]',
-    '  ok-a        "go ahead" · once · api  [owed]',
+    '  ok-a        "go ahead" · api  [owed]',
     '  r-a         Write the parser  [owed]',
     '  wt-a        Write the parser  [no check · 1h · owed]',
   ]);
+});
+
+test('it prints the grant whole and ends the last kept section with the cut line, when 12 tasks and 10 rules pass the limits', () => {
+  const mayBullet = buildSpacedText(120).replaceAll('g', 'x');
+  const may = Array.from({ length: 5 }, () => mayBullet);
+  const reading = buildSpacedText(200);
+  const not = buildSpacedText(60).replaceAll('g', 'k');
+  const scope = 's'.repeat(40);
+
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({
+        grant: {
+          may,
+          not: [not],
+          never: [],
+          scope,
+          reading,
+          where: 'chat',
+          set: '2026-03-03T09:00:00Z',
+        },
+      }),
+      items: [
+        ...buildMockIDs('task', 12).map((id) => buildMockItem({ id, claim: 'c'.repeat(300) })),
+        ...buildMockIDs('rule', 10).map((id) =>
+          buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(300) }),
+        ),
+      ],
+    }),
+  );
+
+  const lines = brief.split('\n');
+  const cutAt = lines.findIndex((line) => line.includes('lines cut to fit; run www show <id>)'));
+
+  const grantLines = lines.filter((line) =>
+    /^(?:GRANT {2}| {2}(?:may|not) +• | {9}• | {11}[xk]| {2}reading: | {4}g)/u.test(line),
+  );
+
+  expect({
+    isWithinLines: lines.length - 1 <= 73,
+    isWithinLimit: Array.from(brief, (character) => character).length <= 7200,
+    grantLines: grantLines.length,
+    mayCharacters: grantLines.join('').split('x').length - 1,
+    notCharacters: grantLines.join('').split('k').length - 1,
+    cutEndsLastSection: lines[cutAt - 1]?.startsWith('  rule'),
+    footerFollowsCut: lines[cutAt + 1]?.startsWith('Write as you go:'),
+  }).toStrictEqual({
+    isWithinLines: true,
+    isWithinLimit: true,
+    grantLines: 15,
+    mayCharacters: 5 * 115,
+    notCharacters: 58,
+    cutEndsLastSection: true,
+    footerFollowsCut: true,
+  });
 });

@@ -73,7 +73,7 @@ export function pickSay(input: WriteInput): OwnerWriteResult {
       ],
     },
     reply: (briefLines) =>
-      `${id}  owner note${on === undefined ? '' : ` on ${on}`}. It tops the brief until you run: www --session ${store.session.name} ack ${id}. Brief: ${String(briefLines)} lines.`,
+      `${id}  owner note${on === undefined ? '' : ` on ${on}`}. It shows in every brief until you run: www --session ${store.session.name} ack ${id}. Brief: ${String(briefLines)} lines.`,
   };
 }
 

@@ -46,3 +46,9 @@ test('it counts code points and not UTF-16 units', () => {
 
   expect(wrapBlock(text, '', '')).toStrictEqual(['🌊'.repeat(100), '🌊'.repeat(10)]);
 });
+
+test('it prints no line of indent alone when the text ends with the space it breaks at', () => {
+  expect(wrapBlock(`${'x'.repeat(89)} `, `  may    • `, ' '.repeat(11))).toStrictEqual([
+    `  may    • ${'x'.repeat(89)}`,
+  ]);
+});

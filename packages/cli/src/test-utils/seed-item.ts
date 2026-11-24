@@ -13,9 +13,16 @@ export async function seedItem(
 
   const store = match(read)
     .with({ kind: 'store' }, (found) => found.store)
-    .with({ kind: 'missing' }, { kind: 'hand-kept' }, { kind: 'newer' }, { kind: 'broken' }, () => {
-      throw new Error(`no store to seed in ${folder}`);
-    })
+    .with(
+      { kind: 'missing' },
+      { kind: 'hand-kept' },
+      { kind: 'format-1' },
+      { kind: 'newer' },
+      { kind: 'broken' },
+      () => {
+        throw new Error(`no store to seed in ${folder}`);
+      },
+    )
     .exhaustive();
 
   const item: Item = {

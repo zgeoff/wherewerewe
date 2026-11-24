@@ -1,5 +1,6 @@
 import type { Refusal, RunLine } from '../types.ts';
 import { formatCommandLine } from './format-command-line.ts';
+import { toPrintedWords } from './to-printed-words.ts';
 
 export interface RefusalScope {
   readonly sessionFlag: string | null;
@@ -8,8 +9,7 @@ export interface RefusalScope {
   readonly typedWords: readonly string[];
 }
 
-// Prints the refusal's lines, then each run as `Run: <line>`, each line ending in a newline. When
-// the agent typed --session, each www run line keeps it.
+// Prints the refusal's lines, then each run as `Run: <line>`, each line ending in a newline.
 export function formatRefusal(refusal: Refusal, typed: RefusalScope): string {
   const runs = refusal.runs.map((run) => `Run: ${formatRun(run, typed)}`);
 
@@ -17,17 +17,7 @@ export function formatRefusal(refusal: Refusal, typed: RefusalScope): string {
 }
 
 function formatRun(run: RunLine, typed: RefusalScope): string {
-  const sessionFlag = typed.sessionFlag;
-
-  if ('shell' in run) {
-    return run.shell;
-  }
-
-  // a word after -- is a positional, so a --session there is not the flag
-  const endOfFlags = run.www.indexOf('--');
-  const flagWords = endOfFlags === -1 ? run.www : run.www.slice(0, endOfFlags);
-  const isScoped = sessionFlag !== null && !flagWords.includes('--session');
-  const words = isScoped ? ['--session', sessionFlag, ...run.www] : run.www;
-
-  return formatCommandLine(words, typed.typedWords);
+  return 'shell' in run
+    ? run.shell
+    : formatCommandLine(toPrintedWords(run.www, typed.sessionFlag), typed.typedWords);
 }

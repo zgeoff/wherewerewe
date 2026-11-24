@@ -1,4 +1,5 @@
-export function buildOkArgv(use: '--once' | '--standing'): string[] {
+// An ok of the approval ok-merge with every part, and the flags the test adds after them.
+export function buildOkArgv(...flags: readonly string[]): string[] {
   return [
     'ok',
     'ok-merge',
@@ -10,6 +11,6 @@ export function buildOkArgv(use: '--once' | '--standing'): string[] {
     'terminal',
     '--scope',
     'bosun-api',
-    use,
+    ...flags,
   ];
 }

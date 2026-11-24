@@ -5,6 +5,7 @@ export interface RunSpec {
   readonly replacePositional: (index: number, value: string) => RunSpec;
   readonly addPositional: (value: string) => RunSpec;
   readonly replaceFlag: (name: string, value: string) => RunSpec;
+  readonly replaceFlagAt: (name: string, occurrence: number, value: string) => RunSpec;
   readonly addFlag: (name: string, value: string) => RunSpec;
   readonly addFlagBefore: (beforeName: string, name: string, value: string) => RunSpec;
   readonly addWord: (word: string) => RunSpec;
@@ -12,6 +13,7 @@ export interface RunSpec {
   readonly keepCheckAndNoteFlags: () => RunSpec;
   readonly keepFirstCheck: () => RunSpec;
   readonly dropFlag: (name: string) => RunSpec;
+  readonly dropFlagValue: (name: string, value: string) => RunSpec;
   readonly renameCommand: (command: string) => RunSpec;
   readonly toArgv: () => string[];
 }
@@ -64,6 +66,15 @@ function makeSpec(state: SpecState): RunSpec {
         }),
       });
     },
+    replaceFlagAt: (name, occurrence, value) => {
+      const places = state.flags.flatMap((flag, at) => (flag.name === name ? [at] : []));
+      const place = places.at(occurrence);
+
+      return makeSpec({
+        ...state,
+        flags: state.flags.map((flag, at) => (at === place ? { name, value } : flag)),
+      });
+    },
     addFlag: (name, value) => makeSpec({ ...state, flags: [...state.flags, { name, value }] }),
     addFlagBefore: (beforeName, name, value) => {
       const at = state.flags.findIndex((flag) => flag.name === beforeName);
@@ -94,6 +105,11 @@ function makeSpec(state: SpecState): RunSpec {
     },
     dropFlag: (name) =>
       makeSpec({ ...state, flags: state.flags.filter((flag) => flag.name !== name) }),
+    dropFlagValue: (name, value) =>
+      makeSpec({
+        ...state,
+        flags: state.flags.filter((flag) => flag.name !== name || flag.value !== value),
+      }),
     renameCommand: (command) => makeSpec({ ...state, command }),
     toArgv: () => buildArgv(state),
   };

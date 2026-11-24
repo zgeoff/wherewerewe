@@ -5,7 +5,8 @@ import { pickAck } from './pick-ack.ts';
 
 function setupTest() {
   const session: SessionFile = {
-    format: '1',
+    format: '2',
+    grant: null,
     name: 'tide-alerts',
     goal: 'Ship it',
     started: '2026-03-02T08:04:11Z',

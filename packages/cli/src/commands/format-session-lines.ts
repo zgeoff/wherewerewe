@@ -21,8 +21,12 @@ function formatSummaryLine(summary: SessionSummary, width: number, nowMs: number
     return `  ${name}  hand-kept: run www import ${summary.name}`;
   }
 
-  if (summary.format !== null && summary.format !== '1') {
-    return `  ${name}  format ${summary.format}: this www reads format 1`;
+  if (summary.format === '1') {
+    return `  ${name}  format 1: run www import ${summary.name}`;
+  }
+
+  if (summary.format !== null && summary.format !== '2') {
+    return `  ${name}  format ${summary.format}: this www reads format 2`;
   }
 
   if (summary.format === null || summary.started === null || summary.goal === null) {

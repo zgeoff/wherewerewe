@@ -4,9 +4,10 @@ import type { SessionFile } from '../types.ts';
 // t-a in focus since 10:43, and the fields the test names laid over it.
 export function buildMockSession(fields: Partial<SessionFile>): SessionFile {
   return {
-    format: '1',
+    format: '2',
     name: 'tide-alerts',
     goal: 'Ship it',
+    grant: null,
     started: '2026-03-02T08:04:11Z',
     now: 't-a',
     nowNext: 'go',

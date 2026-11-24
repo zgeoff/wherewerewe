@@ -1,9 +1,9 @@
 import { isLogRow } from '../reads/is-log-row.ts';
 import { parseSince } from '../reads/parse-since.ts';
 import { renderLog } from '../reads/render-log.ts';
+import { buildRefusalResult } from '../refusals/build-refusal-result.ts';
 import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
-import { formatRefusal } from '../refusals/format-refusal.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
 import type { CLIResult, ParsedArgs, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
@@ -18,11 +18,7 @@ export async function runLogCommand(
   const fromMs = since === undefined ? null : parseSince(since, nowMs, store.session.started);
 
   if (since !== undefined && fromMs === null) {
-    return {
-      exitCode: 2,
-      stdout: '',
-      stderr: formatRefusal(buildRefusal({ kind: 'bad-since' }), buildRefusalScope(args)),
-    };
+    return buildRefusalResult(buildRefusal({ kind: 'bad-since' }), buildRefusalScope(args));
   }
 
   const filter = {

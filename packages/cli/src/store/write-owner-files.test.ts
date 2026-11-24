@@ -130,10 +130,10 @@ test.each([
     journal:
       'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T11:43:00Z\tinit\ttide-alerts\tagent\tShip the glaze timer\t-\t-\n',
     log: 'No journal rows match.\n',
-    next: 'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
+    next: 'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 7 lines.\n',
     ack: {
       exitCode: 0,
-      stdout: 'o-1  cleared. Kept in the journal. Brief: 4 lines.\n',
+      stdout: 'o-1  cleared. Kept in the journal. Brief: 5 lines.\n',
       stderr: '',
     } satisfies CLIResult,
   },
@@ -142,7 +142,7 @@ test.each([
     journal:
       'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T11:43:00Z\tinit\ttide-alerts\tagent\tShip the glaze timer\t-\t-\n2026-03-10T11:43:30Z\tsay\to-1\towner\tAsk me first\t-\t-\n',
     log: 'day 1  11:43  say       o-1        owner  Ask me first\n',
-    next: 'o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: 6 lines.\n',
+    next: 'o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 7 lines.\n',
     ack: {
       exitCode: 3,
       stdout: '',
@@ -173,6 +173,7 @@ test.each([
         exitCode: 0,
         stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 NOW  none. Run: www now <id> "<next step>"
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
@@ -232,6 +233,7 @@ test.each([
         exitCode: 0,
         stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
+GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
 NOW  none. Run: www now <id> "<next step>"
@@ -242,12 +244,12 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       next: {
         exitCode: 0,
         stdout:
-          'o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: 7 lines.\n',
+          'o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 8 lines.\n',
         stderr: '',
       },
       ack: {
         exitCode: 0,
-        stdout: 'o-1  cleared. Kept in the journal. Brief: 6 lines.\n',
+        stdout: 'o-1  cleared. Kept in the journal. Brief: 7 lines.\n',
         stderr: '',
       },
       afterAck: {

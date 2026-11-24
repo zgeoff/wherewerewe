@@ -11,35 +11,48 @@ import { runSessionCommand } from './commands/run-session-command.ts';
 import { runShowCommand } from './commands/run-show-command.ts';
 import type { CommandContext } from './commands/types.ts';
 import { buildReadRefusal } from './refusals/build-read-refusal.ts';
+import { buildRefusalResult } from './refusals/build-refusal-result.ts';
 import { buildRefusalScope } from './refusals/build-refusal-scope.ts';
 import { buildRefusal } from './refusals/build-refusal.ts';
-import { formatRefusal } from './refusals/format-refusal.ts';
-import type { RefusalScope } from './refusals/format-refusal.ts';
 import { isOwnerTerminal } from './rules/is-owner-terminal.ts';
 import { isSessionName } from './rules/is-session-name.ts';
+import { redactCredentialWords } from './rules/redact-credential-words.ts';
 import { readSessionSummaries } from './sessions/read-session-summaries.ts';
 import { resolveSession } from './sessions/resolve-session.ts';
 import { findStoreRoot } from './store/find-store-root.ts';
 import { readStore } from './store/read-store.ts';
-import type { CLIInput, CLIResult, ParsedArgs, Refusal, Store, UnreadRows } from './types.ts';
+import type { CLIInput, CLIResult, ParsedArgs, Store, UnreadRows } from './types.ts';
 import { pickAck } from './writes/pick-ack.ts';
 import { pickClose } from './writes/pick-close.ts';
 import { pickDecision } from './writes/pick-decision.ts';
 import { pickGoalWrite } from './writes/pick-goal-write.ts';
+import { pickGrantWrite } from './writes/pick-grant-write.ts';
 import { pickItemWrite } from './writes/pick-item-write.ts';
 import { pickNowWrite } from './writes/pick-now-write.ts';
 import { pickSay } from './writes/pick-say.ts';
 import { runOwnerWrite } from './writes/run-owner-write.ts';
 import { runWrite } from './writes/run-write.ts';
 import type { RunWriteResult } from './writes/run-write.ts';
+import type { WriteInput } from './writes/types.ts';
 
 // Parses the argv, finds the session, and runs the command. An expected outcome never throws: a
-// refusal comes back as a result with its text on stderr.
-export function runCLI(input: CLIInput): Promise<CLIResult> {
+// refusal comes back as a result with its text on stderr. Every output line passes through the
+// credential test here, so no path prints a word that looks like a credential.
+export async function runCLI(input: CLIInput): Promise<CLIResult> {
+  const result = await runCommand(input);
+
+  return {
+    ...result,
+    stdout: redactCredentialWords(result.stdout),
+    stderr: redactCredentialWords(result.stderr),
+  };
+}
+
+function runCommand(input: CLIInput): Promise<CLIResult> {
   return match(parseCLIArgs(input.argv))
     .with({ kind: 'refused' }, (refused) =>
       Promise.resolve(
-        toRefusalResult(buildRefusal(refused.reason), {
+        buildRefusalResult(buildRefusal(refused.reason), {
           sessionFlag: refused.sessionFlag,
           typedWords: input.argv,
         }),
@@ -47,14 +60,6 @@ export function runCLI(input: CLIInput): Promise<CLIResult> {
     )
     .with({ kind: 'args' }, (parsed) => runParsedArgs(input, parsed.args))
     .exhaustive();
-}
-
-function toRefusalResult(refusal: Refusal, scope: RefusalScope): CLIResult {
-  return {
-    exitCode: refusal.exitCode,
-    stdout: '',
-    stderr: formatRefusal(refusal, scope),
-  };
 }
 
 const ownerCommands: ReadonlySet<string> = new Set(['say', 'ack']);
@@ -66,7 +71,7 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
   }
 
   if (ownerCommands.has(args.command) && !isOwnerTerminal(input)) {
-    return toRefusalResult(buildRefusal({ kind: 'owner-only' }), buildRefusalScope(args));
+    return buildRefusalResult(buildRefusal({ kind: 'owner-only' }), buildRefusalScope(args));
   }
 
   const root = findStoreRoot(input.env);
@@ -76,10 +81,17 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
     // Listing sessions needs no session and is never refused: with no folder, there are none.
     return args.command === 'sessions'
       ? { exitCode: 0, stdout: `${formatSessionLines([], nowMs)}\n`, stderr: '' }
-      : toRefusalResult(buildRefusal({ kind: 'no-store-folder' }), buildRefusalScope(args));
+      : buildRefusalResult(buildRefusal({ kind: 'no-store-folder' }), buildRefusalScope(args));
   }
 
-  const context = { args, env: input.env, cwd: input.cwd, nowMs, root };
+  const context = {
+    args,
+    env: input.env,
+    cwd: input.cwd,
+    nowMs,
+    root,
+    byOwner: isOwnerTerminal(input),
+  };
 
   const result = await match(args.command)
     .with('import', () => runImportCommand(context))
@@ -114,8 +126,8 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
   return match(read)
     .with({ kind: 'store' }, (found) => runStoreCommand(context, found.store))
     .with({ kind: 'missing' }, () => refuseNoSession(context, name))
-    .with({ kind: 'hand-kept' }, { kind: 'newer' }, (unreadable) =>
-      toRefusalResult(
+    .with({ kind: 'hand-kept' }, { kind: 'format-1' }, { kind: 'newer' }, (unreadable) =>
+      buildRefusalResult(
         buildReadRefusal(unreadable, { name, folder }),
         buildRefusalScope(context.args),
       ),
@@ -123,7 +135,7 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
     .with({ kind: 'broken' }, (broken) =>
       broken.partial !== null && readCommands.has(context.args.command)
         ? runReadCommand(context, broken.partial, broken)
-        : toRefusalResult(
+        : buildRefusalResult(
             buildReadRefusal(broken, { name, folder }),
             buildRefusalScope(context.args),
           ),
@@ -153,6 +165,10 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
 
   const pick = match(args.command)
     .with('goal', () => pickGoalWrite)
+    .with(
+      'grant',
+      () => (writeInput: WriteInput) => pickGrantWrite({ ...writeInput, byOwner: context.byOwner }),
+    )
     .with('now', () => pickNowWrite)
     .with('done', 'drop', 'use', () => pickClose)
     .with('decide', () => pickDecision)
@@ -191,7 +207,7 @@ function resolveWriteResult(written: RunWriteResult, args: ParsedArgs): CLIResul
       stderr: '',
     }))
     .with({ kind: 'refused' }, (refused) =>
-      toRefusalResult(refused.refusal, buildRefusalScope(args)),
+      buildRefusalResult(refused.refusal, buildRefusalScope(args)),
     )
     .exhaustive();
 }
@@ -208,5 +224,5 @@ async function refuseNoSession(context: CommandContext, named: string | null): P
     })),
   });
 
-  return toRefusalResult(refusal, buildRefusalScope(context.args));
+  return buildRefusalResult(refusal, buildRefusalScope(context.args));
 }

@@ -3,7 +3,8 @@ import { buildMockSession } from './build-mock-session.ts';
 
 test('it lays the named fields over a session with t-a in focus', () => {
   expect(buildMockSession({ nowNext: null })).toStrictEqual({
-    format: '1',
+    format: '2',
+    grant: null,
     name: 'tide-alerts',
     goal: 'Ship it',
     started: '2026-03-02T08:04:11Z',

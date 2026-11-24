@@ -178,11 +178,14 @@ function pickApprovalRefusal(args: ParsedArgs): RefusalReason | null {
     return null;
   }
 
-  const missing = approvalFlags.filter((text) => args.values[text.flag] === undefined);
-  const needsUse = (args.values.once === true) === (args.values.standing === true);
+  if (args.values.standing === true) {
+    return { kind: 'ok-standing', args };
+  }
 
-  if (missing.length > 0 || needsUse) {
-    return { kind: 'ok-needs-parts', args, missing: missing.map((text) => text.flag), needsUse };
+  const missing = approvalFlags.filter((text) => args.values[text.flag] === undefined);
+
+  if (missing.length > 0) {
+    return { kind: 'ok-needs-parts', args, missing: missing.map((text) => text.flag) };
   }
 
   const textReason = pickTextRefusal(
@@ -352,7 +355,7 @@ function pickCapRefusal(input: WriteInput, id: string, isSet: boolean): RefusalR
   return pickFullKind(input.store.items, kind);
 }
 
-const caps: Readonly<Record<Kind, number>> = { task: 6, wait: 4, rule: 5, where: 4, ok: 3 };
+const caps: Readonly<Record<Kind, number>> = { task: 6, wait: 4, rule: 5, where: 4, ok: 1 };
 
 function pickFullKind(items: readonly Item[], kind: Kind): RefusalReason | null {
   const ofKind = items.filter((item) => item.kind === kind);
@@ -396,7 +399,6 @@ function buildExtra(args: ParsedArgs): Extra {
       who: args.values.who ?? '',
       where: args.values.where ?? '',
       scope: args.values.scope ?? '',
-      use: args.values.once === true ? 'once' : 'standing',
     };
   }
 
@@ -404,12 +406,7 @@ function buildExtra(args: ParsedArgs): Extra {
 }
 
 function buildJournalExtra(item: Item): string | null {
-  const parts = [
-    ...(item.kind === 'ok' && item.extra.use !== undefined ? [`use=${item.extra.use}`] : []),
-    ...(item.check === null ? [] : [`check=${item.check}`]),
-  ];
-
-  return parts.length === 0 ? null : parts.join(';');
+  return item.check === null ? null : `check=${item.check}`;
 }
 
 function formatOlderNoteLine(args: ParsedArgs, id: string, note: Note, nowMs: number): string {

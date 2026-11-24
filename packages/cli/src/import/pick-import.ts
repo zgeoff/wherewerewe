@@ -1,14 +1,17 @@
 import { formatTimestamp } from '../format-timestamp.ts';
+import { buildRefusal } from '../refusals/build-refusal.ts';
 import { buildBindRow } from '../sessions/build-bind-row.ts';
-import type { AgentID, Item, JournalRow, SessionFile } from '../types.ts';
+import type { AgentID, Item, JournalRow, ParsedArgs, Refusal, SessionFile } from '../types.ts';
+import { buildUpgradeParts, toApprovals } from './build-upgrade-parts.ts';
 import { collectCapProblems } from './collect-cap-problems.ts';
 import { collectImportFacts } from './collect-import-facts.ts';
 import { collectItemChecks } from './collect-item-checks.ts';
 import { collectJournalProblems } from './collect-journal-problems.ts';
 import { collectSessionProblems } from './collect-session-problems.ts';
+import { collectUpgradeProblems } from './collect-upgrade-problems.ts';
 import type { HandKeptStore } from './parse-hand-kept-store.ts';
 import { stripCarriageReturn } from './strip-carriage-return.ts';
-import type { Facts, JournalFact, Question } from './types.ts';
+import type { Facts, Format1Item, JournalFact, Question } from './types.ts';
 
 export type ImportPick =
   | {
@@ -18,47 +21,79 @@ export type ImportPick =
       readonly journal: readonly JournalRow[];
       readonly carried: number;
     }
-  | { readonly kind: 'refused'; readonly problems: readonly string[] };
+  | { readonly kind: 'refused'; readonly refusal: Refusal };
 
 interface ImportOptions {
   readonly name: string;
+  readonly args: ParsedArgs;
   readonly nowMs: number;
+  readonly byOwner: boolean;
   readonly agent: AgentID | null;
 }
 
 export function pickImport(hand: HandKeptStore, options: ImportOptions): ImportPick {
   const facts = collectImportFacts(hand);
-  const items = collectItemChecks(hand, facts);
+  const checks = collectItemChecks(hand, facts);
   const questions = facts.questions;
+  const drops = options.args.values.drop ?? [];
+  const questionItems = questions.map((question) => buildQuestionItem(question));
+  const allItems = [...checks.items, ...questionItems];
 
-  const problems = [
-    ...collectSessionProblems(hand, options.name, facts, items.openIDs),
-    ...items.problems,
+  const rowProblems = [
+    ...collectSessionProblems(hand, options.name, facts, checks.openIDs),
+    ...checks.problems,
     ...collectJournalProblems(hand, facts, questions),
-    ...collectCapProblems(items.openKinds, questions),
+    ...collectCapProblems(
+      new Map([...checks.openKinds].filter(([id, kind]) => kind !== 'ok' && !drops.includes(id))),
+      questions.filter((question) => !drops.includes(question.id)),
+    ),
   ];
 
-  if (problems.length > 0) {
-    return { kind: 'refused', problems };
+  const problems = collectUpgradeProblems({
+    args: options.args,
+    approvals: toApprovals(allItems),
+    itemIDs: [...new Set([...checks.openIDs.keys(), ...questions.map((question) => question.id)])],
+    nowMs: options.nowMs,
+  });
+
+  if (rowProblems.length > 0 || problems.length > 0) {
+    return {
+      kind: 'refused',
+      refusal: buildRefusal({
+        kind: 'upgrade-refused',
+        args: options.args,
+        name: options.name,
+        rowProblems,
+        problems,
+      }),
+    };
   }
 
-  const session = buildSession(hand, options.name, facts);
-  const converted = [...items.items, ...questions.map((question) => buildQuestionItem(question))];
+  const parts = buildUpgradeParts(allItems, options.args, options);
+  const converted = parts.items;
   const carried = facts.journal.map((row) => convertRow(row));
+  const base = buildSession(hand, options.name, facts);
 
   return {
     kind: 'import',
-    session,
+    session: {
+      ...base,
+      grant: parts.grant,
+      ...(base.now !== null && parts.removedIDs.has(base.now)
+        ? { now: null, nowNext: null, nowSet: null }
+        : {}),
+    },
     items: converted,
     carried: carried.length,
     journal: [
       ...carried,
+      ...parts.journalRows,
       {
         ts: formatTimestamp(options.nowMs),
         op: 'import',
         id: options.name,
         by: 'agent',
-        text: '0-by-hand -> 1',
+        text: '0-by-hand -> 2',
         why: null,
         extra: null,
       },
@@ -69,37 +104,7 @@ export function pickImport(hand: HandKeptStore, options: ImportOptions): ImportP
   };
 }
 
-function buildSession(hand: HandKeptStore, name: string, facts: Facts): SessionFile {
-  const pairs = new Map(
-    hand.session.map((entry) => {
-      const clean = stripCarriageReturn(entry.text);
-      const split = clean.indexOf('=');
-
-      return [clean.slice(0, split), clean.slice(split + 1)] as const;
-    }),
-  );
-
-  const lastWrite = facts.journal.reduce((newest, row) => (row.ts > newest ? row.ts : newest), '');
-
-  return {
-    format: '1',
-    name,
-    goal: pairs.get('goal') ?? '',
-    started: pairs.get('started') ?? '',
-    now: toOptional(pairs.get('now')),
-    nowNext: toOptional(pairs.get('now_next')),
-    nowSet: toOptional(pairs.get('now_set')),
-    lastWrite: toOptional(lastWrite),
-    lastNudge: null,
-    importedFrom: '0-by-hand',
-  };
-}
-
-function toOptional(value: string | undefined): string | null {
-  return value === undefined || value === '' ? null : value;
-}
-
-function buildQuestionItem(question: Question): Item {
+function buildQuestionItem(question: Question): Format1Item {
   return {
     id: question.id,
     kind: 'wait',
@@ -146,4 +151,34 @@ function convertRow(row: JournalFact): JournalRow {
 
 function toText(cell: string | null | undefined): string | null {
   return cell === undefined || cell === null || cell === '' || cell === '-' ? null : cell;
+}
+
+function buildSession(hand: HandKeptStore, name: string, facts: Facts): Omit<SessionFile, 'grant'> {
+  const pairs = new Map(
+    hand.session.map((entry) => {
+      const clean = stripCarriageReturn(entry.text);
+      const split = clean.indexOf('=');
+
+      return [clean.slice(0, split), clean.slice(split + 1)] as const;
+    }),
+  );
+
+  const lastWrite = facts.journal.reduce((newest, row) => (row.ts > newest ? row.ts : newest), '');
+
+  return {
+    format: '2',
+    name,
+    goal: pairs.get('goal') ?? '',
+    started: pairs.get('started') ?? '',
+    now: toOptional(pairs.get('now')),
+    nowNext: toOptional(pairs.get('now_next')),
+    nowSet: toOptional(pairs.get('now_set')),
+    lastWrite: toOptional(lastWrite),
+    lastNudge: null,
+    importedFrom: '0-by-hand',
+  };
+}
+
+function toOptional(value: string | undefined): string | null {
+  return value === undefined || value === '' ? null : value;
 }

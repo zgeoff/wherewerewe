@@ -17,7 +17,7 @@ test('it makes a readable store with no items and returns its folder', async () 
     kind: 'store',
     store: {
       folder,
-      session: expect.objectContaining({ name: 'tide-alerts', format: '1' }),
+      session: expect.objectContaining({ name: 'tide-alerts', format: '2' }),
       items: [],
       ownerNotes: [],
       notes: [],

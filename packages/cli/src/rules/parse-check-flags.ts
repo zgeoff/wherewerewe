@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { match } from 'ts-pattern';
 import type { CheckFlag, CheckRef, TypedFlag } from '../types.ts';
+import { lineBreakPattern } from './line-break-pattern.ts';
 
 export type CheckFlagsResult =
   | { readonly kind: 'none' }
@@ -61,7 +62,7 @@ function parseCheck(flag: CheckFlag, value: string, cwd: string): CheckFlagsResu
 
 // A cell of the store never holds a tab or a newline, so a path that does is refused.
 function parsePath(value: string, cwd: string): CheckFlagsResult {
-  if (/[\t\n\r]/u.test(value)) {
+  if (lineBreakPattern.test(value)) {
     return { kind: 'not-one-line', flag: 'path' };
   }
 
@@ -75,7 +76,7 @@ function parsePath(value: string, cwd: string): CheckFlagsResult {
 }
 
 function parseBranch(value: string, cwd: string): CheckFlagsResult {
-  if (/[\t\n\r]/u.test(value)) {
+  if (lineBreakPattern.test(value)) {
     return { kind: 'not-one-line', flag: 'branch' };
   }
 

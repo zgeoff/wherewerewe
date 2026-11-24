@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { match } from 'ts-pattern';
 import type { ParsedArgs, RefusalReason, TypedFlag } from '../types.ts';
+import { joinDashValues } from './join-dash-values.ts';
 
 export type ParseResult =
   | { readonly kind: 'args'; readonly args: ParsedArgs }
@@ -12,38 +13,6 @@ export type ParseResult =
       readonly sessionFlag: string | null;
     };
 
-// Reads the argv once, with every command's options, then checks the command and its shape.
-// `-h`, `--help` and `help` alone give the command `help`.
-export function parseCLIArgs(argv: readonly string[]): ParseResult {
-  try {
-    return checkArgs(argv);
-  } catch (error) {
-    if (!(error instanceof Error) || !('code' in error)) {
-      throw error;
-    }
-
-    const flag =
-      /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
-      /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
-      '';
-
-    const name = flag.replace(/^-+/u, '');
-
-    const reason = match(error.code)
-      .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', (): RefusalReason => ({ kind: 'unknown-flag', flag }))
-      .with('ERR_PARSE_ARGS_INVALID_OPTION_VALUE', (): RefusalReason =>
-        isStringOption(name)
-          ? { kind: 'flag-needs-value', flag: name }
-          : { kind: 'flag-takes-no-value', flag: name },
-      )
-      .otherwise(() => {
-        throw error;
-      });
-
-    return { kind: 'refused', reason, sessionFlag: pickSessionFlag(argv) };
-  }
-}
-
 const options = {
   session: { type: 'string' },
   goal: { type: 'string' },
@@ -51,6 +20,11 @@ const options = {
   where: { type: 'string' },
   scope: { type: 'string' },
   quote: { type: 'string' },
+  may: { type: 'string', multiple: true },
+  not: { type: 'string', multiple: true },
+  never: { type: 'string', multiple: true },
+  reading: { type: 'string' },
+  drop: { type: 'string', multiple: true },
   why: { type: 'string' },
   on: { type: 'string' },
   replaces: { type: 'string' },
@@ -73,8 +47,32 @@ const options = {
   help: { type: 'boolean', short: 'h' },
 } as const;
 
+const flagTypes: ReadonlyMap<string, 'string' | 'boolean'> = new Map(
+  Object.entries(options).map(([name, option]) => [name, option.type]),
+);
+
+// Reads the argv once, with every command's options, then checks the command and its shape.
+// `-h`, `--help` and `help` alone give the command `help`.
+export function parseCLIArgs(argv: readonly string[]): ParseResult {
+  try {
+    return checkArgs(argv);
+  } catch (error) {
+    const joined = joinDashValues(argv, flagTypes);
+    const joinedError = joined === null ? null : findParseError(joined.argv);
+
+    // a joined command that still fails gets the refusal of what it fails on, so a Run line parses
+    const reason =
+      joined !== null && joinedError === null
+        ? { kind: 'flag-value-has-dash' as const, flag: joined.flag, argv: joined.argv }
+        : toParseRefusal(joinedError ?? error);
+
+    return { kind: 'refused', reason, sessionFlag: pickSessionFlag(argv) };
+  }
+}
+
 const checkFlags = ['pr', 'branch', 'path', 'pid'];
 const noteFlags = ['note', 'owed'];
+const grantFlags = ['may', 'not', 'never', 'scope', 'where', 'reading'];
 
 interface CommandShape {
   readonly counts: readonly number[];
@@ -90,8 +88,9 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ['detach', { counts: [0], usage: 'no arguments', flags: [] }],
   ['init', { counts: [1], usage: '<name>', flags: ['goal'] }],
   ['attach', { counts: [1], usage: '<name>', flags: [] }],
-  ['import', { counts: [1], usage: '<name>', flags: [] }],
+  ['import', { counts: [1], usage: '<name>', flags: [...grantFlags, 'drop'] }],
   ['goal', { counts: [1], usage: '"<what done means>"', flags: [] }],
+  ['grant', { counts: [0], usage: 'no arguments', flags: grantFlags }],
   ['now', { counts: [2], usage: '<id> "<next step>"', flags: noteFlags }],
   [
     'task',
@@ -209,6 +208,41 @@ function checkArgs(argv: readonly string[]): ParseResult {
   return { kind: 'args', args };
 }
 
+// The parser's error on a joined command, or null when it parses.
+function findParseError(argv: readonly string[]): unknown {
+  try {
+    parseArgs({ args: [...argv], options, strict: true, allowPositionals: true });
+
+    return null;
+  } catch (error) {
+    return error;
+  }
+}
+
+function toParseRefusal(error: unknown): RefusalReason {
+  if (!(error instanceof Error) || !('code' in error)) {
+    throw error;
+  }
+
+  const flag =
+    /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
+    /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
+    '';
+
+  const name = flag.replace(/^-+/u, '');
+
+  return match(error.code)
+    .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', (): RefusalReason => ({ kind: 'unknown-flag', flag }))
+    .with('ERR_PARSE_ARGS_INVALID_OPTION_VALUE', (): RefusalReason =>
+      isStringOption(name)
+        ? { kind: 'flag-needs-value', flag: name }
+        : { kind: 'flag-takes-no-value', flag: name },
+    )
+    .otherwise(() => {
+      throw error;
+    });
+}
+
 function isStringOption(name: string): boolean {
   return Object.entries(options).some(([key, option]) => key === name && option.type === 'string');
 }
@@ -222,5 +256,8 @@ function pickSessionFlag(argv: readonly string[]): string | null {
     allowPositionals: true,
   });
 
-  return typeof lenient.values.session === 'string' ? lenient.values.session : null;
+  const session = lenient.values.session;
+
+  // `--session --help` names no session: the parser took the next flag as its value
+  return typeof session === 'string' && !session.startsWith('-') ? session : null;
 }

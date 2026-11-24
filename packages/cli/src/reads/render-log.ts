@@ -34,8 +34,9 @@ export function renderLog(unsorted: readonly JournalRow[], started: string): str
     const prefix = `${day}  ${row.ts.slice(11, 16)}  ${row.op.padEnd(opWidth)}${row.id.padEnd(idWidth)}${who.padEnd(whoWidth)}`;
     const text = formatText(row);
     const line = text === '' ? prefix.trimEnd() : `${prefix}${text}`;
+    const label = row.op === 'grant' ? 'reading' : 'why';
 
-    return row.why === null ? [line] : [line, `${' '.repeat(prefix.length)}why: ${row.why}`];
+    return row.why === null ? [line] : [line, `${' '.repeat(prefix.length)}${label}: ${row.why}`];
   });
 
   return `${lines.join('\n')}\n`;

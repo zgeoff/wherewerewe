@@ -24,7 +24,6 @@ function formatExtra(extra: Extra): string {
     ['who', extra.who],
     ['where', extra.where],
     ['scope', extra.scope],
-    ['use', extra.use],
     ['blocked_by', extra.blocked_by],
     ['pid_start', extra.pid_start],
   ].flatMap(([key, value]) => (value === undefined ? [] : [`${key ?? ''}=${value}`]));

@@ -31,11 +31,16 @@ export async function runOwnerWrite(input: OwnerWriteRequest): Promise<RunWriteR
 
       return match(read)
         .with({ kind: 'store' }, (found) => writeOnce(input, found.store))
-        .with({ kind: 'hand-kept' }, { kind: 'newer' }, { kind: 'broken' }, (unreadable) =>
-          Promise.resolve<RunWriteResult>({
-            kind: 'refused',
-            refusal: buildReadRefusal(unreadable, { name: input.name, folder: input.folder }),
-          }),
+        .with(
+          { kind: 'hand-kept' },
+          { kind: 'format-1' },
+          { kind: 'newer' },
+          { kind: 'broken' },
+          (unreadable) =>
+            Promise.resolve<RunWriteResult>({
+              kind: 'refused',
+              refusal: buildReadRefusal(unreadable, { name: input.name, folder: input.folder }),
+            }),
         )
         .with({ kind: 'missing' }, () => {
           throw new Error(`the store of ${input.name} vanished under a write`);

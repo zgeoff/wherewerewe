@@ -69,3 +69,23 @@ test('it prints a shell run as it is', () => {
 
   expect(text).toBe('www: x\nRun: bun add -g @wherewerewe/cli@latest\n');
 });
+
+test('it redacts a --session value that looks like a credential', () => {
+  const text = formatRefusal(
+    { exitCode: 2, lines: ['www: --goal needs a value.'], runs: [{ www: ['help'] }] },
+    { sessionFlag: ['xoxb', '-', '12'].join(''), typedWords: [] },
+  );
+
+  expect(text).toBe(
+    'www: --goal needs a value.\nRun: www --session "<where the secret lives>" help\n',
+  );
+});
+
+test('it adds no second --session to a Run line that holds --session=<name>', () => {
+  const text = formatRefusal(
+    { exitCode: 2, lines: ['www: x'], runs: [{ www: ['--session=tide-alerts', 'goal', 'x'] }] },
+    { sessionFlag: 'tide-alerts', typedWords: [] },
+  );
+
+  expect(text).toBe('www: x\nRun: www --session=tide-alerts goal x\n');
+});

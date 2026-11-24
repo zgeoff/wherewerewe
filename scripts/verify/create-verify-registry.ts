@@ -112,6 +112,27 @@ export function createVerifyRegistry(): Wringer {
         return Promise.resolve({ folder });
       },
     })
+    .command({
+      path: ['www', 'seed-format-1'],
+      summary: 'Copy the invented format 1 store into the run as session trial-grant',
+      args: z.strictObject({}),
+      data: z.strictObject({ folder: z.string() }),
+      run: (_args, ctx) => {
+        const folder = join(readStateRoot(ctx.endpoints), 'state', 'wherewerewe', 'trial-grant');
+
+        if (existsSync(folder)) {
+          return Promise.reject(
+            new WringerError('usage', {
+              message: 'trial-grant exists in this run. Run `bun verify up --restart` first.',
+            }),
+          );
+        }
+
+        cpSync(join(import.meta.dir, 'fixtures', 'format-1-store'), folder, { recursive: true });
+
+        return Promise.resolve({ folder });
+      },
+    })
     .check({
       name: 'www-help',
       input: z.strictObject({}),
@@ -163,6 +184,12 @@ export function createVerifyRegistry(): Wringer {
       name: 'item-notes',
       summary:
         'Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
+    .feature({
+      name: 'grant',
+      summary:
+        "Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant",
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
     .shared(

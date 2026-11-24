@@ -7,7 +7,8 @@ test('it reports no checks when no item has one, with empty later sections', () 
     {
       folder: '/state/wherewerewe/tide-alerts',
       session: {
-        format: '1',
+        format: '2',
+        grant: null,
         name: 'tide-alerts',
         goal: 'Ship it',
         started: '2026-03-02T08:04:11Z',
@@ -47,7 +48,8 @@ test('it passes the owner notes of the store on', () => {
     {
       folder: '/state/wherewerewe/tide-alerts',
       session: {
-        format: '1',
+        format: '2',
+        grant: null,
         name: 'tide-alerts',
         goal: 'Ship it',
         started: '2026-03-02T08:04:11Z',
@@ -75,7 +77,8 @@ test('it counts the items that have a check as not run yet', () => {
     {
       folder: '/state/wherewerewe/tide-alerts',
       session: {
-        format: '1',
+        format: '2',
+        grant: null,
         name: 'tide-alerts',
         goal: 'Ship it',
         started: '2026-03-02T08:04:11Z',

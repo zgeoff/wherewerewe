@@ -5,9 +5,10 @@ import type { BriefInput } from '../brief/types.ts';
 export function buildMockBriefInput(fields: Partial<BriefInput>): BriefInput {
   return {
     session: {
-      format: '1',
+      format: '2',
       name: 'tide-alerts',
       goal: 'Ship tide alerts in bosun-api and bosun-app.',
+      grant: null,
       started: '2026-03-02T08:04:11Z',
       now: null,
       nowNext: null,

@@ -3,9 +3,14 @@ import { formatSessionLines } from './format-session-lines.ts';
 
 test.each([
   [
-    'a store of format 2 with no other field read',
-    { name: 'sample', format: '2', started: null, lastWrite: null, goal: null },
-    '  sample  format 2: this www reads format 1',
+    'a store of a newer format with no other field read',
+    { name: 'sample', format: '3', started: null, lastWrite: null, goal: null },
+    '  sample  format 3: this www reads format 2',
+  ],
+  [
+    'a format 1 store with no other field read',
+    { name: 'sample', format: '1', started: null, lastWrite: null, goal: null },
+    '  sample  format 1: run www import sample',
   ],
   [
     'a hand-kept store',
@@ -18,10 +23,10 @@ test.each([
     '  sample  unreadable session file',
   ],
   [
-    'a format 1 session',
+    'a format 2 session',
     {
       name: 'sample',
-      format: '1',
+      format: '2',
       started: '2026-03-09T08:00:00Z',
       lastWrite: '2026-03-10T10:43:00Z',
       goal: 'Ship it',

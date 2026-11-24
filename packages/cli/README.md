@@ -36,13 +36,16 @@ www --help
 - `www goal`, `now`, `task`, `wait`, `rule`, `where` and `set` write a claim.
 - `--note` keeps a note of detail on an item. `--owed` blocks closing the item until
   `www set <id> --no-note` clears the note.
-- `www ok` records the owner's approval, and `use` spends one that was given once.
+- `www ok` records the owner's one-time approval, and `use` spends it.
+- `www grant` keeps the owner's words as bullets of what they allow, did not grant and ruled out,
+  with where they gave them and your reading of them; the brief prints them after the goal.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
 - `www done` and `drop` close an item and keep it in the journal.
 - `www say` and `ack` let the owner write a note from a terminal outside any agent. The note stays
-  at the top of the brief until the owner clears it.
-- `www import` converts a hand-kept store to format 1 in place, and keeps the originals in
-  `import-backup/`.
+  in every brief until the owner clears it.
+- `www import` converts a hand-kept store to format 2 in place, and keeps the originals in
+  `import-backup/`. It upgrades a format 1 store the same way, and keeps the originals in
+  `format-1-backup/`.
 - `www show` prints one item or decision with its history, and `log` prints the journal.
 
 ## Documentation

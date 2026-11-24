@@ -1,14 +1,14 @@
 # owner-notes
 
-Check that the owner can write and clear a note from a terminal, that the brief shows it first after
-the goal, and that an agent cannot write one. Start a session and a task with the real `www`, run
-`say` and `ack` through the terminal driver, and read the brief between them. The driver's programs
-are `say-as-agent`, `say-first`, `say-second`, `say-third` and `ack-first`, defined in
-[build-owner-programs.ts](../../../../scripts/verify/build-owner-programs.ts). Each runs one `say`
-or `ack` line of the session `trial-owner` as a real `www` in a terminal with the agent variables
-unset, except `say-as-agent`, which sets one to play an agent. Pass `--session <program>-<n>` to
-each later `terminal` command. The journey writes only to the run's folder under `.wringer/`, so
-your own stores stay untouched.
+Check that the owner can write and clear a note from a terminal, that the brief shows it after the
+goal and the grant, and that an agent cannot write one. Start a session and a task with the real
+`www`, run `say` and `ack` through the terminal driver, and read the brief between them. The
+driver's programs are `say-as-agent`, `say-first`, `say-second`, `say-third` and `ack-first`,
+defined in [build-owner-programs.ts](../../../../scripts/verify/build-owner-programs.ts). Each runs
+one `say` or `ack` line of the session `trial-owner` as a real `www` in a terminal with the agent
+variables unset, except `say-as-agent`, which sets one to play an agent. Pass
+`--session <program>-<n>` to each later `terminal` command. The journey writes only to the run's
+folder under `.wringer/`, so your own stores stay untouched.
 
 ## Journey
 
@@ -26,11 +26,11 @@ bun verify terminal start say-as-agent
 bun verify terminal wait --session say-as-agent-1 --text 'www: refused: only the owner writes owner notes'
 bun verify terminal stop --session say-as-agent-1
 bun verify terminal start say-first
-bun verify terminal wait --session say-first-1 --text 'o-1  owner note. It tops the brief until you run: www --session trial-owner ack o-1'
+bun verify terminal wait --session say-first-1 --text 'o-1  owner note. It shows in every brief until you run: www --session trial-owner ack o-1'
 bun verify terminal stop --session say-first-1
 bun verify www run --line 'www --session trial-owner' --expect 'OWNER SAYS (1) · act on it; only the owner clears it'
 bun verify terminal start say-second
-bun verify terminal wait --session say-second-1 --text 'o-2  owner note on t-timer. It tops the brief until you run: www --session trial-owner ack o-2'
+bun verify terminal wait --session say-second-1 --text 'o-2  owner note on t-timer. It shows in every brief until you run: www --session trial-owner ack o-2'
 bun verify terminal stop --session say-second-1
 bun verify terminal start say-third
 bun verify terminal wait --session say-third-1 --text 'www: refused: 2 owner notes already show. Clear one that is done.'

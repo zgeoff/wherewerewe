@@ -11,6 +11,7 @@ export type StoreRead =
   | { readonly kind: 'store'; readonly store: Store }
   | { readonly kind: 'missing' }
   | { readonly kind: 'hand-kept' }
+  | { readonly kind: 'format-1' }
   | { readonly kind: 'newer'; readonly format: string }
   | {
       readonly kind: 'broken';
@@ -23,7 +24,7 @@ export type StoreRead =
       readonly partial: Store | null;
     };
 
-// Reads `session`, stopping at a hand-kept or newer store, then `items.tsv`, `notes.tsv` and
+// Reads `session`, stopping at a hand-kept, format 1 or newer store, then `items.tsv`, `notes.tsv` and
 // `owner.tsv`. A broken `notes.tsv` or `owner.tsv` never makes the store broken: its rows that parse
 // come back, with the one that does not named in `notesUnread` or `ownerUnread`. Never the journal.
 export async function readStore(folder: string): Promise<StoreRead> {
@@ -35,6 +36,7 @@ export async function readStore(folder: string): Promise<StoreRead> {
 
   return match(parseSessionFile(sessionText))
     .with({ kind: 'hand-kept' }, (found): StoreRead => found)
+    .with({ kind: 'format-1' }, (found): StoreRead => found)
     .with({ kind: 'newer' }, (found): StoreRead => found)
     .with({ kind: 'broken' }, (found): StoreRead => ({
       kind: 'broken',
@@ -74,7 +76,7 @@ async function readItems(folder: string, session: SessionFile): Promise<StoreRea
     };
   }
 
-  return match(parseItemsFile(itemsText))
+  return match(parseItemsFile(itemsText, '2'))
     .with({ kind: 'items' }, (found): StoreRead => ({
       kind: 'store',
       store: {

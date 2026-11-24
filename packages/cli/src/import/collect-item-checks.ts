@@ -5,12 +5,12 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { parseCheckRef } from '../rules/parse-check-ref.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
 import { itemsHeader } from '../store/constants.ts';
-import type { Extra, Item, Kind } from '../types.ts';
+import type { Kind } from '../types.ts';
 import { checkHeader } from './check-header.ts';
 import { carriageReturnProblem, idRuleProblem } from './constants.ts';
 import type { HandKeptRow, HandKeptStore } from './parse-hand-kept-store.ts';
 import { stripCarriageReturn } from './strip-carriage-return.ts';
-import type { Facts, ItemChecks } from './types.ts';
+import type { Facts, Format1Extra, Format1Item, ItemChecks } from './types.ts';
 
 export function collectItemChecks(hand: HandKeptStore, facts: Facts): ItemChecks {
   const headerProblems = checkHeader(
@@ -42,7 +42,7 @@ export function collectItemChecks(hand: HandKeptStore, facts: Facts): ItemChecks
     blockers.set(question.id, 'wait');
   }
 
-  const items: Item[] = [];
+  const items: Format1Item[] = [];
   const lines: { readonly line: number; readonly text: string }[] = [];
 
   for (const row of hand.items.rows) {
@@ -89,7 +89,7 @@ function isKind(value: string): value is Kind {
 
 interface ItemCheck {
   readonly id: string;
-  readonly item: Item | null;
+  readonly item: Format1Item | null;
   readonly problems: readonly string[];
 }
 
@@ -131,7 +131,7 @@ function checkItemRow(
   });
 
   const problems = [
-    ...(isItemID(id) ? [] : [idRuleProblem]),
+    ...(isItemID(id) || id === 'grant' ? [] : [idRuleProblem]),
     ...(firstLine !== undefined && firstLine !== row.line
       ? [`line ${String(firstLine)} has the same id.`]
       : []),
@@ -169,7 +169,7 @@ function checkItemRow(
     ...(hasCarriageReturn ? [carriageReturnProblem] : []),
   ];
 
-  const item: Item | null =
+  const item: Format1Item | null =
     isKind(kind) && (by === 'agent' || by === 'owner' || by === 'import')
       ? {
           id,
@@ -192,7 +192,7 @@ const extraKeys = ['who', 'where', 'scope', 'use', 'blocked_by', 'pid_start'] as
 type ExtraKey = (typeof extraKeys)[number];
 
 interface ExtraParse {
-  readonly extra: Extra;
+  readonly extra: Format1Extra;
 
   readonly keys: ReadonlySet<ExtraKey>;
   readonly problems: readonly string[];

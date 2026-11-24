@@ -14,6 +14,7 @@ import { withStoreLock } from './store/with-store-lock.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
+import { seedFormat1Store } from './test-utils/seed-format-1-store.ts';
 import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
@@ -141,16 +142,124 @@ test('it prints the brief from the rows that parse when one item row is broken, 
 test('it labels a store of a newer format in the session list', async () => {
   const ctx = setupTest();
 
-  seedStoreFile(join(ctx.stateRoot, 'sample'), 'session', 'format=2\n');
+  seedStoreFile(join(ctx.stateRoot, 'sample'), 'session', 'format=3\n');
 
   const result = await ctx.run(['sessions']);
 
   expect(result).toStrictEqual({
     exitCode: 0,
-    stdout: '  sample  format 2: this www reads format 1\n',
+    stdout: '  sample  format 3: this www reads format 2\n',
     stderr: '',
   });
 });
+
+test('it labels a format 1 store in the session list with the command that upgrades it', async () => {
+  const ctx = setupTest();
+
+  seedFormat1Store(ctx.stateRoot, 'sample');
+
+  const result = await ctx.run(['sessions']);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: '  sample  format 1: run www import sample\n',
+    stderr: '',
+  });
+});
+
+test.each([
+  { command: 'brief', argv: ['--session', 'sample'], isOwner: false },
+  { command: 'show', argv: ['show', 't-valves', '--session', 'sample'], isOwner: false },
+  { command: 'log', argv: ['log', '--session', 'sample'], isOwner: false },
+  { command: 'goal', argv: ['goal', 'Ship more', '--session', 'sample'], isOwner: false },
+  {
+    command: 'grant',
+    argv: ['grant', '--may', 'Go.', '--where', 'chat', '--reading', 'r', '--session', 'sample'],
+    isOwner: false,
+  },
+  { command: 'now', argv: ['now', 't-valves', 'go', '--session', 'sample'], isOwner: false },
+  { command: 'task', argv: ['task', 't-x', 'x', '--session', 'sample'], isOwner: false },
+  {
+    command: 'wait',
+    argv: ['wait', 'w-x', 'x', '--who', 'a', '--session', 'sample'],
+    isOwner: false,
+  },
+  {
+    command: 'ok',
+    argv: [
+      'ok',
+      'ok-x',
+      '--quote',
+      'q',
+      '--who',
+      'o',
+      '--where',
+      'chat',
+      '--scope',
+      's',
+      '--session',
+      'sample',
+    ],
+    isOwner: false,
+  },
+  { command: 'rule', argv: ['rule', 'r-x', 'x', '--session', 'sample'], isOwner: false },
+  { command: 'where', argv: ['where', 'wh-x', 'x', '--session', 'sample'], isOwner: false },
+  { command: 'set', argv: ['set', 't-valves', 'x', '--session', 'sample'], isOwner: false },
+  { command: 'decide', argv: ['decide', 'x', '--why', 'y', '--session', 'sample'], isOwner: false },
+  {
+    command: 'done',
+    argv: ['done', 't-valves', '--evidence', 'e', '--session', 'sample'],
+    isOwner: false,
+  },
+  {
+    command: 'drop',
+    argv: ['drop', 't-valves', '--why', 'y', '--session', 'sample'],
+    isOwner: false,
+  },
+  { command: 'use', argv: ['use', 'ok-wipe', '--for', 'f', '--session', 'sample'], isOwner: false },
+  { command: 'attach', argv: ['attach', 'sample'], isOwner: false },
+  { command: 'detach', argv: ['detach'], isOwner: false },
+  { command: 'init', argv: ['init', 'sample', '--goal', 'Ship it'], isOwner: false },
+  { command: 'say', argv: ['say', 'x', '--session', 'sample'], isOwner: true },
+  { command: 'ack', argv: ['ack', 'o-1', '--session', 'sample'], isOwner: true },
+])('it exits 5 on a format 1 store for $command', async (row) => {
+  const ctx = setupTest();
+
+  seedFormat1Store(ctx.stateRoot, 'sample');
+  seedStoreFile(join(ctx.stateRoot, '.bindings'), 'claude-a1b2-test', 'name=sample\n');
+
+  const before = await ctx.readTree();
+
+  const agentEnv = ctx.agentEnv;
+  const ownerEnv = { HOME: agentEnv.HOME, XDG_STATE_HOME: agentEnv.XDG_STATE_HOME };
+  const env = row.isOwner ? ownerEnv : agentEnv;
+  const terminal = row.isOwner ? { stdin: true, stdout: true } : null;
+
+  const result = await ctx.run(row.argv, env, terminal);
+  const after = await ctx.readTree();
+
+  const stderrLines = result.stderr.split('\n');
+
+  expect({
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    isFormat1Refusal: stderrLines.some((line) => line.includes('sample is format 1')),
+    unchanged: after,
+  }).toStrictEqual({ exitCode: 5, stdout: '', isFormat1Refusal: true, unchanged: before });
+});
+
+test.each(['sessions', 'help'])(
+  'it does not exit 5 on a format 1 store for %s',
+  async (command) => {
+    const ctx = setupTest();
+
+    seedFormat1Store(ctx.stateRoot, 'sample');
+
+    const result = await ctx.run([command]);
+
+    expect(result.exitCode).toBe(0);
+  },
+);
 
 test('it never journals a detach on a session the binding no longer names', async () => {
   const ctx = setupTest();
@@ -293,7 +402,7 @@ test.each([
     ['goal', 'Ship the parser'],
     {
       env: {},
-      stdout: 'goal set. Brief: 4 lines.\n',
+      stdout: 'goal set. Brief: 5 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -306,7 +415,7 @@ test.each([
     ['now', 't-a', 'go'],
     {
       env: {},
-      stdout: 'now: t-a. Brief: 7 lines.\n',
+      stdout: 'now: t-a. Brief: 8 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -316,7 +425,7 @@ test.each([
     ['task', 't-a', 'Write it'],
     {
       env: {},
-      stdout: 't-a  task, open, no check. Brief: 6 lines.\n',
+      stdout: 't-a  task, open, no check. Brief: 7 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -326,7 +435,7 @@ test.each([
     ['wait', 'w-a', 'Answer', '--who', 'owner'],
     {
       env: {},
-      stdout: 'w-a  wait, open, no check. Brief: 6 lines.\n',
+      stdout: 'w-a  wait, open, no check. Brief: 7 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -336,7 +445,7 @@ test.each([
     ['rule', 'r-a', 'Run from api/'],
     {
       env: {},
-      stdout: 'r-a  rule, open. Brief: 6 lines.\n',
+      stdout: 'r-a  rule, open. Brief: 7 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -346,7 +455,7 @@ test.each([
     ['where', 'wt-a', 'A worktree', '--path', '/srv/app'],
     {
       env: {},
-      stdout: 'wt-a  where, open, no check run. Brief: 6 lines.\n',
+      stdout: 'wt-a  where, open, no check run. Brief: 7 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -359,7 +468,7 @@ test.each([
     ['set', 't-a', 'Written another way'],
     {
       env: {},
-      stdout: 't-a  task, open, no check. Brief: 6 lines.\n',
+      stdout: 't-a  task, open, no check. Brief: 7 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -372,7 +481,7 @@ test.each([
     ['done', 't-a', '--evidence', 'commit 4c1d2e0'],
     {
       env: {},
-      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 4 lines.\n',
+      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 5 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -385,7 +494,7 @@ test.each([
     ['drop', 't-a', '--why', 'stopped'],
     {
       env: {},
-      stdout: 't-a  dropped. Off the brief, kept in the journal. Brief: 4 lines.\n',
+      stdout: 't-a  dropped. Off the brief, kept in the journal. Brief: 5 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -407,7 +516,7 @@ test.each([
     ],
     {
       env: {},
-      stdout: 'ok-merge  ok, open, no check. Brief: 6 lines.\n',
+      stdout: 'ok-merge  ok, open, no check. Brief: 7 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -432,7 +541,7 @@ test.each([
     ['use', 'ok-merge', '--for', 'merged the alert PR'],
     {
       env: {},
-      stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 4 lines.\n',
+      stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 5 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -442,7 +551,7 @@ test.each([
     ['task', 't-a', 'Write it', '--note', 'Stop the simulator first', '--owed'],
     {
       env: {},
-      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 6 lines.\n',
+      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 7 lines.\n',
       changed: [
         'tide-alerts/items.tsv',
         'tide-alerts/journal.tsv',
@@ -460,7 +569,7 @@ test.each([
     ['set', 't-a', '--note', 'Stop the simulator first'],
     {
       env: {},
-      stdout: 't-a  note, 24 of 400. Brief: 6 lines.\n',
+      stdout: 't-a  note, 24 of 400. Brief: 7 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/notes.tsv', 'tide-alerts/session'],
     },
   ],
@@ -473,7 +582,7 @@ test.each([
     ['now', 't-a', 'go', '--note', 'Stop the simulator first'],
     {
       env: {},
-      stdout: 'now: t-a, with its note (0m). Brief: 8 lines.\n    Stop the simulator first\n',
+      stdout: 'now: t-a, with its note (0m). Brief: 9 lines.\n    Stop the simulator first\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/notes.tsv', 'tide-alerts/session'],
     },
   ],
@@ -487,13 +596,37 @@ test.each([
     {
       env: {},
       stdout:
-        't-a  done. Off the brief, kept in the journal with its note (0m). Brief: 4 lines.\n    Stop the simulator first\n',
+        't-a  done. Off the brief, kept in the journal with its note (0m). Brief: 5 lines.\n    Stop the simulator first\n',
       changed: [
         'tide-alerts/items.tsv',
         'tide-alerts/journal.tsv',
         'tide-alerts/notes.tsv',
         'tide-alerts/session',
       ],
+    },
+  ],
+  [
+    'grant --may',
+    [['init', 'tide-alerts', '--goal', 'Ship it']],
+    ['grant', '--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
+    {
+      env: {},
+      stdout:
+        'grant: 18 of 700 characters in 1 of 12 bullets, reading 13 of 200. Brief: 7 lines.\n',
+      changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'grant --reading',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['grant', '--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
+    ],
+    ['grant', '--reading', 'covers merges and nothing else'],
+    {
+      env: {},
+      stdout: 'grant reading: 30 of 200. Brief: 7 lines.\n',
+      changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
   [
@@ -505,7 +638,7 @@ test.each([
     ['decide', 'Retry a 503 3 times', '--why', 'The feed flaps', '--on', 't-a'],
     {
       env: {},
-      stdout: 'd-1  decision on t-a. Read it with: www show t-a. Brief: 6 lines.\n',
+      stdout: 'd-1  decision on t-a. Read it with: www show t-a. Brief: 7 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -548,6 +681,7 @@ test.each([
       stdout: [
         'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
         'GOAL  Ship it',
+        `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
         'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',
@@ -672,7 +806,7 @@ test('it names the session on each command when the shell has no agent session i
 
   expect([started.stdout, written.stdout]).toStrictEqual([
     `Started session tide-alerts in ${join(ctx.stateRoot, 'tide-alerts')}. Name it on each command: www --session tide-alerts\n`,
-    't-a  task, open, no check. Brief: 6 lines.\n',
+    't-a  task, open, no check. Brief: 7 lines.\n',
   ]);
 });
 
@@ -689,7 +823,7 @@ test('it finds the session by WHEREWEREWE_SESSION', async () => {
 
   const result = await ctx.run(['task', 't-a', 'Write it'], shellEnv);
 
-  expect(result.stdout).toBe('t-a  task, open, no check. Brief: 6 lines.\n');
+  expect(result.stdout).toBe('t-a  task, open, no check. Brief: 7 lines.\n');
 });
 
 test('it replaces an open item of the same kind in place, keeping its row and replacing its check', async () => {
@@ -702,7 +836,7 @@ test('it replaces an open item of the same kind in place, keeping its row and re
 
   const brief = await ctx.run([]);
 
-  expect(brief.stdout.split('\n').slice(3, 7)).toStrictEqual([
+  expect(brief.stdout.split('\n').slice(4, 8)).toStrictEqual([
     'OPEN (2 of 6)',
     '  t-a         First claim, written again  [no check · 0m]',
     '  t-b         Second claim  [no check · 0m]',
@@ -732,7 +866,7 @@ test('it clears the item in focus when done closes it', async () => {
 
   const brief = await ctx.run([]);
 
-  expect(brief.stdout.split('\n')[2]).toBe('NOW  none. Run: www now <id> "<next step>"');
+  expect(brief.stdout.split('\n')[3]).toBe('NOW  none. Run: www now <id> "<next step>"');
 });
 
 test('it keeps the item in focus when a different item closes', async () => {
@@ -746,7 +880,7 @@ test('it keeps the item in focus when a different item closes', async () => {
 
   const brief = await ctx.run([]);
 
-  expect(brief.stdout.split('\n').slice(2, 4)).toStrictEqual([
+  expect(brief.stdout.split('\n').slice(3, 5)).toStrictEqual([
     'NOW  t-a · set 0m ago',
     '  next: go',
   ]);
@@ -786,10 +920,10 @@ test('it closes an item with done after an earlier done stopped between its jour
 
   const itemsText = readFileSync(join(folder, 'items.tsv'), 'utf8');
 
-  expect({ result, items: parseItemsFile(itemsText) }).toStrictEqual({
+  expect({ result, items: parseItemsFile(itemsText, '2') }).toStrictEqual({
     result: {
       exitCode: 0,
-      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 4 lines.\n',
+      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 5 lines.\n',
       stderr: '',
     },
     items: { kind: 'items', items: [] },
@@ -1045,7 +1179,7 @@ test.each([
       exitCode: 3 as const,
       stdout: '',
       stderr:
-        'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait or an approval.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
+        'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
     };
 
     expect({ results, tree: await ctx.readTree() }).toStrictEqual({
@@ -1085,7 +1219,102 @@ test('it lets say run for an owner with agent variables set to an empty value', 
   expect(result).toStrictEqual({
     exitCode: 0,
     stdout:
-      'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
+      'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 7 lines.\n',
+    stderr: '',
+  });
+});
+
+test('it names the agent as the writer of the words the format 2 upgrade set', async () => {
+  const ctx = setupTest();
+
+  seedFormat1Store(ctx.stateRoot, 'sample');
+
+  await ctx.run([
+    'import',
+    'sample',
+    '--may',
+    'Merge the garden-api pull requests yourself.',
+    '--where',
+    'chat',
+    '--reading',
+    'covers garden-api merges',
+  ]);
+
+  const result = await ctx.run(['--session', 'sample', 'show', 'grant']);
+
+  expect(result.stdout.split('\n').at(1)).toMatch(
+    /^ {2}words \(\d+m\), set on day \d+ by agent:$/u,
+  );
+});
+
+test("it names the agent as the writer of the words when the agent writes the owner's words again in the same second", async () => {
+  const ctx = setupTest();
+  const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+  const grant = ['--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ownerEnv, {
+    stdin: true,
+    stdout: true,
+  });
+
+  ctx.advance(-1000);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ctx.agentEnv);
+
+  const result = await ctx.run(['--session', 'tide-alerts', 'show', 'grant'], ctx.agentEnv);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: [
+      'grant  from the owner in chat',
+      '  words (0m), set on day 1 by agent:',
+      '  may    • Merge it yourself.',
+      '  reading (0m), set on day 1: covers merges',
+      '  journal: day 1 grant · day 1 grant',
+      '',
+    ].join('\n'),
+    stderr: '',
+  });
+});
+
+test('it names the agent as the writer of the words after the owner replaces the reading alone in the same second', async () => {
+  const ctx = setupTest();
+  const ownerEnv = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+  const grant = ['--may', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'];
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ownerEnv, {
+    stdin: true,
+    stdout: true,
+  });
+
+  ctx.advance(-1000);
+
+  await ctx.run(['--session', 'tide-alerts', 'grant', ...grant], ctx.agentEnv);
+
+  ctx.advance(-1000);
+
+  await ctx.run(
+    ['--session', 'tide-alerts', 'grant', '--reading', 'covers merges and nothing else'],
+    ownerEnv,
+    { stdin: true, stdout: true },
+  );
+
+  const result = await ctx.run(['--session', 'tide-alerts', 'show', 'grant'], ctx.agentEnv);
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: [
+      'grant  from the owner in chat',
+      '  words (0m), set on day 1 by agent:',
+      '  may    • Merge it yourself.',
+      '  reading (0m), set on day 1: covers merges and nothing else',
+      '  journal: day 1 grant · day 1 grant · day 1 grant',
+      '',
+    ].join('\n'),
     stderr: '',
   });
 });
@@ -1137,7 +1366,7 @@ test('it keeps an item with a saved result byte for byte when set gives only a n
     saved: saved.kind === 'store' && saved.store.items.map((item) => [item.atWrite, item.last]),
     itemsKept: after['tide-alerts/items.tsv'] === before['tide-alerts/items.tsv'],
   }).toStrictEqual({
-    result: 't-a  note, 24 of 400. Brief: 6 lines.\n',
+    result: 't-a  note, 24 of 400. Brief: 7 lines.\n',
     saved: [['alive', 'gone']],
     itemsKept: true,
   });
@@ -1220,7 +1449,7 @@ test('it runs each command of the older-note line as printed', async () => {
   }).toStrictEqual({
     line: '  its note is 1h older than this claim. Replace it with www set t-a --note "<detail>", or clear it with www set t-a --no-note',
     replace: [['set', 't-a', '--note', '<detail>'], 0],
-    clear: [['set', 't-a', '--no-note'], 0, 't-a  note cleared. Brief: 6 lines.\n'],
+    clear: [['set', 't-a', '--no-note'], 0, 't-a  note cleared. Brief: 7 lines.\n'],
   });
 });
 
@@ -1266,6 +1495,7 @@ test('it leaves an item open with no note when a task with a note stops after it
       stdout: [
         'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
         'GOAL  Ship it',
+        `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
         'OPEN (1 of 6)',
         '  t-a         Write it  [no check · 0m]',
@@ -1276,7 +1506,7 @@ test('it leaves an item open with no note when a task with a note stops after it
     },
     rerun: {
       exitCode: 0,
-      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 6 lines.\n',
+      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 7 lines.\n',
       stderr: '',
     },
     afterRerun: {
@@ -1325,6 +1555,7 @@ test('it reads a closed item as closed and drops its notes.tsv row at the next n
       stdout: [
         'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
         'GOAL  Ship it',
+        `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
         'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',
@@ -1338,7 +1569,7 @@ test('it reads a closed item as closed and drops its notes.tsv row at the next n
     },
     next: {
       exitCode: 0,
-      stdout: 't-b  task, open, no check, note 12 of 400. Brief: 6 lines.\n',
+      stdout: 't-b  task, open, no check, note 12 of 400. Brief: 7 lines.\n',
       stderr: '',
     },
     notes: ['t-b'],
@@ -1373,7 +1604,7 @@ test('it keeps the journal row of a set with a note and writes the note on a rer
     },
     rerun: {
       exitCode: 0,
-      stdout: 't-a  note, 24 of 400. Brief: 6 lines.\n',
+      stdout: 't-a  note, 24 of 400. Brief: 7 lines.\n',
       stderr: '',
     },
     afterRerun: {

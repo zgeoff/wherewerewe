@@ -12,7 +12,7 @@ export function buildOwnerRefusal(reason: OwnerReason): Refusal {
   return match(reason)
     .with({ kind: 'owner-only' }, () =>
       refuse(
-        'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait or an approval.',
+        'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.',
         ['rule', '<id>', '<what the owner said, as a rule>'],
       ),
     )

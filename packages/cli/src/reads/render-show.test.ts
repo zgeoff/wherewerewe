@@ -1,17 +1,19 @@
 import { expect, test } from 'bun:test';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
-import type { Item, JournalRow, Note, SessionFile } from '../types.ts';
+import type { Grant, Item, JournalRow, Note, SessionFile } from '../types.ts';
 import { renderShow } from './render-show.ts';
 
 interface ShowOptions {
   readonly closed?: ReadonlyMap<string, string>;
   readonly notes?: readonly Note[];
+  readonly grant?: Grant;
 }
 
 function setupTest() {
   const session: SessionFile = {
-    format: '1',
+    format: '2',
+    grant: null,
     name: 'tide-alerts',
     goal: 'Ship it',
     started: '2026-03-02T08:04:11Z',
@@ -34,7 +36,7 @@ function setupTest() {
         id,
         store: {
           folder: '/state/tide-alerts',
-          session,
+          session: { ...session, grant: options.grant ?? null },
           items,
           ownerNotes: [],
           notes: options.notes ?? [],
@@ -151,7 +153,7 @@ test('it shows a wait with who it waits on, and a task with what blocks it', () 
   ]);
 });
 
-test('it shows an approval with who gave it, where, its use and its scope', () => {
+test('it shows an approval with who gave it, where and its scope', () => {
   const ctx = setupTest();
 
   const text = ctx.show(
@@ -161,7 +163,7 @@ test('it shows an approval with who gave it, where, its use and its scope', () =
         id: 'ok-merge',
         kind: 'ok',
         claim: 'merge the alert PRs yourself once CI is green',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api, bosun-app', use: 'standing' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api, bosun-app' },
         written: '2026-03-02T08:09:47Z',
       }),
     ],
@@ -170,7 +172,6 @@ test('it shows an approval with who gave it, where, its use and its scope', () =
         ts: '2026-03-02T08:09:47Z',
         op: 'ok',
         id: 'ok-merge',
-        extra: 'use=standing',
       }),
     ],
   );
@@ -179,7 +180,7 @@ test('it shows an approval with who gave it, where, its use and its scope', () =
     [
       'ok-merge  approval, open since day 1, by agent',
       '  quote (8d): merge the alert PRs yourself once CI is green',
-      '  given by owner in terminal · standing · scope: bosun-api, bosun-app',
+      '  given by owner in terminal · scope: bosun-api, bosun-app',
       '  journal: day 1 ok',
       '',
     ].join('\n'),
@@ -479,4 +480,348 @@ test('it prints no note line for an item with no note', () => {
   );
 
   expect(text).not.toInclude('note (');
+});
+
+test('it prints show grant with a scope and three groups, after the reading alone was replaced', () => {
+  const ctx = setupTest();
+
+  const grantText =
+    'may: water the beds • mow the lawn · not: prune the roses · never: dig up the roses • spray the hives · scope: in the east garden';
+
+  const grantReading =
+    'covers watering and mowing in the east garden with the hose from the shed; kept back: pruning, the roses and the hives';
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: grantText,
+        why: 'covers watering',
+        extra: 'where=chat',
+      }),
+      buildMockJournalRow({
+        ts: '2026-03-10T11:31:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: grantText,
+        why: grantReading,
+        extra: 'where=chat;reading=1',
+      }),
+    ],
+    {
+      grant: {
+        may: ['water the beds', 'mow the lawn'],
+        not: ['prune the roses'],
+        never: ['dig up the roses', 'spray the hives'],
+        scope: 'in the east garden',
+        reading: grantReading,
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect(text).toBe(
+    [
+      'grant  from the owner in chat · in the east garden',
+      '  words (7d), set on day 2 by agent:',
+      '  may    • water the beds',
+      '         • mow the lawn',
+      '  not    • prune the roses',
+      '  never  • dig up the roses  • spray the hives',
+      '  reading (12m), set on day 9: covers watering and mowing in the east garden with the hose from the',
+      '    shed; kept back: pruning, the roses and the hives',
+      '  journal: day 2 grant · day 9 grant',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it prints show grant with no scope and one group, the heading and the reading kept', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'owner',
+        text: 'may: water the beds',
+        why: 'covers watering',
+        extra: 'where=terminal',
+      }),
+    ],
+    {
+      grant: {
+        may: ['water the beds'],
+        not: [],
+        never: [],
+        scope: null,
+        reading: 'covers watering',
+        where: 'terminal',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect(text).toBe(
+    [
+      'grant  from the owner in terminal',
+      '  words (7d), set on day 2 by owner:',
+      '  may    • water the beds',
+      '  reading (7d), set on day 2: covers watering',
+      '  journal: day 2 grant',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it names the owner as the one who set the words when the agent replaces the reading in the same second', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'owner',
+        text: 'may: Merge it yourself.',
+        why: 'covers merges',
+        extra: 'where=chat',
+      }),
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: 'may: Merge it yourself.',
+        why: 'covers merges and deploys',
+        extra: 'where=chat;reading=1',
+      }),
+    ],
+    {
+      grant: {
+        may: ['Merge it yourself.'],
+        not: [],
+        never: [],
+        scope: null,
+        reading: 'covers merges and deploys',
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect([
+    text.split('\n').at(1),
+    text.split('\n').find((line) => line.startsWith('  reading (')),
+  ]).toStrictEqual([
+    '  words (7d), set on day 2 by owner:',
+    '  reading (7d), set on day 2: covers merges and deploys',
+  ]);
+});
+
+test('it names the agent as the one who set the words when the agent writes the same words in the same second', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'owner',
+        text: 'may: Merge it yourself.',
+        why: 'covers merges',
+        extra: 'where=chat',
+      }),
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: 'may: Merge it yourself.',
+        why: 'covers merges and deploys',
+        extra: 'where=chat',
+      }),
+    ],
+    {
+      grant: {
+        may: ['Merge it yourself.'],
+        not: [],
+        never: [],
+        scope: null,
+        reading: 'covers merges and deploys',
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect([
+    text.split('\n').at(1),
+    text.split('\n').find((line) => line.startsWith('  reading (')),
+  ]).toStrictEqual([
+    '  words (7d), set on day 2 by agent:',
+    '  reading (7d), set on day 2: covers merges and deploys',
+  ]);
+});
+
+test('it names the writer of the newest words when an earlier write in the same second held other words', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'owner',
+        text: 'may: Merge it yourself.',
+        why: 'covers merges',
+        extra: 'where=chat',
+      }),
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: 'may: Deploy it yourself.',
+        why: 'covers deploys',
+        extra: 'where=chat',
+      }),
+    ],
+    {
+      grant: {
+        may: ['Deploy it yourself.'],
+        not: [],
+        never: [],
+        scope: null,
+        reading: 'covers deploys',
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect([
+    text.split('\n').at(1),
+    text.split('\n').find((line) => line.startsWith('  reading (')),
+  ]).toStrictEqual([
+    '  words (7d), set on day 2 by agent:',
+    '  reading (7d), set on day 2: covers deploys',
+  ]);
+});
+
+test.each([
+  [
+    'other words',
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'may: Deploy it yourself.',
+      why: 'covers merges',
+      extra: 'where=chat',
+    },
+  ],
+  [
+    'the same words and a new reading',
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'may: Merge it yourself.',
+      why: 'covers deploys',
+      extra: 'where=chat',
+    },
+  ],
+  [
+    'the same words and a new reading in the same second',
+    {
+      ts: '2026-03-03T09:00:00Z',
+      text: 'may: Merge it yourself.',
+      why: 'covers deploys',
+      extra: 'where=chat',
+    },
+  ],
+  [
+    'the same words and reading from a new where',
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'may: Merge it yourself.',
+      why: 'covers merges',
+      extra: 'where=terminal',
+    },
+  ],
+  [
+    'the same words and reading as a row with no reading=1',
+    {
+      ts: '2026-03-04T09:00:00Z',
+      text: 'may: Merge it yourself.',
+      why: 'covers merges',
+      extra: 'where=chat',
+    },
+  ],
+])(
+  'it dates and names the grant from the rows it holds when a later write of %s stopped after its journal row',
+  (_name, stopped) => {
+    const ctx = setupTest();
+
+    const text = ctx.show(
+      'grant',
+      [],
+      [
+        buildMockJournalRow({
+          ts: '2026-03-03T09:00:00Z',
+          op: 'grant',
+          id: 'grant',
+          by: 'owner',
+          text: 'may: Merge it yourself.',
+          why: 'covers merges',
+          extra: 'where=chat',
+        }),
+        buildMockJournalRow({ op: 'grant', id: 'grant', by: 'agent', ...stopped }),
+      ],
+      {
+        grant: {
+          may: ['Merge it yourself.'],
+          not: [],
+          never: [],
+          scope: null,
+          reading: 'covers merges',
+          where: 'chat',
+          set: '2026-03-03T09:00:00Z',
+        },
+      },
+    );
+
+    expect([
+      text.split('\n').at(1),
+      text.split('\n').find((line) => line.startsWith('  reading (')),
+    ]).toStrictEqual([
+      '  words (7d), set on day 2 by owner:',
+      '  reading (7d), set on day 2: covers merges',
+    ]);
+  },
+);
+
+test('it prints the none line for show grant when the session holds no grant', () => {
+  const ctx = setupTest();
+
+  expect(ctx.show('grant', [], [])).toBe(
+    'grant  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"\n',
+  );
 });

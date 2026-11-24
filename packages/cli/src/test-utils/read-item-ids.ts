@@ -7,7 +7,7 @@ import { parseItemsFile } from '../store/parse-items-file.ts';
 export function readItemIDs(folder: string): string[] {
   const text = readFileSync(join(folder, 'items.tsv'), 'utf8');
 
-  return match(parseItemsFile(text))
+  return match(parseItemsFile(text, '2'))
     .with({ kind: 'items' }, (found) => found.items.map((item) => item.id).toSorted())
     .with({ kind: 'broken' }, () => [])
     .exhaustive();
