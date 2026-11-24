@@ -125,7 +125,7 @@ test('it replaces only the reading with --reading alone, and keeps the words, wh
         by: 'agent',
         text: 'Merge the alert PRs yourself.',
         why: 'covers merges and nothing else',
-        extra: 'where=terminal',
+        extra: 'where=terminal;reading=1',
       },
     ],
     reply: 'grant reading: 30 of 200. Brief: 9 lines.',

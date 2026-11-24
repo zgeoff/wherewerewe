@@ -57,9 +57,8 @@ export function renderShow(input: ShowInput): string {
 const noGrantLine =
   'grant  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"';
 
-// A reading alone keeps the words and their time, and its row carries the same words, so the words'
-// row is the first grant row at that time among the newest rows that carry these words. The
-// reading's row is the newest grant row.
+// A reading alone keeps the words and their time, and its row has `reading=1` in `extra`. The
+// words' row is the newest grant row without it, and the reading's row is the newest grant row.
 function renderGrant(input: ShowInput): string {
   const grant = input.store.session.grant;
 
@@ -68,8 +67,7 @@ function renderGrant(input: ShowInput): string {
   }
 
   const rows = input.rows.filter((row) => row.id === 'grant' && row.op === 'grant');
-  const otherWords = rows.findLastIndex((row) => row.text !== grant.words);
-  const wordsRow = rows.slice(otherWords + 1).find((row) => row.ts === grant.set);
+  const wordsRow = rows.findLast((row) => !(row.extra ?? '').split(';').includes('reading=1'));
   const readingRow = rows.at(-1);
   const wordsDay = getDay(input.store, Date.parse(wordsRow?.ts ?? grant.set));
   const readingDay = getDay(input.store, Date.parse(readingRow?.ts ?? grant.set));

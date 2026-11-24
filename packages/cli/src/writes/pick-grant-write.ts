@@ -51,7 +51,7 @@ export function pickGrantWrite(input: WriteInput & { readonly byOwner: boolean }
           by,
           text: grant.words,
           why: grant.reading,
-          extra: `where=${grant.where}`,
+          extra: quote === undefined ? `where=${grant.where};reading=1` : `where=${grant.where}`,
         },
       ],
     },

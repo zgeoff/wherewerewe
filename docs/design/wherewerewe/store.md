@@ -146,7 +146,7 @@ interface JournalRow {
   by: 'agent' | 'owner' | 'hook' | 'import';
   text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's words, or "<old> -> <new>" for changed; '-' when none
   why: string; // the reason (decide, ruled-out, drop), the evidence (done), what it was used for (use), or the grant's reading (grant); '-' when none
-  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1 or where=chat
+  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1 or where=chat
 }
 
 type Op =
@@ -157,7 +157,7 @@ type Op =
 ```
 
 - Each note write adds a `note` row: `id` is the item, `text` is the note, and `extra` is `owed=1` for an owed note. Clearing a note adds a `note` row with `text` `-` and `extra` `cleared=1`. A close adds no `note` row; its own row closes the note with the item.
-- Each `www grant` adds a `grant` row with `id` `grant`, the words in `text` and the reading in `why`, both whole, so the journal keeps every version.
+- Each `www grant` adds a `grant` row with `id` `grant`, the words in `text` and the reading in `why`, both whole, so the journal keeps every version. A `www grant --reading` row adds `reading=1` to `extra`; the newest `grant` row without it is the write that set the words.
 - A `note` row that `www import` carried from a hand-kept store keeps `by=import` and its own id, such as `n-12`, which names no item.
 
 ### owner.tsv and prs.tsv
