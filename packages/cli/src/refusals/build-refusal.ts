@@ -4,14 +4,17 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { noSecretPlaceholder, redactCredential } from '../rules/redact-credential.ts';
 import type { ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
+import { buildApprovalRefusal } from './build-approval-refusal.ts';
 import { buildMalformedCheckRefusal } from './build-malformed-check-refusal.ts';
 import { buildNoteRefusal } from './build-note-refusal.ts';
 import { buildOwnerRefusal } from './build-owner-refusal.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
+import { buildUpgradeRefusal } from './build-upgrade-refusal.ts';
 import { formatList } from './format-list.ts';
 import { pickClosestID } from './pick-closest-id.ts';
 import { quoteShellWord } from './quote-shell-word.ts';
+import { refuse } from './refuse.ts';
 
 const evidencePlaceholder = '<PR, commit or test run>';
 const goalPlaceholder = '<what done means>';
@@ -100,7 +103,14 @@ export function buildRefusal(reason: RefusalReason): Refusal {
           .toArgv(),
       ),
     )
-    .with({ kind: 'ok-needs-parts' }, (found) => buildOkNeedsParts(found))
+    .with(
+      { kind: 'ok-needs-parts' },
+      { kind: 'ok-standing' },
+      { kind: 'grant-needs-part' },
+      { kind: 'grant-reading-no-grant' },
+      { kind: 'grant-words-too-long' },
+      (found) => buildApprovalRefusal(found),
+    )
     .with({ kind: 'decide-needs-why' }, (found) =>
       refuse(
         'www: refused: a decision needs its reason.',
@@ -163,15 +173,9 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildRunSpec(found.args).addFlag('for', '<what you did with it>').toArgv(),
       ),
     )
-    .with({ kind: 'use-standing' }, (found) =>
-      refuse(`www: refused: ${found.id} is standing, so there is nothing to spend.`, [
-        'show',
-        found.id,
-      ]),
-    )
     .with({ kind: 'use-not-approval' }, (found) =>
       refuse(
-        `www: refused: ${found.id} is a ${getKindWord(found.itemKind)}, and use spends a --once approval.`,
+        `www: refused: ${found.id} is a ${getKindWord(found.itemKind)}, and use spends the one-time approval.`,
         ['done', found.id, '--evidence', evidencePlaceholder],
       ),
     )
@@ -192,7 +196,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       const repaired = repairID(found.id, 16, isItemID, '<new id>');
 
       return refuse(
-        'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not d-<n> or o-<n>.',
+        'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not grant, d-<n> or o-<n>.',
         buildRunSpec(found.args).replacePositional(0, repaired).toArgv(),
       );
     })
@@ -275,30 +279,30 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         ['sessions'],
       ),
     )
-    .with({ kind: 'import-already-format-1' }, (found) =>
+    .with({ kind: 'import-already-format-2' }, (found) =>
       found.hasAgent
         ? refuse(
-            `www: refused: ${found.name} is already format 1. Bind this agent session to it.`,
+            `www: refused: ${found.name} is already format 2. Bind this agent session to it.`,
             ['attach', found.name],
           )
-        : refuse(`www: refused: ${found.name} is already format 1.`, ['--session', found.name]),
+        : refuse(`www: refused: ${found.name} is already format 2.`, ['--session', found.name]),
     )
-    .with({ kind: 'import-broken-rows' }, (found): Refusal => ({
-      exitCode: 3,
-      lines: [
-        `www: refused: import found ${String(found.problems.length)} rows that break the rules, and wrote nothing.`,
-        ...found.problems,
-      ],
-      runs: [{ www: ['import', found.name] }],
-    }))
+    .with({ kind: 'upgrade-refused' }, (found) => buildUpgradeRefusal(found, buildRefusal))
     .with({ kind: 'hand-kept' }, (found): Refusal => ({
       exitCode: 5,
       lines: [`www: ${found.name} is a hand-kept store (format 0-by-hand). Convert it first.`],
       runs: [{ www: ['import', found.name] }],
     }))
+    .with({ kind: 'format-1' }, (found): Refusal => ({
+      exitCode: 5,
+      lines: [
+        `www: ${found.name} is format 1, and this www reads format 2. Upgrade it in place; the upgrade keeps a copy of each file it changes, and changes nothing when it refuses.`,
+      ],
+      runs: [{ www: ['import', found.name] }],
+    }))
     .with({ kind: 'newer' }, (found): Refusal => ({
       exitCode: 5,
-      lines: [`www: ${found.name} is format ${found.format}, and this www reads format 1.`],
+      lines: [`www: ${found.name} is format ${found.format}, and this www reads format 2.`],
       runs: [{ shell: 'bun add -g @wherewerewe/cli@latest' }],
     }))
     .with({ kind: 'broken-store' }, (found) => buildBrokenStore(found))
@@ -320,15 +324,22 @@ function buildTooLong(found: Found<'text-too-long'>): Refusal {
   }
 
   const placeholder = `<${found.target.label} of at most ${String(found.limit)} characters>`;
+  const measured = `the ${found.target.label} is ${String(found.length)} characters, and the limit is ${String(found.limit)}.`;
+
+  const advice = match(found.target.label)
+    .with(
+      'claim',
+      'next step',
+      'quote',
+      () => 'Write what is true now, and put the detail in its note with --note.',
+    )
+    .with('reading', () => null)
+    .otherwise(() => 'Write what is true now; the story belongs in a PR or a commit.');
 
   return refuse(
-    `www: refused: the ${found.target.label} is ${String(found.length)} characters, and the limit is ${String(found.limit)}. Write what is true now; the story belongs in a PR or a commit.`,
+    `www: refused: ${advice === null ? measured : `${measured} ${advice}`}`,
     replaceText(found.args, found.target, placeholder),
   );
-}
-
-function refuse(line: string, argv: readonly string[]): Refusal {
-  return { exitCode: 3, lines: [line], runs: [{ www: argv }] };
 }
 
 function replaceText(args: ParsedArgs, target: TextTarget, value: string): string[] {
@@ -346,6 +357,10 @@ function buildCredentialRun(found: Found<'credential'>): string[] {
     return replaceText(found.args, found.target, '<where the secret lives>');
   }
 
+  if (found.target.label === 'words' || found.target.label === 'reading') {
+    return replaceText(found.args, found.target, '<where the secret lives>');
+  }
+
   if (itemWriteCommands.has(found.args.command)) {
     const id = found.onOtherKind ? '<new id>' : (found.args.positionals[0] ?? '<new id>');
 
@@ -359,7 +374,7 @@ function buildCredentialRun(found: Found<'credential'>): string[] {
 }
 
 const capWords = {
-  ok: { cap: 3, plural: 'approvals' },
+  ok: { cap: 1, plural: 'one-time approvals' },
   task: { cap: 6, plural: 'tasks' },
   wait: { cap: 4, plural: 'waits' },
   rule: { cap: 5, plural: 'rules' },
@@ -371,7 +386,8 @@ function buildKindFull(found: Found<'kind-full'>): Refusal {
   const plural = capWords[found.itemKind].plural;
 
   const argv = match(found.itemKind)
-    .with('rule', 'ok', () => ['drop', found.oldestID, '--why', '<reason>'])
+    .with('ok', () => ['use', found.oldestID, '--for', '<what you did with it>'])
+    .with('rule', () => ['drop', found.oldestID, '--why', '<reason>'])
     .with('task', 'wait', 'where', () => [
       'done',
       found.oldestID,
@@ -380,32 +396,14 @@ function buildKindFull(found: Found<'kind-full'>): Refusal {
     ])
     .exhaustive();
 
+  const advice =
+    found.itemKind === 'ok'
+      ? 'Spend it with www use, or drop it.'
+      : 'Close one, or replace one with www set.';
+
   return refuse(
-    `www: refused: the brief holds ${String(cap)} of ${String(cap)} ${plural}. Close one, or replace one with www set.`,
+    `www: refused: the brief holds ${String(cap)} of ${String(cap)} ${plural}. ${advice}`,
     argv,
-  );
-}
-
-const approvalPlaceholders = {
-  quote: '<their exact words>',
-  who: '<who>',
-  where: '<where>',
-  scope: '<what it covers>',
-} as const;
-
-function buildOkNeedsParts(found: Found<'ok-needs-parts'>): Refusal {
-  const base = found.needsUse
-    ? buildRunSpec(found.args).dropFlag('once').dropFlag('standing')
-    : buildRunSpec(found.args);
-
-  const added = found.missing.reduce(
-    (spec, flag) => spec.addFlag(flag, approvalPlaceholders[flag]),
-    base,
-  );
-
-  return refuse(
-    "www: refused: an approval needs the owner's exact words, who gave them, where, what they cover, and --once or --standing.",
-    (found.needsUse ? added.addWord('<--once or --standing>') : added).toArgv(),
   );
 }
 

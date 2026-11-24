@@ -59,15 +59,16 @@ test('it reports a folder with no session file as missing', async () => {
 
 test.each([
   ['a hand-kept session', 'name=a\ngoal=b\nstarted=c\n', { kind: 'hand-kept' }],
-  ['a newer format', 'format=2\n', { kind: 'newer', format: '2' }],
+  ['a newer format', 'format=3\n', { kind: 'newer', format: '3' }],
+  ['a format 1 store', 'format=1\nname=a\n', { kind: 'format-1' }],
   [
     'a broken session',
-    'format=1\ncolour=red\n',
+    'format=2\ncolour=red\n',
     {
       kind: 'broken',
       file: 'session',
       line: null,
-      reason: 'the key colour is not in format 1',
+      reason: 'the key colour is not in format 2',
       partial: null,
     },
   ],
@@ -262,6 +263,7 @@ test('it prints the brief without the broken owner row, names it on stderr, and 
       exitCode: 0,
       stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
+GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [43m]
 NOW  none. Run: www now <id> "<next step>"
@@ -270,7 +272,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       stderr:
         "www: tide-alerts's owner.tsv line 3 does not parse: expected 4 tab-separated columns, found 2. The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 8 lines.\n', stderr: '' },
+    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 9 lines.\n', stderr: '' },
     say: {
       exitCode: 3,
       stdout: '',
@@ -290,7 +292,7 @@ test.each([
     title: 'a credential in the id column',
     ownerText: `id\ttext\tsaid\ton\no-1\tAsk me first\t2026-03-10T11:00:00Z\t-\nAKIA${'Q'.repeat(16)}\tx\t2026-03-10T11:00:00Z\t-\n`,
     section: 'OWNER SAYS (1) · act on it; only the owner clears it\n  o-1  Ask me first  [43m]\n',
-    taskLines: 8,
+    taskLines: 9,
     where: ' line 3',
     reason: 'the id is not o-<n>',
   },
@@ -298,7 +300,7 @@ test.each([
     title: 'a said that is not a time',
     ownerText: 'id\ttext\tsaid\ton\no-1\tAsk me first\tbogus\t-\n',
     section: '',
-    taskLines: 6,
+    taskLines: 7,
     where: ' line 2',
     reason: 'the said time is not an ISO 8601 UTC time to the second, ending in Z',
   },
@@ -311,7 +313,7 @@ test.each([
     ).join('')}`,
     section:
       'OWNER SAYS (2) · act on it; only the owner clears it\n  o-1  Note 1  [43m]\n  o-2  Note 2  [43m]\n',
-    taskLines: 9,
+    taskLines: 10,
     where: ' line 4',
     reason: 'more than 2 notes',
   },
@@ -332,6 +334,7 @@ test.each([
         exitCode: 0,
         stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
+GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
 ${row.section}NOW  none. Run: www now <id> "<next step>"
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
@@ -362,13 +365,14 @@ test('it prints the brief and still takes an agent write when a folder stands in
       exitCode: 0,
       stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
+GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
 NOW  none. Run: www now <id> "<next step>"
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
       stderr:
         "www: tide-alerts's owner.tsv does not parse: the file cannot be read (EISDIR). The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 6 lines.\n', stderr: '' },
+    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 7 lines.\n', stderr: '' },
   });
 });
 
@@ -479,7 +483,7 @@ test('it prints the brief from the notes that parse, names the broken row, and r
       stderr:
         "www: tide-alerts's notes.tsv line 2 does not parse: expected 4 tab-separated columns, found 1. The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    plain: { exitCode: 0, stdout: 't-b  task, open, no check. Brief: 7 lines.\n', stderr: '' },
+    plain: { exitCode: 0, stdout: 't-b  task, open, no check. Brief: 8 lines.\n', stderr: '' },
     withNote: refusal,
     clear: refusal,
     now: refusal,

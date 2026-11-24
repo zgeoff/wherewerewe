@@ -5,8 +5,11 @@ import { formatSessionFile } from '../store/format-session-file.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { parseJournalFile } from '../store/parse-journal-file.ts';
 import { parseSessionFile } from '../store/parse-session-file.ts';
+import { buildHandKeptApprovals } from '../test-utils/build-hand-kept-approvals.ts';
 import { buildHandKeptItemRow } from '../test-utils/build-hand-kept-item-row.ts';
 import { buildHandKeptQuestionRow } from '../test-utils/build-hand-kept-question-row.ts';
+import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
+import { buildRowsRefusal } from '../test-utils/build-rows-refusal.ts';
 import { getPickedImport } from '../test-utils/get-picked-import.ts';
 import { parseHandKeptStore } from './parse-hand-kept-store.ts';
 import { pickImport } from './pick-import.ts';
@@ -105,11 +108,13 @@ test.each([
 
   const picked = pickImport(hand, {
     name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
     agent: null,
   });
 
-  expect(picked).toStrictEqual({ kind: 'refused', problems: row.problems });
+  expect(picked).toStrictEqual(buildRowsRefusal(row.problems));
 });
 
 test.each([
@@ -124,7 +129,7 @@ test.each([
     items: [buildHandKeptItemRow({ id: 'T-1' })],
     journal: [],
     problems: [
-      'items.tsv line 2 (T-1): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not d-<n> or o-<n>.',
+      'items.tsv line 2 (T-1): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.',
     ],
   },
   {
@@ -132,7 +137,7 @@ test.each([
     items: [buildHandKeptItemRow({ id: 'd-4' })],
     journal: [],
     problems: [
-      'items.tsv line 2 (d-4): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not d-<n> or o-<n>.',
+      'items.tsv line 2 (d-4): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.',
     ],
   },
   {
@@ -381,7 +386,7 @@ test.each([
     items: [buildHandKeptItemRow({ id: `AKIA${'Q'.repeat(16)}` })],
     journal: [],
     problems: [
-      'items.tsv line 2 (<text with no secret in it>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
+      'items.tsv line 2 (<text with no secret in it>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
     ],
   },
   {
@@ -449,7 +454,7 @@ test.each([
     items: [],
     journal: [buildHandKeptQuestionRow({ id: 'Q 1', text: 'Which one' })],
     problems: [
-      'journal.tsv line 2 (Q 1): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not d-<n> or o-<n>.',
+      'journal.tsv line 2 (Q 1): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.',
     ],
   },
   {
@@ -541,16 +546,6 @@ test.each([
     ],
   },
   {
-    title: 'four approvals against a cap of 3',
-    items: ['ok-a', 'ok-b', 'ok-c', 'ok-d'].map((id) =>
-      buildHandKeptItemRow({ id, kind: 'ok', extra: 'who=owner;where=chat;scope=the repo;once' }),
-    ),
-    journal: [],
-    problems: [
-      'items.tsv: 4 open approvals (ok-a, ok-b, ok-c, ok-d), and the limit is 3. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
-    ],
-  },
-  {
     title: 'six rules against a cap of 5',
     items: ['r-a', 'r-b', 'r-c', 'r-d', 'r-e', 'r-f'].map((id) =>
       buildHandKeptItemRow({ id, kind: 'rule' }),
@@ -577,7 +572,7 @@ test.each([
     ),
     journal: [],
     problems: [
-      'items.tsv line 8 (<text with no secret in it>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
+      'items.tsv line 8 (<text with no secret in it>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
       'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, <text with no secret in it>), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
     ],
   },
@@ -590,11 +585,13 @@ test.each([
 
   const picked = pickImport(hand, {
     name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
     agent: null,
   });
 
-  expect(picked).toStrictEqual({ kind: 'refused', problems: row.problems });
+  expect(picked).toStrictEqual(buildRowsRefusal(row.problems));
 });
 
 test.each([
@@ -629,11 +626,13 @@ test.each([
 
   const picked = pickImport(hand, {
     name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
     agent: null,
   });
 
-  expect(picked).toStrictEqual({ kind: 'refused', problems: row.problems });
+  expect(picked).toStrictEqual(buildRowsRefusal(row.problems));
 });
 
 test('it refuses a now that names a task a done row closed', () => {
@@ -646,14 +645,13 @@ test('it refuses a now that names a task a done row closed', () => {
 
   const picked = pickImport(hand, {
     name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
     agent: null,
   });
 
-  expect(picked).toStrictEqual({
-    kind: 'refused',
-    problems: ['session (now): t-a names no open item.'],
-  });
+  expect(picked).toStrictEqual(buildRowsRefusal(['session (now): t-a names no open item.']));
 });
 
 test('it lists a session line, an items row, a journal row and two caps, in that order', () => {
@@ -677,20 +675,21 @@ test('it lists a session line, an items row, a journal row and two caps, in that
 
   const picked = pickImport(hand, {
     name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
     agent: null,
   });
 
-  expect(picked).toStrictEqual({
-    kind: 'refused',
-    problems: [
+  expect(picked).toStrictEqual(
+    buildRowsRefusal([
       'session line 4: the line is not key=value.',
       'items.tsv line 9 (ok-a): an approval needs who, where, scope, and once or standing.',
       'journal.tsv line 2: the row has 3 columns, and a hand-kept journal row has 4.',
       'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, t-g), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
       'journal.tsv: 5 open waits (q-1, q-2, q-3, q-4, q-5), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
-    ],
-  });
+    ]),
+  );
 });
 
 test('it imports a session that holds lines import replaces', () => {
@@ -703,7 +702,9 @@ test('it imports a session that holds lines import replaces', () => {
 
   const picked = pickImport(hand, {
     name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
     agent: null,
   });
 
@@ -912,7 +913,13 @@ test.each([
   });
 
   const picked = getPickedImport(
-    pickImport(hand, { name: 'old-notes', nowMs: Date.parse('2026-03-10T11:43:00Z'), agent: null }),
+    pickImport(hand, {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
   );
 
   expect(picked.journal.slice(0, -1)).toStrictEqual([...row.carried]);
@@ -922,17 +929,12 @@ test.each([
   {
     title: 'a bare once',
     extra: 'who=owner;where=chat;scope=the repo;once',
-    expected: { who: 'owner', where: 'chat', scope: 'the repo', use: 'once' },
-  },
-  {
-    title: 'a bare standing',
-    extra: 'standing;who=owner;where=chat;scope=the repo',
-    expected: { who: 'owner', where: 'chat', scope: 'the repo', use: 'standing' },
+    expected: { who: 'owner', where: 'chat', scope: 'the repo' },
   },
   {
     title: 'a use= pair',
     extra: 'use=once;scope=the repo;where=chat;who=owner',
-    expected: { who: 'owner', where: 'chat', scope: 'the repo', use: 'once' },
+    expected: { who: 'owner', where: 'chat', scope: 'the repo' },
   },
 ])('it converts an approval with $title', (row) => {
   const hand = parseHandKeptStore({
@@ -945,7 +947,13 @@ test.each([
   });
 
   const picked = getPickedImport(
-    pickImport(hand, { name: 'old-notes', nowMs: Date.parse('2026-03-10T11:43:00Z'), agent: null }),
+    pickImport(hand, {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
   );
 
   expect(picked.items.map((item) => item.extra)).toStrictEqual([row.expected]);
@@ -990,7 +998,13 @@ test.each([
   });
 
   const picked = getPickedImport(
-    pickImport(hand, { name: 'old-notes', nowMs: Date.parse('2026-03-10T11:43:00Z'), agent: null }),
+    pickImport(hand, {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
   );
 
   expect(picked.items.map((item) => item.id)).toStrictEqual(['t-a']);
@@ -1019,14 +1033,17 @@ test('it converts a whole store as store.md says, and leaves a closed item out',
 
   const picked = pickImport(hand, {
     name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
     agent: { harness: 'claude', id: 'a1b2-test' },
   });
 
   expect(picked).toStrictEqual({
     kind: 'import',
     session: {
-      format: '1',
+      format: '2',
+      grant: null,
       name: 'old-notes',
       goal: 'Ship it',
       started: '2026-03-02T08:00:00Z',
@@ -1115,7 +1132,7 @@ test('it converts a whole store as store.md says, and leaves a closed item out',
         op: 'import',
         id: 'old-notes',
         by: 'agent',
-        text: '0-by-hand -> 1',
+        text: '0-by-hand -> 2',
         why: null,
         extra: null,
       },
@@ -1140,7 +1157,13 @@ test('it ends the journal with the import row alone when there is no agent id', 
   });
 
   const picked = getPickedImport(
-    pickImport(hand, { name: 'old-notes', nowMs: Date.parse('2026-03-10T11:43:00Z'), agent: null }),
+    pickImport(hand, {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
   );
 
   expect(picked.journal.map((row) => row.op)).toStrictEqual(['init', 'import']);
@@ -1154,7 +1177,13 @@ test('it converts a store with no journal rows, with an empty last_write', () =>
   });
 
   const picked = getPickedImport(
-    pickImport(hand, { name: 'old-notes', nowMs: Date.parse('2026-03-10T11:43:00Z'), agent: null }),
+    pickImport(hand, {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
   );
 
   expect(picked.session.lastWrite).toBeNull();
@@ -1183,14 +1212,16 @@ test('it converts into files that the store parsers read back whole', () => {
   const picked = getPickedImport(
     pickImport(hand, {
       name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
       agent: { harness: 'claude', id: 'a1b2-test' },
     }),
   );
 
   const readBack = {
     session: parseSessionFile(formatSessionFile(picked.session)),
-    items: parseItemsFile(formatItemsFile(picked.items)),
+    items: parseItemsFile(formatItemsFile(picked.items), '2'),
     journal: parseJournalFile(
       `ts\top\tid\tby\ttext\twhy\textra\n${formatJournalRows(picked.journal)}`,
     ),
@@ -1200,5 +1231,150 @@ test('it converts into files that the store parsers read back whole', () => {
     session: { kind: 'session', session: picked.session },
     items: { kind: 'items', items: [...picked.items] },
     journal: [...picked.journal],
+  });
+});
+
+test('it converts a store to format 2 with no grant when it holds no standing approval', () => {
+  const picked = getPickedImport(
+    pickImport(buildHandKeptApprovals(['once']), {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
+  );
+
+  expect({
+    format: picked.session.format,
+    grant: picked.session.grant,
+    ops: picked.journal.map((row) => row.op),
+    importText: picked.journal.at(-1)?.text,
+  }).toStrictEqual({ format: '2', grant: null, ops: ['import'], importText: '0-by-hand -> 2' });
+});
+
+test('it refuses a standing token with no --quote, and prints the flags that fix it', () => {
+  const picked = pickImport(buildHandKeptApprovals(['standing']), {
+    name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
+    nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
+    agent: null,
+  });
+
+  expect(picked).toStrictEqual({
+    kind: 'refused',
+    refusal: {
+      exitCode: 3,
+      lines: [
+        "www: refused: old-notes holds 1 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
+        '  ok-0  "Approval 0" · the repo',
+      ],
+      runs: [
+        {
+          www: [
+            'import',
+            'old-notes',
+            '--quote',
+            "<the owner's words, whole>",
+            '--where',
+            'chat',
+            '--reading',
+            '<what they cover; what the owner kept back>',
+          ],
+        },
+      ],
+    },
+  });
+});
+
+test('it folds a standing token into the grant: no item, a drop row, then the grant row', () => {
+  const picked = getPickedImport(
+    pickImport(buildHandKeptApprovals(['standing', 'once']), {
+      name: 'old-notes',
+      args: buildParsedArgs([
+        'import',
+        'old-notes',
+        '--quote',
+        'Merge it\nyourself.',
+        '--where',
+        'chat',
+        '--reading',
+        'covers merges',
+      ]),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: true,
+      agent: null,
+    }),
+  );
+
+  expect({
+    items: picked.items.map((item) => item.id),
+    grant: picked.session.grant,
+    rows: picked.journal.map((row) => [row.op, row.id, row.by, row.text, row.why, row.extra]),
+  }).toStrictEqual({
+    items: ['ok-1'],
+    grant: {
+      words: 'Merge it yourself.',
+      reading: 'covers merges',
+      where: 'chat',
+      set: '2026-03-10T11:43:00Z',
+    },
+    rows: [
+      [
+        'drop',
+        'ok-0',
+        'agent',
+        'Approval 0',
+        'folded into the grant by the format 2 upgrade',
+        null,
+      ],
+      ['grant', 'grant', 'owner', 'Merge it yourself.', 'covers merges', 'where=chat'],
+      ['import', 'old-notes', 'agent', '0-by-hand -> 2', null, null],
+    ],
+  });
+});
+
+test('it refuses two one-time approvals, and its Run line drops all but the newest', () => {
+  const picked = pickImport(buildHandKeptApprovals(['once', 'once']), {
+    name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
+    nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
+    agent: null,
+  });
+
+  expect(picked).toStrictEqual({
+    kind: 'refused',
+    refusal: expect.objectContaining({
+      lines: [
+        'www: refused: old-notes holds 2 one-time approvals, and format 2 holds 1. Drop all but one.',
+        expect.stringContaining('ok-0'),
+        expect.stringContaining('ok-1'),
+      ],
+    }),
+  });
+});
+
+test('it takes --drop for an approval and leaves the other one-time approval', () => {
+  const picked = getPickedImport(
+    pickImport(buildHandKeptApprovals(['once', 'once']), {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes', '--drop', 'ok-0']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
+  );
+
+  expect({
+    items: picked.items.map((item) => item.id),
+    rows: picked.journal.map((row) => [row.op, row.id, row.why]),
+  }).toStrictEqual({
+    items: ['ok-1'],
+    rows: [
+      ['drop', 'ok-0', 'dropped by the format 2 upgrade'],
+      ['import', 'old-notes', null],
+    ],
   });
 });

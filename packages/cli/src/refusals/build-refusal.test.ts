@@ -63,7 +63,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the claim is 152 characters, and the limit is 120. Write what is true now; the story belongs in a PR or a commit.\nRun: www task t-e2e "<claim of at most 120 characters>"\n',
+      'www: refused: the claim is 152 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.\nRun: www task t-e2e "<claim of at most 120 characters>"\n',
     fills: [{ '<claim of at most 120 characters>': 'A short claim' }],
   },
   {
@@ -77,7 +77,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the next step is 121 characters, and the limit is 120. Write what is true now; the story belongs in a PR or a commit.\nRun: www now t-a "<next step of at most 120 characters>"\n',
+      'www: refused: the next step is 121 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.\nRun: www now t-a "<next step of at most 120 characters>"\n',
     fills: [{ '<next step of at most 120 characters>': 'go' }],
   },
   {
@@ -444,7 +444,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not d-<n> or o-<n>.\nRun: www task t-one x\n',
+      'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not grant, d-<n> or o-<n>.\nRun: www task t-one x\n',
     fills: [{}],
   },
   {
@@ -455,7 +455,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not d-<n> or o-<n>.\nRun: www task <new id> x\n',
+      'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not grant, d-<n> or o-<n>.\nRun: www task <new id> x\n',
     fills: [{ '<new id>': 't-d4' }],
   },
   {
@@ -980,24 +980,24 @@ test.each([
     fills: [{}],
   },
   {
-    title: 'an import of a store that is format 1 already, with an agent id',
+    title: 'an import of a store that is format 2 already, with an agent id',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: ['import', 'tide-alerts'],
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: tide-alerts is already format 1. Bind this agent session to it.\nRun: www attach tide-alerts\n',
+      'www: refused: tide-alerts is already format 2. Bind this agent session to it.\nRun: www attach tide-alerts\n',
     fills: [{}],
   },
   {
-    title: 'an import of a store that is format 1 already, with no agent id',
+    title: 'an import of a store that is format 2 already, with no agent id',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: ['import', 'tide-alerts'],
     env: 'shell',
     exitCode: 3,
-    stderr: 'www: refused: tide-alerts is already format 1.\nRun: www --session tide-alerts\n',
+    stderr: 'www: refused: tide-alerts is already format 2.\nRun: www --session tide-alerts\n',
     fills: [{}],
   },
   {
@@ -1026,12 +1026,12 @@ test.each([
   {
     title: 'a store of a newer format (its Run line installs from npm)',
     setup: [],
-    files: [{ session: 'old-notes', name: 'session', text: 'format=2\n' }],
+    files: [{ session: 'old-notes', name: 'session', text: 'format=3\n' }],
     argv: ['--session', 'old-notes'],
     env: 'agent',
     exitCode: 5,
     stderr:
-      'www: old-notes is format 2, and this www reads format 1.\nRun: bun add -g @wherewerewe/cli@latest\n',
+      'www: old-notes is format 3, and this www reads format 2.\nRun: bun add -g @wherewerewe/cli@latest\n',
     fills: [],
   },
   {
@@ -1159,14 +1159,13 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, what they cover, and --once or --standing.\nRun: www ok ok-a --quote "<their exact words>" --who "<who>" --where "<where>" --scope "<what it covers>" "<--once or --standing>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<their exact words>" --who "<who>" --where "<where>" --scope "<what it covers>"\n',
     fills: [
       {
         '<their exact words>': 'merge yourself',
         '<who>': 'owner',
         '<where>': 'chat',
         '<what it covers>': 'bosun-api',
-        '<--once or --standing>': '--once',
       },
     ],
   },
@@ -1188,43 +1187,19 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, what they cover, and --once or --standing.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --once --scope "<what it covers>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope "<what it covers>"\n',
     fills: [{ '<what it covers>': 'bosun-api' }],
   },
   {
-    title: 'an approval with both --once and --standing',
-    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
-    files: [],
-    argv: [
-      'ok',
-      'ok-a',
-      '--quote',
-      'merge yourself',
-      '--who',
-      'owner',
-      '--where',
-      'chat',
-      '--scope',
-      'bosun-api',
-      '--once',
-      '--standing',
-    ],
-    env: 'agent',
-    exitCode: 3,
-    stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, what they cover, and --once or --standing.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope bosun-api "<--once or --standing>"\n',
-    fills: [{ '<--once or --standing>': '--standing' }],
-  },
-  {
-    title: 'an approval with neither --once nor --standing, and no quote',
+    title: 'an approval with no quote',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
     argv: ['ok', 'ok-a', '--who', 'owner', '--where', 'chat', '--scope', 'bosun-api'],
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, what they cover, and --once or --standing.\nRun: www ok ok-a --who owner --where chat --scope bosun-api --quote "<their exact words>" "<--once or --standing>"\n',
-    fills: [{ '<their exact words>': 'merge yourself', '<--once or --standing>': '--once' }],
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --who owner --where chat --scope bosun-api --quote "<their exact words>"\n',
+    fills: [{ '<their exact words>': 'merge yourself' }],
   },
   {
     title: 'a quote over its limit',
@@ -1246,7 +1221,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the quote is 121 characters, and the limit is 120. Write what is true now; the story belongs in a PR or a commit.\nRun: www ok ok-a --quote "<quote of at most 120 characters>" --who owner --where chat --scope bosun-api --once\n',
+      'www: refused: the quote is 121 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.\nRun: www ok ok-a --quote "<quote of at most 120 characters>" --who owner --where chat --scope bosun-api --once\n',
     fills: [{ '<quote of at most 120 characters>': 'merge yourself' }],
   },
   {
@@ -1480,7 +1455,7 @@ test.each([
     fills: [{ '<text with no secret in it>': 'bosun-api' }],
   },
   {
-    title: 'a full set of approvals',
+    title: 'a second approval while the one-time approval is open',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
       [
@@ -1494,39 +1469,12 @@ test.each([
         'chat',
         '--scope',
         'bosun-api',
-        '--once',
-      ],
-      [
-        'ok',
-        'ok-b',
-        '--quote',
-        'merge yourself',
-        '--who',
-        'owner',
-        '--where',
-        'chat',
-        '--scope',
-        'bosun-api',
-        '--once',
-      ],
-      [
-        'ok',
-        'ok-c',
-        '--quote',
-        'merge yourself',
-        '--who',
-        'owner',
-        '--where',
-        'chat',
-        '--scope',
-        'bosun-api',
-        '--once',
       ],
     ],
     files: [],
     argv: [
       'ok',
-      'ok-d',
+      'ok-b',
       '--quote',
       'merge yourself',
       '--who',
@@ -1535,13 +1483,12 @@ test.each([
       'chat',
       '--scope',
       'bosun-api',
-      '--once',
     ],
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the brief holds 3 of 3 approvals. Close one, or replace one with www set.\nRun: www drop ok-a --why "<reason>"\n',
-    fills: [{ '<reason>': 'no longer needed' }],
+      'www: refused: the brief holds 1 of 1 one-time approvals. Spend it with www use, or drop it.\nRun: www use ok-a --for "<what you did with it>"\n',
+    fills: [{ '<what you did with it>': 'merged it' }],
   },
   {
     title: 'an approval on a closed id',
@@ -1628,33 +1575,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not d-<n> or o-<n>.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope bosun-api --once\n',
-    fills: [{}],
-  },
-  {
-    title: 'use on a standing approval',
-    setup: [
-      ['init', 'tide-alerts', '--goal', 'Ship it'],
-      [
-        'ok',
-        'ok-merge',
-        '--quote',
-        'merge yourself',
-        '--who',
-        'owner',
-        '--where',
-        'chat',
-        '--scope',
-        'bosun-api',
-        '--standing',
-      ],
-    ],
-    files: [],
-    argv: ['use', 'ok-merge', '--for', 'merged it'],
-    env: 'agent',
-    exitCode: 3,
-    stderr:
-      'www: refused: ok-merge is standing, so there is nothing to spend.\nRun: www show ok-merge\n',
+      'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not grant, d-<n> or o-<n>.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope bosun-api --once\n',
     fills: [{}],
   },
   {
@@ -1668,7 +1589,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: t-a is a task, and use spends a --once approval.\nRun: www done t-a --evidence "<PR, commit or test run>"\n',
+      'www: refused: t-a is a task, and use spends the one-time approval.\nRun: www done t-a --evidence "<PR, commit or test run>"\n',
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
@@ -1682,7 +1603,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: r-a is a rule, and use spends a --once approval.\nRun: www done r-a --evidence "<PR, commit or test run>"\n',
+      'www: refused: r-a is a rule, and use spends the one-time approval.\nRun: www done r-a --evidence "<PR, commit or test run>"\n',
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
@@ -2014,7 +1935,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, what they cover, and --once or --standing.\nRun: www ok ok-a --quote "<text with no secret in it>" --who owner --where chat --once --scope "<what it covers>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<text with no secret in it>" --who owner --where chat --scope "<what it covers>"\n',
     fills: [{ '<text with no secret in it>': 'merge yourself', '<what it covers>': 'bosun-api' }],
   },
   {
@@ -2025,7 +1946,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, what they cover, and --once or --standing.\nRun: www ok ok-b --quote=--preview --where chat --scope tests --once --who "<who>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-b --quote=--preview --where chat --scope tests --who "<who>"\n',
     fills: [{ '<who>': 'owner' }],
   },
   {
@@ -2118,7 +2039,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait or an approval.\nRun: www rule <id> "<what the owner said, as a rule>"\n',
+      'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www rule <id> "<what the owner said, as a rule>"\n',
     fills: [
       {
         '<id>': 'r-owner-port',

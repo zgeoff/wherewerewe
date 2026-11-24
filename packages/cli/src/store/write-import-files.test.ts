@@ -54,7 +54,7 @@ test('it copies the originals byte for byte into import-backup/ and writes the n
       journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
     },
     converted: {
-      session: 'format=1\nname=old-notes\n',
+      session: 'format=2\nname=old-notes\n',
       items: 'new items\n',
       journal: 'new journal\n',
     },
@@ -64,8 +64,8 @@ test('it copies the originals byte for byte into import-backup/ and writes the n
     backup: ['session', 'items.tsv', 'journal.tsv'].map((name) =>
       ctx.readText(`import-backup/${name}`),
     ),
-    files: ['session', 'items.tsv', 'journal.tsv', 'owner.tsv', 'prs.tsv'].map((name) =>
-      ctx.readText(name),
+    files: ['session', 'items.tsv', 'journal.tsv', 'owner.tsv', 'prs.tsv', 'notes.tsv'].map(
+      (name) => ctx.readText(name),
     ),
     names: ctx.readNames(),
   }).toStrictEqual({
@@ -75,13 +75,22 @@ test('it copies the originals byte for byte into import-backup/ and writes the n
       'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
     ],
     files: [
-      'format=1\nname=old-notes\n',
+      'format=2\nname=old-notes\n',
       'new items\n',
       'new journal\n',
       'id\ttext\tsaid\ton\n',
       'ref\topened\tstate\tseen\n',
+      'id\towed\twritten\tnote\n',
     ],
-    names: ['import-backup', 'items.tsv', 'journal.tsv', 'owner.tsv', 'prs.tsv', 'session'],
+    names: [
+      'import-backup',
+      'items.tsv',
+      'journal.tsv',
+      'notes.tsv',
+      'owner.tsv',
+      'prs.tsv',
+      'session',
+    ],
   });
 });
 
@@ -101,7 +110,7 @@ test('it gives the backup and each new file the mode of the file it replaces', (
       items: 'id\tkind\tclaim\n',
       journal: 'ts\top\tid\ttext\n',
     },
-    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+    converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
   });
 
   expect(
@@ -112,6 +121,7 @@ test('it gives the backup and each new file the mode of the file it replaces', (
         'journal.tsv',
         'owner.tsv',
         'prs.tsv',
+        'notes.tsv',
         'import-backup/session',
         'import-backup/items.tsv',
         'import-backup/journal.tsv',
@@ -123,6 +133,7 @@ test('it gives the backup and each new file the mode of the file it replaces', (
     'journal.tsv': 0o600,
     'owner.tsv': 0o600,
     'prs.tsv': 0o600,
+    'notes.tsv': 0o600,
     'import-backup/session': 0o600,
     'import-backup/items.tsv': 0o640,
     'import-backup/journal.tsv': 0o600,
@@ -144,7 +155,7 @@ test('it keeps an owner.tsv and a prs.tsv that exist', () => {
 
   writeImportFiles(ctx.folder, {
     originals: { session: 'name=old-notes\n', items: null, journal: null },
-    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+    converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
   });
 
   expect(ctx.readText('owner.tsv')).toBe(
@@ -159,7 +170,7 @@ test('it copies only the original files that exist', () => {
 
   writeImportFiles(ctx.folder, {
     originals: { session: 'name=old-notes\n', items: null, journal: null },
-    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+    converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
   });
 
   expect(readdirSync(join(ctx.folder, 'import-backup'))).toStrictEqual(['session']);
@@ -173,7 +184,7 @@ test('it skips the backup when import-backup/ exists, so the true originals stay
 
   writeImportFiles(ctx.folder, {
     originals: { session: 'the true original\n', items: null, journal: null },
-    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+    converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
   });
 
   expect(ctx.readText('import-backup/session')).toBe('the true original\n');
@@ -190,7 +201,7 @@ test('it removes the backup folder and the staged files that an earlier import l
 
   writeImportFiles(ctx.folder, {
     originals: { session: 'name=old-notes\n', items: null, journal: null },
-    converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+    converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
   });
 
   expect(ctx.readNames()).toStrictEqual([
@@ -198,13 +209,14 @@ test('it removes the backup folder and the staged files that an earlier import l
     'items.tsv',
     'journal.tsv',
     'notes.tmp-1-abcd',
+    'notes.tsv',
     'owner.tsv',
     'prs.tsv',
     'session',
   ]);
 });
 
-test('it makes 26 file calls on a clean run, which the stop tests below walk through', () => {
+test('it makes 29 file calls on a clean run, which the stop tests below walk through', () => {
   const ctx = setupTest();
   const counted = { calls: 0 };
 
@@ -220,17 +232,17 @@ test('it makes 26 file calls on a clean run, which the stop tests below walk thr
         items: 'id\tkind\tclaim\n',
         journal: 'ts\top\tid\ttext\n',
       },
-      converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+      converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
     },
     buildSteppedImportFiles(createImportFiles(), 0, () => {
       counted.calls += 1;
     }),
   );
 
-  expect(counted.calls).toBe(26);
+  expect(counted.calls).toBe(29);
 });
 
-test.each(Array.from({ length: 24 }, (_value, step) => ({ step })))(
+test.each(Array.from({ length: 27 }, (_value, step) => ({ step })))(
   'it leaves the hand-kept files whole when it stops before call $step',
   (row) => {
     const ctx = setupTest();
@@ -253,7 +265,7 @@ test.each(Array.from({ length: 24 }, (_value, step) => ({ step })))(
             items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
             journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
           },
-          converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+          converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
         },
         ctx.stopBefore(row.step),
       );
@@ -272,12 +284,12 @@ test.each(Array.from({ length: 24 }, (_value, step) => ({ step })))(
 test.each([
   {
     title: 'items.tsv',
-    step: 24,
+    step: 27,
     files: ['name=old-notes\n', 'new items\n', 'ts\top\tid\ttext\n'],
   },
   {
     title: 'items.tsv and journal.tsv',
-    step: 25,
+    step: 28,
     files: ['name=old-notes\n', 'new items\n', 'new journal\n'],
   },
 ])('it has renamed $title and not session when it stops before call $step', (row) => {
@@ -296,7 +308,7 @@ test.each([
           items: 'id\tkind\tclaim\n',
           journal: 'ts\top\tid\ttext\n',
         },
-        converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+        converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
       },
       ctx.stopBefore(row.step),
     );
@@ -307,7 +319,7 @@ test.each([
   ]);
 });
 
-test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
+test.each(Array.from({ length: 29 }, (_value, step) => ({ step })))(
   'it leaves import-backup/ absent or complete when it stops before call $step',
   (row) => {
     const ctx = setupTest();
@@ -330,7 +342,7 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
             items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
             journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
           },
-          converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+          converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
         },
         ctx.stopBefore(row.step),
       );
@@ -350,27 +362,18 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
 );
 
 test.each([
-  { step: 16, staged: {} },
-  { step: 17, staged: { 'owner.tsv': 'id\ttext\tsaid\ton\n' } },
-  {
-    step: 18,
-    staged: { 'owner.tsv': 'id\ttext\tsaid\ton\n', 'prs.tsv': 'ref\topened\tstate\tseen\n' },
-  },
+  { step: 17, staged: {} },
+  { step: 18, staged: { 'owner.tsv': 'id\ttext\tsaid\ton\n' } },
   {
     step: 19,
-    staged: {
-      'owner.tsv': 'id\ttext\tsaid\ton\n',
-      'prs.tsv': 'ref\topened\tstate\tseen\n',
-      'items.tsv': 'new items\n',
-    },
+    staged: { 'owner.tsv': 'id\ttext\tsaid\ton\n', 'prs.tsv': 'ref\topened\tstate\tseen\n' },
   },
   {
     step: 20,
     staged: {
       'owner.tsv': 'id\ttext\tsaid\ton\n',
       'prs.tsv': 'ref\topened\tstate\tseen\n',
-      'items.tsv': 'new items\n',
-      'journal.tsv': 'new journal\n',
+      'notes.tsv': 'id\towed\twritten\tnote\n',
     },
   },
   {
@@ -378,9 +381,29 @@ test.each([
     staged: {
       'owner.tsv': 'id\ttext\tsaid\ton\n',
       'prs.tsv': 'ref\topened\tstate\tseen\n',
+      'notes.tsv': 'id\towed\twritten\tnote\n',
+      'items.tsv': 'new items\n',
+    },
+  },
+  {
+    step: 22,
+    staged: {
+      'owner.tsv': 'id\ttext\tsaid\ton\n',
+      'prs.tsv': 'ref\topened\tstate\tseen\n',
+      'notes.tsv': 'id\towed\twritten\tnote\n',
       'items.tsv': 'new items\n',
       'journal.tsv': 'new journal\n',
-      session: 'format=1\n',
+    },
+  },
+  {
+    step: 23,
+    staged: {
+      'owner.tsv': 'id\ttext\tsaid\ton\n',
+      'prs.tsv': 'ref\topened\tstate\tseen\n',
+      'notes.tsv': 'id\towed\twritten\tnote\n',
+      'items.tsv': 'new items\n',
+      'journal.tsv': 'new journal\n',
+      session: 'format=2\n',
     },
   },
 ])('it has staged the whole text of $staged when it stops before call $step', (row) => {
@@ -399,7 +422,7 @@ test.each([
           items: 'id\tkind\tclaim\n',
           journal: 'ts\top\tid\ttext\n',
         },
-        converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+        converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
       },
       ctx.stopBefore(row.step),
     );
@@ -408,7 +431,7 @@ test.each([
   expect(ctx.readStaged()).toStrictEqual(row.staged);
 });
 
-test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
+test.each(Array.from({ length: 29 }, (_value, step) => ({ step })))(
   'it finishes the same files, and leaves no temporary file, when it runs again after a stop before call $step',
   (row) => {
     const ctx = setupTest();
@@ -428,7 +451,7 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
         items: 'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
         journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
       },
-      converted: { session: 'format=1\n', items: 'new items\n', journal: 'new journal\n' },
+      converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
     };
 
     expect(() => {
@@ -444,6 +467,7 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
         'journal.tsv',
         'owner.tsv',
         'prs.tsv',
+        'notes.tsv',
         'import-backup/session',
         'import-backup/items.tsv',
         'import-backup/journal.tsv',
@@ -451,16 +475,25 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
       names: ctx.readNames(),
     }).toStrictEqual({
       files: [
-        'format=1\n',
+        'format=2\n',
         'new items\n',
         'new journal\n',
         'id\ttext\tsaid\ton\n',
         'ref\topened\tstate\tseen\n',
+        'id\towed\twritten\tnote\n',
         'name=old-notes\ngoal=Hold the kiln\n',
         'id\tkind\tclaim\nt-a\ttask\tWrite it\n',
         'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
       ],
-      names: ['import-backup', 'items.tsv', 'journal.tsv', 'owner.tsv', 'prs.tsv', 'session'],
+      names: [
+        'import-backup',
+        'items.tsv',
+        'journal.tsv',
+        'notes.tsv',
+        'owner.tsv',
+        'prs.tsv',
+        'session',
+      ],
     });
   },
 );

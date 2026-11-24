@@ -1,8 +1,9 @@
-import type { Extra, Item, Kind } from '../types.ts';
+import type { Format1Extra, Format1Item } from '../import/types.ts';
+import type { Item, Kind } from '../types.ts';
 import { itemsHeader } from './constants.ts';
 
-export type ItemsParse =
-  | { readonly kind: 'items'; readonly items: Item[] }
+export type ItemsParse<Row extends Item = Item> =
+  | { readonly kind: 'items'; readonly items: Row[] }
   | {
       readonly kind: 'broken';
 
@@ -11,10 +12,17 @@ export type ItemsParse =
       readonly reason: string;
 
       // the rows that do parse, which a read prints and a write never uses
-      readonly items: Item[];
+      readonly items: Row[];
     };
 
-export function parseItemsFile(text: string): ItemsParse {
+type Format = '1' | '2';
+
+// Format 2 has no use key and no item with the id grant. Format 1, read only by the upgrade, has
+// both.
+export function parseItemsFile(text: string, format: '2'): ItemsParse;
+export function parseItemsFile(text: string, format: '1'): ItemsParse<Format1Item>;
+
+export function parseItemsFile(text: string, format: Format): ItemsParse<Format1Item> {
   const lines = text.split('\n');
 
   if (lines.at(-1) === '') {
@@ -25,11 +33,11 @@ export function parseItemsFile(text: string): ItemsParse {
     return { kind: 'broken', line: 1, reason: 'the header row is missing or changed', items: [] };
   }
 
-  const items: Item[] = [];
+  const items: Format1Item[] = [];
   let firstBroken: { readonly line: number; readonly reason: string } | null = null;
 
   for (const [index, line] of lines.slice(1).entries()) {
-    const parsed = parseItemLine(line);
+    const parsed = parseItemLine(line, format);
 
     if (typeof parsed === 'string') {
       firstBroken ??= { line: index + 2, reason: parsed };
@@ -43,7 +51,7 @@ export function parseItemsFile(text: string): ItemsParse {
     : { kind: 'broken', line: firstBroken.line, reason: firstBroken.reason, items };
 }
 
-function parseItemLine(line: string): Item | string {
+function parseItemLine(line: string, format: Format): Format1Item | string {
   const cells = line.split('\t');
   const [id, kind, claim, check, atWrite, last, written, by, extraCell] = cells;
 
@@ -75,7 +83,11 @@ function parseItemLine(line: string): Item | string {
     return 'the claim is empty';
   }
 
-  const extra = parseExtra(extraCell);
+  if (format === '2' && id === 'grant') {
+    return "the id grant is the grant's";
+  }
+
+  const extra = parseExtra(extraCell, format);
 
   if (typeof extra === 'string') {
     return extra;
@@ -115,7 +127,7 @@ const extraKeys: ReadonlySet<string> = new Set([
   'pid_start',
 ]);
 
-function parseExtra(cell: string): Extra | string {
+function parseExtra(cell: string, format: Format): Format1Extra | string {
   if (cell === '-') {
     return {};
   }
@@ -125,6 +137,10 @@ function parseExtra(cell: string): Extra | string {
   for (const pair of cell.split(';')) {
     const split = pair.indexOf('=');
     const key = pair.slice(0, split);
+
+    if (format === '2' && key === 'use') {
+      return 'the key use is not in format 2';
+    }
 
     if (split < 1 || !extraKeys.has(key)) {
       return `the extra "${pair}" is not a known key=value pair`;

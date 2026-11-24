@@ -6,4 +6,7 @@ export interface CommandContext {
   readonly cwd: string;
   readonly nowMs: number;
   readonly root: string;
+
+  // the terminal test of owner-notes.md
+  readonly byOwner: boolean;
 }

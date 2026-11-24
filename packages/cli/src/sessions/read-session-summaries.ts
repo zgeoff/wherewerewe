@@ -30,6 +30,7 @@ async function readSummary(root: string, name: string): Promise<SessionSummary> 
 
   return match(parsed)
     .with({ kind: 'hand-kept' }, () => ({ ...empty, format: '0-by-hand' }))
+    .with({ kind: 'format-1' }, () => ({ ...empty, format: '1' }))
     .with({ kind: 'newer' }, (newer) => ({ ...empty, format: newer.format }))
     .with({ kind: 'broken' }, () => empty)
     .with({ kind: 'session' }, (found) => ({

@@ -2,9 +2,9 @@ import { expect, test } from 'bun:test';
 import { parseItemsFile } from './parse-items-file.ts';
 
 test('it reads rows, with a dash as an empty cell and extra as pairs', () => {
-  const text = `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\tpr:acme/tool#7\t-\t-\t2026-03-10T10:31:09Z\tagent\tblocked_by=w-a\nok-m\tok\tmerge it\t-\t-\t-\t2026-03-02T08:09:47Z\towner\twho=owner;use=standing\n`;
+  const text = `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\tpr:acme/tool#7\t-\t-\t2026-03-10T10:31:09Z\tagent\tblocked_by=w-a\nok-m\tok\tmerge it\t-\t-\t-\t2026-03-02T08:09:47Z\towner\twho=owner;scope=app\n`;
 
-  expect(parseItemsFile(text)).toStrictEqual({
+  expect(parseItemsFile(text, '2')).toStrictEqual({
     kind: 'items',
     items: [
       {
@@ -27,7 +27,7 @@ test('it reads rows, with a dash as an empty cell and extra as pairs', () => {
         last: null,
         written: '2026-03-02T08:09:47Z',
         by: 'owner',
-        extra: { who: 'owner', use: 'standing' },
+        extra: { who: 'owner', scope: 'app' },
       },
     ],
   });
@@ -72,13 +72,19 @@ test.each([
     'the claim is empty',
   ],
   [
-    'a bad use',
-    `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\tok\tx\t-\t-\t-\tw\tagent\tuse=often\n`,
+    'a use key, which format 2 has none of',
+    `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nok-a\tok\tx\t-\t-\t-\tw\tagent\tuse=once\n`,
     2,
-    'the use "often" is not once or standing',
+    'the key use is not in format 2',
+  ],
+  [
+    'an item with the id grant',
+    `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\ngrant\ttask\tx\t-\t-\t-\tw\tagent\t-\n`,
+    2,
+    "the id grant is the grant's",
   ],
 ])('it breaks on %s', (_title, text, line, reason) => {
-  expect(parseItemsFile(text)).toStrictEqual({ kind: 'broken', line, reason, items: [] });
+  expect(parseItemsFile(text, '2')).toStrictEqual({ kind: 'broken', line, reason, items: [] });
 });
 
 test('it keeps the rows that parse beside the first row that does not', () => {
@@ -87,10 +93,36 @@ test('it keeps the rows that parse beside the first row that does not', () => {
     `t-b\ttask\tWrite it\t-\t-\t-\t2026-03-10T10:31:09Z\tagent\t-\n` +
     `t-c\tchore\tx\t-\t-\t-\tw\tagent\t-\n`;
 
-  expect(parseItemsFile(text)).toStrictEqual({
+  expect(parseItemsFile(text, '2')).toStrictEqual({
     kind: 'broken',
     line: 2,
     reason: 'expected 9 tab-separated columns, found 2',
     items: [expect.objectContaining({ id: 't-b' })],
+  });
+});
+
+test('it reads a use key and an item with the id grant in format 1', () => {
+  const text =
+    `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n` +
+    `ok-m\tok\tmerge it\t-\t-\t-\t2026-03-02T08:09:47Z\towner\twho=owner;use=standing\n` +
+    `grant\ttask\tx\t-\t-\t-\t2026-03-02T08:09:47Z\tagent\t-\n`;
+
+  expect(parseItemsFile(text, '1')).toStrictEqual({
+    kind: 'items',
+    items: [
+      expect.objectContaining({ id: 'ok-m', extra: { who: 'owner', use: 'standing' } }),
+      expect.objectContaining({ id: 'grant', extra: {} }),
+    ],
+  });
+});
+
+test('it breaks a format 1 row whose use is not once or standing', () => {
+  const text = `id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\tok\tx\t-\t-\t-\tw\tagent\tuse=often\n`;
+
+  expect(parseItemsFile(text, '1')).toStrictEqual({
+    kind: 'broken',
+    line: 2,
+    reason: 'the use "often" is not once or standing',
+    items: [],
   });
 });

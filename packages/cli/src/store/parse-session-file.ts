@@ -1,8 +1,9 @@
-import type { SessionFile } from '../types.ts';
+import type { Grant, SessionFile } from '../types.ts';
 
 export type SessionParse =
   | { readonly kind: 'session'; readonly session: SessionFile }
   | { readonly kind: 'hand-kept' }
+  | { readonly kind: 'format-1' }
   | { readonly kind: 'newer'; readonly format: string }
   | { readonly kind: 'broken'; readonly reason: string };
 
@@ -10,6 +11,10 @@ const knownKeys: ReadonlySet<string> = new Set([
   'format',
   'name',
   'goal',
+  'grant',
+  'grant_reading',
+  'grant_where',
+  'grant_set',
   'started',
   'now',
   'now_next',
@@ -34,14 +39,18 @@ export function parseSessionFile(text: string): SessionParse {
     }
   }
 
-  // The format line decides first: a newer format may write lines this one cannot read.
+  // The format line decides first: another format may write lines this one cannot read.
   const format = pairs.get('format');
 
   if (format === '0-by-hand' || (format === undefined && badLine === null)) {
     return { kind: 'hand-kept' };
   }
 
-  if (format !== undefined && format !== '1') {
+  if (format === '1') {
+    return { kind: 'format-1' };
+  }
+
+  if (format !== undefined && format !== '2') {
     return { kind: 'newer', format };
   }
 
@@ -52,7 +61,7 @@ export function parseSessionFile(text: string): SessionParse {
   const unknownKey = [...pairs.keys()].find((key) => !knownKeys.has(key));
 
   if (unknownKey !== undefined) {
-    return { kind: 'broken', reason: `the key ${unknownKey} is not in format 1` };
+    return { kind: 'broken', reason: `the key ${unknownKey} is not in format 2` };
   }
 
   const name = pairs.get('name');
@@ -67,12 +76,19 @@ export function parseSessionFile(text: string): SessionParse {
     return { kind: 'broken', reason: 'started is required' };
   }
 
+  const grant = parseGrant(pairs);
+
+  if (typeof grant === 'string') {
+    return { kind: 'broken', reason: grant };
+  }
+
   return {
     kind: 'session',
     session: {
-      format: '1',
+      format: '2',
       name,
       goal,
+      grant,
       started,
       now: toOptional(pairs, 'now'),
       nowNext: toOptional(pairs, 'now_next'),
@@ -82,6 +98,38 @@ export function parseSessionFile(text: string): SessionParse {
       importedFrom: toOptional(pairs, 'imported_from'),
     },
   };
+}
+
+const grantLimits = [
+  { key: 'grant', limit: 700 },
+  { key: 'grant_reading', limit: 200 },
+  { key: 'grant_where', limit: 16 },
+] as const;
+
+// The four grant keys are all set or all empty. Returns a reason when they are neither, or when
+// one is over its limit.
+function parseGrant(pairs: ReadonlyMap<string, string>): Grant | string | null {
+  const words = pairs.get('grant') ?? '';
+  const reading = pairs.get('grant_reading') ?? '';
+  const where = pairs.get('grant_where') ?? '';
+  const set = pairs.get('grant_set') ?? '';
+  const values = [words, reading, where, set];
+
+  if (values.every((value) => value === '')) {
+    return null;
+  }
+
+  if (values.some((value) => value === '')) {
+    return 'the grant keys are not all set or all empty';
+  }
+
+  const over = grantLimits.find((entry) => [...(pairs.get(entry.key) ?? '')].length > entry.limit);
+
+  if (over !== undefined) {
+    return `the key ${over.key} is ${String([...(pairs.get(over.key) ?? '')].length)} characters, and the limit is ${String(over.limit)}`;
+  }
+
+  return { words, reading, where, set };
 }
 
 function toOptional(pairs: ReadonlyMap<string, string>, key: string): string | null {

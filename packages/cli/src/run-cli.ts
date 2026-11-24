@@ -26,12 +26,14 @@ import { pickAck } from './writes/pick-ack.ts';
 import { pickClose } from './writes/pick-close.ts';
 import { pickDecision } from './writes/pick-decision.ts';
 import { pickGoalWrite } from './writes/pick-goal-write.ts';
+import { pickGrantWrite } from './writes/pick-grant-write.ts';
 import { pickItemWrite } from './writes/pick-item-write.ts';
 import { pickNowWrite } from './writes/pick-now-write.ts';
 import { pickSay } from './writes/pick-say.ts';
 import { runOwnerWrite } from './writes/run-owner-write.ts';
 import { runWrite } from './writes/run-write.ts';
 import type { RunWriteResult } from './writes/run-write.ts';
+import type { WriteInput } from './writes/types.ts';
 
 // Parses the argv, finds the session, and runs the command. An expected outcome never throws: a
 // refusal comes back as a result with its text on stderr.
@@ -79,7 +81,14 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
       : toRefusalResult(buildRefusal({ kind: 'no-store-folder' }), buildRefusalScope(args));
   }
 
-  const context = { args, env: input.env, cwd: input.cwd, nowMs, root };
+  const context = {
+    args,
+    env: input.env,
+    cwd: input.cwd,
+    nowMs,
+    root,
+    byOwner: isOwnerTerminal(input),
+  };
 
   const result = await match(args.command)
     .with('import', () => runImportCommand(context))
@@ -114,7 +123,7 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
   return match(read)
     .with({ kind: 'store' }, (found) => runStoreCommand(context, found.store))
     .with({ kind: 'missing' }, () => refuseNoSession(context, name))
-    .with({ kind: 'hand-kept' }, { kind: 'newer' }, (unreadable) =>
+    .with({ kind: 'hand-kept' }, { kind: 'format-1' }, { kind: 'newer' }, (unreadable) =>
       toRefusalResult(
         buildReadRefusal(unreadable, { name, folder }),
         buildRefusalScope(context.args),
@@ -153,6 +162,10 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
 
   const pick = match(args.command)
     .with('goal', () => pickGoalWrite)
+    .with(
+      'grant',
+      () => (writeInput: WriteInput) => pickGrantWrite({ ...writeInput, byOwner: context.byOwner }),
+    )
     .with('now', () => pickNowWrite)
     .with('done', 'drop', 'use', () => pickClose)
     .with('decide', () => pickDecision)

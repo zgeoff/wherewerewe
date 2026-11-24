@@ -8,12 +8,12 @@ import { pickFixCommand } from './pick-fix-command.ts';
 import type { BriefInput } from './types.ts';
 import { wrapBlock } from './wrap-block.ts';
 
-const maxCharacters = 6400;
-const maxLines = 52;
+const maxCharacters = 7000;
+const maxLines = 63;
 
-// Renders every section of the brief in its order. When the text passes 6,400 characters or 52
-// lines, it drops item lines from the bottom up and says so. The note under NOW is part of its
-// section, so a cut never touches it.
+// Renders every section of the brief in its order. When the text passes 7,000 characters or 63
+// lines, it drops item lines from the bottom up and says so. The header, goal, grant, owner notes,
+// changed rows, the note under NOW and the footer are never cut.
 export function renderBrief(input: BriefInput): string {
   const sections = buildItemSections(input);
   const cutOrder = [5, 4, 3, 2, 1, 0];
@@ -78,10 +78,10 @@ function buildItemSections(input: BriefInput): ItemSection[] {
       ),
     },
     {
-      heading: `APPROVED (${String(approvals.length)} of 3)`,
+      heading: `APPROVED ONCE (${String(approvals.length)} of 1)`,
       lines: approvals.map(
         (item) =>
-          `  ${padID(item.id)}"${item.claim}" · ${item.extra.use ?? 'once'} · ${item.extra.scope ?? ''}${isOwed(item) ? '  [owed]' : ''}`,
+          `  ${padID(item.id)}"${item.claim}" · ${item.extra.scope ?? ''}${isOwed(item) ? '  [owed]' : ''}`,
       ),
     },
     {
@@ -203,6 +203,7 @@ function joinBrief(
   const lines = [
     ...renderHeader(input),
     ...formatGoalLines(input.session.goal),
+    ...renderGrant(input),
     ...renderOwnerNotes(input),
     ...renderChanged(input),
     ...renderNow(input),
@@ -258,6 +259,25 @@ function renderChecks(checks: BriefInput['checks']): string {
       return `${String(ran.count)} checks in ${ran.seconds.toFixed(1)}s${unchecked}`;
     })
     .exhaustive();
+}
+
+const noGrantLine =
+  'GRANT  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"';
+
+function renderGrant(input: BriefInput): string[] {
+  const grant = input.session.grant;
+
+  if (grant === null) {
+    return [noGrantLine];
+  }
+
+  const age = formatAge(input.nowMs - Date.parse(grant.set));
+
+  return [
+    `GRANT  from the owner in ${grant.where}, ${age} ago`,
+    ...wrapBlock(`"${grant.words}"`, '  ', '   '),
+    ...wrapBlock(grant.reading, '  reading: ', '    '),
+  ];
 }
 
 function renderOwnerNotes(input: BriefInput): string[] {

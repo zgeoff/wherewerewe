@@ -6,7 +6,8 @@ test('it returns the import that was picked', () => {
   const picked: ImportPick = {
     kind: 'import',
     session: {
-      format: '1',
+      format: '2',
+      grant: null,
       name: 'old-notes',
       goal: 'Ship it',
       started: '2026-03-02T08:00:00Z',
@@ -25,10 +26,17 @@ test('it returns the import that was picked', () => {
   expect(getPickedImport(picked)).toStrictEqual(picked);
 });
 
-test('it throws with the problem lines when the import was refused', () => {
-  const picked: ImportPick = { kind: 'refused', problems: ['session (goal): the key is missing.'] };
+test('it throws with the refusal lines when the import was refused', () => {
+  const picked: ImportPick = {
+    kind: 'refused',
+    refusal: {
+      exitCode: 3,
+      lines: ['www: refused: import found 1 rows that break the rules, and wrote nothing.'],
+      runs: [{ www: ['import', 'old-notes'] }],
+    },
+  };
 
   expect(() => getPickedImport(picked)).toThrow(
-    'the import was refused: session (goal): the key is missing.',
+    'the import was refused: www: refused: import found 1 rows that break the rules, and wrote nothing.',
   );
 });

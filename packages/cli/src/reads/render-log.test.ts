@@ -303,3 +303,25 @@ test('it shows owed: before an owed note, note cleared for a cleared note and im
     ].join('\n'),
   );
 });
+
+test('it labels the second line of a grant row reading', () => {
+  const rows: JournalRow[] = [
+    {
+      ts: '2026-03-10T10:48:15Z',
+      op: 'grant',
+      id: 'grant',
+      by: 'owner',
+      text: 'Merge the alert PRs yourself.',
+      why: 'covers merges on green CI',
+      extra: 'where=chat',
+    },
+  ];
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z')).toBe(
+    [
+      'day 9  10:48  grant     grant      owner  Merge the alert PRs yourself.',
+      '                                          reading: covers merges on green CI',
+      '',
+    ].join('\n'),
+  );
+});

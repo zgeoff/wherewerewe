@@ -14,11 +14,12 @@ type UnreadableStore = Exclude<
   { readonly kind: 'store' } | { readonly kind: 'missing' }
 >;
 
-// The refusal for a store that cannot be read as format 1. A store that is missing has no
+// The refusal for a store that cannot be read as format 2. A store that is missing has no
 // refusal here, because each command words that one itself.
 export function buildReadRefusal(read: UnreadableStore, session: SessionPlace): Refusal {
   return match(read)
     .with({ kind: 'hand-kept' }, () => buildRefusal({ kind: 'hand-kept', name: session.name }))
+    .with({ kind: 'format-1' }, () => buildRefusal({ kind: 'format-1', name: session.name }))
     .with({ kind: 'newer' }, (found) =>
       buildRefusal({ kind: 'newer', name: session.name, format: found.format }),
     )

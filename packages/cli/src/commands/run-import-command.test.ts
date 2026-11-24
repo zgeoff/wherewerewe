@@ -76,7 +76,16 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
   const before = await ctx.readTree();
 
   const result = await ctx.run(
-    ['import', 'old-notes'],
+    [
+      'import',
+      'old-notes',
+      '--quote',
+      'Push the alert branches yourself.',
+      '--where',
+      'terminal',
+      '--reading',
+      'covers pushes to the alert branches',
+    ],
     { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
     nowMs,
   );
@@ -85,7 +94,7 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
 
   expect(result).toStrictEqual({
     exitCode: 0,
-    stdout: `Imported old-notes: 6 items, 11 journal rows. Originals in ${ctx.folder}/import-backup/.\n`,
+    stdout: `Imported old-notes: 5 items, 11 journal rows. Originals in ${ctx.folder}/import-backup/.\n`,
     stderr: '',
   });
 
@@ -96,6 +105,7 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
       journal: ctx.readText('old-notes/journal.tsv'),
       owner: ctx.readText('old-notes/owner.tsv'),
       prs: ctx.readText('old-notes/prs.tsv'),
+      notes: ctx.readText('old-notes/notes.tsv'),
       binding: ctx.readText('.bindings/claude-a1b2-test'),
     },
     backup: [
@@ -107,12 +117,11 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
   }).toStrictEqual({
     files: {
       session:
-        'format=1\nname=old-notes\ngoal=Ship the kiln alerts\nstarted=2026-04-06T09:00:00Z\nnow=t-alerts\nnow_next=write the rule test\nnow_set=2026-04-07T10:15:00Z\nlast_write=2026-04-07T09:40:00Z\nlast_nudge=\nimported_from=0-by-hand\n',
+        'format=2\nname=old-notes\ngoal=Ship the kiln alerts\ngrant=Push the alert branches yourself.\ngrant_reading=covers pushes to the alert branches\ngrant_where=terminal\ngrant_set=2026-03-10T11:43:00Z\nstarted=2026-04-06T09:00:00Z\nnow=t-alerts\nnow_next=write the rule test\nnow_set=2026-04-07T10:15:00Z\nlast_write=2026-04-07T09:40:00Z\nlast_nudge=\nimported_from=0-by-hand\n',
       items: [
         'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra',
         't-alerts\ttask\tAlert rule fires above 1,280 °C\tpr:kilnworks/pottery-app#12\t-\t-\t2026-04-07T10:15:00Z\tagent\tblocked_by=w-probe',
         'w-probe\twait\tthe vendor to confirm the sensor range\t-\t-\t-\t2026-04-06T11:00:00Z\tagent\twho=vendor',
-        'ok-push\tok\tpush the alert branches yourself\t-\t-\t-\t2026-04-06T09:05:00Z\tagent\twho=owner;where=terminal;scope=pottery-app branches;use=standing',
         'r-units\trule\tStore tenths of a degree\t-\t-\t-\t2026-04-06T09:10:00Z\tagent\t-',
         'wh-sim\twhere\tKiln simulator in /srv/kiln-sim\tpath:/srv/kiln-sim\t-\t-\t2026-04-06T09:20:00Z\tagent\t-',
         'q-1\twait\tWhich kilns first\t-\t-\t-\t2026-04-06T09:40:00Z\timport\twho=owner',
@@ -131,12 +140,15 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
         '2026-04-07T09:00:00Z\tok\tok-push\timport\towner approved pushes\t-\t-',
         '2026-04-07T09:30:00Z\tuse\tok-once\timport\tmerged the setup PR\t-\t-',
         '2026-04-07T09:40:00Z\tdrop\tt-spike\timport\tthe old probe is gone\t-\t-',
-        '2026-03-10T11:43:00Z\timport\told-notes\tagent\t0-by-hand -> 1\t-\t-',
+        '2026-03-10T11:43:00Z\tdrop\tok-push\tagent\tpush the alert branches yourself\tfolded into the grant by the format 2 upgrade\t-',
+        '2026-03-10T11:43:00Z\tgrant\tgrant\tagent\tPush the alert branches yourself.\tcovers pushes to the alert branches\twhere=terminal',
+        '2026-03-10T11:43:00Z\timport\told-notes\tagent\t0-by-hand -> 2\t-\t-',
         '2026-03-10T11:43:00Z\tbind\told-notes\tagent\timport\t-\tharness=claude;agent=a1b2-test',
         '',
       ].join('\n'),
       owner: 'id\ttext\tsaid\ton\n',
       prs: 'ref\topened\tstate\tseen\n',
+      notes: 'id\towed\twritten\tnote\n',
       binding: 'name=old-notes\n',
     },
     backup: [originals.session, `${originals.items}\n`, `${originals.journal}\n`],
@@ -147,6 +159,7 @@ test('it converts a hand-kept store, keeps the originals, and binds the agent', 
       'old-notes/import-backup/session',
       'old-notes/items.tsv',
       'old-notes/journal.tsv',
+      'old-notes/notes.tsv',
       'old-notes/owner.tsv',
       'old-notes/prs.tsv',
       'old-notes/session',
@@ -213,6 +226,7 @@ test('it converts the store its name gives, whatever --session says', async () =
       'old-notes/import-backup/session',
       'old-notes/items.tsv',
       'old-notes/journal.tsv',
+      'old-notes/notes.tsv',
       'old-notes/owner.tsv',
       'old-notes/prs.tsv',
       'old-notes/session',
@@ -320,7 +334,7 @@ test('it refuses a hand-kept session with CRLF line endings by its rows, not as 
   });
 });
 
-test('it refuses a store that is format 1 already', async () => {
+test('it refuses a store that is format 2 already', async () => {
   const ctx = setupTest();
   const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
@@ -335,7 +349,7 @@ test('it refuses a store that is format 1 already', async () => {
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: 'www: refused: old-notes is already format 1.\nRun: www --session old-notes\n',
+      stderr: 'www: refused: old-notes is already format 2.\nRun: www --session old-notes\n',
     },
     unchanged: before,
   });
@@ -391,14 +405,14 @@ test('it binds the agent with the Run line of a rerun, after an import stopped b
     lastRows: ctx.readText('old-notes/journal.tsv').trimEnd().split('\n').slice(-3),
   }).toStrictEqual({
     stopped: {
-      session: expect.stringContaining('format=1\n'),
+      session: expect.stringContaining('format=2\n'),
       binding: true,
     },
     retried: {
       exitCode: 3,
       stdout: '',
       stderr:
-        'www: refused: old-notes is already format 1. Bind this agent session to it.\nRun: www attach old-notes\n',
+        'www: refused: old-notes is already format 2. Bind this agent session to it.\nRun: www attach old-notes\n',
     },
     attached: {
       exitCode: 0,
@@ -411,7 +425,7 @@ test('it binds the agent with the Run line of a rerun, after an import stopped b
     items:
       'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-04-06T09:00:00Z\tagent\t-\n',
     lastRows: [
-      '2026-03-10T11:43:00Z\timport\told-notes\tagent\t0-by-hand -> 1\t-\t-',
+      '2026-03-10T11:43:00Z\timport\told-notes\tagent\t0-by-hand -> 2\t-\t-',
       '2026-03-10T11:43:00Z\tbind\told-notes\tagent\timport\t-\tharness=claude;agent=a1b2-test',
       '2026-03-10T11:43:00Z\tbind\told-notes\tagent\tattach\t-\tharness=claude;agent=a1b2-test',
     ],
@@ -494,7 +508,7 @@ test('it refuses a store of a newer format, and writes nothing', async () => {
   const ctx = setupTest();
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
 
-  seedStoreFile(ctx.folder, 'session', 'format=2\n');
+  seedStoreFile(ctx.folder, 'session', 'format=3\n');
 
   const before = await ctx.readTree();
 
@@ -511,7 +525,7 @@ test('it refuses a store of a newer format, and writes nothing', async () => {
       exitCode: 5,
       stdout: '',
       stderr:
-        'www: old-notes is format 2, and this www reads format 1.\nRun: bun add -g @wherewerewe/cli@latest\n',
+        'www: old-notes is format 3, and this www reads format 2.\nRun: bun add -g @wherewerewe/cli@latest\n',
     },
     unchanged: before,
   });

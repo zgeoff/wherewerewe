@@ -1,4 +1,4 @@
-import type { Item, Kind } from '../types.ts';
+import type { Extra, Item, Kind } from '../types.ts';
 import type { HandKeptRow } from './parse-hand-kept-store.ts';
 
 export interface JournalFact {
@@ -28,8 +28,29 @@ export interface Question {
 }
 
 export interface ItemChecks {
-  readonly items: readonly Item[];
+  readonly items: readonly Format1Item[];
   readonly problems: readonly string[];
   readonly openKinds: ReadonlyMap<string, Kind>;
   readonly openIDs: ReadonlyMap<string, number>;
+}
+
+export interface Format1Extra extends Extra {
+  readonly use?: 'once' | 'standing';
+}
+
+export interface Format1Item extends Omit<Item, 'extra'> {
+  readonly extra: Format1Extra;
+}
+
+export interface Format1Session {
+  readonly format: '1';
+  readonly name: string;
+  readonly goal: string;
+  readonly started: string;
+  readonly now: string | null;
+  readonly nowNext: string | null;
+  readonly nowSet: string | null;
+  readonly lastWrite: string | null;
+  readonly lastNudge: string | null;
+  readonly importedFrom: string | null;
 }

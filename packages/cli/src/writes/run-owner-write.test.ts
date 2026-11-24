@@ -55,7 +55,7 @@ test('it writes a note to owner.tsv and the journal and nothing else', async () 
     result: {
       exitCode: 0,
       stdout:
-        'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
+        'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 7 lines.\n',
       stderr: '',
     },
     changed: ['tide-alerts/journal.tsv', 'tide-alerts/owner.tsv'],
@@ -82,7 +82,7 @@ test('it writes a note on an item with its id in the extra', async () => {
     result: {
       exitCode: 0,
       stdout:
-        'o-1  owner note on t-timer. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.\n',
+        'o-1  owner note on t-timer. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 9 lines.\n',
       stderr: '',
     },
     owner: 'id\ttext\tsaid\ton\no-1\tUse the recorded readings\t2026-03-10T11:43:02Z\tt-timer\n',
@@ -109,7 +109,7 @@ test('it removes the note on ack and appends the ack row to the journal', async 
   }).toStrictEqual({
     result: {
       exitCode: 0,
-      stdout: 'o-1  cleared. Kept in the journal. Brief: 4 lines.\n',
+      stdout: 'o-1  cleared. Kept in the journal. Brief: 5 lines.\n',
       stderr: '',
     },
     changed: ['tide-alerts/journal.tsv', 'tide-alerts/owner.tsv'],
@@ -207,6 +207,7 @@ test('it shows each note first after the goal, and refuses a third until one is 
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
+GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
 NOW  none. Run: www now <id> "<next step>"
@@ -220,6 +221,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
+GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (2) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
   o-2  Use readings  [on t-a · 0m]
@@ -240,6 +242,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
+GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
 OWNER SAYS (1) · act on it; only the owner clears it
   o-2  Use readings  [on t-a · 0m]
 NOW  none. Run: www now <id> "<next step>"
@@ -253,6 +256,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       exitCode: 0,
       stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
+GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"
 NOW  none. Run: www now <id> "<next step>"
 OPEN (1 of 6)
   t-a         Write it  [no check · 0m]
@@ -274,7 +278,7 @@ test('it counts the two note lines and the section line in an agent write reply'
 
   expect(result).toStrictEqual({
     exitCode: 0,
-    stdout: 't-a  task, open, no check. Brief: 9 lines.\n',
+    stdout: 't-a  task, open, no check. Brief: 10 lines.\n',
     stderr: '',
   });
 });
@@ -286,7 +290,7 @@ test.each([
     result: {
       exitCode: 0,
       stdout:
-        'o-5  owner note. It tops the brief until you run: www --session tide-alerts ack o-5. Brief: 6 lines.\n',
+        'o-5  owner note. It shows in every brief until you run: www --session tide-alerts ack o-5. Brief: 7 lines.\n',
       stderr: '',
     },
     owner: 'id\ttext\tsaid\ton\no-5\tAsk me first\t2026-03-10T11:43:01Z\t-\n',
@@ -336,7 +340,7 @@ test('it never reuses the number of an acknowledged note', async () => {
   expect(next).toStrictEqual({
     exitCode: 0,
     stdout:
-      'o-3  owner note. It tops the brief until you run: www --session tide-alerts ack o-3. Brief: 6 lines.\n',
+      'o-3  owner note. It shows in every brief until you run: www --session tide-alerts ack o-3. Brief: 7 lines.\n',
     stderr: '',
   });
 });

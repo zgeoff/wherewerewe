@@ -34,7 +34,8 @@ test('it writes the items and the session, and appends the journal rows', async 
       },
     ],
     session: {
-      format: '1',
+      format: '2',
+      grant: null,
       name: 'tide-alerts',
       goal: 'Ship it',
       started: '2026-03-02T08:04:11Z',

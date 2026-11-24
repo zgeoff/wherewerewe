@@ -80,10 +80,7 @@ export function pickClose(input: WriteInput): WriteResult {
           ? {
               suggestIDs: store.items
                 .filter(
-                  (candidate) =>
-                    candidate.kind === 'ok' &&
-                    candidate.extra.use === 'once' &&
-                    !input.journal.closed.has(candidate.id),
+                  (candidate) => candidate.kind === 'ok' && !input.journal.closed.has(candidate.id),
                 )
                 .map((candidate) => candidate.id),
             }
@@ -162,9 +159,5 @@ export function pickClose(input: WriteInput): WriteResult {
 }
 
 function pickUseRefusal(item: Item): RefusalReason | null {
-  if (item.kind !== 'ok') {
-    return { kind: 'use-not-approval', id: item.id, itemKind: item.kind };
-  }
-
-  return item.extra.use === 'once' ? null : { kind: 'use-standing', id: item.id };
+  return item.kind === 'ok' ? null : { kind: 'use-not-approval', id: item.id, itemKind: item.kind };
 }

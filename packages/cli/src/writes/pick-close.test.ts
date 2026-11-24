@@ -20,7 +20,8 @@ function setupTest() {
       options: PickOptions = {},
     ) => {
       const session: SessionFile = {
-        format: '1',
+        format: '2',
+        grant: null,
         name: 'tide-alerts',
         goal: 'Ship it',
         started: '2026-03-02T08:04:11Z',
@@ -66,7 +67,7 @@ test('it spends a once approval: the item leaves, and the journal keeps its quot
         id: 'ok-wipe',
         kind: 'ok',
         claim: 'wipe the staging tmp dir',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
     ],
     null,
@@ -103,7 +104,7 @@ test('it replies that the approval is used, and off the brief', () => {
         id: 'ok-wipe',
         kind: 'ok',
         claim: 'wipe the staging tmp dir',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
     ],
     null,
@@ -124,7 +125,7 @@ test('it clears the focus when the spent approval was in it', () => {
         id: 'ok-wipe',
         kind: 'ok',
         claim: 'wipe the staging tmp dir',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
     ],
     'ok-wipe',
@@ -146,7 +147,7 @@ test('it leaves the focus on another item alone', () => {
         id: 'ok-wipe',
         kind: 'ok',
         claim: 'wipe the staging tmp dir',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
       buildMockItem({ id: 't-a' }),
     ],
@@ -158,19 +159,14 @@ test('it leaves the focus on another item alone', () => {
 
 test.each([
   [
-    'a standing approval',
-    [buildMockItem({ id: 'ok-wipe', kind: 'ok', extra: { use: 'standing' } })],
-    'www: refused: ok-wipe is standing, so there is nothing to spend.',
-  ],
-  [
     'a task',
     [buildMockItem({ id: 'ok-wipe' })],
-    'www: refused: ok-wipe is a task, and use spends a --once approval.',
+    'www: refused: ok-wipe is a task, and use spends the one-time approval.',
   ],
   [
     'a rule',
     [buildMockItem({ id: 'ok-wipe', kind: 'rule' })],
-    'www: refused: ok-wipe is a rule, and use spends a --once approval.',
+    'www: refused: ok-wipe is a rule, and use spends the one-time approval.',
   ],
   ['no open item', [], 'www: refused: no open item ok-wipe. Open items: none.'],
 ])('it refuses use on %s', (_title, items, line) => {
@@ -189,7 +185,7 @@ test('it suggests no spent approval for an unknown use id, and reads the id when
   const spent = buildMockItem({
     id: 'ok-a',
     kind: 'ok',
-    extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+    extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
   });
 
   const closed = new Map([['ok-a', '2026-03-10T10:00:00Z']]);
@@ -201,7 +197,7 @@ test('it suggests no spent approval for an unknown use id, and reads the id when
       buildMockItem({
         id: 'ok-b',
         kind: 'ok',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
     ],
     null,
@@ -243,7 +239,7 @@ test('it refuses use with no --for', () => {
         id: 'ok-wipe',
         kind: 'ok',
         claim: 'wipe the staging tmp dir',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
     ],
     null,
@@ -273,7 +269,7 @@ test.each([
         id: 'ok-wipe',
         kind: 'ok',
         claim: 'wipe the staging tmp dir',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
     ],
     null,
@@ -292,7 +288,7 @@ test('it finishes the rewrite of an approval whose use row is already in the jou
         id: 'ok-wipe',
         kind: 'ok',
         claim: 'wipe the staging tmp dir',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api', use: 'once' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api' },
       }),
     ],
     null,
@@ -344,7 +340,7 @@ test('it prints the note of a spent approval after used.', () => {
     id: 'ok-wipe',
     kind: 'ok',
     claim: 'wipe it',
-    extra: { who: 'owner', where: 'terminal', scope: 'api', use: 'once' },
+    extra: { who: 'owner', where: 'terminal', scope: 'api' },
   });
 
   const picked = getPickedWrite(
@@ -423,7 +419,7 @@ test('it refuses use on an owed note after its own checks', () => {
     id: 'ok-wipe',
     kind: 'ok',
     claim: 'wipe it',
-    extra: { who: 'owner', where: 'terminal', scope: 'api', use: 'once' },
+    extra: { who: 'owner', where: 'terminal', scope: 'api' },
   });
 
   const picked = ctx.pick(['use', 'ok-wipe', '--for', 'wiped'], [approval], null, {
@@ -432,24 +428,5 @@ test('it refuses use on an owed note after its own checks', () => {
 
   expect(picked.kind === 'refused' && picked.refusal.lines[0]).toBe(
     'www: refused: ok-wipe has an owed note (1h). Clear it once the work is done, or replace it with a note that is not owed.',
-  );
-});
-
-test('it refuses a use on a standing approval with an owed note as standing, so its own check comes first', () => {
-  const ctx = setupTest();
-
-  const approval = buildMockItem({
-    id: 'ok-wipe',
-    kind: 'ok',
-    claim: 'wipe it',
-    extra: { who: 'owner', where: 'terminal', scope: 'api', use: 'standing' },
-  });
-
-  const picked = ctx.pick(['use', 'ok-wipe', '--for', 'wiped'], [approval], null, {
-    notes: [buildMockNote({ id: 'ok-wipe', owed: true })],
-  });
-
-  expect(picked.kind === 'refused' && picked.refusal.lines[0]).toBe(
-    'www: refused: ok-wipe is standing, so there is nothing to spend.',
   );
 });

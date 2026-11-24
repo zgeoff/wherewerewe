@@ -1,17 +1,19 @@
 import { expect, test } from 'bun:test';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
-import type { Item, JournalRow, Note, SessionFile } from '../types.ts';
+import type { Grant, Item, JournalRow, Note, SessionFile } from '../types.ts';
 import { renderShow } from './render-show.ts';
 
 interface ShowOptions {
   readonly closed?: ReadonlyMap<string, string>;
   readonly notes?: readonly Note[];
+  readonly grant?: Grant;
 }
 
 function setupTest() {
   const session: SessionFile = {
-    format: '1',
+    format: '2',
+    grant: null,
     name: 'tide-alerts',
     goal: 'Ship it',
     started: '2026-03-02T08:04:11Z',
@@ -34,7 +36,7 @@ function setupTest() {
         id,
         store: {
           folder: '/state/tide-alerts',
-          session,
+          session: { ...session, grant: options.grant ?? null },
           items,
           ownerNotes: [],
           notes: options.notes ?? [],
@@ -151,7 +153,7 @@ test('it shows a wait with who it waits on, and a task with what blocks it', () 
   ]);
 });
 
-test('it shows an approval with who gave it, where, its use and its scope', () => {
+test('it shows an approval with who gave it, where and its scope', () => {
   const ctx = setupTest();
 
   const text = ctx.show(
@@ -161,7 +163,7 @@ test('it shows an approval with who gave it, where, its use and its scope', () =
         id: 'ok-merge',
         kind: 'ok',
         claim: 'merge the alert PRs yourself once CI is green',
-        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api, bosun-app', use: 'standing' },
+        extra: { who: 'owner', where: 'terminal', scope: 'bosun-api, bosun-app' },
         written: '2026-03-02T08:09:47Z',
       }),
     ],
@@ -170,7 +172,6 @@ test('it shows an approval with who gave it, where, its use and its scope', () =
         ts: '2026-03-02T08:09:47Z',
         op: 'ok',
         id: 'ok-merge',
-        extra: 'use=standing',
       }),
     ],
   );
@@ -179,7 +180,7 @@ test('it shows an approval with who gave it, where, its use and its scope', () =
     [
       'ok-merge  approval, open since day 1, by agent',
       '  quote (8d): merge the alert PRs yourself once CI is green',
-      '  given by owner in terminal · standing · scope: bosun-api, bosun-app',
+      '  given by owner in terminal · scope: bosun-api, bosun-app',
       '  journal: day 1 ok',
       '',
     ].join('\n'),
@@ -479,4 +480,71 @@ test('it prints no note line for an item with no note', () => {
   );
 
   expect(text).not.toInclude('note (');
+});
+
+test("it prints commands.md's show grant example after the reading alone was replaced", () => {
+  const ctx = setupTest();
+
+  const grantWords =
+    "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from the prod push certificate and the prod database, and don't publish a tidekit release.";
+
+  const grantReading =
+    'covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases';
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: grantWords,
+        why: 'covers merges',
+        extra: 'where=chat',
+      }),
+      buildMockJournalRow({
+        ts: '2026-03-10T11:31:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: grantWords,
+        why: grantReading,
+        extra: 'where=chat',
+      }),
+    ],
+    {
+      grant: {
+        words: grantWords,
+        reading: grantReading,
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect(text).toBe(
+    [
+      'grant  from the owner in chat, words set on day 2 by agent, reading set on day 9',
+      '  words (7d): "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every',
+      '    review finding is answered. Deploy either app to staging whenever you need to, and wipe or',
+      '    reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our',
+      "    fork. Keep away from the prod push certificate and the prod database, and don't publish a",
+      '    tidekit release."',
+      '  reading (12m): covers merges in both repos on green CI with findings answered, staging deploys,',
+      '    the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit',
+      '    merges and releases',
+      '  journal: day 2 grant · day 9 grant',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it prints the none line for show grant when the session holds no grant', () => {
+  const ctx = setupTest();
+
+  expect(ctx.show('grant', [], [])).toBe(
+    'grant  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"\n',
+  );
 });

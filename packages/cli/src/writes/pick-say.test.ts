@@ -6,7 +6,8 @@ import { pickSay } from './pick-say.ts';
 
 function setupTest() {
   const session: SessionFile = {
-    format: '1',
+    format: '2',
+    grant: null,
     name: 'tide-alerts',
     goal: 'Ship it',
     started: '2026-03-02T08:04:11Z',
@@ -72,7 +73,7 @@ test('it writes the first note as o-1, with a journal row by the owner and a rep
       },
       reply: expect.any(Function),
     },
-    'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.',
+    'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.',
   ]);
 });
 
@@ -104,7 +105,7 @@ test('it writes a note on an item with on= in the extra, and appends it to the s
       },
       reply: expect.any(Function),
     },
-    'o-2  owner note on t-a. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: 9 lines.',
+    'o-2  owner note on t-a. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 9 lines.',
   ]);
 });
 

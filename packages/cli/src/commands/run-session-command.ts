@@ -1,6 +1,8 @@
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
 import { formatTimestamp } from '../format-timestamp.ts';
+import { findFormat } from '../import/find-format.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
 import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
@@ -69,9 +71,10 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
     createSessionStore(
       root,
       {
-        format: '1',
+        format: '2',
         name,
         goal,
+        grant: null,
         started: ts,
         now: null,
         nowNext: null,
@@ -84,6 +87,12 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
     );
 
   const folder = join(root, name);
+
+  const hasFormat1 = await probeFormat1Folder(folder);
+
+  if (hasFormat1) {
+    return replyRefusal(buildRefusal({ kind: 'format-1', name }), context);
+  }
 
   if (agent === null) {
     const created = await createStore();
@@ -133,6 +142,14 @@ function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
   };
 }
 
+// The refusal of a format 1 store names its upgrade, which the session-exists refusal's own Run
+// line, www attach, could not run.
+async function probeFormat1Folder(folder: string): Promise<boolean> {
+  const text = await readFile(join(folder, 'session'), 'utf8').catch(() => null);
+
+  return text !== null && findFormat(text) === '1';
+}
+
 function replyOK(text: string): CLIResult {
   return { exitCode: 0, stdout: `${text}\n`, stderr: '' };
 }
@@ -164,8 +181,12 @@ async function runAttach(context: CommandContext): Promise<CLIResult> {
 
       return replyRefusal(buildRefusal({ kind: 'attach-no-session', name, sessions }), context);
     })
-    .with({ kind: 'hand-kept' }, { kind: 'newer' }, { kind: 'broken' }, (unreadable) =>
-      replyRefusal(buildReadRefusal(unreadable, { name, folder }), context),
+    .with(
+      { kind: 'hand-kept' },
+      { kind: 'format-1' },
+      { kind: 'newer' },
+      { kind: 'broken' },
+      (unreadable) => replyRefusal(buildReadRefusal(unreadable, { name, folder }), context),
     )
     .exhaustive();
 }
@@ -235,6 +256,9 @@ async function runDetach(context: CommandContext): Promise<CLIResult> {
       replyOK(`Unbound this ${readHarnessLabel(agent)} session from ${name}.`),
     )
     .with({ kind: 'moved' }, () => runDetach(context))
+    .with({ kind: 'format-1' }, () =>
+      replyRefusal(buildRefusal({ kind: 'format-1', name }), context),
+    )
     .with({ kind: 'busy' }, (busy) =>
       replyRefusal(
         buildRefusal({ kind: 'lock-busy', args: context.args, name, pid: busy.pid }),
@@ -247,6 +271,7 @@ async function runDetach(context: CommandContext): Promise<CLIResult> {
 type DetachOutcome =
   | { readonly kind: 'unbound' }
   | { readonly kind: 'moved' }
+  | { readonly kind: 'format-1' }
   | { readonly kind: 'busy'; readonly pid: number | null };
 
 // Takes the lock of the session the binding named, then the binding lock, and reads the binding
@@ -275,6 +300,7 @@ async function detachFrom(
         .with({ kind: 'busy' }, (busy): DetachOutcome => ({ kind: 'busy', pid: busy.pid }))
         .exhaustive();
     })
+    .with({ kind: 'format-1' }, (): Promise<DetachOutcome> => Promise.resolve({ kind: 'format-1' }))
     .with(
       { kind: 'missing' },
       { kind: 'hand-kept' },

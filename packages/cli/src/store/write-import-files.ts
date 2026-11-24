@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import type { HandKeptFiles } from '../import/parse-hand-kept-store.ts';
-import { ownerHeader, prsHeader } from './constants.ts';
+import { notesHeader, ownerHeader, prsHeader } from './constants.ts';
 import { createImportFiles } from './create-import-files.ts';
 import type { ImportFiles } from './types.ts';
 
@@ -34,6 +34,7 @@ export function writeImportFiles(
   const newFiles = [
     { name: 'owner.tsv', text: `${ownerHeader}\n` },
     { name: 'prs.tsv', text: `${prsHeader}\n` },
+    { name: 'notes.tsv', text: `${notesHeader}\n` },
     { name: 'items.tsv', text: write.converted.items },
     { name: 'journal.tsv', text: write.converted.journal },
     { name: 'session', text: write.converted.session },
@@ -41,7 +42,8 @@ export function writeImportFiles(
     const path = join(folder, file.name);
     const isKept = files.exists(path);
 
-    return isKept && (file.name === 'owner.tsv' || file.name === 'prs.tsv')
+    return isKept &&
+      (file.name === 'owner.tsv' || file.name === 'prs.tsv' || file.name === 'notes.tsv')
       ? []
       : [
           {
@@ -62,7 +64,7 @@ export function writeImportFiles(
   }
 }
 
-const stagedFile = /^(?:owner\.tsv|prs\.tsv|items\.tsv|journal\.tsv|session)\.tmp-/u;
+const stagedFile = /^(?:owner\.tsv|prs\.tsv|notes\.tsv|items\.tsv|journal\.tsv|session)\.tmp-/u;
 
 function removeLeftovers(folder: string, files: ImportFiles): void {
   for (const name of files.list(folder)) {

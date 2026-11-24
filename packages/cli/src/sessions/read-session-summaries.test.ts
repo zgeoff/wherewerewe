@@ -22,14 +22,14 @@ test('it lists each session folder by name and skips the bindings folder', async
   expect(summaries).toStrictEqual([
     {
       name: 'alpha-notes',
-      format: '1',
+      format: '2',
       started: '2026-03-02T08:04:11Z',
       lastWrite: null,
       goal: 'Ship the parser with its tests',
     },
     {
       name: 'beta-notes',
-      format: '1',
+      format: '2',
       started: '2026-03-02T08:04:11Z',
       lastWrite: null,
       goal: 'Ship the parser with its tests',
@@ -39,8 +39,9 @@ test('it lists each session folder by name and skips the bindings folder', async
 
 test.each([
   ['a hand-kept session', 'name=a\ngoal=b\n', '0-by-hand'],
-  ['a newer session', 'format=2\n', '2'],
-  ['a broken session', 'format=1\ncolour=red\n', null],
+  ['a format 1 session', 'format=1\nname=a\ngoal=b\n', '1'],
+  ['a newer session', 'format=3\n', '3'],
+  ['a broken session', 'format=2\ncolour=red\n', null],
 ])('it reads %s as format %p with no other fields', async (_title, text, format) => {
   const ctx = setupTest();
 

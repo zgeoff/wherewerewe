@@ -9,7 +9,6 @@ export interface Extra {
   readonly who?: string;
   readonly where?: string;
   readonly scope?: string;
-  readonly use?: 'once' | 'standing';
   readonly blocked_by?: string;
   readonly pid_start?: string;
 }
@@ -50,10 +49,27 @@ export interface Note {
   readonly note: string;
 }
 
+export interface Grant {
+  // the owner's words, 1 to 700 characters, one line: www grant turns each line break into a space
+  readonly words: string;
+
+  // the agent's reading of what the words cover and what the owner kept back, 1 to 200 characters
+  readonly reading: string;
+
+  // where the owner gave the words, 1 to 16 characters, no ';' or '='
+  readonly where: string;
+
+  // when the words were last written; a new reading alone keeps it
+  readonly set: string;
+}
+
 export interface SessionFile {
-  readonly format: '1';
+  readonly format: '2';
   readonly name: string;
   readonly goal: string;
+
+  // null when the session holds no grant; the four grant keys are empty on disk
+  readonly grant: Grant | null;
   readonly started: string;
 
   // empty value on disk
@@ -199,6 +215,8 @@ interface ArgValues {
   readonly where?: string | undefined;
   readonly scope?: string | undefined;
   readonly quote?: string | undefined;
+  readonly reading?: string | undefined;
+  readonly drop?: string[] | undefined;
   readonly why?: string | undefined;
   readonly on?: string | undefined;
   readonly replaces?: string | undefined;
@@ -244,6 +262,8 @@ type TextLabel =
   | 'where'
   | 'scope'
   | 'quote'
+  | 'words'
+  | 'reading'
   | 'owner note'
   | 'decision'
   | '--for text'
@@ -318,7 +338,18 @@ export type RefusalReason =
       readonly kind: 'ok-needs-parts';
       readonly args: ParsedArgs;
       readonly missing: readonly ('quote' | 'who' | 'where' | 'scope')[];
-      readonly needsUse: boolean;
+    }
+  | { readonly kind: 'ok-standing'; readonly args: ParsedArgs }
+  | { readonly kind: 'grant-needs-part'; readonly args: ParsedArgs }
+  | {
+      readonly kind: 'grant-reading-no-grant';
+      readonly args: ParsedArgs;
+      readonly name: string;
+    }
+  | {
+      readonly kind: 'grant-words-too-long';
+      readonly args: ParsedArgs;
+      readonly length: number;
     }
   | { readonly kind: 'decide-needs-why'; readonly args: ParsedArgs }
   | { readonly kind: 'bad-decision-who'; readonly args: ParsedArgs }
@@ -348,7 +379,6 @@ export type RefusalReason =
     }
   | { readonly kind: 'bad-since' }
   | { readonly kind: 'use-needs-for'; readonly args: ParsedArgs }
-  | { readonly kind: 'use-standing'; readonly id: string }
   | { readonly kind: 'use-not-approval'; readonly id: string; readonly itemKind: Kind }
   | {
       readonly kind: 'no-open-item';
@@ -420,16 +450,21 @@ export type RefusalReason =
       readonly sessions: readonly string[];
     }
   | {
-      readonly kind: 'import-already-format-1';
+      readonly kind: 'import-already-format-2';
       readonly name: string;
       readonly hasAgent: boolean;
     }
   | {
-      readonly kind: 'import-broken-rows';
+      // The upgrade of a format 1 store, or the import of a hand-kept one, found a problem the
+      // flags or the rows can fix. Each problem's lines come first, then one Run line.
+      readonly kind: 'upgrade-refused';
+      readonly args: ParsedArgs;
       readonly name: string;
-      readonly problems: readonly string[];
+      readonly rowProblems: readonly string[];
+      readonly problems: readonly UpgradeProblem[];
     }
   | { readonly kind: 'hand-kept'; readonly name: string }
+  | { readonly kind: 'format-1'; readonly name: string }
   | { readonly kind: 'newer'; readonly name: string; readonly format: string }
   | {
       readonly kind: 'broken-store';
@@ -438,4 +473,29 @@ export type RefusalReason =
       readonly path: string;
       readonly line: number | null;
       readonly reason: string;
+    };
+
+export interface ApprovalLine {
+  readonly id: string;
+  readonly quote: string;
+  readonly scope: string;
+
+  // ISO 8601 UTC to the second, with Z
+  readonly written: string;
+
+  // the age of a one-time approval, such as 5d; null for a standing one
+  readonly age: string | null;
+}
+
+// What an upgrade or an import checks before it writes.
+export type UpgradeProblem =
+  | { readonly kind: 'needs-grant'; readonly approvals: readonly ApprovalLine[] }
+  | { readonly kind: 'too-many-once'; readonly approvals: readonly ApprovalLine[] }
+  | { readonly kind: 'grant-id' }
+  | { readonly kind: 'grant-needs-part' }
+  | { readonly kind: 'grant-text'; readonly reason: RefusalReason }
+  | {
+      readonly kind: 'drop-unknown';
+      readonly id: string;
+      readonly open: readonly string[];
     };

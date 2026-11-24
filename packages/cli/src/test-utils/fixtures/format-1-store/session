@@ -1,0 +1,9 @@
+format=1
+name=sample-store
+goal=Ship soil-moisture alerts for the garden irrigation app
+started=2026-03-02T08:04:11Z
+now=t-valves
+now_next=wire the relay test
+now_set=2026-03-10T10:43:00Z
+last_write=2026-03-10T11:02:00Z
+last_nudge=

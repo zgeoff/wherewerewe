@@ -20,6 +20,10 @@ export interface ShowInput {
 const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
 
 export function renderShow(input: ShowInput): string {
+  if (input.id === 'grant') {
+    return renderGrant(input);
+  }
+
   const item = input.store.items.find((candidate) => candidate.id === input.id);
 
   if (item !== undefined) {
@@ -50,6 +54,41 @@ export function renderShow(input: ShowInput): string {
   return `${input.id}: no item, decision or journal row has this id. Open items: ${open}.\n`;
 }
 
+const noGrantLine =
+  'grant  none. Run: www grant --quote "<the owner\'s words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"';
+
+// The words' row is the newest grant row written at the time the words were set; the reading's is
+// the newest grant row.
+function renderGrant(input: ShowInput): string {
+  const grant = input.store.session.grant;
+
+  if (grant === null) {
+    return `${noGrantLine}\n`;
+  }
+
+  const rows = input.rows.filter((row) => row.id === 'grant' && row.op === 'grant');
+  const wordsRow = rows.findLast((row) => row.ts === grant.set);
+  const readingRow = rows.at(-1);
+  const wordsDay = getDay(input.store, Date.parse(wordsRow?.ts ?? grant.set));
+  const readingDay = getDay(input.store, Date.parse(readingRow?.ts ?? grant.set));
+  const wordsAge = formatAge(input.nowMs - Date.parse(grant.set));
+  const readingAge = formatAge(input.nowMs - Date.parse(readingRow?.ts ?? grant.set));
+  const days = rows.map((row) => `day ${String(getDay(input.store, Date.parse(row.ts)))} grant`);
+
+  const lines = [
+    `grant  from the owner in ${grant.where}, words set on day ${String(wordsDay)} by ${wordsRow?.by ?? 'unknown'}, reading set on day ${String(readingDay)}`,
+    ...wrapBlock(`"${grant.words}"`, `  words (${wordsAge}): `, '    '),
+    ...wrapBlock(grant.reading, `  reading (${readingAge}): `, '    '),
+    ...(days.length === 0 ? [] : [`  journal: ${days.join(' · ')}`]),
+  ];
+
+  return `${lines.join('\n')}\n`;
+}
+
+function getDay(store: Store, timeMs: number): number {
+  return getSessionDay(store.session.started, timeMs);
+}
+
 function renderOpenItem(input: ShowInput, item: Item): string {
   const store = input.store;
   const first = input.rows.find((row) => row.id === item.id);
@@ -78,10 +117,6 @@ function renderOpenItem(input: ShowInput, item: Item): string {
   ];
 
   return `${lines.join('\n')}\n`;
-}
-
-function getDay(store: Store, timeMs: number): number {
-  return getSessionDay(store.session.started, timeMs);
 }
 
 function isBlocked(input: ShowInput, item: Item): boolean {
@@ -120,7 +155,7 @@ function formatApprovalLine(item: Item): string {
   const where = item.extra.where ?? 'unknown';
   const scope = item.extra.scope ?? 'unknown';
 
-  return `  given by ${who} in ${where} · ${item.extra.use ?? 'once'} · scope: ${scope}`;
+  return `  given by ${who} in ${where} · scope: ${scope}`;
 }
 
 function formatDecisionLines(input: ShowInput): string[] {

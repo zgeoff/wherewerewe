@@ -12,6 +12,7 @@ export interface RunSpec {
   readonly keepCheckAndNoteFlags: () => RunSpec;
   readonly keepFirstCheck: () => RunSpec;
   readonly dropFlag: (name: string) => RunSpec;
+  readonly dropFlagValue: (name: string, value: string) => RunSpec;
   readonly renameCommand: (command: string) => RunSpec;
   readonly toArgv: () => string[];
 }
@@ -94,6 +95,11 @@ function makeSpec(state: SpecState): RunSpec {
     },
     dropFlag: (name) =>
       makeSpec({ ...state, flags: state.flags.filter((flag) => flag.name !== name) }),
+    dropFlagValue: (name, value) =>
+      makeSpec({
+        ...state,
+        flags: state.flags.filter((flag) => flag.name !== name || flag.value !== value),
+      }),
     renameCommand: (command) => makeSpec({ ...state, command }),
     toArgv: () => buildArgv(state),
   };
