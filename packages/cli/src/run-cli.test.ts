@@ -2672,37 +2672,6 @@ test('it prints no part of a credential inside a bullet of 160 characters, and a
   });
 });
 
-test('it counts the brief of its own environment in a task write reply, with no host too', async () => {
-  const ctx = setupTest();
-  const base = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
-
-  const hosts = [
-    { name: 'tide-none', env: base, limit: 20_000 },
-    { name: 'tide-codex', env: { ...base, CODEX_SESSION_ID: 'c9-test' }, limit: 10_000 },
-    { name: 'tide-claude', env: { ...base, CLAUDE_CODE_SESSION_ID: 'a1b2-test' }, limit: 8000 },
-  ];
-
-  const figures: { tokens: number | null; limit: number | null; expected: number }[] = [];
-
-  for (const host of hosts) {
-    await seedWorstCaseStore(ctx.run, ctx.stateRoot, host.name, { taskCount: 29 });
-
-    const reply = await ctx.run(['--session', host.name, 'task', 't-w1', 'One more'], host.env);
-    const brief = await ctx.run(['--session', host.name], host.env);
-
-    figures.push({
-      ...readBriefFigure(reply.stdout),
-      expected: Math.ceil(Buffer.byteLength(brief.stdout) / 3),
-    });
-  }
-
-  expect(figures.map((figure) => figure.limit)).toStrictEqual(hosts.map((host) => host.limit));
-
-  expect(figures.map((figure) => (figure.tokens ?? 0) - figure.expected)).toSatisfyAll(
-    (difference: number) => Math.abs(difference) <= 20,
-  );
-});
-
 test.each([
   { command: 'now', argv: ['now', 't-a', 'go on'] },
   { command: 'set', argv: ['set', 't-a', 'Write it again'] },

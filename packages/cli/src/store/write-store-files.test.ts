@@ -2,6 +2,8 @@ import { expect, test } from 'bun:test';
 import { chmodSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
+import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
 import { seedSessionStore } from '../test-utils/seed-session-store.ts';
 import { parseJournalFile } from './parse-journal-file.ts';
@@ -276,4 +278,97 @@ test('it appends the journal before it writes notes.tsv, so a failed notes write
   expect(parseJournalFile(journalText)).toStrictEqual([
     expect.objectContaining({ op: 'note', id: 't-a' }),
   ]);
+});
+
+test.each([
+  {
+    title: 'a lesson',
+    change: {
+      lessons: [
+        {
+          id: 'l-seed',
+          text: 'Reseed the staging table first',
+          why: 'A stale row passed',
+          written: '2026-03-10T10:31:09Z',
+          by: 'agent' as const,
+        },
+      ],
+    },
+    changed: ['tide-alerts/journal.tsv', 'tide-alerts/lessons.tsv'],
+  },
+  {
+    title: 'a promise',
+    change: {
+      promises: [
+        {
+          id: 'due-cost',
+          what: 'Cost table',
+          to: 'owner',
+          byWhen: 'day 10',
+          written: '2026-03-10T10:31:09Z',
+          by: 'agent' as const,
+        },
+      ],
+    },
+    changed: ['tide-alerts/journal.tsv', 'tide-alerts/promises.tsv'],
+  },
+  {
+    title: 'the owner words',
+    change: {
+      words: [
+        {
+          id: 'w-plain',
+          words: 'Plain words',
+          where: 'chat',
+          written: '2026-03-10T10:31:09Z',
+          by: 'agent' as const,
+        },
+      ],
+    },
+    changed: ['tide-alerts/journal.tsv', 'tide-alerts/words.tsv'],
+  },
+  {
+    title: 'an item',
+    change: {
+      items: [
+        {
+          id: 't-a',
+          kind: 'task' as const,
+          claim: 'Write it',
+          check: null,
+          atWrite: null,
+          last: null,
+          written: '2026-03-10T10:31:09Z',
+          by: 'agent' as const,
+          extra: {},
+        },
+      ],
+    },
+    changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv'],
+  },
+])('it changes only the journal and the file of $title', async (row) => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+
+  const before = await readTreeHashes(ctx.root);
+
+  await writeStoreFiles(ctx.folder, {
+    ...row.change,
+    journal: [
+      {
+        ts: '2026-03-10T10:31:09Z',
+        op: 'task',
+        id: 'x-a',
+        by: 'agent',
+        text: 'a claim',
+        why: null,
+        extra: null,
+      },
+    ],
+  });
+
+  const after = await readTreeHashes(ctx.root);
+
+  expect(readChangedPaths(before, after)).toStrictEqual([...row.changed]);
 });

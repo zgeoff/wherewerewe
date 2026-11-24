@@ -6,9 +6,11 @@ import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { createGitCommit, runGit } from '@zgeoff/testing/git';
 import { estimateTokens } from '../brief/estimate-tokens.ts';
+import { itemCaps, lessonCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
 import { runCLI } from '../run-cli.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
+import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { countBriefLines } from '../test-utils/count-brief-lines.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
@@ -20,6 +22,7 @@ import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
+import { seedWorstCaseStore } from '../test-utils/seed-worst-case-store.ts';
 
 function setupTest() {
   const root = createTempDir('run-brief').path;
@@ -41,6 +44,7 @@ function setupTest() {
   return {
     root,
     bin,
+    stateRoot,
     folder,
     agentEnv,
     advance: (durationMs: number) => {
@@ -621,3 +625,72 @@ test('it runs each fix command of the changed rows as printed in a bound session
     leftChanged: false,
   });
 });
+
+test.each([
+  {
+    host: 'claude',
+    variable: 'CLAUDE_CODE_SESSION_ID',
+    id: 'a1b2-test',
+    kinds: ['waits', 'promises', 'lessons', 'decisions', 'where'],
+  },
+  { host: 'codex', variable: 'CODEX_SESSION_ID', id: 'c9-test', kinds: ['promises', 'where'] },
+] as const)(
+  'it runs the command of each cut line of a 3-byte store as printed for $host with --session, and lists every row of its kind',
+  async (row) => {
+    const ctx = setupTest();
+    const name = 'n'.repeat(24);
+
+    const env = {
+      HOME: ctx.agentEnv.HOME,
+      XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME,
+      PATH: ctx.bin,
+      [row.variable]: row.id,
+    };
+
+    const rowIDs: Readonly<Record<string, readonly string[]>> = {
+      waits: buildMockIDs('wait', itemCaps.wait),
+      promises: buildMockIDs('prom', promiseCap),
+      lessons: buildMockIDs('less', lessonCap),
+      rules: buildMockIDs('rule', itemCaps.rule),
+      where: buildMockIDs('here', itemCaps.where),
+      words: buildMockIDs('word', wordsCap),
+      decisions: ['d-1', 'd-2', 'd-3'],
+    };
+
+    await seedWorstCaseStore((argv) => ctx.run(argv, ctx.agentEnv), ctx.stateRoot, name, {
+      taskCount: 30,
+      isThreeByte: true,
+    });
+
+    await ctx.run(['attach', name], env);
+
+    const brief = await ctx.run(['--session', name], env);
+
+    const cutLines = brief.stdout
+      .split('\n')
+      .filter((line) => /^ {2}and \d+ more: www --session \S+ list \S+$/u.test(line));
+
+    const listed = await Promise.all(
+      cutLines.map(async (line) => {
+        const words = await readShellWords(line.slice(line.indexOf(': ') + 2));
+
+        const kind = words.at(-1) ?? '';
+
+        const result = await ctx.run(words.slice(1), env);
+
+        return {
+          kind,
+          exitCode: result.exitCode,
+          missing: (rowIDs[kind] ?? ['no row of this kind is known']).filter(
+            (id) => !result.stdout.includes(id),
+          ),
+        };
+      }),
+    );
+
+    expect({ kinds: listed.map((entry) => entry.kind), listed }).toStrictEqual({
+      kinds: [...row.kinds],
+      listed: row.kinds.map((kind) => ({ kind, exitCode: 0, missing: [] })),
+    });
+  },
+);

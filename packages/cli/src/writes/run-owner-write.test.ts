@@ -3,9 +3,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { estimateTokens } from '../brief/estimate-tokens.ts';
 import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
+import { readBriefFigure } from '../test-utils/read-brief-figure.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
+import { readSavedBrief } from '../test-utils/read-saved-brief.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedJournalRow } from '../test-utils/seed-journal-row.ts';
 
@@ -27,7 +30,25 @@ function setupTest() {
       },
     });
 
+  const fixedMs = Date.parse('2026-03-10T11:43:00Z');
+
+  const runFrozen = (argv: readonly string[], isTerminal: boolean) =>
+    runCLI({
+      argv: ['--session', 'tide-alerts', ...argv],
+      env: { HOME: root, XDG_STATE_HOME: root },
+      cwd: '/work',
+      terminal: { stdin: isTerminal, stdout: isTerminal },
+      now: () => fixedMs,
+    });
+
   return {
+    runFrozenAsOwner: (argv: readonly string[]) => runFrozen(argv, true),
+    readSaved: () =>
+      readSavedBrief(join(stateRoot, 'tide-alerts'), {
+        nowMs: fixedMs,
+        sessionFlag: 'tide-alerts',
+        host: null,
+      }),
     folder: join(stateRoot, 'tide-alerts'),
     runAsOwner: (argv: readonly string[]) => run(['--session', 'tide-alerts', ...argv], true),
     runAsAgent: (argv: readonly string[]) => run(['--session', 'tide-alerts', ...argv], false),
@@ -344,3 +365,32 @@ test('it never reuses the number of an acknowledged note', async () => {
     stderr: '',
   });
 });
+
+test.each([
+  { title: 'say', setup: [], argv: ['say', 'Ask me first'] },
+  {
+    title: 'say on an item',
+    setup: [['task', 't-a', 'Write it']],
+    argv: ['say', 'Go', '--on', 't-a'],
+  },
+  { title: 'ack', setup: [['say', 'Ask me first']], argv: ['ack', 'o-1'] },
+] as const)(
+  'it reports in each write reply the estimate of the brief rendered from the saved store, for the owner terminal after $title',
+  async (row) => {
+    const ctx = setupTest();
+
+    await ctx.init();
+
+    for (const argv of row.setup) {
+      await ctx.runFrozenAsOwner(argv);
+    }
+
+    const reply = await ctx.runFrozenAsOwner(row.argv);
+    const saved = await ctx.readSaved();
+
+    expect({ exitCode: reply.exitCode, figure: readBriefFigure(reply.stdout) }).toStrictEqual({
+      exitCode: 0,
+      figure: { tokens: estimateTokens(saved), limit: 20_000 },
+    });
+  },
+);

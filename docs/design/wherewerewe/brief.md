@@ -129,13 +129,13 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 
 | Block | Bytes |
 | --- | --- |
-| header | 203 |
+| header | 206 |
 | goal | 219 |
-| grant | 1,226 |
-| owner notes | 448 |
-| owner's words (8) | 2,809 |
-| changed | 515 |
-| now and its note | 606 |
+| grant | 1,228 |
+| owner notes | 452 |
+| owner's words (8) | 2,825 |
+| changed | 521 |
+| now and its note | 610 |
 | open (30 tasks) | 5,988 |
 | waiting (8) | 1,523 |
 | promised (5) | 995 |
@@ -144,9 +144,9 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | lessons (5) | 1,769 |
 | decisions (3 rows) | 683 |
 | where (8) | 1,361 |
-| pull requests | 254 |
+| pull requests | 256 |
 | footer | 98 |
-| **Total** | **21,171 bytes, 7,057 estimated tokens** |
+| **Total** | **21,208 bytes, 7,070 estimated tokens** |
 
 ### The brief's limit
 
@@ -175,9 +175,9 @@ The ASCII worst case above fits each host's limit:
 
 | Host          | The tool's limit                      | ASCII worst case                     | Room left            |
 | ------------- | ------------------------------------- | ------------------------------------ | -------------------- |
-| Claude Code   | 24,000 bytes, 8,000 estimated tokens  | 21,171 bytes, 7,057 estimated tokens | 2,829 bytes, 11.8%   |
-| Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,829 bytes, 29.4%   |
-| no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,829 bytes, 64.7%  |
+| Claude Code   | 24,000 bytes, 8,000 estimated tokens  | 21,208 bytes, 7,070 estimated tokens | 2,792 bytes, 11.6%   |
+| Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,792 bytes, 29.3%   |
+| no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,792 bytes, 64.7%  |
 
 So the ASCII worst case cuts nothing on any host, and Claude Code's room is the smallest. A store whose stored texts are all in a 3-byte script takes more: the never-cut lines then take under 9,000 bytes, and with the owner's words under 17,000, so they fit the smallest limit and [the cut order](#the-cut-order) decides what else stays. The `--json` output of [lists-and-json.md](lists-and-json.md#--json) is outside this limit.
 

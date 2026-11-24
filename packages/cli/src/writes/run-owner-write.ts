@@ -17,13 +17,13 @@ export interface OwnerWriteRequest {
   readonly cwd: string;
   readonly nowMs: number;
 
-  // the agent that runs the write, which sets the budget of the brief it counts
+  // the agent that runs the write, which sets the limit of the brief it counts
   readonly host: 'claude' | 'codex' | null;
   readonly pick: (input: WriteInput) => OwnerWriteResult;
 }
 
 // The thin locked write of say and ack: inside the lock it reads the store and the journal index,
-// asks the pure function what to do, writes owner.tsv and the journal, and counts the lines of the
+// asks the pure function what to do, writes owner.tsv and the journal, and counts the tokens of the
 // brief as written. It changes no session key.
 export async function runOwnerWrite(input: OwnerWriteRequest): Promise<RunWriteResult> {
   const locked = await withStoreLock(

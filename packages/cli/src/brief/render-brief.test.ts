@@ -8,18 +8,26 @@ import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
+import { buildNeverCutInput } from '../test-utils/build-never-cut-input.ts';
 import { buildThreeByteCutInput } from '../test-utils/build-three-byte-cut-input.ts';
 import { buildWorstCaseBriefInput } from '../test-utils/build-worst-case-brief-input.ts';
+import { collectBriefBlocks } from '../test-utils/collect-brief-blocks.ts';
 import { collectBriefRows } from '../test-utils/collect-brief-rows.ts';
+import { collectMissingRows } from '../test-utils/collect-missing-rows.ts';
 import { hasBriefRow } from '../test-utils/has-brief-row.ts';
 import { hasSecondArgument } from '../test-utils/has-second-argument.ts';
 import { listTypeScriptFiles } from '../test-utils/list-type-script-files.ts';
+import { readWorstCaseBlocks } from '../test-utils/read-worst-case-blocks.ts';
 import { threeByteRanks } from '../test-utils/three-byte-ranks.ts';
 import { threeByteSections } from '../test-utils/three-byte-sections.ts';
 import { cutRanks } from './cut-ranks.ts';
 import type { CutRank } from './cut-ranks.ts';
 import { briefFooter } from './join-brief.ts';
 import { renderBrief } from './render-brief.ts';
+
+function setupTest() {
+  return { render: renderBrief, readDoc: readWorstCaseBlocks };
+}
 
 test('it renders each section of one invented store in order', () => {
   const brief = renderBrief(
@@ -994,42 +1002,39 @@ test.each([
 ] as const)(
   'it renders the ASCII worst case of brief.md within the limit of $host and cuts nothing',
   (row) => {
-    const input = {
-      ...buildWorstCaseBriefInput({ host: row.host, taskCount: 30, goal: 'short' }),
-      nowHidden: { kind: 'changed' as const },
-    };
+    const ctx = setupTest();
+    const doc = ctx.readDoc();
+    const whole = buildWorstCaseBriefInput({ host: row.host, taskCount: 30 });
 
-    const unchecked = buildWorstCaseBriefInput({
-      host: row.host,
-      taskCount: 30,
-      goal: 'short',
-      nowHidden: { kind: 'changed' },
-      results: 'unchecked',
-    });
+    const inputs = [
+      whole,
+      buildWorstCaseBriefInput({ host: row.host, taskCount: 30, nowHidden: { kind: 'changed' } }),
+      buildWorstCaseBriefInput({ host: row.host, taskCount: 30, results: 'unchecked' }),
+    ];
 
-    const brief = renderBrief(input);
-    const everyRow = renderBrief(input, Number.MAX_SAFE_INTEGER);
+    const briefs = inputs.map((input) => ctx.render(input));
+    const blocks = collectBriefBlocks(briefs[0] ?? '');
 
     expect({
-      bytes: Buffer.byteLength(brief),
-      isWithinLimit: Buffer.byteLength(brief) <= row.limit,
-      isWhole: brief === everyRow,
-      uncheckedIsWhole: renderBrief(unchecked) === renderBrief(unchecked, Number.MAX_SAFE_INTEGER),
-      listLines: brief.split('\n').filter((line) => /^ {2}and \d+ more: www list /u.test(line)),
-      rows: collectBriefRows(brief, /^ {2}\S/u).length,
+      labels: blocks.map((block, index) => doc.blocks[index]?.label.startsWith(block.label)),
+      bytes: blocks.map((block) => block.bytes),
+      total: Buffer.byteLength(briefs[0] ?? ''),
+      missing: inputs.map((input, index) => collectMissingRows(input, briefs[index] ?? '')),
+      fits: briefs.map((brief) => Buffer.byteLength(brief) <= row.limit),
+      listLines: collectBriefRows(briefs[0] ?? '', /^ {2}and \d+ more: www list /u),
     }).toStrictEqual({
-      bytes: Buffer.byteLength(everyRow),
-      isWithinLimit: true,
-      isWhole: true,
-      uncheckedIsWhole: true,
+      labels: blocks.map(() => true),
+      bytes: doc.blocks.map((block) => block.bytes),
+      total: doc.totalBytes,
+      missing: [[], [], []],
+      fits: [true, true, true],
       listLines: ['  and 3 more: www list decisions', '  and 9 more: www list prs'],
-      rows: collectBriefRows(everyRow, /^ {2}\S/u).length,
     });
   },
 );
 
 test.each(['claude', 'codex', null] as const)(
-  "it cuts the 3-byte worst case for %p in the cut order, and each cut line's command lists what it cut",
+  'it cuts the 3-byte worst case for %p in the cut order, and each cut line counts what it cut',
   (host) => {
     const brief = renderBrief(buildThreeByteCutInput(host));
     const limit = { claude: 24_000, codex: 30_000, none: 60_000 }[host ?? 'none'];
@@ -1116,8 +1121,9 @@ test.each(['claude', 'codex', null] as const)(
   },
 );
 
-test('it holds the never-cut lines of the 3-byte worst case under 9,000 bytes, and under 17,000 with the owner words', () => {
-  const input = buildThreeByteCutInput(null);
+test('it holds the never-cut lines at their widest under 9,000 bytes, and under 17,000 with the owner words', () => {
+  const ctx = setupTest();
+  const input = buildNeverCutInput(null);
 
   // the words are the last rank the cut reaches, so the smallest limit that keeps all 8 leaves
   // every other row cut
@@ -1127,22 +1133,44 @@ test('it holds the never-cut lines of the 3-byte worst case under 9,000 bytes, a
   while (low < high) {
     const middle = Math.floor((low + high) / 2);
 
-    if (collectBriefRows(renderBrief(input, middle), /^ {2}word\d\d/u).length === 8) {
+    if (collectBriefRows(ctx.render(input, middle), /^ {2}word\d\d/u).length === 8) {
       high = middle;
     } else {
       low = middle + 1;
     }
   }
 
-  const withWords = renderBrief(input, low);
+  const neverCut = ctx.render(input, 1);
+  const withWords = ctx.render(input, low);
 
   expect({
-    neverCut: Buffer.byteLength(renderBrief(input, 1)) < 9000,
-    withWords: Buffer.byteLength(withWords) < 17_000,
+    neverCutBytes: Buffer.byteLength(neverCut) < 9000,
+    withWordsBytes: Buffer.byteLength(withWords) < 17_000,
+    focus: neverCut.split('\n').filter((line) => line.startsWith('NOW  wait01')),
+    cutLines: neverCut
+      .split('\n')
+      .filter((line) => line.includes(' --session nnnnnnnnnnnnnnnnnnnnnnnn list ')),
     otherRows: withWords
       .split('\n')
-      .filter((line) => /^ {2}(?:prom|here|wait|d-|less|rule|appr|p{60})/u.test(line)),
-  }).toStrictEqual({ neverCut: true, withWords: true, otherRows: [] });
+      .filter((line) => /^ {2}(?:prom|here|d-|less|rule|appr|p{60})/u.test(line)),
+  }).toStrictEqual({
+    neverCutBytes: true,
+    withWordsBytes: true,
+    focus: ['NOW  wait01xxxxxxxxxx · set 990d ago · owed note 990d ago'],
+    cutLines: [
+      ['8', 'words'],
+      ['7', 'waits'],
+      ['5', 'promises'],
+      ['1', 'approvals'],
+      ['15', 'rules'],
+      ['5', 'lessons'],
+      ['3', 'decisions'],
+      ['3', 'decisions'],
+      ['8', 'where'],
+      ['10', 'prs'],
+    ].map(([count, kind]) => `  and ${count} more: www --session ${'n'.repeat(24)} list ${kind}`),
+    otherRows: [],
+  });
 });
 
 test('it starts the header with the session name and day, and ends with the footer, for every store', () => {

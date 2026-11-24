@@ -24,7 +24,7 @@ export interface WorstCaseOptions {
 }
 
 // brief.md's worst case: every section at its widest, each task at its widest tag, the item in
-// focus the first task, and as many tasks as the options name.
+// focus the first task, as many tasks as the options name, on day 999.
 const shortWords = [...Array.from({ length: 21 }, () => 'goalword'), 'goalwordsss'];
 const longWords = [...Array.from({ length: 3 }, () => 'g'.repeat(49)), 'g'.repeat(50)];
 
@@ -85,6 +85,9 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
 
   return buildMockBriefInput({
     host: options.host,
+
+    // day 999 of the session, so every age prints at its widest, in 3 digits and `d`
+    nowMs: Date.parse('2028-11-24T11:43:00Z'),
     session: {
       format: '2',
       grant: {

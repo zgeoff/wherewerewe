@@ -9,6 +9,7 @@ import { buildMockIDs } from './build-mock-ids.ts';
 import { buildSpacedText } from './build-spaced-text.ts';
 import { seedItems } from './seed-items.ts';
 import { seedStoreFile } from './seed-store-file.ts';
+import { toThreeByte } from './to-three-byte.ts';
 
 type RunAsAgent = (argv: readonly string[]) => Promise<CLIResult>;
 
@@ -17,6 +18,9 @@ interface WorstCaseShape {
 
   // the claim of each task, wait, approval, rule and where item
   readonly claim?: string;
+
+  // every stored text but an id in a 3-byte script, as brief.md's 3-byte worst case has it
+  readonly isThreeByte?: boolean;
 }
 
 // A session at brief.md's worst case, made through the commands and the store module: the grant,
@@ -29,25 +33,26 @@ export async function seedWorstCaseStore(
   shape: WorstCaseShape,
 ): Promise<void> {
   const taskCount = shape.taskCount;
-  const claim = shape.claim ?? 'c'.repeat(120);
+  const text = (value: string): string => (shape.isThreeByte === true ? toThreeByte(value) : value);
+  const claim = text(shape.claim ?? 'c'.repeat(120));
   const folder = join(stateRoot, name);
   const waits = buildMockIDs('wait', itemCaps.wait);
   const tasks = buildMockIDs('task', taskCount);
-  const goal = [...Array.from({ length: 21 }, () => 'goalword'), 'goalwordsss'].join(' ');
+  const goal = text([...Array.from({ length: 21 }, () => 'goalword'), 'goalwordsss'].join(' '));
   const check = `pid:${String(process.pid)}`;
 
   await runAsAgent(['init', name, '--goal', goal]);
 
   await runAsAgent([
     'grant',
-    ...Array.from({ length: 7 }, () => ['--may', 'm'.repeat(90)]).flat(),
-    ...Array.from({ length: 5 }, () => ['--not', 'x'.repeat(6)]).flat(),
+    ...Array.from({ length: 7 }, () => ['--may', text('m'.repeat(90))]).flat(),
+    ...Array.from({ length: 5 }, () => ['--not', text('x'.repeat(6))]).flat(),
     '--scope',
-    's'.repeat(40),
+    text('s'.repeat(40)),
     '--where',
-    'w'.repeat(16),
+    text('w'.repeat(16)),
     '--reading',
-    buildSpacedText(200),
+    text(buildSpacedText(200)),
   ]);
 
   await seedItems(folder, [
@@ -66,13 +71,13 @@ export async function seedWorstCaseStore(
       check,
       atWrite: 'alive',
       last: 'alive',
-      extra: { who: 'w'.repeat(16) },
+      extra: { who: text('w'.repeat(16)) },
     })),
     {
       id: 'appr01',
       kind: 'ok' as const,
       claim,
-      extra: { who: 'owner', scope: 's'.repeat(40) },
+      extra: { who: text('owner'), scope: text('s'.repeat(40)) },
     },
     ...buildMockIDs('rule', itemCaps.rule).map((id) => ({
       id,
@@ -89,10 +94,10 @@ export async function seedWorstCaseStore(
     })),
   ]);
 
-  await runAsAgent(['now', tasks[0] ?? '', 'n'.repeat(120)]);
+  await runAsAgent(['now', tasks[0] ?? '', text('n'.repeat(120))]);
 
   for (const number of [1, 2, 3]) {
-    await runAsAgent(['decide', `Choice ${String(number)}`, '--why', 'A reason']);
+    await runAsAgent(['decide', text(`Choice ${String(number)}`), '--why', text('A reason')]);
   }
 
   seedStoreFile(
@@ -101,8 +106,8 @@ export async function seedWorstCaseStore(
     formatLessonsFile(
       buildMockIDs('less', lessonCap).map((id) => ({
         id,
-        text: 'c'.repeat(120),
-        why: 'w'.repeat(200),
+        text: text('c'.repeat(120)),
+        why: text('w'.repeat(200)),
         written: '2026-03-10T09:00:00Z',
         by: 'agent' as const,
       })),
@@ -115,9 +120,9 @@ export async function seedWorstCaseStore(
     formatPromisesFile(
       buildMockIDs('prom', promiseCap).map((id) => ({
         id,
-        what: 'c'.repeat(120),
-        to: 't'.repeat(16),
-        byWhen: 'b'.repeat(24),
+        what: text('c'.repeat(120)),
+        to: text('t'.repeat(16)),
+        byWhen: text('b'.repeat(24)),
         written: '2026-03-10T09:00:00Z',
         by: 'agent' as const,
       })),
@@ -130,24 +135,22 @@ export async function seedWorstCaseStore(
     formatWordsFile(
       buildMockIDs('word', wordsCap).map((id) => ({
         id,
-        words: 'c'.repeat(300),
-        where: 'w'.repeat(16),
+        words: text('c'.repeat(300)),
+        where: text('w'.repeat(16)),
         written: '2026-03-10T09:00:00Z',
         by: 'owner' as const,
       })),
     ),
   );
 
-  seedStoreFile(
-    folder,
-    'notes.tsv',
-    formatNotesFile([
-      {
-        id: tasks[0] ?? '',
-        owed: true,
-        written: '2026-03-10T09:00:00Z',
-        note: [...Array.from({ length: 4 }, () => 'n'.repeat(81)), 'n'.repeat(72)].join(' '),
-      },
-    ]),
-  );
+  const noteWords = [...Array.from({ length: 4 }, () => 'n'.repeat(81)), 'n'.repeat(72)];
+
+  const note = {
+    id: tasks[0] ?? '',
+    owed: true,
+    written: '2026-03-10T09:00:00Z',
+    note: text(noteWords.join(' ')),
+  };
+
+  seedStoreFile(folder, 'notes.tsv', formatNotesFile([note]));
 }

@@ -1,5 +1,6 @@
 import type { BriefInput } from '../brief/types.ts';
 import type { Grant } from '../types.ts';
+import { toThreeByte } from './to-three-byte.ts';
 
 // The brief input with every stored text in a 3-byte script: each character but a space becomes
 // `語`. Ids, the session name, check results and refs stay ASCII, because their rules allow only
@@ -45,10 +46,6 @@ export function buildThreeByteBriefInput(input: BriefInput): BriefInput {
     })),
     decisions: input.decisions.map((row) => ({ ...row, choice: toThreeByte(row.choice) })),
   };
-}
-
-function toThreeByte(text: string): string {
-  return text.replaceAll(/[^ ]/gu, '語');
 }
 
 function buildThreeByteGrant(grant: Grant): Grant {
