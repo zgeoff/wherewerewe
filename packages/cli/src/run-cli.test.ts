@@ -2792,3 +2792,25 @@ test('it fills at_write and last of two checks that were never run, and writes n
     changedRows: 0,
   });
 });
+
+test('it prints a header with the count of checks and never says not run yet', async () => {
+  const ctx = setupTest();
+  const bin = createTempDir('run-cli-header').path;
+
+  seedGhAnswers(bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });
+
+  const env = { ...ctx.agentEnv, PATH: bin };
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env);
+  await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#77'], env);
+
+  const brief = await ctx.run([], env);
+
+  const header = brief.stdout.split('\n')[0] ?? '';
+
+  expect({
+    exitCode: brief.exitCode,
+    counts: /· 1 checks in \d+\.\ds(?: · 1 unchecked: gh missing)?$/u.test(header),
+    notRun: brief.stdout.includes('not run yet'),
+  }).toStrictEqual({ exitCode: 0, counts: true, notRun: false });
+});
