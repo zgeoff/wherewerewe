@@ -49,9 +49,9 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 
 - All probes of one read run in parallel, at most 8 at once, and the read stops waiting at 5 s. A probe still running then reads `unchecked`, and its process is killed. The read starts them in the order the brief prints rows: the item in focus, the task rows that fit, the waits, the where items and the pull request rows, then the tasks the brief leaves out. A probe the deadline stops before it starts reads `unchecked`, as one still running does.
 - Each probe runs with `GH_PROMPT_DISABLED=1`, `GIT_TERMINAL_PROMPT=0` and stdin closed, so it can never wait for input.
-- A probe never writes: no `git fetch`, no lazy fetch (`GIT_NO_LAZY_FETCH`), no index refresh (`--no-optional-locks`), no fsmonitor helper (`core.fsmonitor=false`), no `gh` call other than `pr view`, and no write to a repo or to GitHub.
+- A probe never writes: no `git fetch`, no lazy fetch (`GIT_ALLOW_PROTOCOL=none`), no index refresh (`--no-optional-locks`), no fsmonitor helper (`core.fsmonitor=false`), no `gh` call other than `pr view`, and no write to a repo or to GitHub.
 - A `branch` probe reads `no upstream` only when git says the branch has none. Any other failure of the comparison reads `unchecked`.
-- A pid outside the range of the OS reads `gone`, and a probe stops at its limit even when the stat of a path stalls.
+- A pid outside the range of the OS reads `gone`, and a probe stops at its limit even when the stat of a path stalls. A `path` probe's stat and its git command share one limit.
 - An interrupt or an exit of the process kills each probe still running, and its children.
 - A probe never runs a command stored in the store. The reference is parsed into its parts, and each part is passed as one argument, never through a shell.
 - A check never changes an item's claim, kind or state. It sets `last`, adds a `changed` journal row when `last` changes, and sets `state` and `seen` in `prs.tsv`. A probed `prs.tsv` row takes `OPEN` for any `OPEN …` result and `MERGED` or `CLOSED` for those, and keeps its state for `not found` and `unchecked`. A read that saves results writes the first result into an `at_write` of `-`, with no `changed` row.

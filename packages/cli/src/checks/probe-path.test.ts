@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runGit } from '@zgeoff/testing/git';
@@ -157,4 +158,26 @@ test('it reads unchecked with timeout when the stat of the path never returns', 
   );
 
   expect(probe.result).toStrictEqual({ kind: 'unchecked', reason: 'timeout' });
+});
+
+test('it gives git only what is left of the probe timeout after a slow stat', async () => {
+  const ctx = setupTest();
+  const timeouts: number[] = [];
+  const startMs = performance.now();
+
+  await probePath(
+    { path: join(ctx.root, 'slow') },
+    (_argv, timeoutMs) => {
+      timeouts.push(timeoutMs);
+
+      return Promise.resolve({ kind: 'timeout' });
+    },
+    async () => {
+      await waitFor(() => expect(performance.now() - startMs).toBeGreaterThanOrEqual(1100));
+
+      return { isDirectory: () => true };
+    },
+  );
+
+  expect(timeouts.map((timeoutMs) => timeoutMs > 0 && timeoutMs < 1000)).toStrictEqual([true]);
 });

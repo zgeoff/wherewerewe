@@ -79,3 +79,38 @@ test('it reports a host folder that reaches a PATH through a variable, a helper 
     'src/b.test.ts:2',
   ]);
 });
+
+test('it reports a host folder that reaches a PATH through a typed declaration or a later assignment', () => {
+  const packageDir = createTempDir('real-path-reads-typed').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'a.test.ts'),
+    [
+      "const typedBin: string = '/usr/bin';",
+      'const first = { PATH: typedBin };',
+      'let lateBin;',
+      "lateBin = '/opt/bin';",
+      'const second = { PATH: lateBin };',
+      "const typedHelper: () => string = () => join('/srv', 'bin');",
+      'const third = { PATH: typedHelper() };',
+      "const typedList: Record<string, string> = { home: '/home' };",
+      'const fourth = { PATH: typedList.home };',
+      "const typedSafe: string = 'bin';",
+      'const fine = { PATH: typedSafe };',
+      'let lateSafe;',
+      "lateSafe = 'bin';",
+      'const alsoFine = { PATH: lateSafe };',
+      '',
+    ].join('\n'),
+  );
+
+  expect(readRealPathReads(packageDir)).toStrictEqual([
+    'src/a.test.ts:2',
+    'src/a.test.ts:5',
+    'src/a.test.ts:7',
+    'src/a.test.ts:9',
+  ]);
+});

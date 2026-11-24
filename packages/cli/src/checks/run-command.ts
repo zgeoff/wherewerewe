@@ -48,12 +48,13 @@ export function runCommand(
   }
 
   return new Promise<CommandResult>((resolve) => {
+    // Git before 2.45 cannot switch lazy fetch off, so GIT_ALLOW_PROTOCOL leaves it no transport.
     const child = spawn(path, args, {
       env: {
         ...options.env,
         GH_PROMPT_DISABLED: '1',
         GIT_TERMINAL_PROMPT: '0',
-        GIT_NO_LAZY_FETCH: '1',
+        GIT_ALLOW_PROTOCOL: 'none',
         LC_ALL: 'C',
       },
       stdio: ['ignore', 'pipe', 'pipe'],

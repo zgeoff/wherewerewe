@@ -193,15 +193,15 @@ function formatApprovalLine(item: Item): string {
   return `  given by ${who} in ${where} · scope: ${scope}`;
 }
 
-// The names come from outside the store: each passes the credential redaction before its control
-// characters become spaces, so a credential that a control character splits is still one word to
-// the redaction. The line then passes the redaction and the 100 character cut again.
+// The names come from outside the store: each is one word to the credential redaction, however
+// many spaces or control characters split it, and only then do those become spaces. The line then
+// passes the redaction and the 100 character cut again.
 function formatCheckNowLine(input: ShowInput, item: Item): string {
   const now = input.checkNow ?? { result: 'unchecked', failing: [] };
 
   const names = now.failing
     .map((name) =>
-      redactCredentialWords(name)
+      redactCredentialWords(name.replaceAll(/[\s\p{Cc}]/gu, String.fromCodePoint(0)))
         .replaceAll(/\p{Cc}/gu, ' ')
         .trim(),
     )

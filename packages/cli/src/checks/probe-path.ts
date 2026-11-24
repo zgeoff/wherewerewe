@@ -12,20 +12,24 @@ interface PathTarget {
 
 // A stat, then inside a git work tree, git status for the path alone: the pathspec keeps a
 // subfolder clean of a change elsewhere, and a literal one keeps a[1].txt from matching a1.txt.
-// No fsmonitor helper runs, so the probe starts no program the repo's config names.
+// The stat and the git command share one timeout, and no fsmonitor helper runs.
 export async function probePath(
   target: PathTarget,
   run: RunProbeCommand,
   statPath: StatPath = stat,
 ): Promise<CheckProbe> {
+  const startMs = performance.now();
+
   const kind = await readPathKind(target.path, statPath);
 
-  if (kind === 'timeout') {
-    return { result: { kind: 'unchecked', reason: 'timeout' }, failing: [] };
-  }
+  const leftMs = checkLimits.probeTimeoutMs.path - (performance.now() - startMs);
 
   if (kind === 'missing') {
     return result('missing');
+  }
+
+  if (kind === 'timeout' || leftMs <= 0) {
+    return { result: { kind: 'unchecked', reason: 'timeout' }, failing: [] };
   }
 
   const folder = kind === 'folder' ? target.path : dirname(target.path);
@@ -45,7 +49,7 @@ export async function probePath(
       '--',
       pathspec,
     ],
-    checkLimits.probeTimeoutMs.path,
+    leftMs,
   );
 
   return match(command)

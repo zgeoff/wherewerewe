@@ -67,20 +67,20 @@ interface Definition {
   readonly end: number;
 }
 
-// Each `const|let|var name = value` up to its semicolon, and each `function name(...) { body }`.
+// Each `const|let|var name = value` or `name: type = value` up to its semicolon, each later
+// `name = value` assignment, and each `function name(...) { body }`.
 function collectDefinitions(tokens: readonly SourceToken[]): Definition[] {
   const definitions: Definition[] = [];
 
   for (const [at, token] of tokens.entries()) {
     const name = tokens.at(at + 1);
 
-    if (
-      token.kind === 'word' &&
-      ['const', 'let', 'var'].includes(token.value) &&
-      name?.kind === 'word' &&
-      tokens.at(at + 2)?.value === '='
-    ) {
-      definitions.push({ name: name.value, start: at + 3, end: getStatementEnd(tokens, at + 3) });
+    if (token.kind === 'word' && ['const', 'let', 'var'].includes(token.value)) {
+      const start = name?.kind === 'word' ? findDeclaredValueStart(tokens, at + 2) : null;
+
+      if (name !== undefined && start !== null) {
+        definitions.push({ name: name.value, start, end: getStatementEnd(tokens, start) });
+      }
     }
 
     if (token.kind === 'word' && token.value === 'function' && name?.kind === 'word') {
@@ -88,9 +88,48 @@ function collectDefinitions(tokens: readonly SourceToken[]): Definition[] {
 
       definitions.push({ name: name.value, start: open, end: getClose(tokens, open) });
     }
+
+    if (isAssignedName(tokens, at)) {
+      definitions.push({ name: token.value, start: at + 2, end: getStatementEnd(tokens, at + 2) });
+    }
   }
 
   return definitions;
+}
+
+// The index where the value of a declaration starts, from the token after its name: right after an
+// equals sign, or after the type annotation that precedes it. A type holds an arrow, an equals sign
+// that a greater-than sign follows, which is no assignment. Null for a declaration with no value.
+function findDeclaredValueStart(tokens: readonly SourceToken[], from: number): number | null {
+  if (tokens.at(from)?.value === '=') {
+    return from + 1;
+  }
+
+  if (tokens.at(from)?.value !== ':') {
+    return null;
+  }
+
+  let depth = 0;
+
+  for (let at = from + 1; at < tokens.length; at += 1) {
+    const token = tokens.at(at);
+
+    if (token?.kind === 'punct' && '([{'.includes(token.value)) {
+      depth += 1;
+    } else if (token?.kind === 'punct' && ')]}'.includes(token.value)) {
+      depth -= 1;
+    }
+
+    if (depth < 0 || (depth === 0 && token?.value === ';')) {
+      return null;
+    }
+
+    if (depth === 0 && token?.value === '=' && tokens.at(at + 1)?.value !== '>') {
+      return at + 1;
+    }
+  }
+
+  return null;
 }
 
 // The index of the semicolon that ends the statement from the index, at its own depth.
@@ -133,6 +172,23 @@ function getClose(tokens: readonly SourceToken[], open: number): number {
   }
 
   return tokens.length;
+}
+
+// Whether the word at the index is a plain variable that an equals sign assigns to: neither a
+// property, a declaration, a comparison nor an arrow function's parameter.
+function isAssignedName(tokens: readonly SourceToken[], at: number): boolean {
+  const token = tokens.at(at);
+  const before = tokens.at(at - 1)?.value;
+  const after = tokens.at(at + 2)?.value;
+
+  return (
+    token?.kind === 'word' &&
+    tokens.at(at + 1)?.value === '=' &&
+    after !== '=' &&
+    after !== '>' &&
+    before !== '.' &&
+    !['const', 'let', 'var'].includes(before ?? '')
+  );
 }
 
 // Whether the value that starts at the index, up to its comma, its closing bracket or the given

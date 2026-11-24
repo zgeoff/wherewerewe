@@ -205,8 +205,7 @@ test('it starts probes in the order given, and a probe the deadline stops before
   seedStubCommand(
     ctx.folder,
     'gh',
-    `/bin/sleep 0.$(printf '%02d' $(( (31 - $3) * 5 )))
-echo "$3" >> "${log}"
+    `echo "$$ $3" >> "${log}"
 /bin/sleep 5
 printf '%s' '${ctx.passing}'`,
   );
@@ -223,9 +222,18 @@ printf '%s' '${ctx.passing}'`,
   const run = await runChecks(order, items, [], { deadlineMs: 800, env: ctx.env, now: ctx.now });
   const logText = await Bun.file(log).text();
 
-  // each probe logs after a delay that grows with its place in the order, so the log's own order
-  // is the order the probes started in
-  const started = logText.split('\n').filter(Boolean);
+  // the system gives each process a higher pid than the one forked before it, so the pids give
+  // the order the probes were started in, whatever order the stubs then log in
+  const started = logText
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [pid, number] = line.split(' ');
+
+      return { pid: Number(pid), number: number ?? '' };
+    })
+    .toSorted((first, second) => first.pid - second.pid)
+    .map((probe) => probe.number);
 
   expect([started, run.ran, run.unchecked, run.reason]).toStrictEqual([
     ['30', '29', '28', '27', '26', '25', '24', '23'],

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { makePath } from './make-path.ts';
@@ -56,4 +56,16 @@ test('it refuses a paths folder that is a link out of the run', () => {
 
   expect(() => removePath(root, 'dock-map')).toThrow('not a folder of its own');
   expect(existsSync(join(outside, 'dock-map'))).toBe(true);
+});
+
+test('it refuses a folder that replaced the one make-path made, while the marker stays', () => {
+  const root = createTempDir('remove-path-replaced').path;
+  const folder = makePath(root, 'dock-map');
+
+  renameSync(folder, join(root, 'paths', 'moved'));
+  mkdirSync(folder);
+  writeFileSync(join(folder, 'keep.txt'), 'by hand\n');
+
+  expect(() => removePath(root, 'dock-map')).toThrow('was not made by `www make-path` in this run');
+  expect(existsSync(join(folder, 'keep.txt'))).toBe(true);
 });
