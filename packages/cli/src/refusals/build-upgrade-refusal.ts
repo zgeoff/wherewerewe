@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern';
+import { redactCredential } from '../rules/redact-credential.ts';
 import type { ApprovalLine, Refusal, RefusalReason, UpgradeProblem } from '../types.ts';
 import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';
@@ -64,17 +65,20 @@ function buildProblemLines(
     ])
     .with({ kind: 'grant-text' }, (found) => [...buildReason(found.reason).lines])
     .with({ kind: 'drop-unknown' }, (found) => [
-      `www: refused: --drop ${found.id} names no item in ${name}. Items: ${formatList(found.open)}.`,
+      `www: refused: --drop ${redactCredential(found.id)} names no item in ${name}. Items: ${formatList(found.open.map((id) => redactCredential(id)))}.`,
     ])
     .exhaustive();
 }
 
+// Each text prints through the credential test, so a stored quote that looks like a secret never
+// reaches the refusal.
 function formatApprovalLines(approvals: readonly ApprovalLine[]): string[] {
-  const width = Math.max(...approvals.map((approval) => approval.id.length)) + 2;
+  const ids = approvals.map((approval) => redactCredential(approval.id));
+  const width = Math.max(...ids.map((id) => id.length)) + 2;
 
   return approvals.map(
-    (approval) =>
-      `  ${approval.id.padEnd(width)}"${approval.quote}" · ${approval.scope}${approval.age === null ? '' : `  [${approval.age}]`}`,
+    (approval, index) =>
+      `  ${(ids[index] ?? '').padEnd(width)}"${redactCredential(approval.quote)}" · ${redactCredential(approval.scope)}${approval.age === null ? '' : `  [${approval.age}]`}`,
   );
 }
 
@@ -151,6 +155,7 @@ function readFlagValue(argv: readonly string[], flag: string): string | null {
   return word.includes('=') ? word.slice(word.indexOf('=') + 1) : (argv.at(at + 1) ?? null);
 }
 
+// The spec holds each typed value through the credential test, so the id is matched the same way.
 function removeDrop(spec: RunSpec, id: string): RunSpec {
-  return spec.dropFlagValue('drop', id);
+  return spec.dropFlagValue('drop', redactCredential(id));
 }

@@ -321,3 +321,73 @@ test('it leaves out a note whose id names no item, as every read of format 1 doe
     ['ok-merge'],
   ]);
 });
+
+test.each([
+  {
+    title: 'a journal whose header is broken',
+    journal: 'ts\top\tid\n',
+    first:
+      "www: garden-beds's journal.tsv line 1 does not parse: the header is not the journal header. Fix the row by hand.",
+  },
+  {
+    title: 'a journal with no header',
+    journal: '',
+    first:
+      "www: garden-beds's journal.tsv line 1 does not parse: the header is not the journal header. Fix the row by hand.",
+  },
+  {
+    title: 'a journal with a line that is no row',
+    journal:
+      'ts\top\tid\tby\ttext\twhy\textra\n2026-03-02T08:04:11Z\tinit\tgarden-beds\tagent\tShip it\t-\t-\nnot a row\n',
+    first:
+      "www: garden-beds's journal.tsv line 3 does not parse: the line is not a journal row. Fix the row by hand.",
+  },
+  {
+    title: 'a journal whose last line was cut before its newline',
+    journal:
+      'ts\top\tid\tby\ttext\twhy\textra\n2026-03-02T08:04:11Z\tinit\tgarden-beds\tagent\tShip it\t-\t-\n2026-03-03T09:00:00Z\tnote',
+    first:
+      "www: garden-beds's journal.tsv line 3 does not parse: the line is not a journal row. Fix the row by hand.",
+  },
+])('it refuses $title as a broken store, and writes nothing', (row) => {
+  const ctx = setupTest();
+  const picked = ctx.pick(ctx.grantFlags, { files: { journal: row.journal } });
+
+  expect(ctx.readRefusal(picked)?.at(0)).toBe(row.first);
+});
+
+test('it prints no credential from a stored approval or a --drop value, in a line or in the Run line', () => {
+  const ctx = setupTest();
+  const secret = `AKIA${'Q'.repeat(16)}`;
+
+  const items = ctx.files.items.replace(
+    'merge the garden-api PRs yourself once CI is green',
+    secret,
+  );
+
+  const refused = ctx.readRefusal(ctx.pick(['--drop', secret], { files: { items } }));
+
+  expect(refused).toStrictEqual([
+    "www: refused: garden-beds holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
+    '  ok-merge   "<text with no secret in it>" · garden-api',
+    '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds',
+    'www: refused: --drop <text with no secret in it> names no item in garden-beds. Items: ok-merge, ok-deploy, ok-wipe, t-valves, t-timer, r-tests.',
+    "Run: www import garden-beds --quote <the owner's words, whole> --where chat --reading <what they cover; what the owner kept back>",
+  ]);
+});
+
+test('it fixes the words and the reading in one Run line when both are over their limits', () => {
+  const ctx = setupTest();
+  const items = ctx.dropLines(ctx.files.items, ['ok-merge', 'ok-deploy']);
+
+  const picked = ctx.pick(
+    ['--quote', 'w'.repeat(701), '--where', 'chat', '--reading', 'r'.repeat(201)],
+    { files: { items } },
+  );
+
+  expect(ctx.readRefusal(picked)).toStrictEqual([
+    "www: refused: the grant's words are 701 characters, and the limit is 700. The grant holds the owner's words whole, so it takes a statement of at most 700 characters.",
+    'www: refused: the reading is 201 characters, and the limit is 200.',
+    "Run: www import garden-beds --quote <the owner's words, at most 700 characters> --where chat --reading <reading of at most 200 characters>",
+  ]);
+});

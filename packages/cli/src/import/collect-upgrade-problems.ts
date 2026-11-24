@@ -1,7 +1,7 @@
 import { formatAge } from '../brief/format-age.ts';
 import type { ApprovalLine, ParsedArgs, UpgradeProblem } from '../types.ts';
 import { pickGrantPartsRefusal } from '../writes/pick-grant-parts-refusal.ts';
-import { pickGrantTextRefusal } from '../writes/pick-grant-text-refusal.ts';
+import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusal.ts';
 
 // An approval the upgrade or the import reads: standing ones fold into the grant, one-time ones stay.
 export interface UpgradeApproval {
@@ -38,7 +38,7 @@ export function collectUpgradeProblems(facts: UpgradeFacts): UpgradeProblem[] {
   );
 
   const partsReason = pickGrantPartsRefusal(args, false);
-  const textReason = pickGrantTextRefusal(args);
+  const textReasons = pickGrantTextRefusals(args);
 
   return [
     ...(standing.length > 0 && args.values.quote === undefined
@@ -63,7 +63,7 @@ export function collectUpgradeProblems(facts: UpgradeFacts): UpgradeProblem[] {
       ? [{ kind: 'grant-id' as const }]
       : []),
     ...(partsReason === null ? [] : [{ kind: 'grant-needs-part' as const }]),
-    ...(textReason === null ? [] : [{ kind: 'grant-text' as const, reason: textReason }]),
+    ...textReasons.map((reason) => ({ kind: 'grant-text' as const, reason })),
     ...[...drops]
       .filter((id) => !facts.itemIDs.includes(id))
       .map((id) => ({ kind: 'drop-unknown' as const, id, open: facts.itemIDs })),

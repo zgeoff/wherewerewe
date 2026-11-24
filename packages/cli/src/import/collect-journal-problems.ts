@@ -99,7 +99,7 @@ function collectQuestionProblems(
           `the question is ${String(textProblem.length)} characters, and the limit is 120 for a wait.`,
         ]
       : []),
-    ...(isItemID(question.id) ? [] : [idRuleProblem]),
+    ...(isItemID(question.id) || question.id === 'grant' ? [] : [idRuleProblem]),
     ...(question.closedLine === null ? [] : [buildReuseProblem(question)]),
     ...(itemLine === undefined ? [] : [`items.tsv line ${String(itemLine)} has the same id.`]),
     ...(questionLine === undefined ? [] : [`line ${String(questionLine)} has the same id.`]),

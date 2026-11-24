@@ -1378,3 +1378,62 @@ test('it takes --drop for an approval and leaves the other one-time approval', (
     ],
   });
 });
+
+test('it refuses a question named grant with the item grant problem, and its Run line drops it', () => {
+  const hand = parseHandKeptStore({
+    session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
+    items:
+      'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-03-02T09:00:00Z\tagent\t-\n',
+    journal: `${['ts\top\tid\ttext', buildHandKeptQuestionRow({ id: 'grant', text: 'Who may merge' })].join('\n')}\n`,
+  });
+
+  const picked = pickImport(hand, {
+    name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
+    nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
+    agent: null,
+  });
+
+  expect(picked).toStrictEqual({
+    kind: 'refused',
+    refusal: {
+      exitCode: 3,
+      lines: [
+        'www: refused: format 2 keeps the id grant for the grant, and old-notes has an item grant. Drop it, and write it again under a new id after the upgrade.',
+      ],
+      runs: [{ www: ['import', 'old-notes', '--drop', 'grant'] }],
+    },
+  });
+});
+
+test('it removes a question named grant that --drop names, with a drop row', () => {
+  const hand = parseHandKeptStore({
+    session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
+    items:
+      'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-a\ttask\tWrite it\t-\t-\t-\t2026-03-02T09:00:00Z\tagent\t-\n',
+    journal: `${['ts\top\tid\ttext', buildHandKeptQuestionRow({ id: 'grant', text: 'Who may merge' })].join('\n')}\n`,
+  });
+
+  const picked = getPickedImport(
+    pickImport(hand, {
+      name: 'old-notes',
+      args: buildParsedArgs(['import', 'old-notes', '--drop', 'grant']),
+      nowMs: Date.parse('2026-03-10T11:43:00Z'),
+      byOwner: false,
+      agent: null,
+    }),
+  );
+
+  expect({
+    items: picked.items.map((item) => item.id),
+    rows: picked.journal.map((row) => [row.op, row.id, row.why]),
+  }).toStrictEqual({
+    items: ['t-a'],
+    rows: [
+      ['wait', 'grant', null],
+      ['drop', 'grant', 'dropped by the format 2 upgrade'],
+      ['import', 'old-notes', null],
+    ],
+  });
+});

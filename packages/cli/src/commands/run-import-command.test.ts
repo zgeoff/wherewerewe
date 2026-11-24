@@ -8,6 +8,7 @@ import { withBindingLock } from '../sessions/with-binding-lock.ts';
 import { createImportFiles } from '../store/create-import-files.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeImportFiles } from '../store/write-import-files.ts';
+import { writeUpgradeFiles } from '../store/write-upgrade-files.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
@@ -1007,45 +1008,63 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
   });
 });
 
-test('it upgrades from a leftover format-1-backup/, not from the live files', async () => {
+test('it finishes a stopped upgrade from format-1-backup/ into the store a clean run makes, with no journal row twice', async () => {
   const ctx = setupTest();
-  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
+  const clean = setupTest();
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
 
+  const argv = [
+    'import',
+    'old-notes',
+    '--quote',
+    'Merge and deploy to the staging beds yourself.',
+    '--where',
+    'chat',
+    '--reading',
+    'covers garden-api merges and staging deploys',
+  ];
+
   seedFormat1Store(ctx.stateRoot, 'old-notes');
+  seedFormat1Store(clean.stateRoot, 'old-notes');
 
-  // a stopped upgrade left a whole backup, and live files that differ from it
-  for (const file of ['session', 'items.tsv', 'notes.tsv', 'journal.tsv']) {
-    seedStoreFile(join(ctx.folder, 'format-1-backup'), file, ctx.readText(`old-notes/${file}`));
-  }
-
-  seedStoreFile(
-    ctx.folder,
-    'items.tsv',
-    'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n',
-  );
-
-  const result = await ctx.run(
-    [
-      'import',
-      'old-notes',
-      '--quote',
-      'Go ahead.',
-      '--where',
-      'chat',
-      '--reading',
-      'covers the beds',
-    ],
-    env,
+  const cleanResult = await clean.run(
+    argv,
+    { HOME: clean.root, XDG_STATE_HOME: clean.root },
     nowMs,
   );
 
-  expect({
-    exitCode: result.exitCode,
-    itemIDs: ctx
-      .readText('old-notes/items.tsv')
-      .split('\n')
-      .slice(1, -1)
-      .map((line) => line.split('\t').at(0)),
-  }).toStrictEqual({ exitCode: 0, itemIDs: ['ok-wipe', 't-valves', 't-timer', 'r-tests'] });
+  // the process ended after it renamed journal.tsv and items.tsv, and before notes.tsv and session
+  const files = createImportFiles();
+
+  expect(() => {
+    writeUpgradeFiles(
+      ctx.folder,
+      {
+        session: clean.readText('old-notes/session'),
+        items: clean.readText('old-notes/items.tsv'),
+        notes: clean.readText('old-notes/notes.tsv'),
+        journal: clean.readText('old-notes/journal.tsv'),
+      },
+      {
+        ...files,
+        rename: (from, to) => {
+          if (basename(to) === 'notes.tsv') {
+            throw new Error('stopped');
+          }
+
+          files.rename(from, to);
+        },
+      },
+    );
+  }).toThrow('stopped');
+
+  const rerun = await ctx.run(argv, { HOME: ctx.root, XDG_STATE_HOME: ctx.root }, nowMs);
+
+  expect({ rerun, tree: await readTreeHashes(ctx.folder) }).toStrictEqual({
+    rerun: {
+      ...cleanResult,
+      stdout: cleanResult.stdout.replaceAll(clean.folder, ctx.folder),
+    },
+    tree: await readTreeHashes(clean.folder),
+  });
 });

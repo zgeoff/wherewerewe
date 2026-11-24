@@ -541,6 +541,88 @@ test("it prints commands.md's show grant example after the reading alone was rep
   );
 });
 
+test('it names the owner as the one who set the words when the agent replaces the reading in the same second', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'owner',
+        text: 'Merge it yourself.',
+        why: 'covers merges',
+        extra: 'where=chat',
+      }),
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: 'Merge it yourself.',
+        why: 'covers merges and deploys',
+        extra: 'where=chat',
+      }),
+    ],
+    {
+      grant: {
+        words: 'Merge it yourself.',
+        reading: 'covers merges and deploys',
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect(text.split('\n').at(0)).toBe(
+    'grant  from the owner in chat, words set on day 2 by owner, reading set on day 2',
+  );
+});
+
+test('it names the writer of the newest words when an earlier write in the same second held other words', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'owner',
+        text: 'Merge it yourself.',
+        why: 'covers merges',
+        extra: 'where=chat',
+      }),
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: 'Deploy it yourself.',
+        why: 'covers deploys',
+        extra: 'where=chat',
+      }),
+    ],
+    {
+      grant: {
+        words: 'Deploy it yourself.',
+        reading: 'covers deploys',
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect(text.split('\n').at(0)).toBe(
+    'grant  from the owner in chat, words set on day 2 by agent, reading set on day 2',
+  );
+});
+
 test('it prints the none line for show grant when the session holds no grant', () => {
   const ctx = setupTest();
 

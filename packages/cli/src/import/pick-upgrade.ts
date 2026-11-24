@@ -17,6 +17,7 @@ import type {
 } from '../types.ts';
 import { buildUpgradeParts, toApprovals } from './build-upgrade-parts.ts';
 import { collectUpgradeProblems } from './collect-upgrade-problems.ts';
+import { findJournalProblem } from './find-journal-problem.ts';
 import { parseFormat1Session } from './parse-format-1-session.ts';
 import type { Format1Item, Format1Session } from './types.ts';
 
@@ -177,6 +178,12 @@ function parseFormat1Files(files: Format1Files, options: UpgradeOptions): Parsed
 
   if (notes.kind === 'broken') {
     return refuseBroken('notes.tsv', notes.line, notes.reason);
+  }
+
+  const journal = findJournalProblem(files.journal);
+
+  if (journal !== null) {
+    return refuseBroken('journal.tsv', journal.line, journal.reason);
   }
 
   return { kind: 'parsed', session: session.session, items: items.items, notes: notes.notes };

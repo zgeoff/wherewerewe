@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { findFormat } from '../import/find-format.ts';
 import { pickUpgrade } from '../import/pick-upgrade.ts';
@@ -9,6 +9,7 @@ import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
+import type { CLIResult } from '../types.ts';
 import { createImportFiles } from './create-import-files.ts';
 import { formatItemsFile } from './format-items-file.ts';
 import { formatJournalRows } from './format-journal-rows.ts';
@@ -25,6 +26,26 @@ function setupTest() {
   const root = createTempDir('write-upgrade-files').path;
   const stateRoot = join(root, 'wherewerewe');
   const folder = join(stateRoot, name);
+
+  const run = (argv: readonly string[]) =>
+    runCLI({
+      argv,
+      env: { HOME: root, XDG_STATE_HOME: root },
+      cwd: '/work',
+      terminal: { stdin: false, stdout: false },
+      now: () => nowMs,
+    });
+
+  const upgradeArgv = [
+    'import',
+    name,
+    '--quote',
+    'Merge and deploy to the staging beds yourself.',
+    '--where',
+    'chat',
+    '--reading',
+    'covers garden-api merges and staging deploys',
+  ];
 
   return {
     name,
@@ -49,16 +70,7 @@ function setupTest() {
         {
           name,
           folder,
-          args: buildParsedArgs([
-            'import',
-            name,
-            '--quote',
-            'Merge and deploy to the staging beds yourself.',
-            '--where',
-            'chat',
-            '--reading',
-            'covers garden-api merges and staging deploys',
-          ]),
+          args: buildParsedArgs(upgradeArgv),
           nowMs,
           byOwner: false,
           agent: null,
@@ -90,14 +102,28 @@ function setupTest() {
       buildSteppedImportFiles(createImportFiles(), step, () => {
         throw new Error('stopped');
       }),
-    run: (argv: readonly string[]) =>
-      runCLI({
-        argv,
-        env: { HOME: root, XDG_STATE_HOME: root },
-        cwd: '/work',
-        terminal: { stdin: false, stdout: false },
-        now: () => nowMs,
-      }),
+
+    // The process ends right after the rename that makes the store format 2.
+    stopAfterCommit: (): ImportFiles => {
+      const files = createImportFiles();
+
+      return {
+        ...files,
+        rename: (from, to) => {
+          files.rename(from, to);
+
+          if (basename(to) === 'session') {
+            throw new Error('stopped');
+          }
+        },
+      };
+    },
+    runUpgrade: () => run(upgradeArgv),
+    readBackup: (): string[] | null =>
+      existsSync(join(folder, 'format-1-backup'))
+        ? originalNames.map((file) => readFileSync(join(folder, 'format-1-backup', file), 'utf8'))
+        : null,
+    run,
     readTree: () => readTreeHashes(stateRoot),
   };
 }
@@ -179,7 +205,7 @@ test('it makes 28 file calls on a clean run, which the stop tests below walk thr
 });
 
 test.each(Array.from({ length: 28 }, (_value, step) => ({ step })))(
-  'it leaves format 1 with a whole backup, or format 2 whole, when it stops at file call $step',
+  'it leaves format 1 with a whole backup or none, and refuses every command, when it stops before file call $step',
   async (row) => {
     const ctx = setupTest();
     const clean = setupTest();
@@ -190,51 +216,86 @@ test.each(Array.from({ length: 28 }, (_value, step) => ({ step })))(
     const originals = ctx.readOriginals();
     const write = ctx.readUpgradeWrite();
 
-    writeUpgradeFiles(clean.folder, clean.readUpgradeWrite());
+    await clean.runUpgrade();
 
     expect(() => {
       writeUpgradeFiles(ctx.folder, write, ctx.stopBefore(row.step));
     }).toThrow('stopped');
 
-    const hasBackup = existsSync(join(ctx.folder, 'format-1-backup'));
-    const session = readFileSync(join(ctx.folder, 'session'), 'utf8');
-    const format = findFormat(session);
-
-    const before = await ctx.readTree();
+    const stopped = await ctx.readTree();
+    const read = await readStore(ctx.folder);
     const brief = await ctx.run(['--session', ctx.name]);
-    const write2 = await ctx.run(['task', 't-x', 'x', '--session', ctx.name]);
-    const store = await readStore(ctx.folder);
-    const after = await ctx.readTree();
+    const task = await ctx.run(['task', 't-x', 'x', '--session', ctx.name]);
 
-    // a format 1 store refuses every command, and a format 2 store reads whole
+    const refusal: CLIResult = {
+      exitCode: 5,
+      stdout: '',
+      stderr: `www: ${ctx.name} is format 1, and this www reads format 2. Upgrade it in place; the upgrade keeps a copy of each file it changes, and changes nothing when it refuses.\nRun: www --session ${ctx.name} import ${ctx.name}\n`,
+    };
+
+    const session = readFileSync(join(ctx.folder, 'session'), 'utf8');
+
     expect({
-      format,
-      refusals:
-        format === '1'
-          ? [brief.exitCode, write2.exitCode, brief.stderr.includes('is format 1')]
-          : null,
-      store: format === '2' ? store.kind : null,
-      isSessionWhole: format === '2' ? session : null,
-      backup: hasBackup
-        ? ctx.originalNames.map((file) =>
-            readFileSync(join(ctx.folder, 'format-1-backup', file), 'utf8'),
-          )
-        : originals,
-      changedByReads: format === '1' ? after : before,
+      format: findFormat(session),
+      store: read.kind,
+      refusals: [brief, task],
+      changedByRefusals: await ctx.readTree(),
     }).toStrictEqual({
-      format: format === '1' ? '1' : '2',
-      refusals: format === '1' ? [5, 5, true] : null,
-      store: format === '2' ? 'store' : null,
-      isSessionWhole: format === '2' ? readFileSync(join(clean.folder, 'session'), 'utf8') : null,
-      backup: originals,
-      changedByReads: before,
+      format: '1',
+      store: 'format-1',
+      refusals: [refusal, refusal],
+      changedByRefusals: stopped,
     });
 
-    writeUpgradeFiles(ctx.folder, write);
+    expect(ctx.readBackup()).toBeOneOf([null, originals]);
 
-    const upgraded = await readTreeHashes(ctx.folder);
-    const expected = await readTreeHashes(clean.folder);
+    const rerun = await ctx.runUpgrade();
 
-    expect(upgraded).toStrictEqual(expected);
+    expect({ rerun: rerun.exitCode, tree: await readTreeHashes(ctx.folder) }).toStrictEqual({
+      rerun: 0,
+      tree: await readTreeHashes(clean.folder),
+    });
   },
 );
+
+test('it leaves format 2 whole when it stops after the file call that renames session', async () => {
+  const ctx = setupTest();
+  const clean = setupTest();
+
+  ctx.copyStore();
+  clean.copyStore();
+
+  const originals = ctx.readOriginals();
+  const write = ctx.readUpgradeWrite();
+
+  await clean.runUpgrade();
+
+  expect(() => {
+    writeUpgradeFiles(ctx.folder, write, ctx.stopAfterCommit());
+  }).toThrow('stopped');
+
+  const read = await readStore(ctx.folder);
+  const brief = await ctx.run(['--session', ctx.name]);
+  const rerun = await ctx.runUpgrade();
+
+  const session = readFileSync(join(ctx.folder, 'session'), 'utf8');
+
+  expect({
+    format: findFormat(session),
+    store: read.kind,
+    briefExitCode: brief.exitCode,
+    backup: ctx.readBackup(),
+    rerun: { exitCode: rerun.exitCode, stderr: rerun.stderr },
+    tree: await readTreeHashes(ctx.folder),
+  }).toStrictEqual({
+    format: '2',
+    store: 'store',
+    briefExitCode: 0,
+    backup: originals,
+    rerun: {
+      exitCode: 3,
+      stderr: `www: refused: ${ctx.name} is already format 2.\nRun: www --session ${ctx.name}\n`,
+    },
+    tree: await readTreeHashes(clean.folder),
+  });
+});

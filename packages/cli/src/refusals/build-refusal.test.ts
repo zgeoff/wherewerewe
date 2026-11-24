@@ -2528,6 +2528,33 @@ test.each([
     fills: [{}],
   },
   {
+    title: 'an import of a hand-kept store with an open question named grant',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'session',
+        text: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
+      },
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      {
+        session: 'old-notes',
+        name: 'journal.tsv',
+        text: 'ts\top\tid\ttext\n2026-03-06T10:00:00Z\topen\tgrant\tWho may merge\n',
+      },
+    ],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: format 2 keeps the id grant for the grant, and old-notes has an item grant. Drop it, and write it again under a new id after the upgrade.\nRun: www import old-notes --drop grant\n',
+    fills: [{}],
+  },
+  {
     title: 'an upgrade with a --drop that names no item',
     format1: 'old-notes',
     setup: [],
@@ -2545,6 +2572,70 @@ test.each([
     stderr:
       'www: refused: --drop nope names no item in old-notes. Items: t-valves.\nRun: www import old-notes\n',
     fills: [{}],
+  },
+  {
+    title: 'an upgrade with a --drop value that looks like a credential',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes', '--drop', `AKIA${'Q'.repeat(16)}`],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --drop <text with no secret in it> names no item in old-notes. Items: t-valves.\nRun: www import old-notes\n',
+    fills: [{}],
+  },
+  {
+    title: 'an upgrade with a reading and words that are both over their limits',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: [
+      'import',
+      'old-notes',
+      '--quote',
+      'w'.repeat(701),
+      '--where',
+      'chat',
+      '--reading',
+      'r'.repeat(201),
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the grant\'s words are 701 characters, and the limit is 700. The grant holds the owner\'s words whole, so it takes a statement of at most 700 characters.\nwww: refused: the reading is 201 characters, and the limit is 200.\nRun: www import old-notes --quote "<the owner\'s words, at most 700 characters>" --where chat --reading "<reading of at most 200 characters>"\n',
+    fills: [
+      {
+        "<the owner's words, at most 700 characters>": 'Merge it yourself.',
+        '<reading of at most 200 characters>': 'covers merges',
+      },
+    ],
+  },
+  {
+    title: 'an import of a journal with a broken header',
+    format1: 'old-notes',
+    setup: [],
+    files: [{ session: 'old-notes', name: 'journal.tsv', text: 'ts\top\tid\n' }],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      "www: old-notes's journal.tsv line 1 does not parse: the header is not the journal header. Fix the row by hand.\nRun: less <STATE>/old-notes/journal.tsv\n",
+    fills: [],
   },
   {
     title: 'an upgrade with only --quote',
