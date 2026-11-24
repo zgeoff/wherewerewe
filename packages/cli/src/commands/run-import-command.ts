@@ -200,7 +200,9 @@ async function writeWithBinding(
 }
 
 function describeGrant(grant: Grant | null): string {
-  return grant === null ? 'no grant' : `grant ${String([...grant.words].length)} of 700 characters`;
+  return grant === null
+    ? 'no grant'
+    : `grant ${String(Array.from(grant.words, (character) => character).length)} of 700 characters`;
 }
 
 // A store that reads whole is refused as converted already, with a Run line that binds the agent.

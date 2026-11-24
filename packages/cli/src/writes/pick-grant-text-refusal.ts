@@ -19,8 +19,14 @@ export function pickGrantTextRefusals(args: ParsedArgs): RefusalReason[] {
   const words = args.values.quote === undefined ? undefined : normaliseWords(args.values.quote);
 
   const wordsTooLong: RefusalReason[] =
-    words !== undefined && [...words].length > wordsLimit
-      ? [{ kind: 'grant-words-too-long', args, length: [...words].length }]
+    words !== undefined && Array.from(words, (character) => character).length > wordsLimit
+      ? [
+          {
+            kind: 'grant-words-too-long',
+            args,
+            length: Array.from(words, (character) => character).length,
+          },
+        ]
       : [];
 
   const readingChecks: TextCheck[] =

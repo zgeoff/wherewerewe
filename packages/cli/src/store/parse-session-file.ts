@@ -123,10 +123,13 @@ function parseGrant(pairs: ReadonlyMap<string, string>): Grant | string | null {
     return 'the grant keys are not all set or all empty';
   }
 
-  const over = grantLimits.find((entry) => [...(pairs.get(entry.key) ?? '')].length > entry.limit);
+  const over = grantLimits.find(
+    (entry) =>
+      Array.from(pairs.get(entry.key) ?? '', (character) => character).length > entry.limit,
+  );
 
   if (over !== undefined) {
-    return `the key ${over.key} is ${String([...(pairs.get(over.key) ?? '')].length)} characters, and the limit is ${String(over.limit)}`;
+    return `the key ${over.key} is ${String(Array.from(pairs.get(over.key) ?? '', (character) => character).length)} characters, and the limit is ${String(over.limit)}`;
   }
 
   return { words, reading, where, set };

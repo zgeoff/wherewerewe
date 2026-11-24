@@ -57,8 +57,8 @@ export function pickGrantWrite(input: WriteInput & { readonly byOwner: boolean }
     },
     reply: (briefLines) =>
       quote === undefined
-        ? `grant reading: ${String([...grant.reading].length)} of 200. Brief: ${String(briefLines)} lines.`
-        : `grant: ${String([...grant.words].length)} of 700 characters, reading ${String([...grant.reading].length)} of 200. Brief: ${String(briefLines)} lines.`,
+        ? `grant reading: ${String(Array.from(grant.reading, (character) => character).length)} of 200. Brief: ${String(briefLines)} lines.`
+        : `grant: ${String(Array.from(grant.words, (character) => character).length)} of 700 characters, reading ${String(Array.from(grant.reading, (character) => character).length)} of 200. Brief: ${String(briefLines)} lines.`,
   };
 }
 

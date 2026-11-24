@@ -409,7 +409,7 @@ test.each([
     expect({
       goalCharacters: words.join(' ').length,
       lines: brief.split('\n').length - 1,
-      isWithinLimit: [...brief].length <= 7000,
+      isWithinLimit: Array.from(brief, (character) => character).length <= 7000,
       grantLines: brief
         .split('\n')
         .filter((line) => /^(?: {2}"| {3}g| {2}reading: | {4}g)/u.test(line)).length,
@@ -458,7 +458,7 @@ test('it cuts item lines from the bottom up when the text passes 7,000 character
   const lines = brief.split('\n');
 
   expect({
-    isWithinLimit: [...brief].length <= 7000,
+    isWithinLimit: Array.from(brief, (character) => character).length <= 7000,
     keepsHeader: lines[0]?.startsWith('tide-alerts · day 9'),
     keepsOwner: brief.includes('OWNER SAYS (1)') && brief.includes('o-1  Ask me first.'),
     keepsChanged: brief.includes('CHANGED SINCE WRITTEN (1)'),
@@ -608,7 +608,7 @@ test('it prints the grant whole and ends the last kept section with the cut line
 
   expect({
     isWithinLines: lines.length - 1 <= 63,
-    isWithinLimit: [...brief].length <= 7000,
+    isWithinLimit: Array.from(brief, (character) => character).length <= 7000,
     grantLines: lines.filter((line) => /^(?: {2}"| {3}g| {2}reading: | {4}g)/u.test(line)).length,
     hasWholeWords: brief.includes(words.slice(0, 80)) && brief.includes(words.slice(-60)),
     cutEndsLastSection: lines[cutAt - 1]?.startsWith('  rule'),
