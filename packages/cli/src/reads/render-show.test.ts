@@ -664,46 +664,61 @@ test('it names the writer of the newest words when an earlier write in the same 
   );
 });
 
-test('it names the writer of the words the grant holds when a later write stopped after its journal row', () => {
-  const ctx = setupTest();
+test.each([
+  ['other words', { text: 'Deploy it yourself.', why: 'covers merges', extra: 'where=chat' }],
+  [
+    'the same words and a new reading',
+    { text: 'Merge it yourself.', why: 'covers deploys', extra: 'where=chat' },
+  ],
+  [
+    'the same words and reading from a new where',
+    { text: 'Merge it yourself.', why: 'covers merges', extra: 'where=terminal' },
+  ],
+  [
+    'the same words and reading as a row with no reading=1',
+    { text: 'Merge it yourself.', why: 'covers merges', extra: 'where=chat' },
+  ],
+])(
+  'it dates and names the grant from the rows it holds when a later write of %s stopped after its journal row',
+  (_name, stopped) => {
+    const ctx = setupTest();
 
-  const text = ctx.show(
-    'grant',
-    [],
-    [
-      buildMockJournalRow({
-        ts: '2026-03-03T09:00:00Z',
-        op: 'grant',
-        id: 'grant',
-        by: 'owner',
-        text: 'Merge it yourself.',
-        why: 'covers merges',
-        extra: 'where=chat',
-      }),
-      buildMockJournalRow({
-        ts: '2026-03-04T09:00:00Z',
-        op: 'grant',
-        id: 'grant',
-        by: 'agent',
-        text: 'Deploy it yourself.',
-        why: 'covers deploys',
-        extra: 'where=chat',
-      }),
-    ],
-    {
-      grant: {
-        words: 'Merge it yourself.',
-        reading: 'covers merges',
-        where: 'chat',
-        set: '2026-03-03T09:00:00Z',
+    const text = ctx.show(
+      'grant',
+      [],
+      [
+        buildMockJournalRow({
+          ts: '2026-03-03T09:00:00Z',
+          op: 'grant',
+          id: 'grant',
+          by: 'owner',
+          text: 'Merge it yourself.',
+          why: 'covers merges',
+          extra: 'where=chat',
+        }),
+        buildMockJournalRow({
+          ts: '2026-03-04T09:00:00Z',
+          op: 'grant',
+          id: 'grant',
+          by: 'agent',
+          ...stopped,
+        }),
+      ],
+      {
+        grant: {
+          words: 'Merge it yourself.',
+          reading: 'covers merges',
+          where: 'chat',
+          set: '2026-03-03T09:00:00Z',
+        },
       },
-    },
-  );
+    );
 
-  expect(text.split('\n').at(0)).toBe(
-    'grant  from the owner in chat, words set on day 2 by owner, reading set on day 2',
-  );
-});
+    expect(text.split('\n').at(0)).toBe(
+      'grant  from the owner in chat, words set on day 2 by owner, reading set on day 2',
+    );
+  },
+);
 
 test('it prints the none line for show grant when the session holds no grant', () => {
   const ctx = setupTest();
