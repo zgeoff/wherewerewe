@@ -25,9 +25,9 @@ that has a note, `owner.tsv` the owner's notes that still show, and `journal.tsv
 close rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A session never reuses a
 closed id: a write reads from the journal the ids that `done`, `drop` and `use` closed, the decision
 numbers, who made each decision and, for `say`, the highest note number among its `say` rows, and
-nothing else. The store is format 2. A store in format 1 exits 5 on every command except `import`,
-`sessions` and `help`, and `www import` upgrades it in place: it keeps the format 1 files in
-`format-1-backup/`, writes `session` last, and reads the backup on a rerun. See
+nothing else from the journal. The store is format 2. A store in format 1 exits 5 on every command
+except `import`, `sessions` and `help`, and `www import` upgrades it in place: it keeps the format 1
+files in `format-1-backup/`, writes `session` last, and reads the backup on a rerun. See
 [the store design](../design/wherewerewe/store.md) for the formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv`, `notes.tsv`

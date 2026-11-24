@@ -189,7 +189,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
 - `ok` accepts `--once` and ignores it, because every approval is one-time. `--standing` gets the refusal below.
 - `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
-- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install`, `doctor` and `hook` are in the help, and exit 2 until slice 4 builds them; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
+- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install` and `doctor` are in the help, and they and `hook` exit 2 until slice 4 builds them; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
 
 ### Text limits
 
