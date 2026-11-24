@@ -49,10 +49,11 @@ command exits 4, and never falls back to the only session on the machine. See
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
 `rule`, `where`, `set`, `ok`, `decide`, `done`, `drop`, `use`, `show`, `log`, `import`, `say` and
-`ack`, and `www` alone prints the brief. A write answers in one line. The reply of a write, such as
-`task`, `done`, `decide`, `say` or `ack`, names the item or note and ends with the brief's length;
-`init`, `attach`, `detach` and `import` say what they did, and `import` names the folder of the
-backup. Each refusal prints its text and a `Run:` line with the command that fixes it. See
+`ack`, and `www` alone prints the brief. A write answers in one line, except `now` and a close,
+which print the note of an item that has one. The reply of a write, such as `task`, `done`,
+`decide`, `say` or `ack`, names the item or note and ends with the brief's length; `init`, `attach`,
+`detach` and `import` say what they did, and `import` names the folder of the backup. Each refusal
+prints its text and a `Run:` line with the command that fixes it. See
 [the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
 
 `now` and every item write take `--note` and `--owed`, and `set` also takes `--no-note` and no

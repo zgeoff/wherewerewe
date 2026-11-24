@@ -37,7 +37,7 @@ function setupTest() {
   };
 }
 
-test('it never rewrites owner.tsv in an agent write or a read', async () => {
+test('it never rewrites owner.tsv in an agent write or a read, or in a refused init, import, install, doctor and hook', async () => {
   const ctx = setupTest();
 
   await ctx.runAsAgent(['init', 'tide-alerts', '--goal', 'Ship the glaze timer']);

@@ -35,7 +35,7 @@ www --help
 - `www init`, `attach` and `detach` start a session and bind an agent session to it.
 - `www goal`, `now`, `task`, `wait`, `rule`, `where` and `set` write a claim.
 - `--note` keeps a note of detail on an item, and `--owed` stops the item's close until
-  `www set --no-note` clears it.
+  `www set <id> --no-note` clears it.
 - `www ok` records the owner's approval, and `use` spends one that was given once.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
 - `www done` and `drop` close an item and keep it in the journal.
