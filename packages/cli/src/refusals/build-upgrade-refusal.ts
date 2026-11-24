@@ -102,20 +102,26 @@ function addNeededGrantFlags(spec: RunSpec, found: UpgradeRefusalReason): RunSpe
 
   const mayFlags = needsMay ? ['may'] : ['may', 'not', 'never'];
 
-  // the may bullet the line adds must not push the typed bullets over a limit, or the pre-print
-  // check would refuse the line for a grant the command never typed
+  // the may bullet the line adds holds the standing approvals' words, so it must fit beside the
+  // typed bullets, or the filled line would be refused for a grant the command never typed
+  const standingWords = found.problems
+    .flatMap((problem) => (problem.kind === 'needs-grant' ? problem.approvals : []))
+    .map((approval) => approval.quote)
+    .join('; ');
+
   const fitted =
-    needsMay && !typed.has('may') && isGrantFullForMayBullet(found.args)
+    needsMay && !typed.has('may') && isGrantFullForMayBullet(found.args, standingWords)
       ? replaceGrantBullets(spec, found.args.flags)
       : spec;
 
   return needsGrant ? addGrantFlags(fitted, typed, mayFlags) : fitted;
 }
 
-// Whether one more one-character bullet breaks a limit of the grant's bullets, words or lines.
-function isGrantFullForMayBullet(args: ParsedArgs): boolean {
+// Whether one more bullet of the words, at least one character, breaks a limit of the grant's
+// bullets, words or lines.
+function isGrantFullForMayBullet(args: ParsedArgs, words: string): boolean {
   const typedWords = toGrantWords(args);
-  const withMay = { ...typedWords, may: [...typedWords.may, '\u2460'] };
+  const withMay = { ...typedWords, may: [...typedWords.may, words === '' ? '\u2460' : words] };
 
   return (
     withMay.may.length + withMay.not.length + withMay.never.length > grantLimits.bullets ||

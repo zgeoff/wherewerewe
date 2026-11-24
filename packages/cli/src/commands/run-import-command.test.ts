@@ -1192,6 +1192,10 @@ test.each([
     title: '19 lines of the brief',
     bullets: [buildSpacedText(649, 74), ...Array.from({ length: 10 }, () => 'o')],
   },
+  {
+    title: 'words that leave room for one character',
+    bullets: [...Array.from({ length: 6 }, () => 'h'.repeat(100)), 'h'.repeat(86)],
+  },
 ])(
   'it refuses standing approvals and $title of --not with the needs-grant lines, and a Run line that runs',
   async (row) => {
