@@ -23,16 +23,16 @@ flowchart LR
 // checks module
 const results = await runChecks(items, prs, { deadlineMs: 5000 });
 // → Map { 'pr-api-77' => 'OPEN failing', 'p-sim' => 'gone', 'bosunhq/bosun-app#64' => 'OPEN pending' }
-//   plus { ran: 7, unchecked: 0, reason: null, ms: 2810 }
+//   plus { ran: 7, unchecked: 0, reason: null, elapsedMs: 2810 }
 
-type CheckResult = string; // one of the values in the table below; at most 15 characters
+type CheckResult = string; // one of the values in the table below; at most 15 characters. `show` also gets the names of the failing checks beside an `OPEN failing` result
 
 interface CheckRun {
   results: Map<string, CheckResult>; // keyed by item id, or by pull request ref for prs.tsv rows
   ran: number;
   unchecked: number;
-  reason: 'offline' | 'gh missing' | 'gh not logged in' | 'timeout' | 'mixed' | null; // why any probe read unchecked
-  ms: number;
+  reason: 'offline' | 'gh missing' | 'gh not logged in' | 'git missing' | 'timeout' | 'mixed' | null; // why any probe read unchecked; 'git missing' is the reason of a branch probe with no git
+  elapsedMs: number;
 }
 ```
 
@@ -40,7 +40,7 @@ interface CheckRun {
 | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------- |
 | `pr`     | `pr:<owner>/<repo>#<n>`      | `gh pr view <n> -R <owner>/<repo> --json state,statusCheckRollup`                                         | `OPEN passing`, `OPEN failing`, `OPEN pending`, `OPEN no checks`, `MERGED`, `CLOSED`, `not found` | 4 s     |
 | `branch` | `branch:<repo path>@<name>`  | `git -C <repo path> rev-parse --verify --quiet refs/heads/<name>`, then `git -C <repo path> rev-list --left-right --count <name>...<name>@{upstream}` | `pushed`, `ahead <n>`, `behind <n>`, `diverged`, `no upstream`, `gone`                          | 2 s     |
-| `path`   | `path:<absolute path>`       | a stat; inside a git work tree, `git --no-optional-locks -C <path> status --porcelain`                     | `clean`, `dirty`, `exists`, `missing`                                                           | 2 s     |
+| `path`   | `path:<absolute path>`       | a stat; inside a git work tree, `git --no-optional-locks -C <folder> status --porcelain -- <path in it>`                     | `clean`, `dirty`, `exists`, `missing`                                                           | 2 s     |
 | `pid`    | `pid:<n>`                    | `kill(<n>, 0)`; on Linux, the start time from `/proc/<n>/stat`                                            | `alive`, `gone`                                                                                 | 1 s     |
 
 Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up this way: any failed, cancelled or timed-out check is `failing`; otherwise any check still queued or running is `pending`; otherwise `passing`; with no checks, `no checks`.
@@ -51,7 +51,8 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 - Each probe runs with `GH_PROMPT_DISABLED=1`, `GIT_TERMINAL_PROMPT=0` and stdin closed, so it can never wait for input.
 - A probe never writes: no `git fetch`, no index refresh (`--no-optional-locks`), no `gh` call other than `pr view`, and no write to a repo or to GitHub.
 - A probe never runs a command stored in the store. The reference is parsed into its parts, and each part is passed as one argument, never through a shell.
-- A check never changes an item's claim, kind or state. It sets `last`, adds a `changed` journal row when `last` changes, and sets `state` and `seen` in `prs.tsv`.
+- A check never changes an item's claim, kind or state. It sets `last`, adds a `changed` journal row when `last` changes, and sets `state` and `seen` in `prs.tsv`. A probed `prs.tsv` row takes `OPEN` for any `OPEN …` result and `MERGED` or `CLOSED` for those, and keeps its state for `not found` and `unchecked`. A read that saves results writes the first result into an `at_write` of `-`, with no `changed` row.
+- A probe finds `gh` and `git` through the `PATH` the command was given.
 - `unchecked` never counts as changed and never overwrites `last`. An item whose saved `last` differs from `at_write` counts as changed on every read until its claim is rewritten, whether or not this read probed it.
 - A pid whose start time differs from `pid_start` reads `gone`: the number now belongs to another process. Where `/proc` is missing, the probe checks only that the pid is alive.
 - When `gh` is not on `PATH`, every `pr` probe reads `unchecked`, and the header names `gh missing`. When `gh` exits with an authentication error, the header names `gh not logged in`. When a network error is seen, the header names `offline`.
@@ -61,7 +62,7 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 ### What the brief prints when probes fail
 
 ```text
-tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 5.0s · 4 unchecked: offline
+tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 5.0s · 5 unchecked: offline
 ...
   pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa  [unchecked]
 ```

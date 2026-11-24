@@ -29,7 +29,8 @@ www --help
 
 ## Features
 
-- `www` prints the brief.
+- `www` prints the brief, with a live check of each pull request, branch, path and process an item
+  names.
 - `www help` (the same as `www --help`) prints the commands, and `www sessions` prints the sessions
   on this machine.
 - `www init`, `attach` and `detach` start a session and bind an agent session to it.

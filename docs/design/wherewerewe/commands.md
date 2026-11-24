@@ -263,21 +263,21 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 
 ### Write replies
 
-Each write prints its reply line on stdout, then the note lines or the older-note line in its row, and exits 0. `<check>` is `no check`, `no check run` before the checks slice, or `checked now: <result>`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
+Each write prints the note lines or the older-note line in its row first and its status line last, the one that ends in `Brief: <n> lines.`, and exits 0. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `task`, `wait`, `rule`, `where`, `ok`, `set` | `<id>  <kind>, open, <check>[, note <k> of 400[, owed]]. Brief: <n> lines.` (a rule has no `<check>` part; the note part shows when the command wrote a note) |
-| the same, when the write replaces the claim and keeps a note written before it | the line above, then `  its note is <age> older than this claim. Replace it with www set <id> --note "<detail>", or clear it with www set <id> --no-note` |
+| the same, when the write replaces the claim and keeps a note written before it | `  its note is <age> older than this claim. Replace it with www set <id> --note "<detail>", or clear it with www set <id> --no-note`, then the line above |
 | `set` with only `--note`        | `<id>  note, <k> of 400[, owed]. Brief: <n> lines.`                                               |
 | `set --no-note`                 | `<id>  note cleared. Brief: <n> lines.`                                                           |
-| `now`                           | `now: <id>. Brief: <n> lines.`, or, when the item has a note, `now: <id>, with its note (<age>). Brief: <n> lines.` or `with its owed note (<age>)`, then `<note lines>` |
+| `now`                           | `now: <id>. Brief: <n> lines.`, or, when the item has a note, `<note lines>`, then `now: <id>, with its note (<age>). Brief: <n> lines.` or `with its owed note (<age>)` |
 | `goal`                          | `goal set. Brief: <n> lines.`                                                                     |
 | `grant` with a bullet           | `grant: <k> of 700 characters in <b> of 12 bullets on <l> of 19 lines, reading <m> of 200. Brief: <n> lines.` |
 | `grant --reading`               | `grant reading: <m> of 200. Brief: <n> lines.`                                                     |
 | `decide`                        | `d-<n>  decision[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`                |
 | `decide --ruled-out`            | `d-<n>  ruled out[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`               |
-| `done`, `drop`, `use`           | `<id>  done.` or `dropped.` or `used.`, then ` Off the brief, kept in the journal. Brief: <n> lines.`, or, when the item had a note, ` Off the brief, kept in the journal with its note (<age>). Brief: <n> lines.`, then `<note lines>` |
+| `done`, `drop`, `use`           | `<id>  done.` or `dropped.` or `used.`, then ` Off the brief, kept in the journal. Brief: <n> lines.`, or, when the item had a note, first `<note lines>`, then the same line with ` Off the brief, kept in the journal with its note (<age>). Brief: <n> lines.` |
 | `init`                          | `Started session <name> in <folder>. Bound to this <harness> session.` or, with no agent id, `Started session <name> in <folder>. Name it on each command: www --session <name>` |
 | `attach`, `detach`              | `Bound this <harness> session to <name>.` or `Unbound this <harness> session from <name>.`        |
 | `import` of a hand-kept store   | `Imported <name>: <n> items, <m> journal rows. Originals in <folder>/import-backup/.`             |
@@ -312,12 +312,14 @@ $ www grant --reading "covers merges in both repos on green CI with findings ans
 grant reading: 197 of 200. Brief: 45 lines.
 ```
 
-- A write with a check runs that one probe before it replies and stores the result in `at_write`. Before the checks slice, the reply says `no check run` and `at_write` is `-`.
+- A write with a check runs that one probe before it replies and stores the result in `at_write`. An `unchecked` result stores `-`.
 - `www decide --ruled-out` writes a `ruled-out` row in place of `decide`: the choice is the approach, and `--why` is why it lost.
 - `www decide --who owner` records a decision the owner made; the default is `agent`.
 - A `now` or a close prints the note whole, every time, so the agent meets it when it turns to the item and when it leaves it.
 
 ### www show and www log
+
+`show` runs the item's probe and saves nothing. After `OPEN failing` it names the failing checks in parentheses, as the example's `checked now: OPEN failing (oxlint)` does.
 
 ```text
 $ www show pr-api-77
@@ -328,7 +330,7 @@ pr-api-77  task, open since day 7, by agent · check: pr:bosunhq/bosun-api#77
     import in the retry helper, not on the retry logic.
   checked now: OPEN failing (oxlint) · at write: OPEN pending
   decisions: d-19 queue the alert in the job, not the request (day 7) · d-23 retry a 503 3 times (day 9)
-  journal: day 7 task · day 8 set · day 9 note · day 9 set · day 9 changed
+  journal: day 7 task · day 8 set · day 9 set · day 9 note · day 9 changed · day 9 set
 
 $ www show
 OPEN (4, max 30)
@@ -415,7 +417,7 @@ Correct: www --session tide-alerts say "<text>" [--on <id>]
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; the 5 oldest, then `  and <n> more: www --session <name> log --op done,drop,use --since <t>`, which prints every row since `<t>` | 7 |
 | footer    | `Whole text: www [--session <name>] show <id>` and `Correct: www [--session <name>] say "<text>" [--on <id>]`, with `--session <name>` as the next paragraph says | 2             |
 
-`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 on <o> open items) · owed first, then newest` and the `other open items` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
+`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 on <o> open items) · owed first, then newest` and the `other open items` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`, except `changed` rows, which a read writes.
 
 The recap reads from the start of the session when `<t>` falls before it, so the header and the two `SINCE` headings print `day 1` and the start's time, and the commands keep `<t>` as typed. When `journal.tsv` cannot be read, the header shows `journal unreadable` in place of `<n> writes`, `DECIDED SINCE` and `CLOSED SINCE` are left out, and stderr names the reason, as `show` does.
 
@@ -508,7 +510,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 
 ## Constraints
 
-- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
+- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `www` and `show` probe; `log` and `recap` never do. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
 - A changed check never makes `set` refuse, so the agent can always fix a stale claim.
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.

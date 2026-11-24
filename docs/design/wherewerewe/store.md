@@ -87,8 +87,8 @@ interface Item {
   kind: Kind;
   claim: string; // 1–120 characters, one line; for an ok item, the owner's exact words
   check: CheckRef | null; // '-' on disk; a rule never has one
-  atWrite: string | null; // the check's result when the claim was written; '-' means not checked yet
-  last: string | null; // the check's result at the last read that could save it
+  atWrite: string | null; // the check's result when the claim was written; '-' means not checked yet, and the first result a read saves fills it
+  last: string | null; // the check's result at the last read that could save it; every claim write resets it to '-'
   written: string; // when the claim was last written; a write that changes only the note keeps it
   by: 'agent' | 'owner' | 'import'; // who ran the command; import for an item www import made from an open journal row of a hand-kept store, and a carried item keeps its own by
   extra: Extra; // '-' on disk when empty; otherwise key=value pairs joined by ';'
@@ -193,7 +193,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - A `notes.tsv` row that does not parse does not break the store. Each read leaves the row out and names it on stderr, as `www: tide-alerts's notes.tsv line 3 does not parse: the id repeats an earlier row. The brief leaves out what it could not read. Fix the file by hand.` A write with `--note` or `--no-note`, `done`, `drop` and `use` refuse with the text in [commands.md](commands.md), because the row left out may be the item's owed note. Every other write works.
 - An id closed once is never reused in that session: a new item with a closed id is refused.
 - Each write takes `lock` with an exclusive create, appends its journal rows, rewrites each changed file through a temporary file and a rename in the same folder, and removes `lock`. The journal goes first because a write reads it to refuse a closed id, so a write that stops after the append leaves the id closed and its item still open, never an item gone while its id can be reused.
-- A write waits up to 2 s for `lock`, then refuses. A lock whose pid is gone, or that is older than 30 s, is stale: the next write removes it and goes on.
+- A write with a check runs its probe before it takes `lock`, and applies the result only when the item still names that check. A write waits up to 2 s for `lock`, then refuses. A lock whose pid is gone, or that is older than 30 s, is stale: the next write removes it and goes on.
 - A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. [brief.md](brief.md) has what the header shows then.
 - The journal is never rewritten, with two exceptions: `www import` rewrites a hand-kept journal into the current format once, after it copies the original into `import-backup/`, and the format 2 upgrade writes `journal.tsv` again: every format 1 row unchanged, then the upgrade's own rows. Nothing prints the journal whole, except `www log` with no filter.
 - A session folder is never deleted by the tool.
