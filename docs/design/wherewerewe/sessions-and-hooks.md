@@ -115,15 +115,17 @@ The gate uses `SessionStart`, `PreToolUse`, `PostToolUse` and `Stop` on both hos
 
 The gate refuses a call only for an agent session id that has a binding and a gate file. An unbound id and a bound id with no gate file pass every call without a refusal. A bound id gets its gate file at its first `SessionStart` after it is bound, so a session that runs `init`, `attach` or `import` mid-session is gated from its next resume or compaction. A missing gate file skips only the gate: `PostToolUse` still records pull requests, binds and nudges for every bound id. An agent session that never opted in is untouched, as [0004](../../decisions/0004-hooks-install-once-per-machine.md) requires.
 
-The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds the agent session id to another store, the file's `session` no longer matches the binding, and each hook reads the file as a fresh `wiped` for the new session, with `reads=0` and `spare=1`, before it applies the table below. So a `read` of the old store's brief never opens the gate for the new one.
+The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds the agent session id to another store, the file's `session` no longer matches the binding, and each hook reads the file as a fresh `wiped` for the new session, with `spare=1` and `reads` kept, before it applies the table below. So a `read` of the old store's brief never opens the gate for the new one.
 
-Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> reads=<n> spare=<0|1>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about. `reads` counts the brief commands the gate let through since the last `SessionStart` whose end it has not seen. `spare` is 1 until the gate spends its one refusal after a cut read. `www` never writes the file.
+Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> reads=<n> spare=<0|1>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about. `reads` counts the brief commands the gate let through, in any state, whose end it has not seen; a `SessionStart` keeps it, so a brief command that started before a compaction still counts. `spare` is 1 until the gate spends its one refusal after a cut read. `www` never writes the file.
+
+Each hook reads the file, applies its event and writes the result while it holds an exclusive lock on the file, one that the operating system releases when the hook process exits. So two hooks of one agent session that run at once apply their events one after the other, and neither loses the other's write. A hook that cannot take the lock before its timeout fails, writes nothing, and its call runs, as any failed hook's call does.
 
 ```ts
 // hooks module: the gate file's one line
 type GateState =
-  | 'wiped' // SessionStart wrote it: the brief is not in context, and no brief command runs
-  | 'reading' // reads > 0: a brief command the gate let through has not ended
+  | 'wiped' // SessionStart wrote it: the brief is not in context
+  | 'reading' // a brief command let through after the wipe has not ended, so reads > 0
   | 'cut' // on Codex, the last brief command's output reached the model cut
   | 'failed' // the last brief command ended with no whole read, or the turn ended while one ran
   | 'read' // PostToolUse saw the main agent read this session's brief whole
@@ -142,20 +144,20 @@ The gate changes state only on a hook event, and no rule reads a clock. Each eve
 
 | State | `SessionStart` | brief command | other call | whole | cut | failed | `Stop` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `wiped` | `wiped`, `reads=0`, `spare=1`; prints the goal, the grant and the two lines | `reading`, `reads=1`; passes | refused; no change | `read` | no change | no change | blocks when `stop_hook_active` is false, and passes when it is true; no change |
-| `reading` | the same | `reads` + 1; passes | refused; no change | `read`, `reads=0` | `reads` − 1, and `cut` at 0 | `reads` − 1, and `failed` at 0 | `failed`, `reads=0`; passes |
-| `cut` | the same | `reading`, `reads=1`; passes | with `spare=1`, refused with the cut reason and `spare=0`; with `spare=0`, `open`, and passes with the line | `read` | no change | no change | passes; no change |
-| `failed` | the same | passes; no change | `open`; passes with the line | `read` | no change | no change | passes; no change |
-| `read`, `open` | the same | passes; no change | passes; no change | `read` | no change | no change | passes; no change |
+| `wiped` | `wiped`, `spare=1`, `reads` kept; prints the goal, the grant and the two lines | `reading`; passes | refused | `read` | no change | no change | blocks when `stop_hook_active` is false, and passes when it is true |
+| `reading` | the same | passes | refused | `read` | `cut` when `reads` reaches 0 | `failed` when `reads` reaches 0 | `failed`; passes |
+| `cut` | the same | `reading`; passes | with `spare=1`, refused with the cut reason and `spare=0`; with `spare=0`, `open`, and passes with the line | `read` | no change | no change | passes |
+| `failed` | the same | passes | `open`; passes with the line | `read` | no change | no change | passes |
+| `read`, `open` | the same | passes | passes | `read` | no change | no change | passes |
+
+`reads` follows the same rule in every state: a brief command adds 1, each end event takes 1 away, never below 0, `Stop` sets it to 0, and `SessionStart` keeps it. A cell that names no state leaves the state as it is.
 
 The line is the fail-open line, added once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next compaction.` A refusal in `wiped` or `reading` gives the standard reason below. A payload that carries `agent_id` passes and changes nothing in every state, and the table does not apply to it.
 
-The table rests on one property of both hosts: a host compacts only before it calls the model, and calls the model only after every call of a batch has returned. So no brief command runs across a `SessionStart`, and each end event after a `SessionStart` belongs to a brief command the gate let through after it. Slice 4 checks this on both hosts.
-
 These four invariants hold for every order of events, and each follows from the table:
 
-1. **While a brief command runs, no other call passes.** A brief command let through from `wiped`, `reading` or `cut` leaves the state `reading`, with `reads` at least 1. `reads` falls only on an end event, and reaches 0 only on the last end or on `Stop`, which comes only when no call runs. In `reading`, every other call is refused. A `www` command still passes, so the agent can always run the command a refusal names.
-2. **After a cut or failed read, the agent is refused at most once more before the gate opens.** `failed` refuses nothing. `cut` refuses only while `spare` is 1, and that refusal sets it to 0. Only `SessionStart` sets `spare` to 1, so after a second cut read, or a failed retry from `cut`, the next call passes. A call refused in `reading` does not count: the agent ran another brief command, and invariant 1 refuses calls while it runs.
+1. **While the gate is closed and a brief command runs, no other call of the main agent passes.** The gate is closed in `wiped`, `reading` and `cut`. `reads` counts every brief command in flight, whatever the state it started in and across a `SessionStart`, and reaches 0 only after the last end event or on `Stop`, which comes only when no call runs. While `reads` is above 0 the closed state is `wiped` or `reading`, and both refuse every other call: `cut` and `failed` are written only when `reads` reaches 0. A `www` command still passes, so the agent can always run the command a refusal names.
+2. **After a cut or failed read, the agent is refused at most once more before the gate opens.** `failed` refuses nothing. `cut` refuses only while `spare` is 1, and that refusal sets it to 0. Only `SessionStart` sets `spare` to 1, so after a cut read at most one call is refused in `cut`, however many retries follow, and a failed retry opens the gate on the next call. A call refused in `reading` does not count: the agent ran another brief command, and invariant 1 refuses calls while it runs.
 3. **The gate never stays closed when `www` cannot run.** When `www` is missing, crashes or exits 4 or 5, the host reports a failed call, the state is `failed`, and the next call passes. When the host refuses `www` at its permission step, it sends no end event: in a headless Claude Code run where `www` needed approval, none of `PostToolUse`, `PostToolUseFailure` and `PermissionDenied` fired, although each was hooked. The state then stays `reading` until the turn ends, and `Stop` writes `failed`. That is the one case where the gate waits for the end of a turn, and the allow rules below keep `www` from reaching a permission step. In `wiped`, every refusal names `www`, and the brief command always leaves `wiped`.
 4. **A subagent's calls never change the state.** A payload with `agent_id` passes, and the hook writes nothing for it. Claude Code sends `agent_id` on a subagent's tool calls. Codex documents it on no tool event, so a Codex subagent's payload reads as the main agent's ([Subagents and failing open](#subagents-and-failing-open)), and slice 4 records which holds.
 
@@ -166,9 +168,11 @@ The orderings the review raised, each starting from `wiped`:
 - **A call batched with the brief command whose `PreToolUse` runs before the read's end:** brief command, `reading`; `ls` refused; whole, `read`; the agent's retried `ls` passes.
 - **The same call when its `PreToolUse` runs after the read's end:** brief command, `reading`; whole, `read`; `ls` passes.
 - **Two batched calls, then a cut read:** brief command, `reading`; `ls` and `cat` refused; cut, `cut`; `ls` refused with the cut reason, `spare=0`; `cat` passes with the line. `ls` is refused twice, once while the read ran and once after the cut, so the gate bounds the refusals after a read ends, not the refusals of one call.
-- **A retry that fails:** cut, `cut`; `ls` refused, `spare=0`; brief command, `reading`; failed, `failed`; `ls` passes with the line. A retry sent straight from `cut` that fails reaches `failed` with no refusal, and one that is cut again reaches `cut` with `spare=0`, so the next call passes.
+- **A retry that fails:** cut, `cut`; `ls` refused, `spare=0`; brief command, `reading`; failed, `failed`; `ls` passes with the line. A retry sent straight from `cut` that fails reaches `failed` with no refusal. One that is cut again reaches `cut` with `spare=1` still, so one call is refused and the next passes.
 - **A slow `www`:** brief command, `reading`; every other call is refused however long `www` runs, and its end event decides. A `www` that never ends is killed at the host's own shell timeout, which the host reports as a failed call.
 - **`www` refused at the permission step:** brief command, `reading`; no end event; each other call is refused; `Stop`, `failed`; the next call passes with the line.
+- **A brief command that runs across a compaction:** brief command A, `reading`, `reads=1`; `SessionStart`, `wiped`, `reads=1`; brief command B, `reading`, `reads=2`; A fails, `reads=1`, and the state stays `reading`; `ls` refused; B ends whole, `read`.
+- **Two hooks at once:** the `PreToolUse` of two brief commands run together; each takes the lock in turn, and `reads=2`; the first read fails, `reads=1`, so the gate stays `reading` while the second runs.
 - **Exit 5:** brief command, `reading`; failed, `failed`; the next call passes with the line, and `www import`, a `www` command, passes in every state.
 
 #### The `www` commands, the refusal and the injection
@@ -215,7 +219,7 @@ The gate never stops an agent for long: after a read ends with no whole brief, i
 
 - When a hook cannot start, fails or times out, both hosts run the call. `www install` never sets `onFailure: "block"`.
 - When the brief command ends with no whole read, the state is `failed`, and the next call that is not a `www` command passes with the fail-open line. That covers `www` missing from the agent's `PATH`, a crash, exit 4, exit 5, and a brief over Claude Code's limit. `www`'s own output, already in context, says why. A permission prompt that refused `www` sends no end event, so the state becomes `failed` when the turn ends.
-- When a Codex read is cut, the next call that is not a `www` command is refused once with the cut reason, and the agent can read again with `max_output_tokens`. After a second cut read, or a failed retry, the next call passes with the fail-open line.
+- When a Codex read is cut, the next call that is not a `www` command is refused once with the cut reason, and the agent can read again with `max_output_tokens`. After that, at most one more call is refused before the gate opens, however many retries are cut, and a failed retry opens it on the next call.
 - `Stop` blocks only while the state is `wiped`, and never when `stop_hook_active` is true. So it blocks at most once per turn while the state stays `wiped`, on either host, below Claude Code's cap of 8 consecutive continues.
 
 #### What counts as a whole read
@@ -296,5 +300,5 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 
 - **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** Run a live test in the hooks slice to settle all three. Until then, a Codex subagent passes `--session`.
 - **Does the gate work on Codex?** Slice 4's Codex proofs settle it: the refusal, the whole read, the compaction source, and `tool_response`. Until then, every Codex claim in [The gate](#the-gate) rests on the docs.
-- **Does a host ever compact while a call runs, and does Claude Code report a `www` it kills at its shell timeout as a failed call?** The gate's table assumes neither host compacts while a brief command runs, and invariant 3 assumes a killed `www` ends as a failed call. Slice 4 records the hook log of a session that compacts with a slow `www` running, and of one whose `www` passes the shell timeout, on both hosts.
+- **Does each host report a `www` it kills at its shell timeout as a failed call?** Invariant 3 assumes it does. Slice 4 records the hook log of a session whose `www` passes the shell timeout, on both hosts.
 - **Does a goal's periodic re-injection carry a permission across a compaction?** A `/goal` condition was blocked in 2 of 2 runs after a compaction and allowed in 1 of 1 before one, and those runs did not test the goal's re-injection. Run the scripted auto mode sessions with a pasted `www goal --paste` text, a compaction, and enough turns for the goal to re-inject, and count the classifier's allows and blocks. Until then, the paste carries authority only until the next compaction.
