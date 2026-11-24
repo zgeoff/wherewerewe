@@ -185,7 +185,7 @@ So the ASCII worst case cuts nothing on any host, and Claude Code's room is the 
 
 ### The cut order
 
-When the brief is over its limit, the renderer drops the rows of one rank at a time, from the bottom of this table up, and stops at the first rank after which the brief fits. Within a rank, rows go from the end of their section's order, and a task row goes from the end of the order in which `OPEN` lists tasks, never the item in focus. `OPEN`'s fill is this rule applied to rank 9.
+When the brief is over its limit, the renderer drops rows one at a time, a rank at a time from the bottom of this table up, and stops at the first row after which the brief fits. Within a rank, rows go from the end of their section's order, and a task row goes from the end of the order in which `OPEN` lists tasks, never the item in focus. `OPEN`'s fill is this rule applied to rank 9.
 
 | Rank          | Lines                                                                                     | Why                                                                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -210,11 +210,12 @@ Each section that lost rows ends with `  and <n> more: www list <kind>`, with `-
 
 ## Constraints
 
+- The limit and the cut apply to the brief `www` prints, and to no other command. The brief fits when its bytes, the cut lines and the final newline included, are at most the limit. When the never-cut lines alone pass it, the brief prints them whole and exits 0.
 - The brief is within its host's limit in bytes. Write a test that renders the ASCII worst case for each host, and one that renders every stored text in a 3-byte script.
-- When a brief is over its limit, the renderer drops rows in [the cut order](#the-cut-order) and ends each section that lost rows with its cut line. The cut runs once, on the rows as the read's check results leave them, after the probes finish or the deadline passes ([checks.md](checks.md)); no earlier cut decides which rows to probe. It never drops or clips a never-cut line, and the cut line of a section is never cut. The cut line counts the rows of its section the cut dropped, and `OPEN`'s count line counts the task rows the fill left out.
+- When a brief is over its limit, the renderer drops rows in [the cut order](#the-cut-order) and ends each section that lost rows with its cut line. The cut runs once, on the rows as the read's check results leave them, after the probes finish or the deadline passes ([checks.md](checks.md)); no earlier cut decides which rows to probe. It never drops or clips a never-cut line, and the cut line of a section is never cut. The cut line counts only the rows the cut dropped from the rows its section printed, and a section's own count line, such as `OPEN`'s count of the task rows the fill left out, counts what it did before, so a section can end with both.
 - The header line starts with `<name> · day`, and the footer line is fixed, because the hook's whole-read check reads both ([sessions-and-hooks.md](sessions-and-hooks.md#what-counts-as-a-whole-read)). A test pins both for every store.
 - The grant prints whole on every brief, directly after `GOAL`.
-- A changed item is one whose check result differs from its `at_write`. A result of `unchecked` never counts as changed, and an `at_write` of `-` takes the first result without counting it as changed.
+- A changed item is one whose check result differs from its `at_write`. An `unchecked` result is never compared: the item's saved `last` decides, so an item whose `last` differs from its `at_write` stays changed, with this read's `unchecked` as its tag. An `at_write` of `-` takes the first result without counting it as changed.
 - The brief hides the next step of the item in focus when a `changed` journal row of that item comes after its last `now` row in the journal, or when this read's result for it differs from its `last`, or from its `at_write` when `last` is empty. The line reads `changed after it was set` in the first case and `reads <result>` in the second. The line prints only when a step is set. The step stays in the journal, and the note still prints.
 - `CHANGED SINCE WRITTEN` rows go in `items.tsv` order. A row's tag shows this read's result, `unchecked` included, while `last` keeps the last result that was not `unchecked`.
 - Only the note of the item in focus prints. Every item with an owed note shows ` · owed` in its tag, or `  [owed]` when its kind has no tag, the item in focus included.

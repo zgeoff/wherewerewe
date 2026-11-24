@@ -119,7 +119,7 @@ The gate file belongs to one wherewerewe session. When a mid-session `attach` or
 
 Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> reads=<n> spare=<0|1>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about. `reads` counts the brief commands the gate let through, in any state, whose end it has not seen; a `SessionStart` keeps it, so a brief command that started before a compaction still counts. `spare` is 1 until the gate spends its one refusal after a cut read. `www` never writes the file.
 
-Each hook reads the file, applies its event and writes the result while it holds an exclusive lock on the file, one that the operating system releases when the hook process exits. So two hooks of one agent session that run at once apply their events one after the other, and neither loses the other's write. A hook that cannot take the lock before its timeout fails, writes nothing, and its call runs, as any failed hook's call does.
+Each hook reads the file, applies its event and writes the result while it holds an exclusive lock on a file of its own, `<gate file>.lock`, which no hook replaces and the operating system releases when the hook process exits. The lock is not on the gate file, because a rename gives that path a new file, and a second hook could lock the old one. So two hooks of one agent session that run at once apply their events one after the other, and neither loses the other's write. A hook that cannot take the lock before its timeout fails, writes nothing, and its call runs, as any failed hook's call does. A gate file that does not parse or lacks a field is a hook error too: the hook logs it, writes nothing and passes the call, and the next `SessionStart` replaces the file.
 
 ```ts
 // hooks module: the gate file's one line
@@ -142,6 +142,8 @@ The gate changes state only on a hook event, and no rule reads a clock. Each eve
 - **whole**, **cut** and **failed:** the end event of a brief command, sorted by [What counts as a whole read](#what-counts-as-a-whole-read). It is whole when every rule there holds. It is cut on Codex when the only rules it breaks are the truncation marker and `max_output_tokens`. It is failed otherwise. Claude Code fires `PostToolUseFailure` in place of `PostToolUse` for a failed shell call, and that is a failed end too. A brief cut on Claude Code is failed, because its Bash tool has no parameter that lets a retry read it whole.
 - **`Stop`:** the end of a turn, when no call runs.
 
+`reads` follows the same rule in every state: a brief command adds 1, each end event takes 1 away, never below 0, `Stop` sets it to 0, and `SessionStart` keeps it. A cell that names no state leaves the state as it is.
+
 | State | `SessionStart` | brief command | other call | whole | cut | failed | `Stop` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `wiped` | `wiped`, `spare=1`, `reads` kept; prints the goal, the grant and the two lines | `reading`; passes | refused | `read` | no change | no change | blocks when `stop_hook_active` is false, and passes when it is true |
@@ -149,8 +151,6 @@ The gate changes state only on a hook event, and no rule reads a clock. Each eve
 | `cut` | the same | `reading`; passes | with `spare=1`, refused with the cut reason and `spare=0`; with `spare=0`, `open`, and passes with the line | `read` | no change | no change | passes |
 | `failed` | the same | passes | `open`; passes with the line | `read` | no change | no change | passes |
 | `read`, `open` | the same | passes | passes | `read` | no change | no change | passes |
-
-`reads` follows the same rule in every state: a brief command adds 1, each end event takes 1 away, never below 0, `Stop` sets it to 0, and `SessionStart` keeps it. A cell that names no state leaves the state as it is.
 
 The line is the fail-open line, added once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next resume or compaction.` A refusal in `wiped` or `reading` gives the standard reason below. A payload that carries `agent_id` passes and changes nothing in every state, and the table does not apply to it.
 
@@ -177,11 +177,11 @@ The orderings the review raised, each starting from `wiped`:
 
 #### The `www` commands, the refusal and the injection
 
-A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with `;`, `&&`, `||`, `&`, a line break, a command substitution or a backtick outside quotes, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
+A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with `;`, `&&`, `||`, `&`, a line break, a command substitution or a backtick outside single quotes, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
 
-The brief command is narrower: `www` or `wherewerewe` alone, or with `--session <name>` where `<name>` is the session bound to this id, with nothing after it. Only the brief command moves the state to `reading`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read.
+The brief command is narrower: `www` or `wherewerewe`, bare or as an absolute path ending in that name, alone or with `--session <name>` or `--session=<name>` where `<name>` is the session bound to this id, with no redirect, no pipe and nothing else after it. A leading variable assignment makes a command neither the brief command nor a `www` command. Only the brief command moves the state to `reading`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read.
 
-`PreToolUse` denies with `permissionDecision: "deny"`, and `Stop` blocks with `decision: "block"`. Both give this reason, one line, a line break, and the `Run:` line:
+`PreToolUse` denies with `permissionDecision: "deny"`, and `Stop` blocks with `decision: "block"`. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`; slice 4 records whether Codex accepts it. Both give this reason, one line, a line break, and the `Run:` line:
 
 ```text
 wherewerewe: this session started or was compacted, and tide-alerts's brief is not in your context yet.
