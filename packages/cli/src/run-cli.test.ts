@@ -1,8 +1,9 @@
 import { expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { findCredentialMatch } from './rules/find-credential-match.ts';
 import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
 import { formatNotesFile } from './store/format-notes-file.ts';
@@ -11,12 +12,15 @@ import { parseJournalFile } from './store/parse-journal-file.ts';
 import { readJournalRows } from './store/read-journal-rows.ts';
 import { readStore } from './store/read-store.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
+import { buildCredentialSamples } from './test-utils/build-credential-samples.ts';
+import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from './test-utils/seed-format-1-store.ts';
 import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
+import { seedLockFile } from './test-utils/seed-lock-file.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
 
 function setupTest() {
@@ -28,6 +32,8 @@ function setupTest() {
   return {
     stateRoot,
     agentEnv,
+    ownerEnv: { HOME: root, XDG_STATE_HOME: root },
+    ownerTerminal: { stdin: true, stdout: true },
     run: (
       argv: readonly string[],
       env: Record<string, string | undefined> = agentEnv,
@@ -77,6 +83,7 @@ test.each([
   [['taks'], 'www: unknown command "taks".\nRun: www help\n'],
   [['doctor', 'x'], 'www: "doctor" comes in a later version of www.\nRun: www help\n'],
   [['task', 't-a'], 'www: task takes <id> "<claim>".\nRun: www help\n'],
+  [['recap', 'x'], 'www: recap takes no arguments.\nRun: www help\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],
     'www: unknown flag "--bogus".\nRun: www --session sample help\n',
@@ -171,6 +178,8 @@ test.each([
   { command: 'brief', argv: ['--session', 'sample'], isOwner: false },
   { command: 'show', argv: ['show', 't-valves', '--session', 'sample'], isOwner: false },
   { command: 'log', argv: ['log', '--session', 'sample'], isOwner: false },
+  { command: 'recap', argv: ['recap', '--session', 'sample'], isOwner: false },
+  { command: 'recap', argv: ['recap', '--session', 'sample'], isOwner: true },
   { command: 'goal', argv: ['goal', 'Ship more', '--session', 'sample'], isOwner: false },
   {
     command: 'grant',
@@ -1613,5 +1622,386 @@ test('it keeps the journal row of a set with a note and writes the note on a rer
         't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  note (0m): Stop the simulator first\n  journal: day 1 task · day 1 note · day 1 note\n',
       stderr: '',
     },
+  });
+});
+
+test('it refuses recap with exit 4 and no output when no session is bound or named', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const result = await ctx.run(['recap'], ctx.ownerEnv);
+
+  expect({ exitCode: result.exitCode, stdout: result.stdout }).toStrictEqual({
+    exitCode: 4,
+    stdout: '',
+  });
+});
+
+test('it prints the recap from the rows that parse when one item row is broken, and says what it left out', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it', '--note', 'Stop the simulator first']);
+
+  seedStoreFile(
+    join(ctx.stateRoot, 'tide-alerts'),
+    'items.tsv',
+    `${readFileSync(join(ctx.stateRoot, 'tide-alerts', 'items.tsv'), 'utf8')}t-b\ttask\n`,
+  );
+
+  const result = await ctx.run(['recap']);
+
+  expect({
+    exitCode: result.exitCode,
+    hasTask: result.stdout.includes(
+      '  t-a         Write it\n    note (0m): Stop the simulator first\n',
+    ),
+    stderr: result.stderr,
+  }).toStrictEqual({
+    exitCode: 0,
+    hasTask: true,
+    stderr:
+      "www: tide-alerts's items.tsv line 3 does not parse: expected 9 tab-separated columns, found 2. This read leaves out what it could not read. Fix the file by hand.\n",
+  });
+});
+
+test('it refuses recap with exit 3 and the broken session file when started is no UTC time', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const session = readFileSync(join(folder, 'session'), 'utf8');
+
+  seedStoreFile(folder, 'session', session.replace(/^started=.*$/mu, 'started=yesterday'));
+
+  const result = await ctx.run(['recap']);
+
+  expect(result).toStrictEqual({
+    exitCode: 3,
+    stdout: '',
+    stderr: `www: tide-alerts's session does not parse: the key started is not a UTC time. Fix the file by hand.\nRun: less ${folder}/session\n`,
+  });
+});
+
+test('it refuses recap with exit 2 and no stack trace when --since names a day past year 9999', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const result = await ctx.run(['recap', '--since', 'day-100000002']);
+
+  expect(result).toStrictEqual({
+    exitCode: 2,
+    stdout: '',
+    stderr: 'www: --since takes 24h, 3d or day-7.\nRun: www recap --since 24h\n',
+  });
+});
+
+test('it prints a credential that crosses column 100 as the placeholder with no part of it left, and leaves out a note that holds one', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+  const credential = ['xoxb', '-', '12345'].join('');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedItem(folder, { id: 't-a', claim: `${'c'.repeat(82)} ${credential} tail` });
+  await seedItem(folder, { id: 't-b', claim: 'Draw it' });
+
+  seedStoreFile(
+    folder,
+    'notes.tsv',
+    formatNotesFile([
+      { id: 't-a', owed: false, written: '2026-03-10T11:40:00Z', note: 'A plain note' },
+      { id: 't-b', owed: false, written: '2026-03-10T11:41:00Z', note: `use ${credential}` },
+    ]),
+  );
+
+  await seedJournalRow(folder, {
+    ts: '2026-03-10T11:44:00Z',
+    op: 'decide',
+    id: 'd-1',
+    text: `${'c'.repeat(90)} ${credential} tail`,
+    why: 'plain',
+  });
+
+  await seedJournalRow(folder, {
+    ts: '2026-03-10T11:45:00Z',
+    op: 'done',
+    id: 't-c',
+    why: `${'c'.repeat(75)} ${credential} tail`,
+  });
+
+  const result = await ctx.run(['recap']);
+
+  const lines = result.stdout.split('\n');
+
+  expect({
+    exitCode: result.exitCode,
+    cut: lines.filter((line) => line.includes('c'.repeat(75))),
+    leaked: lines.filter((line) => /xox|12345|use </u.test(line)),
+    widest: Math.max(...lines.map((line) => line.split(/(?:)/u).length)),
+    stderr: result.stderr,
+  }).toStrictEqual({
+    exitCode: 0,
+    cut: [
+      `  t-a         ${'c'.repeat(82)} <w…`,
+      `  d-1  ${'c'.repeat(90)} <…`,
+      `  t-c         done · ${'c'.repeat(75)} <w…`,
+    ],
+    leaked: [],
+    widest: 100,
+    stderr:
+      "www: tide-alerts's notes.tsv line 3 does not parse: the note holds a credential. This read leaves out what it could not read. Fix the file by hand.\n",
+  });
+});
+
+test.each([
+  { title: 'an agent shell', env: 'agent' },
+  { title: 'the owner terminal', env: 'owner' },
+])('it runs no probe, takes no lock and writes no file in a recap from $title', async (row) => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+  const stubDir = createTempDir('run-cli-gh').path;
+  const marker = join(stubDir, 'ran');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it', '--pr', 'acme/tool#7', '--note', 'Stop first']);
+  await ctx.run(['decide', 'Use a file', '--why', 'It is simple']);
+  await ctx.run(['task', 't-b', 'Draw it']);
+  await ctx.run(['done', 't-b', '--evidence', 'merged']);
+
+  // no probe runs before the checks of a later slice exist, so the stub gh guards that slice
+  writeFileSync(join(stubDir, 'gh'), `#!/bin/sh\ntouch ${marker}\nexit 1\n`);
+  chmodSync(join(stubDir, 'gh'), 0o755);
+  seedLockFile(folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
+
+  const before = await ctx.readTree();
+
+  const path = `${stubDir}:${process.env['PATH'] ?? ''}`;
+  const base = row.env === 'agent' ? ctx.agentEnv : ctx.ownerEnv;
+  const terminal = row.env === 'agent' ? null : ctx.ownerTerminal;
+
+  const result = await ctx.run(
+    ['--session', 'tide-alerts', 'recap'],
+    { ...base, PATH: path },
+    terminal,
+  );
+
+  const after = await ctx.readTree();
+
+  expect({
+    exitCode: result.exitCode,
+    startsWithHeader: result.stdout.startsWith('tide-alerts · day 1 · recap since day 1 11:43Z'),
+    probed: existsSync(marker),
+    unchanged: after,
+  }).toStrictEqual({ exitCode: 0, startsWithHeader: true, probed: false, unchanged: before });
+});
+
+test('it runs the command of each overflow line, and each prints the rows the recap left out', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  for (const number of [1, 2, 3, 4, 5, 6]) {
+    await ctx.run([
+      'task',
+      `t-${String(number)}`,
+      `Task ${String(number)}`,
+      '--note',
+      `note of t-${String(number)}`,
+    ]);
+  }
+
+  await ctx.run(['rule', 'r-1', 'Run the tests from app/', '--note', 'note of r-1']);
+  await ctx.run(['where', 'wh-1', 'A worktree in /tmp']);
+
+  for (const number of [1, 2, 3, 4, 5, 6]) {
+    await ctx.run(['decide', `choice ${String(number)}`, '--why', `reason ${String(number)}`]);
+    await ctx.run(['where', `c-${String(number)}`, 'Close me']);
+    await ctx.run(['done', `c-${String(number)}`, '--evidence', `evidence ${String(number)}`]);
+  }
+
+  const recap = await ctx.run(
+    ['--session', 'tide-alerts', 'recap'],
+    ctx.ownerEnv,
+    ctx.ownerTerminal,
+  );
+
+  const commands = recap.stdout
+    .split('\n')
+    .filter((line) => /^ {2}and \d+ more/u.test(line))
+    .map((line) => line.slice(line.indexOf(': www ') + 2));
+
+  const outputs: { exitCode: number; stdout: string }[] = [];
+
+  for (const command of commands) {
+    const words = await readShellWords(command.slice('www '.length));
+    const output = await ctx.run(words, ctx.ownerEnv, ctx.ownerTerminal);
+
+    outputs.push(output);
+  }
+
+  expect({
+    count: commands.length,
+    exitCodes: outputs.map((output) => output.exitCode),
+    hasNote: outputs[0]?.stdout.includes('note of t-1'),
+    hasDecision: outputs[1]?.stdout.includes('choice 6'),
+    hasClose: outputs[2]?.stdout.includes('c-6'),
+  }).toStrictEqual({
+    count: 3,
+    exitCodes: [0, 0, 0],
+    hasNote: true,
+    hasDecision: true,
+    hasClose: true,
+  });
+});
+
+test('it runs the no-grant line, and the footer of a recap run with --session, from the owner terminal', async () => {
+  const ctx = setupTest();
+  const ownerEnv = ctx.ownerEnv;
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  const recap = await ctx.run(['--session', 'tide-alerts', 'recap'], ownerEnv, ctx.ownerTerminal);
+
+  const lines = recap.stdout.split('\n');
+  const grantLine = lines.find((line) => line.startsWith('GRANT  none. Run: ')) ?? '';
+  const wholeLine = lines.find((line) => line.startsWith('Whole text: ')) ?? '';
+  const correctLine = lines.find((line) => line.startsWith('Correct: ')) ?? '';
+
+  const grant = await ctx.run(
+    buildFilledRunArgv(grantLine.slice('GRANT  none. '.length), {}),
+    ownerEnv,
+    ctx.ownerTerminal,
+  );
+
+  const whole = await ctx.run(
+    buildFilledRunArgv(`Run: ${wholeLine.slice('Whole text: '.length)}`, { '<id>': 't-a' }),
+    ownerEnv,
+    ctx.ownerTerminal,
+  );
+
+  const correct = await ctx.run(
+    buildFilledRunArgv(
+      `Run: ${correctLine.slice('Correct: '.length).replace(' [--on <id>]', '')}`,
+      { '<text>': 'Ask me first' },
+    ),
+    ownerEnv,
+    ctx.ownerTerminal,
+  );
+
+  expect({
+    grant: grant.exitCode,
+    wholeExit: whole.exitCode,
+    wholeNamesItem: whole.stdout.includes('t-a'),
+    correct: correct.exitCode,
+  }).toStrictEqual({ grant: 0, wholeExit: 0, wholeNamesItem: true, correct: 0 });
+});
+
+test('it prints a footer with no --session for a recap in a bound session, and its show line runs there', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  const recap = await ctx.run(['recap']);
+
+  const lines = recap.stdout.split('\n');
+  const wholeLine = lines.find((line) => line.startsWith('Whole text: ')) ?? '';
+
+  const whole = await ctx.run(
+    buildFilledRunArgv(`Run: ${wholeLine.slice('Whole text: '.length)}`, { '<id>': 't-a' }),
+  );
+
+  expect({
+    footer: lines.slice(-3),
+    wholeExit: whole.exitCode,
+  }).toStrictEqual({
+    footer: ['Whole text: www show <id>', 'Correct: www say "<text>" [--on <id>]', ''],
+    wholeExit: 0,
+  });
+});
+
+test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample, entry.tail] as const))(
+  'it prints no part of a %s credential in any place www echoes what it was given',
+  async (_name, sample, tail) => {
+    const ctx = setupTest();
+    const folder = join(ctx.stateRoot, 'tide-alerts');
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    await seedItem(folder, { id: sample, claim: 'Write the parser' });
+
+    const typed = [
+      [sample],
+      ['task', `--${sample}`],
+      ['task', `--${sample}=x`],
+      ['task', 't-a', 'Write it', '--note', sample],
+      ['task', 't-a', 'Write it', `--note=${sample}`],
+      ['log', '--since', sample],
+      ['task', 't-a', sample],
+      ['task', '--note', '-keep', '--', 't-a', `--may=${sample}`],
+      ['show', sample],
+      ['done', sample, '--evidence', 'PR 12'],
+      ['--session', sample],
+      [],
+    ];
+
+    const outputs = await Promise.all(typed.map((argv) => ctx.run(argv)));
+
+    seedStoreFile(
+      folder,
+      'session',
+      `${readFileSync(join(folder, 'session'), 'utf8')}${sample}=1\n`,
+    );
+
+    const storedKey = await ctx.run([]);
+
+    const lines = [...outputs, storedKey].flatMap((result) =>
+      `${result.stdout}${result.stderr}`.split('\n'),
+    );
+
+    expect({
+      matched: lines.filter((line) => findCredentialMatch(line) !== null),
+      leaked: lines.filter((line) => line.includes(tail)),
+      storedKeyRedacted: storedKey.stderr.includes('the key <where the secret lives> is not in'),
+    }).toStrictEqual({ matched: [], leaked: [], storedKeyRedacted: true });
+  },
+);
+
+test('it prints the Run line of a broken store whose path holds a line break as one line that a shell reads back', async () => {
+  const root = createTempDir('run-cli-break').path;
+  const stateHome = join(root, 'first\nsecond');
+  const env = { HOME: root, XDG_STATE_HOME: stateHome, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+
+  const run = (argv: readonly string[]) =>
+    runCLI({
+      argv,
+      env,
+      cwd: '/work',
+      terminal: { stdin: false, stdout: false },
+      now: () => Date.parse('2026-03-10T11:43:00Z'),
+    });
+
+  await run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const folder = join(stateHome, 'wherewerewe', 'tide-alerts');
+  const session = readFileSync(join(folder, 'session'), 'utf8');
+
+  seedStoreFile(folder, 'session', session.replace(/^started=.*$/mu, 'started=yesterday'));
+
+  const refused = await run(['recap']);
+
+  const lines = refused.stderr.split('\n');
+
+  const words = await readShellWords((lines[1] ?? '').slice('Run: '.length));
+
+  expect({ exitCode: refused.exitCode, lines: lines.length, words }).toStrictEqual({
+    exitCode: 3,
+    lines: 3,
+    words: ['less', join(folder, 'session')],
   });
 });

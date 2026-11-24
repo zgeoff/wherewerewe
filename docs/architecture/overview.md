@@ -2,9 +2,9 @@
 
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
 brief when the agent runs `www`. It has the store, the writes, approvals, the grant, decisions, the
-two history reads, the import of a hand-kept store and the upgrade of a format 1 store, the owner's
-notes and the brief. A command it does not have exits 2. Read this before you change the package,
-then open the design doc that the section you change links.
+three history reads, `show`, `log` and `recap`, the import of a hand-kept store and the upgrade of a
+format 1 store, the owner's notes and the brief. A command it does not have exits 2. Read this
+before you change the package, then open the design doc that the section you change links.
 
 ## The package
 
@@ -51,12 +51,12 @@ command exits 4, and never falls back to the only session on the machine. See
 ## Commands and refusals
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
-`rule`, `where`, `set`, `ok`, `grant`, `decide`, `done`, `drop`, `use`, `show`, `log`, `import`,
-`say` and `ack`, and `www` alone prints the brief. A write answers in one line, except `now` and a
-close, which print the note of an item that has one. The reply of a write, such as `task`, `done`,
-`decide`, `say` or `ack`, names the item or note and ends with the brief's length; `init`, `attach`,
-`detach` and `import` say what they did, and `import` names the folder of the backup. Each refusal
-prints its text and a `Run:` line with the command that fixes it. See
+`rule`, `where`, `set`, `ok`, `grant`, `decide`, `done`, `drop`, `use`, `show`, `log`, `recap`,
+`import`, `say` and `ack`, and `www` alone prints the brief. A write answers in one line, except
+`now` and a close, which print the note of an item that has one. The reply of a write, such as
+`task`, `done`, `decide`, `say` or `ack`, names the item or note and ends with the brief's length;
+`init`, `attach`, `detach` and `import` say what they did, and `import` names the folder of the
+backup. Each refusal prints its text and a `Run:` line with the command that fixes it. See
 [the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
 
 `now` and every item write take `--note` and `--owed`, and `set` also takes `--no-note` and no
@@ -109,6 +109,9 @@ of `owner.tsv` that does not parse is left out of the brief and named on stderr,
 refuse until the owner fixes the file. Every other write works as before. See
 [the store design](../design/wherewerewe/store.md) for the file format.
 
+The owner reads `www --session <name> recap` to check what the session kept, and corrects it with
+`say`.
+
 ## Reading the journal
 
 See [the commands design](../design/wherewerewe/commands.md) for the filters and replies, and
@@ -116,10 +119,16 @@ See [the commands design](../design/wherewerewe/commands.md) for the filters and
 
 `show <id>` prints one open item, closed item or decision, with the decisions made about it and its
 last 10 journal rows. `log` prints the journal oldest first, kept to the rows that `--since`, `--op`
-and `--id` name, and sorts them by time. Both read the journal in chunks and hold only the rows they
-need, and take no lock. Once the session is found and its store is format 2, neither is refused for
-a missing or unreadable thing: an unknown id lists the open items, and an unreadable journal prints
-the item without its history and says so on stderr. Only a `--since` that `log` cannot read exits 2.
+and `--id` name, and sorts them by time. `recap` prints one screen for the owner: the grant as the
+brief prints it, the notes on open items, and the decisions and closes since `--since`, which
+defaults to `24h`. Each section has a row limit and an overflow line, whose command prints the rest,
+and the whole screen is at most 55 lines. Each line is at most 100 characters, except the two
+overflow lines that repeat a `--since` value longer than 7 characters, which stay whole so their
+commands run. The three reads read the journal in chunks and hold only the rows they need, take no
+lock, run no check and write nothing. Once the session is found and its store is format 2, none is
+refused for a missing or unreadable thing: an unknown id lists the open items, and an unreadable
+journal prints the item or the recap without its history and says so on stderr. Only a `--since`
+that `log` or `recap` cannot read exits 2.
 
 ## Importing a hand-kept store
 

@@ -1,7 +1,8 @@
 import { match } from 'ts-pattern';
 import { wrapBlock } from '../brief/wrap-block.ts';
-import type { Refusal, RefusalReason } from '../types.ts';
+import type { Refusal, RefusalReason, RunWord } from '../types.ts';
 import { buildRunSpec } from './build-run-spec.ts';
+import { toPlaceholder } from './to-placeholder.ts';
 
 type NoteReason = Extract<
   RefusalReason,
@@ -23,7 +24,7 @@ export function buildNoteRefusal(reason: NoteReason): Refusal {
         'www: refused: --owed marks a note, and this command gives none.',
         buildRunSpec(found.args)
           .dropFlag('no-note')
-          .addFlagBefore('owed', 'note', '<what is owed>')
+          .addFlagBefore('owed', 'note', toPlaceholder('<what is owed>'))
           .toArgv(),
       ),
     )
@@ -36,13 +37,13 @@ export function buildNoteRefusal(reason: NoteReason): Refusal {
     .with({ kind: 'set-needs-change' }, (found) =>
       refuse(
         'www: refused: set needs a claim, --note or --no-note.',
-        buildRunSpec(found.args).addPositional('<claim>').toArgv(),
+        buildRunSpec(found.args).addPositional(toPlaceholder('<claim>')).toArgv(),
       ),
     )
     .with({ kind: 'set-check-needs-claim' }, (found) =>
       refuse(
         'www: refused: a check belongs to a claim, and set with no claim changes only the note.',
-        buildRunSpec(found.args).addPositional('<claim>').toArgv(),
+        buildRunSpec(found.args).addPositional(toPlaceholder('<claim>')).toArgv(),
       ),
     )
     .with({ kind: 'no-note-to-clear' }, (found) =>
@@ -56,12 +57,12 @@ export function buildNoteRefusal(reason: NoteReason): Refusal {
       ],
       runs: [
         { www: ['set', found.id, '--no-note'] },
-        { www: ['set', found.id, '--note', '<detail>'] },
+        { www: ['set', found.id, '--note', toPlaceholder('<detail>')] },
       ],
     }))
     .exhaustive();
 }
 
-function refuse(line: string, argv: readonly string[]): Refusal {
+function refuse(line: string, argv: readonly RunWord[]): Refusal {
   return { exitCode: 3, lines: [line], runs: [{ www: argv }] };
 }

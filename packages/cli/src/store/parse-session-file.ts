@@ -98,6 +98,10 @@ export function parseSessionFile(text: string): SessionParse {
     return { kind: 'broken', reason: 'started is required' };
   }
 
+  if (!isUTCTime(started)) {
+    return { kind: 'broken', reason: 'the key started is not a UTC time' };
+  }
+
   const grant = parseGrant(pairs, bullets);
 
   if (typeof grant === 'string') {
@@ -220,7 +224,7 @@ function findGrantTextProblem(texts: readonly GrantText[]): string | null {
     const label = findCredentialMatch(text.value);
 
     if (label !== null) {
-      return `${text.name} looks like a credential (it matches ${label})`;
+      return `${text.name} looks like a credential (it matches the ${label} pattern)`;
     }
   }
 

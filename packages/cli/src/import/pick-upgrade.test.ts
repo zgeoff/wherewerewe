@@ -74,7 +74,9 @@ function setupTest() {
       }
 
       const runs = picked.refusal.runs.map((run) =>
-        'www' in run ? `Run: www ${run.www.join(' ')}` : '',
+        'www' in run
+          ? `Run: www ${run.www.map((word) => (typeof word === 'string' ? word : word.placeholder)).join(' ')}`
+          : '',
       );
 
       return [...picked.refusal.lines, ...runs];

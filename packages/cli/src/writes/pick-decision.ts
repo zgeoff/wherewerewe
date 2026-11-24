@@ -1,6 +1,6 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
-import type { RefusalReason } from '../types.ts';
+import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
@@ -9,37 +9,14 @@ export function pickDecision(input: WriteInput): WriteResult {
   const store = input.store;
   const args = input.args;
   const choice = args.positionals[0] ?? '';
-  const why = args.values.why;
+  const why = args.values.why ?? null;
   const on = args.values.on;
   const replaces = args.values.replaces;
   const who = args.values.who ?? 'agent';
+  const argsReason = pickDecisionArgsRefusal(args);
 
-  const choiceReason = pickTextRefusal(
-    args,
-    [{ target: { label: 'decision', place: { positional: 0 } }, text: choice, limit: 200 }],
-    false,
-  );
-
-  if (choiceReason !== null) {
-    return refuse(choiceReason);
-  }
-
-  if (why === undefined) {
-    return refuse({ kind: 'decide-needs-why', args });
-  }
-
-  const whyReason = pickTextRefusal(
-    args,
-    [{ target: { label: 'reason', place: { flag: 'why' } }, text: why, limit: 200 }],
-    false,
-  );
-
-  if (whyReason !== null) {
-    return refuse(whyReason);
-  }
-
-  if (who !== 'owner' && who !== 'agent') {
-    return refuse({ kind: 'bad-decision-who', args });
+  if (argsReason !== null) {
+    return refuse(argsReason);
   }
 
   // The journal index skips an id past the safe integers, so it could never count past one.
@@ -84,6 +61,39 @@ export function pickDecision(input: WriteInput): WriteResult {
     reply: (briefLines) =>
       `${id}  ${isRuledOut ? 'ruled out' : 'decision'}${on === undefined ? '' : ` on ${on}`}. Read it with: www show ${on ?? id}. Brief: ${String(briefLines)} lines.`,
   };
+}
+
+// The checks that read the command line and no store: the decision's text, its reason, then --who.
+export function pickDecisionArgsRefusal(args: ParsedArgs): RefusalReason | null {
+  const choice = args.positionals[0] ?? '';
+  const why = args.values.why;
+  const who = args.values.who ?? 'agent';
+
+  const choiceReason = pickTextRefusal(
+    args,
+    [{ target: { label: 'decision', place: { positional: 0 } }, text: choice, limit: 200 }],
+    false,
+  );
+
+  if (choiceReason !== null) {
+    return choiceReason;
+  }
+
+  if (why === undefined) {
+    return { kind: 'decide-needs-why', args };
+  }
+
+  const whyReason = pickTextRefusal(
+    args,
+    [{ target: { label: 'reason', place: { flag: 'why' } }, text: why, limit: 200 }],
+    false,
+  );
+
+  if (whyReason !== null) {
+    return whyReason;
+  }
+
+  return who === 'owner' || who === 'agent' ? null : { kind: 'bad-decision-who', args };
 }
 
 function refuse(reason: RefusalReason): WriteResult {

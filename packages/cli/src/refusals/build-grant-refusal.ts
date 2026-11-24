@@ -4,6 +4,7 @@ import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import { fixGrantText } from './fix-grant-text.ts';
 import { grantPlaceholders } from './grant-placeholders.ts';
+import { toPlaceholder } from './to-placeholder.ts';
 
 // One problem prints its own refusal. Several print each problem's lines, then one Run line that
 // fixes every text first and adds the missing flags last, so a filled Run line passes. Takes the
@@ -33,7 +34,7 @@ export function buildGrantRefusal(
           .with({ kind: 'grant-reading-no-grant' }, () =>
             current
               .addFlagBefore('reading', 'may', grantPlaceholders.may)
-              .addFlagBefore('reading', 'where', '<where>'),
+              .addFlagBefore('reading', 'where', toPlaceholder('<where>')),
           )
           .otherwise(() => addGrantFlags(current, typed)),
       fixed,

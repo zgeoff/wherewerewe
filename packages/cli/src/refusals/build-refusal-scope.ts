@@ -1,15 +1,8 @@
 import type { ParsedArgs } from '../types.ts';
-import type { RefusalScope } from './format-refusal.ts';
+import type { RunScope } from './settle-refusal.ts';
 
-// The scope a refusal's Run lines are written in: the --session typed, and every word typed.
-export function buildRefusalScope(args: ParsedArgs): RefusalScope {
-  return {
-    sessionFlag: args.sessionFlag,
-    typedWords: [
-      args.command,
-      ...args.positionals,
-      ...args.flags.flatMap((flag) => (flag.value === null ? [] : [flag.value])),
-      ...(args.sessionFlag === null ? [] : [args.sessionFlag]),
-    ],
-  };
+// The scope a refusal's Run lines are written and checked in: the --session typed and the folder
+// the command ran in.
+export function buildRefusalScope(args: ParsedArgs, cwd: string): RunScope {
+  return { sessionFlag: args.sessionFlag, cwd };
 }

@@ -30,8 +30,8 @@ www --help
 ## Features
 
 - `www` prints the brief.
-- `www help` (the same as `www --help`) and `www sessions` print the commands and the sessions on
-  this machine.
+- `www help` (the same as `www --help`) prints the commands, and `www sessions` prints the sessions
+  on this machine.
 - `www init`, `attach` and `detach` start a session and bind an agent session to it.
 - `www goal`, `now`, `task`, `wait`, `rule`, `where` and `set` write a claim.
 - `--note` keeps a note of detail on an item. `--owed` blocks closing the item until
@@ -47,6 +47,8 @@ www --help
   `import-backup/`. It upgrades a format 1 store the same way, and keeps the originals in
   `format-1-backup/`.
 - `www show` prints one item or decision with its history, and `log` prints the journal.
+- `www recap` prints one screen for the owner: the grant, the notes on open items, and the decisions
+  and closes since a time.
 
 ## Documentation
 

@@ -7,18 +7,23 @@ import { buildRefusal } from '../refusals/build-refusal.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
 import type { CLIResult, ParsedArgs, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
+import type { ReadAt } from './types.ts';
 
 export async function runLogCommand(
   store: Store,
   args: ParsedArgs,
-  nowMs: number,
+  at: ReadAt,
   unread: UnreadRows | null,
 ): Promise<CLIResult> {
+  const nowMs = at.nowMs;
   const since = args.values.since;
   const fromMs = since === undefined ? null : parseSince(since, nowMs, store.session.started);
 
   if (since !== undefined && fromMs === null) {
-    return buildRefusalResult(buildRefusal({ kind: 'bad-since' }), buildRefusalScope(args));
+    return buildRefusalResult(
+      buildRefusal({ kind: 'bad-since', command: 'log' }),
+      buildRefusalScope(args, at.cwd),
+    );
   }
 
   const filter = {

@@ -3,7 +3,7 @@ import { formatAge } from '../brief/format-age.ts';
 import { wrapBlock } from '../brief/wrap-block.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
-import type { Item, RefusalReason } from '../types.ts';
+import type { Item, ParsedArgs, RefusalReason } from '../types.ts';
 import { pickNotesUnreadRefusal } from './pick-note-change.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
@@ -14,55 +14,17 @@ export function pickClose(input: WriteInput): WriteResult {
   const store = input.store;
   const args = input.args;
   const nowMs = input.nowMs;
-  const command = args.command === 'done' || args.command === 'use' ? args.command : 'drop';
+  const command = getCloseCommand(args);
   const id = args.positionals[0] ?? '';
+  const why = pickCloseText(args);
 
-  const why = match(command)
-    .with('done', () => args.values.evidence)
-    .with('drop', () => args.values.why)
-    .with('use', () => args.values.for)
-    .exhaustive();
+  // the checks refuse a close with no text, so why is set past them
+  const argsReason = pickCloseArgsRefusal(args);
 
-  const flag = match(command)
-    .with('done', () => 'evidence')
-    .with('drop', () => 'why')
-    .with('use', () => 'for')
-    .exhaustive();
-
-  const label = match(command)
-    .with('done', () => 'evidence' as const)
-    .with('drop', () => 'reason' as const)
-    .with('use', () => '--for text' as const)
-    .exhaustive();
-
-  if (why !== undefined) {
-    const reason = pickTextRefusal(
-      args,
-      [
-        {
-          target: { label, place: { flag } },
-          text: why,
-          limit: 200,
-        },
-      ],
-      false,
-    );
-
-    if (reason !== null) {
-      return { kind: 'refused', refusal: buildRefusal(reason) };
-    }
-  }
-
-  if (why === undefined) {
+  if (argsReason !== null || why === undefined) {
     return {
       kind: 'refused',
-      refusal: buildRefusal(
-        match(command)
-          .with('done', (): RefusalReason => ({ kind: 'needs-evidence', args }))
-          .with('drop', (): RefusalReason => ({ kind: 'needs-reason', args }))
-          .with('use', (): RefusalReason => ({ kind: 'use-needs-for', args }))
-          .exhaustive(),
-      ),
+      refusal: buildRefusal(argsReason ?? { kind: 'needs-evidence', args }),
     };
   }
 
@@ -156,6 +118,51 @@ export function pickClose(input: WriteInput): WriteResult {
       ].join('\n');
     },
   };
+}
+
+// The checks that read the command line and no store: the text of --evidence, --why or --for, then
+// that the command has it.
+export function pickCloseArgsRefusal(args: ParsedArgs): RefusalReason | null {
+  const command = getCloseCommand(args);
+  const why = pickCloseText(args);
+
+  const flag = match(command)
+    .with('done', () => 'evidence')
+    .with('drop', () => 'why')
+    .with('use', () => 'for')
+    .exhaustive();
+
+  const label = match(command)
+    .with('done', () => 'evidence' as const)
+    .with('drop', () => 'reason' as const)
+    .with('use', () => '--for text' as const)
+    .exhaustive();
+
+  if (why !== undefined) {
+    return pickTextRefusal(
+      args,
+      [{ target: { label, place: { flag } }, text: why, limit: 200 }],
+      false,
+    );
+  }
+
+  return match(command)
+    .with('done', (): RefusalReason => ({ kind: 'needs-evidence', args }))
+    .with('drop', (): RefusalReason => ({ kind: 'needs-reason', args }))
+    .with('use', (): RefusalReason => ({ kind: 'use-needs-for', args }))
+    .exhaustive();
+}
+
+function getCloseCommand(args: ParsedArgs): 'done' | 'drop' | 'use' {
+  return args.command === 'done' || args.command === 'use' ? args.command : 'drop';
+}
+
+function pickCloseText(args: ParsedArgs): string | undefined {
+  return match(getCloseCommand(args))
+    .with('done', () => args.values.evidence)
+    .with('drop', () => args.values.why)
+    .with('use', () => args.values.for)
+    .exhaustive();
 }
 
 function pickUseRefusal(item: Item): RefusalReason | null {

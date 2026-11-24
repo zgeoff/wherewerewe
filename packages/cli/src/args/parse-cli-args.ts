@@ -136,6 +136,7 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ['ack', { counts: [1], usage: 'o-<n>', flags: [] }],
   ['show', { counts: [1], usage: '<id>', flags: [] }],
   ['log', { counts: [0], usage: 'no arguments', flags: ['since', 'op', 'id'] }],
+  ['recap', { counts: [0], usage: 'no arguments', flags: ['since'] }],
 ]);
 
 const laterCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);

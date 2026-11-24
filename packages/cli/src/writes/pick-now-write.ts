@@ -2,6 +2,7 @@ import { formatAge } from '../brief/format-age.ts';
 import { wrapBlock } from '../brief/wrap-block.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import type { ParsedArgs, RefusalReason } from '../types.ts';
 import {
   buildChangedNotes,
   buildNoteJournalRows,
@@ -18,13 +19,7 @@ export function pickNowWrite(input: WriteInput): WriteResult {
   const nowMs = input.nowMs;
   const id = args.positionals[0] ?? '';
   const next = args.positionals[1] ?? '';
-
-  const reason =
-    pickTextRefusal(
-      args,
-      [{ target: { label: 'next step', place: { positional: 1 } }, text: next, limit: 120 }],
-      false,
-    ) ?? pickNoteTextRefusal(args);
+  const reason = pickNowArgsRefusal(args);
 
   if (reason !== null) {
     return { kind: 'refused', refusal: buildRefusal(reason) };
@@ -79,4 +74,21 @@ export function pickNowWrite(input: WriteInput): WriteResult {
       ].join('\n');
     },
   };
+}
+
+// The checks that read the command line and no store: the next step's text, then the note's.
+export function pickNowArgsRefusal(args: ParsedArgs): RefusalReason | null {
+  return (
+    pickTextRefusal(
+      args,
+      [
+        {
+          target: { label: 'next step', place: { positional: 1 } },
+          text: args.positionals[1] ?? '',
+          limit: 120,
+        },
+      ],
+      false,
+    ) ?? pickNoteTextRefusal(args)
+  );
 }

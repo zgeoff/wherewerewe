@@ -16,7 +16,9 @@ test.each([
   ["it's", `"it's"`],
   ['done!', "'done!'"],
   ["it's done!", String.raw`'it'\''s done!'`],
-  ['line\nbreak', '"line\nbreak"'],
+  ['line\nbreak', String.raw`$'line\012break'`],
+  ['next\u0085line', String.raw`$'next\302\205line'`],
+  ["it's\tdone", String.raw`$'it\'s\011done'`],
 ])('it writes %p as %s', (word, expected) => {
   expect(quoteShellWord(word)).toBe(expected);
 });

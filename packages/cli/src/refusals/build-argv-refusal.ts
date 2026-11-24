@@ -1,5 +1,5 @@
 import { match } from 'ts-pattern';
-import type { Refusal, RefusalReason } from '../types.ts';
+import type { Refusal, RefusalReason, RunWord } from '../types.ts';
 
 type ArgvRefusalReason = Extract<
   RefusalReason,
@@ -42,6 +42,6 @@ export function buildArgvRefusal(reason: ArgvRefusalReason): Refusal {
     .exhaustive();
 }
 
-function usage(line: string, argv: readonly string[] = ['help']): Refusal {
+function usage(line: string, argv: readonly RunWord[] = ['help']): Refusal {
   return { exitCode: 2, lines: [line], runs: [{ www: argv }] };
 }

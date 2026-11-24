@@ -6,6 +6,7 @@ import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
 import { fixGrantText } from './fix-grant-text.ts';
 import { formatList } from './format-list.ts';
+import { toRedactedRunWord } from './to-redacted-run-word.ts';
 
 type UpgradeRefusalReason = Extract<RefusalReason, { kind: 'upgrade-refused' }>;
 
@@ -121,5 +122,5 @@ function dropAllButNewest(spec: RunSpec, approvals: readonly ApprovalLine[]): Ru
 
 // The spec holds each typed value through the credential test, so the id is matched the same way.
 function removeDrop(spec: RunSpec, id: string): RunSpec {
-  return spec.dropFlagValue('drop', redactCredential(id));
+  return spec.dropFlagValue('drop', toRedactedRunWord(id));
 }

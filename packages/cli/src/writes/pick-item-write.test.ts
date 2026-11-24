@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { toPlaceholder } from '../refusals/to-placeholder.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildOkArgv } from '../test-utils/build-ok-argv.ts';
@@ -106,11 +107,11 @@ test('it refuses ok --standing and sends the owner words to the grant', () => {
           www: [
             'grant',
             '--may',
-            '<what the owner allows, in their words>',
+            toPlaceholder('<what the owner allows, in their words>'),
             '--where',
             'terminal',
             '--reading',
-            '<what they cover; what the owner kept back>',
+            toPlaceholder('<what they cover; what the owner kept back>'),
           ],
         },
       ],
@@ -163,7 +164,7 @@ test('it refuses a second approval and names the open one to spend', () => {
       lines: [
         'www: refused: the brief holds 1 of 1 one-time approvals. Spend it with www use, or drop it.',
       ],
-      runs: [{ www: ['use', 'ok-a', '--for', '<what you did with it>'] }],
+      runs: [{ www: ['use', 'ok-a', '--for', toPlaceholder('<what you did with it>')] }],
     },
   });
 });

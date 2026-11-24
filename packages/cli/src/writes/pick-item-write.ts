@@ -2,9 +2,9 @@ import { match } from 'ts-pattern';
 import { formatAge } from '../brief/format-age.ts';
 import { getSessionDay } from '../brief/get-session-day.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
-import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatCommandLine } from '../refusals/format-command-line.ts';
+import { toPlaceholder } from '../refusals/to-placeholder.ts';
 import { canBlock } from '../rules/can-block.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { parseCheckFlags } from '../rules/parse-check-flags.ts';
@@ -38,13 +38,7 @@ export function pickItemWrite(input: WriteInput): WriteResult {
   const checks = parseCheckFlags(args.flags, input.cwd);
 
   const reason =
-    pickIDRefusal(args, id, isSet) ??
-    pickSetWithoutClaimRefusal(args, hasClaim) ??
-    pickApprovalRefusal(args) ??
-    (hasClaim ? pickClaimRefusal(args, claim, existing) : null) ??
-    pickNoteTextRefusal(args) ??
-    pickCheckRefusal(args, checks, existing) ??
-    pickWhoRefusal(args, existing) ??
+    pickItemArgsRefusal(args, input.cwd, existing) ??
     pickStoreRefusal(input, id, isSet) ??
     (hasNoteFlag(args) ? pickNotesUnreadRefusal(store) : null) ??
     pickNoClearRefusal(args, id, existingNote) ??
@@ -136,6 +130,30 @@ export function pickItemWrite(input: WriteInput): WriteResult {
         : first;
     },
   };
+}
+
+// The checks that read the command line and no store, in the order the write runs them. The
+// existing item only sets the credential refusal's wording and whether a set gives a rule a check.
+export function pickItemArgsRefusal(
+  args: ParsedArgs,
+  cwd: string,
+  existing: Item | undefined,
+): RefusalReason | null {
+  const id = args.positionals[0] ?? '';
+  const isApproval = args.command === 'ok';
+  const claim = isApproval ? (args.values.quote ?? '') : (args.positionals[1] ?? '');
+  const isSet = args.command === 'set';
+  const hasClaim = !isSet || args.positionals.length === 2;
+
+  return (
+    pickIDRefusal(args, id, isSet) ??
+    pickSetWithoutClaimRefusal(args, hasClaim) ??
+    pickApprovalRefusal(args) ??
+    (hasClaim ? pickClaimRefusal(args, claim, existing) : null) ??
+    pickNoteTextRefusal(args) ??
+    pickCheckRefusal(args, parseCheckFlags(args.flags, cwd), existing) ??
+    pickWhoRefusal(args, existing)
+  );
 }
 
 function pickIDRefusal(args: ParsedArgs, id: string, isSet: boolean): RefusalReason | null {
@@ -410,15 +428,9 @@ function buildJournalExtra(item: Item): string | null {
 }
 
 function formatOlderNoteLine(args: ParsedArgs, id: string, note: Note, nowMs: number): string {
-  const scope = buildRefusalScope(args);
   const session = args.sessionFlag === null ? [] : ['--session', args.sessionFlag];
-
-  const replace = formatCommandLine(
-    [...session, 'set', id, '--note', '<detail>'],
-    scope.typedWords,
-  );
-
-  const clear = formatCommandLine([...session, 'set', id, '--no-note'], scope.typedWords);
+  const replace = formatCommandLine([...session, 'set', id, '--note', toPlaceholder('<detail>')]);
+  const clear = formatCommandLine([...session, 'set', id, '--no-note']);
   const age = formatAge(nowMs - Date.parse(note.written));
 
   return `  its note is ${age} older than this claim. Replace it with ${replace}, or clear it with ${clear}`;

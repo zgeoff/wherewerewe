@@ -7,6 +7,7 @@ import { formatSessionLines } from './commands/format-session-lines.ts';
 import { runBriefCommand } from './commands/run-brief-command.ts';
 import { runImportCommand } from './commands/run-import-command.ts';
 import { runLogCommand } from './commands/run-log-command.ts';
+import { runRecapCommand } from './commands/run-recap-command.ts';
 import { runSessionCommand } from './commands/run-session-command.ts';
 import { runShowCommand } from './commands/run-show-command.ts';
 import type { CommandContext } from './commands/types.ts';
@@ -54,7 +55,7 @@ function runCommand(input: CLIInput): Promise<CLIResult> {
       Promise.resolve(
         buildRefusalResult(buildRefusal(refused.reason), {
           sessionFlag: refused.sessionFlag,
-          typedWords: input.argv,
+          cwd: input.cwd,
         }),
       ),
     )
@@ -71,7 +72,10 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
   }
 
   if (ownerCommands.has(args.command) && !isOwnerTerminal(input)) {
-    return buildRefusalResult(buildRefusal({ kind: 'owner-only' }), buildRefusalScope(args));
+    return buildRefusalResult(
+      buildRefusal({ kind: 'owner-only' }),
+      buildRefusalScope(args, input.cwd),
+    );
   }
 
   const root = findStoreRoot(input.env);
@@ -81,7 +85,10 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
     // Listing sessions needs no session and is never refused: with no folder, there are none.
     return args.command === 'sessions'
       ? { exitCode: 0, stdout: `${formatSessionLines([], nowMs)}\n`, stderr: '' }
-      : buildRefusalResult(buildRefusal({ kind: 'no-store-folder' }), buildRefusalScope(args));
+      : buildRefusalResult(
+          buildRefusal({ kind: 'no-store-folder' }),
+          buildRefusalScope(args, input.cwd),
+        );
   }
 
   const context = {
@@ -117,7 +124,7 @@ async function runSessionBoundCommand(context: CommandContext): Promise<CLIResul
     .exhaustive();
 }
 
-const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log']);
+const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'recap']);
 
 async function runNamedSession(context: CommandContext, name: string): Promise<CLIResult> {
   const folder = join(context.root, name);
@@ -129,7 +136,7 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
     .with({ kind: 'hand-kept' }, { kind: 'format-1' }, { kind: 'newer' }, (unreadable) =>
       buildRefusalResult(
         buildReadRefusal(unreadable, { name, folder }),
-        buildRefusalScope(context.args),
+        buildRefusalScope(context.args, context.cwd),
       ),
     )
     .with({ kind: 'broken' }, (broken) =>
@@ -137,7 +144,7 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
         ? runReadCommand(context, broken.partial, broken)
         : buildRefusalResult(
             buildReadRefusal(broken, { name, folder }),
-            buildRefusalScope(context.args),
+            buildRefusalScope(context.args, context.cwd),
           ),
     )
     .exhaustive();
@@ -160,7 +167,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
       pick: args.command === 'say' ? pickSay : pickAck,
     });
 
-    return resolveWriteResult(owned, args);
+    return resolveWriteResult(owned, args, context.cwd);
   }
 
   const pick = match(args.command)
@@ -183,7 +190,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
     pick,
   });
 
-  return resolveWriteResult(written, args);
+  return resolveWriteResult(written, args, context.cwd);
 }
 
 function runReadCommand(
@@ -195,11 +202,12 @@ function runReadCommand(
 
   return match(args.command)
     .with('show', () => runShowCommand(store, args.positionals[0] ?? '', context.nowMs, unread))
-    .with('log', () => runLogCommand(store, args, context.nowMs, unread))
+    .with('log', () => runLogCommand(store, args, context, unread))
+    .with('recap', () => runRecapCommand(store, args, context, unread))
     .otherwise(() => Promise.resolve(runBriefCommand(store, context.nowMs, unread)));
 }
 
-function resolveWriteResult(written: RunWriteResult, args: ParsedArgs): CLIResult {
+function resolveWriteResult(written: RunWriteResult, args: ParsedArgs, cwd: string): CLIResult {
   return match(written)
     .with({ kind: 'replied' }, (replied) => ({
       exitCode: 0 as const,
@@ -207,7 +215,7 @@ function resolveWriteResult(written: RunWriteResult, args: ParsedArgs): CLIResul
       stderr: '',
     }))
     .with({ kind: 'refused' }, (refused) =>
-      buildRefusalResult(refused.refusal, buildRefusalScope(args)),
+      buildRefusalResult(refused.refusal, buildRefusalScope(args, cwd)),
     )
     .exhaustive();
 }
@@ -224,5 +232,5 @@ async function refuseNoSession(context: CommandContext, named: string | null): P
     })),
   });
 
-  return buildRefusalResult(refusal, buildRefusalScope(context.args));
+  return buildRefusalResult(refusal, buildRefusalScope(context.args, context.cwd));
 }

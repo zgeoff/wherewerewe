@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { toPlaceholder } from '../refusals/to-placeholder.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
@@ -408,7 +409,10 @@ test.each([
       'www: refused: t-a has an owed note (1h). Clear it once the work is done, or replace it with a note that is not owed.',
       '    The simulator is shared on Fridays',
     ],
-    runs: [{ www: ['set', 't-a', '--no-note'] }, { www: ['set', 't-a', '--note', '<detail>'] }],
+    runs: [
+      { www: ['set', 't-a', '--no-note'] },
+      { www: ['set', 't-a', '--note', toPlaceholder('<detail>')] },
+    ],
   });
 });
 

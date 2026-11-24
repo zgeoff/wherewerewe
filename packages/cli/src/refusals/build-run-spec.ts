@@ -1,21 +1,21 @@
-import { redactCredential } from '../rules/redact-credential.ts';
-import type { ParsedArgs, TypedFlag } from '../types.ts';
+import type { ParsedArgs, RunWord } from '../types.ts';
+import { toRedactedRunWord } from './to-redacted-run-word.ts';
 
 export interface RunSpec {
-  readonly replacePositional: (index: number, value: string) => RunSpec;
-  readonly addPositional: (value: string) => RunSpec;
-  readonly replaceFlag: (name: string, value: string) => RunSpec;
-  readonly replaceFlagAt: (name: string, occurrence: number, value: string) => RunSpec;
-  readonly addFlag: (name: string, value: string) => RunSpec;
-  readonly addFlagBefore: (beforeName: string, name: string, value: string) => RunSpec;
-  readonly addWord: (word: string) => RunSpec;
+  readonly replacePositional: (index: number, value: RunWord) => RunSpec;
+  readonly addPositional: (value: RunWord) => RunSpec;
+  readonly replaceFlag: (name: string, value: RunWord) => RunSpec;
+  readonly replaceFlagAt: (name: string, occurrence: number, value: RunWord) => RunSpec;
+  readonly addFlag: (name: string, value: RunWord) => RunSpec;
+  readonly addFlagBefore: (beforeName: string, name: string, value: RunWord) => RunSpec;
+  readonly addWord: (word: RunWord) => RunSpec;
   readonly keepFlags: (names: readonly string[]) => RunSpec;
   readonly keepCheckAndNoteFlags: () => RunSpec;
   readonly keepFirstCheck: () => RunSpec;
   readonly dropFlag: (name: string) => RunSpec;
-  readonly dropFlagValue: (name: string, value: string) => RunSpec;
+  readonly dropFlagValue: (name: string, value: RunWord) => RunSpec;
   readonly renameCommand: (command: string) => RunSpec;
-  readonly toArgv: () => string[];
+  readonly toArgv: () => RunWord[];
 }
 
 // The refused command as typed, without --session, that a refusal edits into its Run line. A flag
@@ -23,10 +23,10 @@ export interface RunSpec {
 export function buildRunSpec(args: ParsedArgs): RunSpec {
   return makeSpec({
     command: args.command,
-    positionals: args.positionals.map((word) => redactCredential(word)),
+    positionals: args.positionals.map((word) => toRedactedRunWord(word)),
     flags: args.flags.map((flag) => ({
       name: flag.name,
-      value: flag.value === null ? null : redactCredential(flag.value),
+      value: flag.value === null ? null : toRedactedRunWord(flag.value),
     })),
     words: [],
   });
@@ -35,13 +35,18 @@ export function buildRunSpec(args: ParsedArgs): RunSpec {
 const checkFlagNames: ReadonlySet<string> = new Set(['pr', 'branch', 'path', 'pid']);
 const keptFlagNames: ReadonlySet<string> = new Set([...checkFlagNames, 'note', 'owed']);
 
+interface SpecFlag {
+  readonly name: string;
+  readonly value: RunWord | null;
+}
+
 interface SpecState {
   readonly command: string;
-  readonly positionals: readonly string[];
-  readonly flags: readonly TypedFlag[];
+  readonly positionals: readonly RunWord[];
+  readonly flags: readonly SpecFlag[];
 
   // bare words that end the command, such as a placeholder for a choice of two flags
-  readonly words: readonly string[];
+  readonly words: readonly RunWord[];
 }
 
 function makeSpec(state: SpecState): RunSpec {
@@ -108,30 +113,40 @@ function makeSpec(state: SpecState): RunSpec {
     dropFlagValue: (name, value) =>
       makeSpec({
         ...state,
-        flags: state.flags.filter((flag) => flag.name !== name || flag.value !== value),
+        flags: state.flags.filter(
+          (flag) => flag.name !== name || flag.value === null || !isSameRunWord(flag.value, value),
+        ),
       }),
     renameCommand: (command) => makeSpec({ ...state, command }),
     toArgv: () => buildArgv(state),
   };
 }
 
+function isSameRunWord(first: RunWord, second: RunWord): boolean {
+  if (typeof first === 'string' || typeof second === 'string') {
+    return first === second;
+  }
+
+  return first.placeholder === second.placeholder;
+}
+
 // A positional that starts with a dash goes after `--`, which ends the flags.
-function buildArgv(state: SpecState): string[] {
+function buildArgv(state: SpecState): RunWord[] {
   const words = [...(state.command === 'brief' ? [] : [state.command]), ...state.positionals];
   const flagWords = state.flags.flatMap((flag) => buildFlagWords(flag));
 
-  return words.some((word) => word.startsWith('-'))
+  return words.some((word) => typeof word === 'string' && word.startsWith('-'))
     ? [...flagWords, ...state.words, '--', ...words]
     : [...words, ...flagWords, ...state.words];
 }
 
 // The parser reads `--quote --preview` as a flag with no value, and `--quote=--preview` as the value.
-function buildFlagWords(flag: TypedFlag): string[] {
+function buildFlagWords(flag: SpecFlag): RunWord[] {
   if (flag.value === null) {
     return [`--${flag.name}`];
   }
 
-  return flag.value.startsWith('-')
+  return typeof flag.value === 'string' && flag.value.startsWith('-')
     ? [`--${flag.name}=${flag.value}`]
     : [`--${flag.name}`, flag.value];
 }

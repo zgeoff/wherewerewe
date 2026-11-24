@@ -10,3 +10,9 @@ export interface CommandContext {
   // the terminal test of owner-notes.md
   readonly byOwner: boolean;
 }
+
+// The time a read runs at and the folder it runs in.
+export interface ReadAt {
+  readonly nowMs: number;
+  readonly cwd: string;
+}

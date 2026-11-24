@@ -101,6 +101,8 @@ test.each([
   ],
   [['show', 't-a'], 'show', ['t-a']],
   [['log', '--since', '24h', '--op', 'done,decide', '--id', 't-a'], 'log', []],
+  [['recap'], 'recap', []],
+  [['recap', '--since', '3d'], 'recap', []],
   [['--help'], 'help', []],
   [['-h'], 'help', []],
   [['help'], 'help', []],
@@ -251,6 +253,8 @@ test.each([
   [['task', 't-a', 'c', '--no-note'], { kind: 'flag-not-taken', command: 'task', flag: 'no-note' }],
   [['set'], { kind: 'wrong-positionals', command: 'set', usage: '<id> ["<claim>"]' }],
   [['task', 't-a'], { kind: 'wrong-positionals', command: 'task', usage: '<id> "<claim>"' }],
+  [['recap', 'x'], { kind: 'wrong-positionals', command: 'recap', usage: 'no arguments' }],
+  [['recap', '--op', 'decide'], { kind: 'flag-not-taken', command: 'recap', flag: 'op' }],
   [
     ['task', 't-a', 'x', 'y'],
     { kind: 'wrong-positionals', command: 'task', usage: '<id> "<claim>"' },

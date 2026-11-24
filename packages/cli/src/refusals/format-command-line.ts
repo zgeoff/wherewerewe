@@ -1,10 +1,18 @@
+import type { RunWord } from '../types.ts';
 import { quoteShellWord } from './quote-shell-word.ts';
 
-// Writes `www` and each argument, quoted so a shell reads each back as typed. A placeholder for one
-// id, name or reference stays bare and a text placeholder, such as <claim>, is quoted, as the
-// design's examples show. A word the agent typed is always quoted, even if it reads like a placeholder.
-export function formatCommandLine(argv: readonly string[], typedWords: readonly string[]): string {
-  return ['www', ...argv.map((argument) => formatArgument(argument, typedWords))].join(' ');
+// Writes `www` and each argument, quoted so a shell reads each back as one word. A placeholder for
+// an id, name or reference stays bare and a text placeholder, such as <claim>, is quoted, as the
+// design's examples show. A value is quoted when it needs it, even one that reads like a placeholder.
+export function formatCommandLine(argv: readonly RunWord[]): string {
+  const endOfFlags = argv.indexOf('--');
+
+  return [
+    'www',
+    ...argv.map((argument, at) =>
+      formatRunArgument(argument, endOfFlags !== -1 && at > endOfFlags),
+    ),
+  ].join(' ');
 }
 
 const bareWords: ReadonlySet<string> = new Set([
@@ -18,10 +26,19 @@ const bareWords: ReadonlySet<string> = new Set([
   '<absolute path>',
 ]);
 
-// A flag joined to a value that starts with a dash prints as --flag="<value>", the form a refusal
-// tells the agent to type.
-function formatArgument(argument: string, typedWords: readonly string[]): string {
-  const joined = /^(?<flag>--[a-z][a-z-]*=)(?<value>-.*)$/su.exec(argument)?.groups;
+// A flag before `--` joined to a value that starts with a dash prints as --flag="<value>", the form
+// a refusal tells the agent to type.
+export function formatRunArgument(argument: RunWord, isPositional: boolean): string {
+  if (typeof argument !== 'string') {
+    return bareWords.has(argument.placeholder)
+      ? argument.placeholder
+      : quoteShellWord(argument.placeholder);
+  }
+
+  const joined = isPositional
+    ? undefined
+    : /^(?<flag>--[a-z][a-z-]*=)(?<value>-.*)$/su.exec(argument)?.groups;
+
   const flag = joined?.['flag'];
   const value = joined?.['value'];
 
@@ -31,7 +48,5 @@ function formatArgument(argument: string, typedWords: readonly string[]): string
     return `${flag}${quoted === value ? `"${quoted}"` : quoted}`;
   }
 
-  return bareWords.has(argument) && !typedWords.includes(argument)
-    ? argument
-    : quoteShellWord(argument);
+  return quoteShellWord(argument);
 }

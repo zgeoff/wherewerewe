@@ -173,7 +173,23 @@ export interface StoreChange {
   readonly journal: readonly JournalRow[];
 }
 
-export type RunLine = { readonly www: readonly string[] } | { readonly shell: string };
+// A value only the agent knows, such as `<claim>`, which a Run line prints for the agent to fill.
+// A Run word that is a string is a value, typed or read, and never a placeholder, whatever it
+// looks like.
+export interface Placeholder {
+  readonly placeholder: string;
+
+  // the rule its value meets beyond being one line of text, so a Run line's check fills it with a
+  // sample that passes: an id or session name, a check flag's value, or a decision's who
+  readonly shape?: PlaceholderShape;
+}
+
+export type PlaceholderShape = 'id' | 'path' | 'branch' | 'pr' | 'pid' | 'who';
+
+export type RunWord = string | Placeholder;
+
+// A shell Run line holds the words of a command other than www, each quoted as it prints.
+export type RunLine = { readonly www: readonly RunWord[] } | { readonly shell: readonly string[] };
 
 export interface Refusal {
   readonly exitCode: 2 | 3 | 4 | 5;
@@ -413,7 +429,7 @@ export type RefusalReason =
       readonly id: string;
       readonly shownIDs: readonly string[];
     }
-  | { readonly kind: 'bad-since' }
+  | { readonly kind: 'bad-since'; readonly command: 'log' | 'recap' }
   | { readonly kind: 'use-needs-for'; readonly args: ParsedArgs }
   | { readonly kind: 'use-not-approval'; readonly id: string; readonly itemKind: Kind }
   | {

@@ -46,6 +46,7 @@ Read a feature's file before you run its journey.
 | owner-notes | Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief            | [references/feature-owner-notes.md](references/feature-owner-notes.md) |
 | item-notes  | Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close | [references/feature-item-notes.md](references/feature-item-notes.md)   |
 | grant       | Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant      | [references/feature-grant.md](references/feature-grant.md)             |
+| recap       | Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines     | [references/feature-recap.md](references/feature-recap.md)             |
 
 <!-- /wringer:features -->
 

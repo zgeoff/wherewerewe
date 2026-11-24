@@ -1,7 +1,8 @@
 import { match } from 'ts-pattern';
 import { redactCredential } from '../rules/redact-credential.ts';
-import type { Refusal, RefusalReason } from '../types.ts';
+import type { Refusal, RefusalReason, RunWord } from '../types.ts';
 import { formatList } from './format-list.ts';
+import { toPlaceholder } from './to-placeholder.ts';
 
 type OwnerReason = Extract<
   RefusalReason,
@@ -13,7 +14,7 @@ export function buildOwnerRefusal(reason: OwnerReason): Refusal {
     .with({ kind: 'owner-only' }, () =>
       refuse(
         'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.',
-        ['rule', '<id>', '<what the owner said, as a rule>'],
+        ['rule', toPlaceholder('<id>', 'id'), toPlaceholder('<what the owner said, as a rule>')],
       ),
     )
     .with({ kind: 'owner-notes-full' }, (found) =>
@@ -40,6 +41,6 @@ export function buildOwnerRefusal(reason: OwnerReason): Refusal {
     .exhaustive();
 }
 
-function refuse(line: string, argv: readonly string[]): Refusal {
+function refuse(line: string, argv: readonly RunWord[]): Refusal {
   return { exitCode: 3, lines: [line], runs: [{ www: argv }] };
 }

@@ -1,7 +1,7 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { isItemID } from '../rules/is-item-id.ts';
-import type { RefusalReason } from '../types.ts';
+import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { OwnerWriteResult, WriteInput } from './types.ts';
@@ -13,13 +13,7 @@ export function pickSay(input: WriteInput): OwnerWriteResult {
   const args = input.args;
   const text = args.positionals[0] ?? '';
   const on = args.values.on;
-
-  const reason =
-    pickTextRefusal(
-      args,
-      [{ target: { label: 'owner note', place: { positional: 0 } }, text, limit: 160 }],
-      false,
-    ) ?? pickSayOnRefusal(input, on);
+  const reason = pickSayArgsRefusal(args) ?? pickSayOnRefusal(input, on);
 
   if (reason !== null) {
     return { kind: 'refused', refusal: buildRefusal(reason) };
@@ -75,6 +69,21 @@ export function pickSay(input: WriteInput): OwnerWriteResult {
     reply: (briefLines) =>
       `${id}  owner note${on === undefined ? '' : ` on ${on}`}. It shows in every brief until you run: www --session ${store.session.name} ack ${id}. Brief: ${String(briefLines)} lines.`,
   };
+}
+
+// The check that reads the command line and no store: the owner note's text.
+export function pickSayArgsRefusal(args: ParsedArgs): RefusalReason | null {
+  return pickTextRefusal(
+    args,
+    [
+      {
+        target: { label: 'owner note', place: { positional: 0 } },
+        text: args.positionals[0] ?? '',
+        limit: 160,
+      },
+    ],
+    false,
+  );
 }
 
 // owner.tsv holds an item id or nothing in its on column, so a closed id the journal knows, such as
