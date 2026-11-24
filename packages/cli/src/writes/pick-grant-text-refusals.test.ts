@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, mock, test } from 'bun:test';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { pickGrantTextRefusals } from './pick-grant-text-refusals.ts';
@@ -73,4 +73,32 @@ test('it gives a bullet that holds a bullet mark only the mark refusal', () => {
   const ctx = setupTest();
 
   expect(ctx.pick(['--not', 'dig • spray'])).toStrictEqual([{ kind: 'text-has-mark' }]);
+});
+
+test.each([
+  { title: '13 bullets', argv: Array.from({ length: 13 }, () => ['--may', 'o']).flat() },
+  { title: 'a bullet of 120,000 characters', argv: ['--may', buildSpacedText(120_000)] },
+])('it counts no lines before it refuses $title', (row) => {
+  const countLines = mock(() => 0);
+
+  pickGrantTextRefusals(
+    buildParsedArgs(['grant', ...row.argv, '--where', 'chat', '--reading', 'r']),
+    countLines,
+  );
+
+  expect(countLines).not.toHaveBeenCalled();
+});
+
+test('it counts the lines of a grant in its bullet and word limits', () => {
+  const countLines = mock(() => 20);
+
+  const kinds = pickGrantTextRefusals(
+    buildParsedArgs(['grant', '--may', buildSpacedText(162), '--where', 'chat', '--reading', 'r']),
+    countLines,
+  ).map((reason) => reason.kind);
+
+  expect({ calls: countLines.mock.calls.length, kinds }).toStrictEqual({
+    calls: 1,
+    kinds: ['grant-too-many-lines'],
+  });
 });

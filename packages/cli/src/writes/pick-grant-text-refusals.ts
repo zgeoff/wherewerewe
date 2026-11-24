@@ -1,5 +1,6 @@
 import { countGrantLines } from '../brief/count-grant-lines.ts';
 import { countGrantWords } from '../rules/count-grant-words.ts';
+import type { GrantWords } from '../rules/count-grant-words.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
@@ -9,13 +10,17 @@ import { toGrantWords } from './to-grant-words.ts';
 const bulletFlags = ['may', 'not', 'never'] as const;
 
 // The problems in the grant's texts, in the order a refusal prints them. Too many bullets, lines or
-// words replace every bullet in the Run line, so each bullet's own problem waits until those are fixed. A
-// command that fixes every flag in one Run line needs them all.
-export function pickGrantTextRefusals(args: ParsedArgs): RefusalReason[] {
+// words replace every bullet in the Run line, so each bullet's own problem waits for those fixes.
+// Lines are counted last, as counting wraps each bullet: `countLines` is passed for a test to watch.
+export function pickGrantTextRefusals(
+  args: ParsedArgs,
+  countLines: (words: GrantWords) => number = countGrantLines,
+): RefusalReason[] {
   const words = toGrantWords(args);
   const count = words.may.length + words.not.length + words.never.length;
   const length = countGrantWords(words);
-  const lines = countGrantLines(words);
+  const isCounted = count <= grantLimits.bullets && length <= grantLimits.words;
+  const lines = isCounted ? countLines(words) : 0;
 
   const whole: RefusalReason[] = [
     ...(count > grantLimits.bullets
@@ -24,9 +29,7 @@ export function pickGrantTextRefusals(args: ParsedArgs): RefusalReason[] {
     ...(length > grantLimits.words
       ? [{ kind: 'grant-words-too-long' as const, args, length }]
       : []),
-    ...(lines > grantLimits.lines && count <= grantLimits.bullets && length <= grantLimits.words
-      ? [{ kind: 'grant-too-many-lines' as const, args, lines }]
-      : []),
+    ...(lines > grantLimits.lines ? [{ kind: 'grant-too-many-lines' as const, args, lines }] : []),
   ];
 
   const bulletChecks: TextCheck[] =
