@@ -1,3 +1,4 @@
+import { redactCredential } from '../rules/redact-credential.ts';
 import type { Refusal, RunLine } from '../types.ts';
 import { formatCommandLine } from './format-command-line.ts';
 
@@ -26,8 +27,12 @@ function formatRun(run: RunLine, typed: RefusalScope): string {
   // a word after -- is a positional, so a --session there is not the flag
   const endOfFlags = run.www.indexOf('--');
   const flagWords = endOfFlags === -1 ? run.www : run.www.slice(0, endOfFlags);
-  const isScoped = sessionFlag !== null && !flagWords.includes('--session');
-  const words = isScoped ? ['--session', sessionFlag, ...run.www] : run.www;
+
+  const isScoped =
+    sessionFlag !== null &&
+    !flagWords.some((word) => word === '--session' || word.startsWith('--session='));
+
+  const words = isScoped ? ['--session', redactCredential(sessionFlag), ...run.www] : run.www;
 
   return formatCommandLine(words, typed.typedWords);
 }

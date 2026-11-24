@@ -193,6 +193,11 @@ test.each([
     { kind: 'broken', reason: 'the key grant_set is not a UTC time' },
   ],
   [
+    'a line with no equals sign that looks like a credential',
+    `format=2\n${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}\n`,
+    { kind: 'broken', reason: 'the line "<text with no secret in it>" is not key=value' },
+  ],
+  [
     'a repeated grant_scope key',
     'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=one\ngrant_scope=two\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
     { kind: 'broken', reason: 'the key grant_scope repeats' },

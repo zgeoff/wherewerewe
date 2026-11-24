@@ -3207,6 +3207,25 @@ test.each([
     fills: [{}],
   },
   {
+    title: 'a grant bullet whose bullet mark hides a credential',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      ['xoxb', '•', '12'].join(''),
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a bullet cannot hold •, which the brief prints before each bullet.\nRun: www grant --may "<bullet>" --where chat --reading "covers watering"\n',
+    fills: [{ '<bullet>': 'Water the beds.' }],
+  },
+  {
     title: 'an upgrade whose bullet starts with two dashes',
     format1: 'old-notes',
     setup: [],

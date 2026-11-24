@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern';
+import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
 import type { Refusal, RefusalReason } from '../types.ts';
@@ -86,7 +87,7 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
     )
     .with({ kind: 'bullet-has-mark' }, (found) => {
       const fixed = found.bullet.replaceAll('•', '-');
-      const bullet = fixed === '-' ? '<bullet>' : fixed;
+      const bullet = fixed === '-' || findCredentialMatch(fixed) !== null ? '<bullet>' : fixed;
 
       return refuse(
         'www: refused: a bullet cannot hold •, which the brief prints before each bullet.',

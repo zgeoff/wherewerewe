@@ -1,3 +1,4 @@
+import { redactCredential } from '../rules/redact-credential.ts';
 import type { Format1Session } from './types.ts';
 
 export type Format1SessionParse =
@@ -38,7 +39,7 @@ export function parseFormat1Session(text: string): Format1SessionParse {
   }
 
   if (badLine !== null) {
-    return { kind: 'broken', reason: `the line "${badLine}" is not key=value` };
+    return { kind: 'broken', reason: `the line "${redactCredential(badLine)}" is not key=value` };
   }
 
   const unknownKey = [...pairs.keys()].find((key) => !knownKeys.has(key));

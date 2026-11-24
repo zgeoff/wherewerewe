@@ -182,6 +182,11 @@ test.each([
   [['init', 'tide', '--goal'], { kind: 'flag-needs-value', flag: 'goal' }],
   [['init', 'new-session', '--goal', '--session'], { kind: 'flag-needs-value', flag: 'goal' }],
   [['init', 'new-session', '--goal', '-h'], { kind: 'flag-needs-value', flag: 'goal' }],
+  [['task', 't-a', 'x', '--note', '--', '--claim'], { kind: 'flag-needs-value', flag: 'note' }],
+  [
+    ['grant', '--may', 'a', '--never', '--deny', '--where', '--reading', 'r'],
+    { kind: 'flag-needs-value', flag: 'where' },
+  ],
   [
     ['init', 'new-session', '--goal', '-x'],
     { kind: 'flag-value-has-dash', flag: 'goal', argv: ['init', 'new-session', '--goal=-x'] },

@@ -311,7 +311,7 @@ export type RefusalReason =
       readonly kind: 'flag-value-has-dash';
       readonly flag: string;
 
-      // the command as typed, without --session, with each dash value joined to its flag by =
+      // the command as typed, with each dash value joined to its flag by =
       readonly argv: readonly string[];
     }
   | { readonly kind: 'flag-takes-no-value'; readonly flag: string }

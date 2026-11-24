@@ -3,6 +3,7 @@ import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { findTextProblem } from '../rules/find-text-problem.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
 import { isUTCTime } from '../rules/is-utc-time.ts';
+import { redactCredential } from '../rules/redact-credential.ts';
 import type { Grant, SessionFile } from '../types.ts';
 
 export type SessionParse =
@@ -72,7 +73,7 @@ export function parseSessionFile(text: string): SessionParse {
   }
 
   if (badLine !== null) {
-    return { kind: 'broken', reason: `the line "${badLine}" is not key=value` };
+    return { kind: 'broken', reason: `the line "${redactCredential(badLine)}" is not key=value` };
   }
 
   const unknownKey = [...pairs.keys()].find((key) => !knownKeys.has(key));

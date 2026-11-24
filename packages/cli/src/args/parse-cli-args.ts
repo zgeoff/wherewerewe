@@ -57,32 +57,14 @@ export function parseCLIArgs(argv: readonly string[]): ParseResult {
   try {
     return checkArgs(argv);
   } catch (error) {
-    if (!(error instanceof Error) || !('code' in error)) {
-      throw error;
-    }
-
-    const flag =
-      /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
-      /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
-      '';
-
-    const name = flag.replace(/^-+/u, '');
     const joined = joinDashValues(argv, flagTypes);
+    const joinedError = joined === null ? null : findParseError(joined.argv);
 
-    const reason = match(error.code)
-      .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', (): RefusalReason => ({ kind: 'unknown-flag', flag }))
-      .with('ERR_PARSE_ARGS_INVALID_OPTION_VALUE', (): RefusalReason => {
-        if (joined !== null) {
-          return { kind: 'flag-value-has-dash', flag: joined.flag, argv: joined.argv };
-        }
-
-        return isStringOption(name)
-          ? { kind: 'flag-needs-value', flag: name }
-          : { kind: 'flag-takes-no-value', flag: name };
-      })
-      .otherwise(() => {
-        throw error;
-      });
+    // a joined command that still fails gets the refusal of what it fails on, so a Run line parses
+    const reason =
+      joined !== null && joinedError === null
+        ? { kind: 'flag-value-has-dash' as const, flag: joined.flag, argv: joined.argv }
+        : toParseRefusal(joinedError ?? error);
 
     return { kind: 'refused', reason, sessionFlag: pickSessionFlag(argv) };
   }
@@ -224,6 +206,41 @@ function checkArgs(argv: readonly string[]): ParseResult {
   }
 
   return { kind: 'args', args };
+}
+
+// The parser's error on a joined command, or null when it parses.
+function findParseError(argv: readonly string[]): unknown {
+  try {
+    parseArgs({ args: [...argv], options, strict: true, allowPositionals: true });
+
+    return null;
+  } catch (error) {
+    return error;
+  }
+}
+
+function toParseRefusal(error: unknown): RefusalReason {
+  if (!(error instanceof Error) || !('code' in error)) {
+    throw error;
+  }
+
+  const flag =
+    /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
+    /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
+    '';
+
+  const name = flag.replace(/^-+/u, '');
+
+  return match(error.code)
+    .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', (): RefusalReason => ({ kind: 'unknown-flag', flag }))
+    .with('ERR_PARSE_ARGS_INVALID_OPTION_VALUE', (): RefusalReason =>
+      isStringOption(name)
+        ? { kind: 'flag-needs-value', flag: name }
+        : { kind: 'flag-takes-no-value', flag: name },
+    )
+    .otherwise(() => {
+      throw error;
+    });
 }
 
 function isStringOption(name: string): boolean {
