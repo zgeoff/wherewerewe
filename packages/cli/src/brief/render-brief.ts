@@ -4,8 +4,9 @@ import type { Item, Note } from '../types.ts';
 import { formatAge } from './format-age.ts';
 import { formatGoalLines } from './format-goal-lines.ts';
 import { getSessionDay } from './get-session-day.ts';
+import { padID } from './pad-id.ts';
 import { pickFixCommand } from './pick-fix-command.ts';
-import { renderGrantBullets } from './render-grant-bullets.ts';
+import { renderGrantLines } from './render-grant-lines.ts';
 import type { BriefInput } from './types.ts';
 import { wrapBlock } from './wrap-block.ts';
 
@@ -101,10 +102,6 @@ function buildItemSections(input: BriefInput): ItemSection[] {
 
 function itemLine(item: Item, tag: string | null): string {
   return `  ${padID(item.id)}${item.claim}${tag === null ? '' : `  [${tag}]`}`;
-}
-
-function padID(id: string): string {
-  return id.length < 12 ? id.padEnd(12) : `${id}  `;
 }
 
 function withOwed(tag: string, isOwed: boolean): string {
@@ -272,14 +269,7 @@ function renderGrant(input: BriefInput): string[] {
     return [noGrantLine];
   }
 
-  const age = formatAge(input.nowMs - Date.parse(grant.set));
-  const scope = grant.scope === null ? '' : ` · ${grant.scope}`;
-
-  return [
-    `GRANT  from the owner in ${grant.where}, ${age} ago${scope}`,
-    ...renderGrantBullets(grant),
-    ...wrapBlock(grant.reading, '  reading: ', '    '),
-  ];
+  return renderGrantLines(grant, input.nowMs);
 }
 
 function renderOwnerNotes(input: BriefInput): string[] {
