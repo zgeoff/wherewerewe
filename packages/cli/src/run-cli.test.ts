@@ -2199,27 +2199,61 @@ test('it counts the brief of its own host in a task write reply', async () => {
   });
 });
 
+// Each row sizes the brief so that the count line's width decides how many task rows print: the
+// brief that names its session prints one row fewer than the brief that does not.
 test.each([
-  { host: 'Codex', taskCount: 20, env: { CODEX_SESSION_ID: 'c9-test' } },
-  { host: 'Claude Code', taskCount: 29, env: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' } },
+  {
+    host: 'Codex',
+    taskCount: 20,
+    env: { CODEX_SESSION_ID: 'c9-test' },
+    nowLength: 40,
+    noteWords: null,
+  },
+  {
+    host: 'Claude Code',
+    taskCount: 29,
+    env: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    nowLength: 120,
+    noteWords: 3,
+  },
 ])('it counts the brief that www --session prints in a $host task write reply', async (row) => {
   const ctx = setupTest();
   const name = 'n'.repeat(24);
   const env = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME, ...row.env };
+  const focus = buildMockIDs('task', row.taskCount)[0] ?? '';
 
   await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, row.taskCount);
 
   await ctx.run(['attach', name], env);
 
+  if (row.noteWords !== null) {
+    seedStoreFile(
+      join(ctx.stateRoot, name),
+      'notes.tsv',
+      formatNotesFile([
+        {
+          id: focus,
+          owed: true,
+          written: '2026-03-10T09:00:00Z',
+          note: Array.from({ length: row.noteWords }, () => 'n'.repeat(81)).join(' '),
+        },
+      ]),
+    );
+  }
+
+  await ctx.run(['now', focus, 'n'.repeat(row.nowLength)], env);
+
   const reply = await ctx.run(['--session', name, 'task', 't-w1', 'One more'], env);
   const brief = await ctx.run(['--session', name], env);
+  const bound = await ctx.run([], env);
 
   const briefLines = countBriefLines(brief.stdout);
 
   expect({
     hasCountLine: brief.stdout.includes(`more open tasks: www --session ${name} show\n`),
+    linesDifferFromBound: briefLines !== countBriefLines(bound.stdout),
     replyLines: reply.stdout.includes(`Brief: ${String(briefLines)} lines.`),
-  }).toStrictEqual({ hasCountLine: true, replyLines: true });
+  }).toStrictEqual({ hasCountLine: true, linesDifferFromBound: true, replyLines: true });
 });
 
 test.each([
@@ -2251,7 +2285,7 @@ test.each([
 
   expect({
     lines: countBriefLines(brief.stdout),
-    characters: [...brief.stdout].length,
+    characters: Array.from(brief.stdout, (character) => character).length,
   }).toStrictEqual({
     lines: expect.toBeWithin(60, row.maxLines + 1),
     characters: expect.toBeWithin(5000, row.maxCharacters + 1),
@@ -2280,7 +2314,7 @@ test('it prints a count line whose command runs as printed, with and without --s
   expect({
     namedLine: countLine,
     namedLines: countBriefLines(named.stdout),
-    namedWithinLimit: [...named.stdout].length <= 7200,
+    namedWithinLimit: Array.from(named.stdout, (character) => character).length <= 7200,
     listedExit: listed.exitCode,
     listedAll: buildMockIDs('task', 30).every((id) => listed.stdout.includes(id)),
     boundLine,
