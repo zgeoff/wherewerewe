@@ -1,7 +1,7 @@
 import type { Extra } from '../types.ts';
 
 // one of the values in checks.md's table; at most 15 characters
-export type CheckResult = string;
+type CheckResult = string;
 
 export type UncheckedReason =
   | 'offline'
