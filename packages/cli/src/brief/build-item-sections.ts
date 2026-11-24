@@ -1,6 +1,7 @@
 import { itemCaps } from '../rules/item-caps.ts';
 import type { Item } from '../types.ts';
 import { formatAge } from './format-age.ts';
+import { formatCheckResult } from './format-check-result.ts';
 import { formatItemLine } from './format-item-line.ts';
 import { formatTaskLine } from './format-task-line.ts';
 import { padID } from './pad-id.ts';
@@ -32,12 +33,19 @@ export function buildItemSections(
       heading: `OPEN (${String(orderedTasks.length)}, max ${String(itemCaps.task)})`,
       lines: orderedTasks
         .slice(0, shownTasks)
-        .map((item) => buildRow(item, formatTaskLine(item, items, input.notes, nowMs))),
+        .map((item) =>
+          buildRow(
+            item,
+            formatTaskLine(item, { items, notes: input.notes, nowMs, results: input.results }),
+          ),
+        ),
       tail: leftOut > 0 ? formatCountLine(leftOut, input.sessionFlag) : null,
     },
     {
       heading: `WAITING (${String(waits.length)}, max ${String(itemCaps.wait)})`,
-      lines: waits.map((item) => formatTaggedRow(item, formatWaitTag(item, nowMs), isOwed(item))),
+      lines: waits.map((item) =>
+        formatTaggedRow(item, formatWaitTag(item, nowMs, input.results), isOwed(item)),
+      ),
       tail: null,
     },
     {
@@ -60,7 +68,7 @@ export function buildItemSections(
     {
       heading: `WHERE (${String(whereItems.length)}, max ${String(itemCaps.where)})`,
       lines: whereItems.map((item) =>
-        formatTaggedRow(item, formatWhereTag(item, nowMs), isOwed(item)),
+        formatTaggedRow(item, formatWhereTag(item, nowMs, input.results), isOwed(item)),
       ),
       tail: null,
     },
@@ -82,8 +90,9 @@ function formatTaggedRow(item: Item, tag: string, isOwed: boolean): ItemLine {
   return buildRow(item, formatItemLine(item, withOwed(tag, isOwed)));
 }
 
-function formatWaitTag(item: Item, nowMs: number): string {
-  const detail = item.check === null ? formatItemAge(item, nowMs) : formatResult(item);
+function formatWaitTag(item: Item, nowMs: number, results: ReadonlyMap<string, string>): string {
+  const detail =
+    item.check === null ? formatItemAge(item, nowMs) : formatCheckResult(item, results);
 
   return `${item.extra.who ?? ''} · ${detail}`;
 }
@@ -92,12 +101,10 @@ function formatItemAge(item: Item, nowMs: number): string {
   return formatAge(nowMs - Date.parse(item.written));
 }
 
-function formatResult(item: Item): string {
-  return item.last ?? 'not checked yet';
-}
-
-function formatWhereTag(item: Item, nowMs: number): string {
-  return item.check === null ? `no check · ${formatItemAge(item, nowMs)}` : formatResult(item);
+function formatWhereTag(item: Item, nowMs: number, results: ReadonlyMap<string, string>): string {
+  return item.check === null
+    ? `no check · ${formatItemAge(item, nowMs)}`
+    : formatCheckResult(item, results);
 }
 
 const maxPullRequestRows = 1;

@@ -113,8 +113,8 @@ export function pickClose(input: WriteInput): WriteResult {
       const age = formatAge(nowMs - Date.parse(note.written));
 
       return [
-        `${id}  ${verb}. Off the brief, kept in the journal with its note (${age}). ${brief}`,
         ...wrapBlock(note.note, '    ', '    '),
+        `${id}  ${verb}. Off the brief, kept in the journal with its note (${age}). ${brief}`,
       ].join('\n');
     },
   };

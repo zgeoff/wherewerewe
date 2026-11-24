@@ -33,6 +33,8 @@ function setupTest() {
           ownerNotes: [],
           notes,
           notesUnread: null,
+          prs: [],
+          prsUnread: null,
           ownerUnread: null,
         },
         journal: {
@@ -44,6 +46,7 @@ function setupTest() {
         args: buildParsedArgs(argv),
         cwd: '/work',
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
+        probed: null,
       }),
   };
 }
@@ -494,8 +497,8 @@ test('it adds the older-note line when a write replaces the claim and keeps a no
 
   expect(picked.reply).toBe(
     [
-      't-a  task, open, no check run. Brief: 6 lines.',
       '  its note is 1h older than this claim. Replace it with www set t-a --note "<detail>", or clear it with www set t-a --no-note',
+      't-a  task, open, checked now: unchecked. Brief: 6 lines.',
     ].join('\n'),
   );
 });
@@ -523,7 +526,7 @@ test('it keeps the typed --session in the older-note commands', () => {
     6,
   );
 
-  expect(picked.reply.split('\n')[1]).toBe(
+  expect(picked.reply.split('\n')[0]).toBe(
     '  its note is 1h older than this claim. Replace it with www --session tide-alerts set t-a --note "<detail>", or clear it with www --session tide-alerts set t-a --no-note',
   );
 });
@@ -553,9 +556,9 @@ test('it adds no older-note line when the write replaces the note, clears it or 
   ].map((picked) => getPickedWrite(picked, 6).reply);
 
   expect(replies).toStrictEqual([
-    't-a  task, open, no check run, note 3 of 400. Brief: 6 lines.',
-    't-a  task, open, no check run. Brief: 6 lines.',
-    't-a  task, open, no check run. Brief: 6 lines.',
+    't-a  task, open, checked now: unchecked, note 3 of 400. Brief: 6 lines.',
+    't-a  task, open, checked now: unchecked. Brief: 6 lines.',
+    't-a  task, open, checked now: unchecked. Brief: 6 lines.',
   ]);
 });
 

@@ -175,7 +175,7 @@ function renderNow(input: BriefInput): string[] {
 
   return [
     `NOW  ${session.now}${setAge}${formatNoteAge(note, nowMs)}`,
-    ...(session.nowNext === null ? [] : [`  next: ${session.nowNext}`]),
+    ...(session.nowNext === null ? [] : [renderNext(input, session.now, session.nowNext)]),
     ...(note === undefined ? [] : wrapBlock(note.note, '    ', '    ')),
   ];
 }
@@ -186,4 +186,14 @@ function formatNoteAge(note: Note | undefined, nowMs: number): string {
   }
 
   return ` · ${note.owed ? 'owed note' : 'note'} ${formatAge(nowMs - Date.parse(note.written))} ago`;
+}
+
+function renderNext(input: BriefInput, id: string, next: string): string {
+  const fix = `Run: www now ${id} "<next step>"`;
+
+  return match(input.nowHidden)
+    .with(null, () => `  next: ${next}`)
+    .with({ kind: 'changed' }, () => `  next step hidden: ${id} changed after it was set. ${fix}`)
+    .with({ kind: 'reads' }, (reads) => `  next step hidden: ${id} reads ${reads.result}. ${fix}`)
+    .exhaustive();
 }

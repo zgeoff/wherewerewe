@@ -474,10 +474,10 @@ test.each([
   [
     'where',
     [['init', 'tide-alerts', '--goal', 'Ship it']],
-    ['where', 'wt-a', 'A worktree', '--path', '/srv/app'],
+    ['where', 'wt-a', 'A worktree', '--path', '<STATE>'],
     {
       env: {},
-      stdout: 'wt-a  where, open, no check run. Brief: 7 lines.\n',
+      stdout: 'wt-a  where, open, checked now: exists. Brief: 7 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -604,7 +604,7 @@ test.each([
     ['now', 't-a', 'go', '--note', 'Stop the simulator first'],
     {
       env: {},
-      stdout: 'now: t-a, with its note (0m). Brief: 9 lines.\n    Stop the simulator first\n',
+      stdout: '    Stop the simulator first\nnow: t-a, with its note (0m). Brief: 9 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/notes.tsv', 'tide-alerts/session'],
     },
   ],
@@ -618,7 +618,7 @@ test.each([
     {
       env: {},
       stdout:
-        't-a  done. Off the brief, kept in the journal with its note (0m). Brief: 5 lines.\n    Stop the simulator first\n',
+        '    Stop the simulator first\nt-a  done. Off the brief, kept in the journal with its note (0m). Brief: 5 lines.\n',
       changed: [
         'tide-alerts/items.tsv',
         'tide-alerts/journal.tsv',
@@ -725,7 +725,12 @@ test.each([
   }
 
   const before = await ctx.readTree();
-  const result = await ctx.run(argv, { ...ctx.agentEnv, ...expected.env });
+
+  const result = await ctx.run(
+    argv.map((word) => word.replace('<STATE>', ctx.stateRoot)),
+    { ...ctx.agentEnv, ...expected.env },
+  );
+
   const after = await ctx.readTree();
 
   const stdout =
@@ -852,7 +857,7 @@ test('it replaces an open item of the same kind in place, keeping its row and re
   const ctx = setupTest();
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
-  await ctx.run(['task', 't-a', 'First claim', '--pid', '5']);
+  await ctx.run(['task', 't-a', 'First claim', '--pid', String(process.pid)]);
   await ctx.run(['task', 't-b', 'Second claim']);
   await ctx.run(['task', 't-a', 'First claim, written again']);
 
@@ -870,12 +875,18 @@ test('it keeps the kind, row and extra of an item when set replaces its claim, a
   const ctx = setupTest();
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
-  await ctx.run(['wait', 'w-a', 'Answer', '--who', 'vendor', '--pid', '5']);
+  await ctx.run(['wait', 'w-a', 'Answer', '--who', 'vendor', '--pid', String(process.pid)]);
   await ctx.run(['set', 'w-a', 'Answer, in writing']);
 
   const brief = await ctx.run([]);
 
-  expect(brief.stdout).toInclude('  w-a         Answer, in writing  [vendor · not checked yet]\n');
+  const items = parseItemsFile(
+    readFileSync(join(ctx.stateRoot, 'tide-alerts', 'items.tsv'), 'utf8'),
+    '2',
+  );
+
+  expect(brief.stdout).toInclude('  w-a         Answer, in writing  [vendor · alive]\n');
+  expect(items.items[0]?.extra.pid_start).toBeString();
 });
 
 test('it clears the item in focus when done closes it', async () => {
@@ -912,7 +923,7 @@ test('it records each write in the journal, with the check but no free text in e
   const ctx = setupTest();
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
-  await ctx.run(['wait', 'w-a', 'Answer', '--who', 'vendor', '--pid', '5']);
+  await ctx.run(['wait', 'w-a', 'Answer', '--who', 'vendor', '--pid', String(process.pid)]);
   await ctx.run(['done', 'w-a', '--evidence', 'the answer came']);
 
   const journal = readFileSync(join(ctx.stateRoot, 'tide-alerts', 'journal.tsv'), 'utf8');
@@ -922,7 +933,7 @@ test('it records each write in the journal, with the check but no free text in e
       'ts\top\tid\tby\ttext\twhy\textra',
       '2026-03-10T11:43:00Z\tinit\ttide-alerts\tagent\tShip it\t-\t-',
       '2026-03-10T11:43:00Z\tbind\ttide-alerts\tagent\tinit\t-\tharness=claude;agent=a1b2-test',
-      '2026-03-10T11:43:01Z\twait\tw-a\tagent\tAnswer\t-\tcheck=pid:5',
+      `2026-03-10T11:43:01Z\twait\tw-a\tagent\tAnswer\t-\tcheck=pid:${String(process.pid)}`,
       '2026-03-10T11:43:02Z\tdone\tw-a\tagent\tAnswer\tthe answer came\t-',
       '',
     ].join('\n'),
@@ -1044,7 +1055,7 @@ test('it prints show and log from a session written across three days', async ()
       [
         'pr-api-77  task, open since day 1, by agent · check: pr:bosunhq/bosun-api#77',
         '  claim (2d): Alert job retries a 503',
-        '  checked now: not checked yet · at write: not checked yet',
+        '  checked now: unchecked · at write: not checked yet',
         '  decisions: d-1 Queue the alert in the job, not the requ… (day 2) · d-2 Retry a 503 from the tide feed 3 times (day 3)',
         '  journal: day 1 task',
         '',
@@ -1388,7 +1399,7 @@ test('it keeps an item with a saved result byte for byte when set gives only a n
     saved: saved.kind === 'store' && saved.store.items.map((item) => [item.atWrite, item.last]),
     itemsKept: after['tide-alerts/items.tsv'] === before['tide-alerts/items.tsv'],
   }).toStrictEqual({
-    result: 't-a  note, 24 of 400. Brief: 7 lines.\n',
+    result: 't-a  note, 24 of 400. Brief: 9 lines.\n',
     saved: [['alive', 'gone']],
     itemsKept: true,
   });
@@ -1453,7 +1464,7 @@ test('it runs each command of the older-note line as printed', async () => {
 
   const replaced = await ctx.run(['set', 't-a', 'Written another way']);
 
-  const line = replaced.stdout.split('\n')[1] ?? '';
+  const line = replaced.stdout.split('\n')[0] ?? '';
 
   const match = /Replace it with www (?<replace>.*), or clear it with www (?<clear>.*)$/u.exec(
     line,
@@ -2211,14 +2222,14 @@ test.each([
     host: 'Codex',
     taskCount: 20,
     env: { CODEX_SESSION_ID: 'c9-test' },
-    nowLength: 40,
+    nowLength: 80,
     noteWords: null,
   },
   {
     host: 'Claude Code',
     taskCount: 29,
     env: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
-    nowLength: 120,
+    nowLength: 80,
     noteWords: 3,
   },
 ])('it counts the brief that www --session prints in a $host task write reply', async (row) => {

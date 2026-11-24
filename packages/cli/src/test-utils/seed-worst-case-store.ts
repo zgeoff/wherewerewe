@@ -21,7 +21,7 @@ export async function seedWorstCaseStore(
   const waits = buildMockIDs('wait', 4);
   const tasks = buildMockIDs('task', taskCount);
   const goal = [...Array.from({ length: 21 }, () => 'goalword'), 'goalwordsss'].join(' ');
-  const result = 'r'.repeat(15);
+  const check = `pid:${String(process.pid)}`;
 
   await runAsAgent(['init', name, '--goal', goal]);
 
@@ -41,8 +41,9 @@ export async function seedWorstCaseStore(
     await seedItem(folder, {
       id,
       claim: 'c'.repeat(120),
-      check: 'pid:4',
-      last: result,
+      check,
+      atWrite: 'alive',
+      last: 'alive',
       extra: { blocked_by: waits[0] ?? '' },
     });
   }
@@ -52,8 +53,9 @@ export async function seedWorstCaseStore(
       id,
       kind: 'wait',
       claim: 'c'.repeat(120),
-      check: 'pid:4',
-      last: result,
+      check,
+      atWrite: 'alive',
+      last: 'alive',
       extra: { who: 'w'.repeat(16) },
     });
   }
@@ -74,8 +76,9 @@ export async function seedWorstCaseStore(
       id,
       kind: 'where',
       claim: 'c'.repeat(120),
-      check: 'pid:4',
-      last: result,
+      check,
+      atWrite: 'alive',
+      last: 'alive',
     });
   }
 

@@ -98,6 +98,7 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
     env: input.env,
     cwd: input.cwd,
     nowMs,
+    now: input.now,
     root,
     byOwner: isOwnerTerminal(input),
   };
@@ -189,6 +190,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
     name: store.session.name,
     args,
     cwd: context.cwd,
+    env: context.env,
     nowMs: context.nowMs,
     host: findHost(context),
     pick,
@@ -210,11 +212,11 @@ function runReadCommand(
 
       return id === undefined
         ? Promise.resolve(runTaskListCommand(store, context.nowMs, unread))
-        : runShowCommand(store, id, context.nowMs, unread);
+        : runShowCommand(store, id, context, unread);
     })
     .with('log', () => runLogCommand(store, args, context, unread))
     .with('recap', () => runRecapCommand(store, args, context, unread))
-    .otherwise(() => Promise.resolve(runBriefCommand(store, context, unread)));
+    .otherwise(() => runBriefCommand(store, context, unread, findHost(context)));
 }
 
 function findHost(context: CommandContext): 'claude' | 'codex' | null {

@@ -1,4 +1,6 @@
 import { expect, test } from 'bun:test';
+import { noSecretPlaceholder } from '../rules/redact-credential.ts';
+import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
 import type { Grant, Item, JournalRow, Note, SessionFile } from '../types.ts';
@@ -8,6 +10,7 @@ interface ShowOptions {
   readonly closed?: ReadonlyMap<string, string>;
   readonly notes?: readonly Note[];
   readonly grant?: Grant;
+  readonly checkNow?: { readonly result: string; readonly failing: readonly string[] };
 }
 
 function setupTest() {
@@ -41,11 +44,14 @@ function setupTest() {
           ownerNotes: [],
           notes: options.notes ?? [],
           notesUnread: null,
+          prs: [],
+          prsUnread: null,
           ownerUnread: null,
         },
         rows,
         closed: options.closed ?? new Map(),
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
+        checkNow: options.checkNow ?? null,
       }),
   };
 }
@@ -83,13 +89,14 @@ test('it shows an open task with a check and two decisions', () => {
       }),
       buildMockJournalRow({ ts: '2026-03-10T11:31:00Z', op: 'set', id: 'pr-api-77' }),
     ],
+    { checkNow: { result: 'OPEN failing', failing: ['oxlint'] } },
   );
 
   expect(text).toBe(
     [
       'pr-api-77  task, open since day 7, by agent · check: pr:bosunhq/bosun-api#77',
       '  claim (12m): Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07',
-      '  checked now: not checked yet · at write: OPEN pending',
+      '  checked now: OPEN failing (oxlint) · at write: OPEN pending',
       '  decisions: d-19 queue the alert in the job, not the requ… (day 7) · d-23 ruled out: retry a 503 forever (day 9)',
       '  journal: day 7 task · day 8 set · day 9 set',
       '',
@@ -97,20 +104,21 @@ test('it shows an open task with a check and two decisions', () => {
   );
 });
 
-test('it shows a check that has not run as not checked yet at write', () => {
+test('it shows an unchecked result now, and not checked yet at write', () => {
   const ctx = setupTest();
 
   const text = ctx.show(
     't-a',
     [buildMockItem({ id: 't-a', check: 'pid:4242', written: '2026-03-10T11:43:00Z' })],
     [buildMockJournalRow({ ts: '2026-03-10T11:43:00Z', op: 'task', id: 't-a' })],
+    { checkNow: { result: 'unchecked', failing: [] } },
   );
 
   expect(text).toBe(
     [
       't-a  task, open since day 9, by agent · check: pid:4242',
       '  claim (0m): Write the parser',
-      '  checked now: not checked yet · at write: not checked yet',
+      '  checked now: unchecked · at write: not checked yet',
       '  journal: day 9 task',
       '',
     ].join('\n'),
@@ -864,4 +872,64 @@ test('it prints the none line for show grant when the session holds no grant', (
   expect(ctx.show('grant', [], [])).toBe(
     'grant  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"\n',
   );
+});
+
+test('it prints the placeholder and no part of a credential in a failing check name', () => {
+  const ctx = setupTest();
+  const [credential] = buildCredentialSamples();
+
+  const text = ctx.show('pr-api-77', [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })], [], {
+    checkNow: { result: 'OPEN failing', failing: ['lint', credential?.sample ?? ''] },
+  });
+
+  expect({
+    leaked: text.includes(credential?.tail ?? ''),
+    line: text.split('\n').find((row) => row.startsWith('  checked now')),
+  }).toStrictEqual({
+    leaked: false,
+    line: `  checked now: OPEN failing (lint, ${noSecretPlaceholder}) · at write: not checked yet`,
+  });
+});
+
+test('it prints a failing check name with a line break, a tab and an escape character on one line, with none of them', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show('pr-api-77', [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })], [], {
+    checkNow: {
+      result: 'OPEN failing',
+      failing: [`lint\nsplit\there${String.fromCodePoint(27)}[31m`],
+    },
+  });
+
+  const row = text.split('\n').find((line) => line.startsWith('  checked now')) ?? '';
+
+  expect({
+    row,
+    hasControl: /\p{Cc}/u.test(row),
+  }).toStrictEqual({
+    row: '  checked now: OPEN failing (lint split here [31m) · at write: not checked yet',
+    hasControl: false,
+  });
+});
+
+test('it cuts the line of a failing check name of 300 characters to 100', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show('pr-api-77', [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })], [], {
+    checkNow: { result: 'OPEN failing', failing: ['n'.repeat(300)] },
+  });
+
+  const row = text.split('\n').find((line) => line.startsWith('  checked now')) ?? '';
+
+  expect([[...row].length, row.endsWith('…')]).toStrictEqual([100, true]);
+});
+
+test('it prints no names after a result that is not OPEN failing', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show('pr-api-77', [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })], [], {
+    checkNow: { result: 'OPEN pending', failing: ['lint'] },
+  });
+
+  expect(text).toInclude('  checked now: OPEN pending · at write: not checked yet\n');
 });

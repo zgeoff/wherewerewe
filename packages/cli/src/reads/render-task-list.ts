@@ -25,7 +25,13 @@ export function renderTaskList(input: TaskListInput): string {
 
   const lines = tasks.flatMap((task) => {
     const note = input.notes.find((candidate) => candidate.id === task.id);
-    const row = formatTaskLine(task, input.items, input.notes, input.nowMs);
+
+    const row = formatTaskLine(task, {
+      items: input.items,
+      notes: input.notes,
+      nowMs: input.nowMs,
+      results: new Map(),
+    });
 
     if (note === undefined) {
       return [row];

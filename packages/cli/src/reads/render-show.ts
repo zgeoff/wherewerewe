@@ -7,6 +7,7 @@ import { findExtraValue } from '../rules/find-extra-value.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { getKindWord } from '../rules/get-kind-word.ts';
 import type { Item, JournalRow, Store } from '../types.ts';
+import { cutRedactedLine } from './cut-redacted-line.ts';
 
 export interface ShowInput {
   readonly id: string;
@@ -17,6 +18,14 @@ export interface ShowInput {
   // the ids the journal closed, so a wait whose rewrite an interrupted write lost reads as closed
   readonly closed: ReadonlyMap<string, string>;
   readonly nowMs: number;
+
+  // what the item's probe found just now; null for an item with no check
+  readonly checkNow: {
+    readonly result: string;
+
+    // the names of the checks that failed, from GitHub, after `OPEN failing`
+    readonly failing: readonly string[];
+  } | null;
 }
 
 const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
@@ -136,9 +145,7 @@ function renderOpenItem(input: ShowInput, item: Item): string {
     `  ${getClaimWord(item)} (${age}): ${item.claim}`,
     ...formatNoteLines(input, item),
     ...(item.kind === 'ok' ? [formatApprovalLine(item)] : []),
-    ...(item.check === null
-      ? []
-      : [`  checked now: not checked yet · at write: ${item.atWrite ?? 'not checked yet'}`]),
+    ...(item.check === null ? [] : [formatCheckNowLine(input, item)]),
     ...formatDecisionLines(input),
     ...formatHistoryLines(input),
   ];
@@ -183,6 +190,22 @@ function formatApprovalLine(item: Item): string {
   const scope = item.extra.scope ?? 'unknown';
 
   return `  given by ${who} in ${where} · scope: ${scope}`;
+}
+
+// The names come from outside the store: control characters become spaces, and the line passes the
+// credential redaction and the 100 character cut.
+function formatCheckNowLine(input: ShowInput, item: Item): string {
+  const now = input.checkNow ?? { result: 'unchecked', failing: [] };
+
+  const names = now.failing
+    .map((name) => name.replaceAll(/\p{Cc}/gu, ' ').trim())
+    .filter((name) => name !== '');
+
+  const failing = now.result === 'OPEN failing' && names.length > 0 ? ` (${names.join(', ')})` : '';
+
+  return cutRedactedLine(
+    `  checked now: ${now.result}${failing} · at write: ${item.atWrite ?? 'not checked yet'}`,
+  );
 }
 
 function formatDecisionLines(input: ShowInput): string[] {

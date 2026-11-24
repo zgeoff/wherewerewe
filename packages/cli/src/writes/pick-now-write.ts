@@ -69,8 +69,8 @@ export function pickNowWrite(input: WriteInput): WriteResult {
       const age = formatAge(nowMs - Date.parse(note.written));
 
       return [
-        `now: ${id}, with its ${word} (${age}). ${brief}`,
         ...wrapBlock(note.note, '    ', '    '),
+        `now: ${id}, with its ${word} (${age}). ${brief}`,
       ].join('\n');
     },
   };

@@ -42,6 +42,8 @@ function setupTest() {
           ownerNotes: [],
           notes: options.notes ?? [],
           notesUnread: null,
+          prs: [],
+          prsUnread: null,
           ownerUnread: null,
         },
         journal: {
@@ -53,6 +55,7 @@ function setupTest() {
         args: buildParsedArgs(argv),
         cwd: '/work',
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
+        probed: null,
       });
     },
   };
@@ -329,7 +332,7 @@ test.each([
         session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
         journal: [expect.objectContaining({ id: 't-a' })],
       },
-      reply: `t-a  ${verb} Off the brief, kept in the journal with its note (1h). Brief: 6 lines.\n    The simulator is shared on Fridays`,
+      reply: `    The simulator is shared on Fridays\nt-a  ${verb} Off the brief, kept in the journal with its note (1h). Brief: 6 lines.`,
     });
   },
 );
@@ -352,7 +355,7 @@ test('it prints the note of a spent approval after used.', () => {
   );
 
   expect(picked.reply).toBe(
-    'ok-wipe  used. Off the brief, kept in the journal with its note (1h). Brief: 6 lines.\n    The simulator is shared on Fridays',
+    '    The simulator is shared on Fridays\nok-wipe  used. Off the brief, kept in the journal with its note (1h). Brief: 6 lines.',
   );
 });
 

@@ -5,6 +5,9 @@ export interface CommandContext {
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly cwd: string;
   readonly nowMs: number;
+
+  // the clock itself, which a read runs its checks against
+  readonly now: () => number;
   readonly root: string;
 
   // the terminal test of owner-notes.md

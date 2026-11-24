@@ -359,9 +359,123 @@ test.each([
     maxLines: 82,
     maxCharacters: 9000,
   },
+  {
+    title: 'Codex, 6 tasks, the next step hidden by a change',
+    host: 'codex',
+    taskCount: 6,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
+    nowHidden: { kind: 'changed' },
+  },
+  {
+    title: 'Codex, 6 tasks, the next step hidden by a reading of 15 characters',
+    host: 'codex',
+    taskCount: 6,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
+    nowHidden: { kind: 'reads', result: 'r'.repeat(15) },
+  },
+  {
+    title: 'Codex, 6 tasks, every result unchecked',
+    host: 'codex',
+    taskCount: 6,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
+    results: 'unchecked',
+  },
+  {
+    title: 'no known host, 6 tasks, the next step hidden by a change',
+    host: null,
+    taskCount: 6,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
+    nowHidden: { kind: 'changed' },
+  },
+  {
+    title: 'no known host, 6 tasks, the next step hidden by a reading of 15 characters',
+    host: null,
+    taskCount: 6,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
+    nowHidden: { kind: 'reads', result: 'r'.repeat(15) },
+  },
+  {
+    title: 'no known host, 6 tasks, every result unchecked',
+    host: null,
+    taskCount: 6,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
+    results: 'unchecked',
+  },
+  {
+    title: 'Claude Code, 15 tasks, the next step hidden by a change',
+    host: 'claude',
+    taskCount: 15,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 15,
+    hasCountLine: false,
+    maxLines: 82,
+    maxCharacters: 9000,
+    nowHidden: { kind: 'changed' },
+  },
+  {
+    title: 'Claude Code, 15 tasks, the next step hidden by a reading of 15 characters',
+    host: 'claude',
+    taskCount: 15,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 15,
+    hasCountLine: false,
+    maxLines: 82,
+    maxCharacters: 9000,
+    nowHidden: { kind: 'reads', result: 'r'.repeat(15) },
+  },
+  {
+    title: 'Claude Code, 15 tasks, every result unchecked',
+    host: 'claude',
+    taskCount: 15,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 15,
+    hasCountLine: false,
+    maxLines: 82,
+    maxCharacters: 9000,
+    results: 'unchecked',
+  },
 ] as const)('it renders the worst case for $title within its budget', (row) => {
   const brief = renderBrief(
-    buildWorstCaseBriefInput({ host: row.host, taskCount: row.taskCount, goal: row.goal }),
+    buildWorstCaseBriefInput({
+      host: row.host,
+      taskCount: row.taskCount,
+      goal: row.goal,
+      ...('nowHidden' in row ? { nowHidden: row.nowHidden } : {}),
+      ...('results' in row ? { results: row.results } : {}),
+    }),
   );
 
   const lines = brief.split('\n');
@@ -955,4 +1069,93 @@ test('it prints a brief over its budget when only the focus row and the note are
     note: true,
     cutLine: '  (2 lines cut to fit; run www show <id>)',
   });
+});
+
+test.each([
+  {
+    title: 'a change after the step was set',
+    nowHidden: { kind: 'changed' },
+    line: '  next step hidden: pr-api-77 changed after it was set. Run: www now pr-api-77 "<next step>"',
+  },
+  {
+    title: 'a result of MERGED with no change',
+    nowHidden: { kind: 'reads', result: 'MERGED' },
+    line: '  next step hidden: pr-api-77 reads MERGED. Run: www now pr-api-77 "<next step>"',
+  },
+] as const)(
+  'it prints the hidden line for $title in place of the next step, with the note whole under it',
+  (row) => {
+    const note = buildMockNote({ id: 'pr-api-77', note: 'Wait for the owner to merge' });
+
+    const brief = renderBrief(
+      buildMockBriefInput({
+        session: buildMockSession({
+          now: 'pr-api-77',
+          nowNext: 'request review',
+          nowSet: '2026-03-10T10:31:09Z',
+        }),
+        items: [buildMockItem({ id: 'pr-api-77', check: 'pr:bosunhq/bosun-api#77' })],
+        notes: [note],
+        nowHidden: row.nowHidden,
+      }),
+    );
+
+    const lines = brief.split('\n');
+    const start = lines.findIndex((line) => line.startsWith('NOW'));
+
+    expect(lines.slice(start, start + 3)).toStrictEqual([
+      'NOW  pr-api-77 · set 1h ago · note 1h ago',
+      row.line,
+      '    Wait for the owner to merge',
+    ]);
+  },
+);
+
+test('it prints no hidden line when no next step is set, and none of its text', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({ now: 'pr-api-77', nowNext: null, nowSet: null }),
+      items: [buildMockItem({ id: 'pr-api-77', check: 'pr:bosunhq/bosun-api#77' })],
+      nowHidden: { kind: 'changed' },
+    }),
+  );
+
+  expect([brief.includes('next step hidden'), brief.includes('  next: ')]).toStrictEqual([
+    false,
+    false,
+  ]);
+});
+
+test('it tags the row of an item whose probe read unchecked as unchecked, and keeps the saved result for the changed row', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      items: [
+        buildMockItem({ id: 't-a', check: 'pid:42', atWrite: 'alive', last: 'gone' }),
+        buildMockItem({ id: 'w-a', kind: 'wait', check: 'pid:43', extra: { who: 'owner' } }),
+        buildMockItem({ id: 'wt-a', kind: 'where', check: 'path:/srv/app', last: 'clean' }),
+      ],
+      results: new Map([
+        ['t-a', 'unchecked'],
+        ['w-a', 'unchecked'],
+        ['wt-a', 'unchecked'],
+      ]),
+    }),
+  );
+
+  expect([
+    brief.includes('  t-a         Write the parser  [unchecked]\n'),
+    brief.includes('  w-a         Write the parser  [owner · unchecked]\n'),
+    brief.includes('  wt-a        Write the parser  [unchecked]\n'),
+  ]).toStrictEqual([true, true, true]);
+});
+
+test("it tags each row from this read's result before the saved one", () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      items: [buildMockItem({ id: 't-a', check: 'pid:42', last: 'alive' })],
+      results: new Map([['t-a', 'gone']]),
+    }),
+  );
+
+  expect(brief).toInclude('  t-a         Write the parser  [gone]\n');
 });
