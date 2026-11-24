@@ -59,7 +59,7 @@ reading 200. The brief holds at most 6 tasks, 4 waits, 1 approval, 5 rules, 4 wh
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2c, and the test compares the tool's output with it. The slice 2b diff below is what that slice changed. Slices 2c and 2d each apply their diff below to this block and to the tool in the pull request that builds them. Each diff applies to the block as the slice before it leaves it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line holds the line numbers in the block before and after.
+The block above is the help as built through slice 2c, and the test compares the tool's output with it. The slice 2b and 2c diffs below are what those slices changed. Slice 2d applies its diff below to this block and to the tool in the pull request that builds it. Each diff applies to the block as the slice before it leaves it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line holds the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -189,7 +189,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
 - `ok` accepts `--once` and ignores it, because every approval is one-time. `--standing` gets the refusal below.
 - `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
-- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above. `install`, `doctor` and `hook` are slice 4's, and `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
+- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install`, `doctor` and `hook` are in the help, and exit 2 until slice 4 builds them; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
 
 ### Text limits
 

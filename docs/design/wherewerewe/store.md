@@ -83,7 +83,7 @@ interface Item {
   atWrite: string | null; // the check's result when the claim was written; '-' means not checked yet
   last: string | null; // the check's result at the last read that could save it
   written: string; // when the claim was last written; a write that changes only the note keeps it
-  by: 'agent' | 'owner' | 'import'; // who ran the command; import for rows www import made
+  by: 'agent' | 'owner' | 'import'; // who ran the command; import for items www import made from a hand-kept store
   extra: Extra; // '-' on disk when empty; otherwise key=value pairs joined by ';'
 }
 
@@ -188,7 +188,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - Each write takes `lock` with an exclusive create, appends its journal rows, rewrites each changed file through a temporary file and a rename in the same folder, and removes `lock`. The journal goes first because a write reads it to refuse a closed id, so a write that stops after the append leaves the id closed and its item still open, never an item gone while its id can be reused.
 - A write waits up to 2 s for `lock`, then refuses. A lock whose pid is gone, or that is older than 30 s, is stale: the next write removes it and goes on.
 - A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. [brief.md](brief.md) has what the header shows then.
-- The journal is never rewritten, with one exception: `www import` rewrites a hand-kept journal into the current format once, after it copies the original into `import-backup/`. The format 2 upgrade keeps every format 1 row as it was and adds its rows after them. Nothing prints the journal whole, except `www log` with no filter.
+- The journal is never rewritten, with two exceptions: `www import` rewrites a hand-kept journal into the current format once, after it copies the original into `import-backup/`, and the format 2 upgrade writes `journal.tsv` again as every format 1 row as it was, followed by its own rows. Nothing prints the journal whole, except `www log` with no filter.
 - A session folder is never deleted by the tool.
 
 ## Versions

@@ -115,9 +115,9 @@ See [the commands design](../design/wherewerewe/commands.md) for the filters and
 `show <id>` prints one open item, closed item or decision, with the decisions made about it and its
 last 10 journal rows. `log` prints the journal oldest first, kept to the rows that `--since`, `--op`
 and `--id` name, and sorts them by time. Both read the journal in chunks and hold only the rows they
-need, and take no lock. Once the session is found, neither is refused for a missing or unreadable
-thing: an unknown id lists the open items, and an unreadable journal prints the item without its
-history and says so on stderr. Only a `--since` that `log` cannot read exits 2.
+need, and take no lock. Once the session is found and its store is format 2, neither is refused for
+a missing or unreadable thing: an unknown id lists the open items, and an unreadable journal prints
+the item without its history and says so on stderr. Only a `--since` that `log` cannot read exits 2.
 
 ## Importing a hand-kept store
 
@@ -133,12 +133,13 @@ Otherwise, when an agent session runs it, it takes the lock in `.bindings/` that
 change takes, so a busy lock converts nothing. It copies `session`, `items.tsv` and `journal.tsv`
 into `import-backup/` through a temporary folder and a rename, so `import-backup/` is either absent
 or complete. It writes each new file in full to a temporary file, and renames them into place in
-this order: `owner.tsv`, `prs.tsv`, `items.tsv`, `journal.tsv` and `session`, and writes the binding
-last, so a stopped import never leaves the agent bound to a hand-kept store. A store whose `session`
-file still has `format=0-by-hand` has not finished importing. A rerun reads the originals from
-`import-backup/` when it exists, removes any `import-backup.tmp-*` folder and any temporary file a
-stopped import staged, and converts the store again. The backup and each new file keep the
-permissions of the file they replace, and a new `owner.tsv` or `prs.tsv` takes those of `session`.
+this order: `owner.tsv`, `prs.tsv`, `notes.tsv`, `items.tsv`, `journal.tsv` and `session`, and
+writes the binding last, so a stopped import never leaves the agent bound to a hand-kept store. A
+store whose `session` file still has `format=0-by-hand` has not finished importing. A rerun reads
+the originals from `import-backup/` when it exists, removes any `import-backup.tmp-*` folder and any
+temporary file a stopped import staged, and converts the store again. The backup and each new file
+keep the permissions of the file they replace, and a new `owner.tsv` or `prs.tsv` takes those of
+`session`.
 
 A rerun refuses a store that is format 2 already. When an agent session runs it, the refusal's
 `Run:` line is `www attach <session>`, which binds an agent that an import left unbound by stopping
