@@ -1,13 +1,16 @@
 import { countGrantLines } from '../brief/count-grant-lines.ts';
 import { countGrantWords } from '../rules/count-grant-words.ts';
 import type { GrantWords } from '../rules/count-grant-words.ts';
+import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
+import { normaliseWords } from '../rules/normalise-words.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { TextCheck } from './pick-text-refusal.ts';
 import { toGrantWords } from './to-grant-words.ts';
 
 const bulletFlags = ['may', 'not', 'never'] as const;
+const lineBreaks = /\r\n|[\n\v\f\r\u0085\u2028\u2029]/gu;
 
 // The problems in the grant's texts, in the order a refusal prints them. Too many bullets, lines or
 // words replace every bullet in the Run line, so each bullet's own problem waits for those fixes.
@@ -32,27 +35,33 @@ export function pickGrantTextRefusals(
     ...(lines > grantLimits.lines ? [{ kind: 'grant-too-many-lines' as const, args, lines }] : []),
   ];
 
-  const bulletChecks: TextCheck[] =
+  const typedBullets =
     whole.length > 0
       ? []
       : bulletFlags.flatMap((flag) =>
-          words[flag].map((bullet, occurrence) => ({
-            target: { label: 'bullet' as const, place: { flag, occurrence } },
-            text: bullet,
-            limit: grantLimits.words,
+          (args.values[flag] ?? []).map((typed, occurrence) => ({
+            typed,
+            check: {
+              target: { label: 'bullet' as const, place: { flag, occurrence } },
+              text: normaliseWords(typed),
+              limit: grantLimits.words,
+            },
           })),
         );
 
+  const bulletChecks: TextCheck[] = typedBullets.map((bullet) => bullet.check);
+
+  const scopeCheck: TextCheck | null =
+    words.scope === null
+      ? null
+      : {
+          target: { label: "grant's scope" as const, place: { flag: 'scope' } },
+          text: words.scope,
+          limit: grantLimits.scope,
+        };
+
   const otherChecks: TextCheck[] = [
-    ...(words.scope === null
-      ? []
-      : [
-          {
-            target: { label: "grant's scope" as const, place: { flag: 'scope' } },
-            text: words.scope,
-            limit: grantLimits.scope,
-          },
-        ]),
+    ...(scopeCheck === null ? [] : [scopeCheck]),
     ...(args.values.where === undefined
       ? []
       : [
@@ -100,5 +109,27 @@ export function pickGrantTextRefusals(
         : [],
   );
 
-  return [...whole, ...textReasons, ...marks, ...(isWhereRefused ? [] : separator)];
+  // a line break turns into a space, so a credential it splits is found in the typed text joined
+  const typedTexts = [
+    ...typedBullets,
+    ...(scopeCheck === null ? [] : [{ typed: args.values.scope ?? '', check: scopeCheck }]),
+  ];
+
+  const splitCredentials: RefusalReason[] = typedTexts.flatMap((bullet) => {
+    const label = findCredentialMatch(bullet.typed.replaceAll(lineBreaks, ''));
+    const target = bullet.check.target;
+
+    return label === null ||
+      textReasons.some((reason) => 'target' in reason && reason.target === target)
+      ? []
+      : [{ kind: 'credential' as const, args, target, label, onOtherKind: false }];
+  });
+
+  return [
+    ...whole,
+    ...textReasons,
+    ...splitCredentials,
+    ...marks,
+    ...(isWhereRefused ? [] : separator),
+  ];
 }

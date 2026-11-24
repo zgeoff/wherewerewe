@@ -102,3 +102,24 @@ test('it counts the lines of a grant in its bullet and word limits', () => {
     kinds: ['grant-too-many-lines'],
   });
 });
+
+test.each([
+  { title: 'a next line', separator: '\u0085' },
+  { title: 'a line feed', separator: '\n' },
+])('it gives credential for a credential that $title splits in a bullet', (row) => {
+  const ctx = setupTest();
+  const split = ['ops', '_', 'a'.repeat(10), row.separator, 'b'.repeat(10)].join('');
+
+  expect(ctx.pick(['--not', `keep ${split} out of the beds`])).toStrictEqual([
+    { kind: 'credential' },
+  ]);
+});
+
+test('it gives credential for a credential that a line feed splits in the scope', () => {
+  const ctx = setupTest();
+  const split = ['ops', '_', 'a'.repeat(10), '\n', 'b'.repeat(10)].join('');
+
+  expect(ctx.pick(['--not', 'replant the beds', '--scope', `in ${split}`])).toStrictEqual([
+    { kind: 'credential' },
+  ]);
+});
