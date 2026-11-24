@@ -159,6 +159,12 @@ export function createVerifyRegistry(): Wringer {
         'Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
+    .feature({
+      name: 'item-notes',
+      summary:
+        'Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
     .shared(
       'scripts/verify/**',
       'package.json',
