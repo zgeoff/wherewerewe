@@ -231,7 +231,7 @@ The gate never stops an agent for long: after a read ends with no whole brief, i
 - the host reports the call as a success: Claude Code fires `PostToolUse` only then, and fires `PostToolUseFailure` for a failed `www`; on Codex the hook reads the exit code from `tool_response`;
 - the output in `tool_response` starts with the header line of the bound session, `<name> · day`, and ends with the footer line of [brief.md](brief.md);
 - the output holds no host truncation marker: Claude Code's `<persisted-output>`, or Codex's `tokens truncated`;
-- on Codex, when `tool_input` carries `max_output_tokens`, that number × 4 is at least the output's UTF-8 bytes, because the model sees only that much.
+- on Codex, when `tool_input` carries `max_output_tokens`, that number × 4 is at least the output's UTF-8 bytes, because the model sees no more than that. An output past Codex's own cut of 39,000 bytes carries the truncation marker, so the rule above catches it whatever the number.
 
 A hook does this check, and `www` does not, because `www` sees neither case that breaks the rule. A piped read runs `www` whole while the agent sees one line. A subagent's shell carries the parent's session id, so a subagent's `www --session build` would open the parent's gate. The hook sees the command text, the output and `agent_id`. The footer check also catches a brief over Claude Code's limit, whose `tool_response` holds only the first 29,998 characters. The header's start and the footer line are a contract between the renderer and the hook, pinned by a test. On Codex, the shape of `tool_response` for a shell call, whether it holds the output the model saw or the whole output, and whether `tool_input` carries `max_output_tokens`, are open until slice 4 records payloads.
 

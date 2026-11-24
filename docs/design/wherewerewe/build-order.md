@@ -51,7 +51,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Slice 1: store, writes, brief and import
 
-**Delivers.** The store in format 1 ([store.md](store.md)); every command in [commands.md](commands.md) except `say`, `ack`, `install`, `doctor`, `hook`, `grant` and `recap`, with no notes and in format 1; the brief ([brief.md](brief.md)) with no checks run, so each check tag reads `not checked yet`, no `CHANGED` section, and no pull request section; session finding by flag, variable and binding ([sessions-and-hooks.md](sessions-and-hooks.md), "How a command finds its session"); `www import`; the package and its bins ([shipping.md](shipping.md)). Two wringer features: `notes`, whose journey runs `www init`, `task`, `set`, `done` and `www`, and checks the brief and one refusal's `Run:` line; and `import`, whose journey imports a hand-kept fixture and reads its brief.
+**Delivers.** The store in format 1 ([store.md](store.md)); every command in [commands.md](commands.md) except `say`, `ack`, `install`, `doctor`, `hook`, `grant`, `recap` and the commands that slice 3b adds, with no notes and in format 1; the brief ([brief.md](brief.md)) with no checks run, so each check tag reads `not checked yet`, no `CHANGED` section, and no pull request section; session finding by flag, variable and binding ([sessions-and-hooks.md](sessions-and-hooks.md), "How a command finds its session"); `www import`; the package and its bins ([shipping.md](shipping.md)). Two wringer features: `notes`, whose journey runs `www init`, `task`, `set`, `done` and `www`, and checks the brief and one refusal's `Run:` line; and `import`, whose journey imports a hand-kept fixture and reads its brief.
 
 **Depends on.** Slice 0b.
 
