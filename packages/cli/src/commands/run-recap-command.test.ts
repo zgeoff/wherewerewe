@@ -114,15 +114,39 @@ test('it reads from the start of the session when --since names a time before it
   ]);
 });
 
-test('it refuses a --since it cannot read with exit 2', async () => {
-  const ctx = await setupTest();
-  const result = await ctx.runRecap(['recap', '--since', 'soon']);
+test.each([['soon'], ['day-100000002'], ['day-3000000'], ['99999999999999d']])(
+  'it refuses a --since of %p with exit 2',
+  async (since) => {
+    const ctx = await setupTest();
+    const result = await ctx.runRecap(['recap', '--since', since]);
 
-  expect(result).toStrictEqual({
-    exitCode: 2,
-    stdout: '',
-    stderr: 'www: --since takes 24h, 3d or day-7.\nRun: www recap --since 24h\n',
-  });
+    expect(result).toStrictEqual({
+      exitCode: 2,
+      stdout: '',
+      stderr: 'www: --since takes 24h, 3d or day-7.\nRun: www recap --since 24h\n',
+    });
+  },
+);
+
+test('it prints the folder name of the session in a command, never the name that session holds', async () => {
+  const ctx = await setupTest();
+  const read = await readStore(ctx.folder);
+
+  if (read.kind !== 'store') {
+    throw new Error(`no store in ${ctx.folder}`);
+  }
+
+  const result = await runRecapCommand(
+    { ...read.store, session: { ...read.store.session, name: 'other; echo hi' } },
+    buildParsedArgs(['recap']),
+    Date.parse('2026-03-10T11:43:00Z'),
+    null,
+  );
+
+  expect(result.stdout.split('\n').slice(0, 2)).toStrictEqual([
+    'other; echo hi · day 9 · recap since day 8 11:43Z (24h) · 0 writes',
+    'GRANT  none. Run: www --session tide-alerts show grant',
+  ]);
 });
 
 test('it prints the recap and names journal.tsv on stderr when the journal cannot be read', async () => {

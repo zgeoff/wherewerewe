@@ -1,3 +1,4 @@
+import { basename } from 'node:path';
 import { isLogRow } from '../reads/is-log-row.ts';
 import { parseSince } from '../reads/parse-since.ts';
 import { renderRecap } from '../reads/render-recap.ts';
@@ -54,6 +55,7 @@ export async function runRecapCommand(
       notes: store.notes,
       rows,
       sinceText,
+      sessionID: basename(store.folder),
       sessionFlag: args.sessionFlag,
       fromMs,
       nowMs,

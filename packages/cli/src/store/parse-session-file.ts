@@ -98,6 +98,10 @@ export function parseSessionFile(text: string): SessionParse {
     return { kind: 'broken', reason: 'started is required' };
   }
 
+  if (!isUTCTime(started)) {
+    return { kind: 'broken', reason: 'the key started is not a UTC time' };
+  }
+
   const grant = parseGrant(pairs, bullets);
 
   if (typeof grant === 'string') {

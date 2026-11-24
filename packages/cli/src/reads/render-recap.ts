@@ -4,7 +4,7 @@ import { padID } from '../brief/pad-id.ts';
 import { renderGrantLines } from '../brief/render-grant-lines.ts';
 import { redactCredentialWords } from '../rules/redact-credential-words.ts';
 import type { Item, JournalRow, Note, SessionFile } from '../types.ts';
-import { cutLine } from './cut-line.ts';
+import { cutRedactedLine } from './cut-redacted-line.ts';
 
 export interface RecapInput {
   readonly session: SessionFile;
@@ -16,6 +16,9 @@ export interface RecapInput {
 
   // --since as typed, such as 24h, 3d or day-7
   readonly sinceText: string;
+
+  // the name of the session's folder, which is the value `--session` takes
+  readonly sessionID: string;
 
   // the --session value as typed, or null when the session came from the binding
   readonly sessionFlag: string | null;
@@ -49,7 +52,7 @@ function renderHeader(input: RecapInput): string {
       ? 'journal unreadable'
       : `${String(input.rows.filter((row) => row.by === 'agent' || row.by === 'owner').length)} writes`;
 
-  return cutLine(
+  return cutRedactedLine(
     [
       session.name,
       `day ${String(getSessionDay(session.started, input.nowMs))}`,
@@ -70,7 +73,7 @@ function renderGrant(input: RecapInput): string[] {
   const grant = input.session.grant;
 
   return grant === null
-    ? [`GRANT  none. Run: www --session ${input.session.name} show grant`]
+    ? [`GRANT  none. Run: www --session ${input.sessionID} show grant`]
     : renderGrantLines(grant, input.nowMs);
 }
 
@@ -81,12 +84,13 @@ function renderNotes(input: RecapInput): string[] {
     return [];
   }
 
+  const itemOf = new Map(input.items.map((item) => [item.id, item]));
   const noteOf = new Map(input.notes.map((note) => [note.id, note]));
 
-  const noted = input.items.flatMap((item) => {
-    const note = noteOf.get(item.id);
+  const noted = input.notes.flatMap((note) => {
+    const item = itemOf.get(note.id);
 
-    return note === undefined ? [] : [{ item, note }];
+    return item === undefined ? [] : [{ item, note }];
   });
 
   const shown = noted
@@ -101,7 +105,7 @@ function renderNotes(input: RecapInput): string[] {
   const rest = noted.length - shown.length;
 
   return [
-    cutLine(
+    cutRedactedLine(
       `NOTES (${String(shown.length)} of ${String(noted.length)} open items with a note) · owed first, then newest`,
     ),
     ...shown.flatMap((entry) => {
@@ -113,17 +117,19 @@ function renderNotes(input: RecapInput): string[] {
       const label = note.owed ? 'owed note' : 'note';
 
       return [
-        cutLine(`  ${padID(redactCredentialWords(item.id))}${shownClaim}`),
-        cutLine(`    ${label} (${age}): ${redactCredentialWords(note.note)}`),
+        cutRedactedLine(`  ${padID(redactCredentialWords(item.id))}${shownClaim}`),
+        cutRedactedLine(`    ${label} (${age}): ${redactCredentialWords(note.note)}`),
       ];
     }),
     ...(rest > 0
-      ? [
-          `  and ${String(rest)} more with a note: www --session ${input.session.name} log --op note`,
-        ]
+      ? [`  and ${String(rest)} more with a note: www --session ${input.sessionID} log --op note`]
       : []),
     ...(unnoted.length > 0
-      ? [cutLine(`  no note: ${unnoted.map((item) => redactCredentialWords(item.id)).join(', ')}`)]
+      ? [
+          cutRedactedLine(
+            `  no note: ${unnoted.map((item) => redactCredentialWords(item.id)).join(', ')}`,
+          ),
+        ]
       : []),
   ];
 }
@@ -143,7 +149,7 @@ function renderRows(input: RecapInput): string[] {
   }
 
   const since = formatSince(input);
-  const session = input.session.name;
+  const session = input.sessionID;
 
   const byTime = input.rows.toSorted(
     (first, second) => Date.parse(first.ts) - Date.parse(second.ts),
@@ -193,8 +199,8 @@ function renderSection(section: Section): string[] {
   const rest = section.rows.length - maxRows;
 
   return [
-    cutLine(section.heading),
-    ...section.rows.slice(0, maxRows).map((row) => cutLine(section.formatRow(row))),
+    cutRedactedLine(section.heading),
+    ...section.rows.slice(0, maxRows).map((row) => cutRedactedLine(section.formatRow(row))),
     ...(rest > 0 ? [section.overflow(rest)] : []),
   ];
 }

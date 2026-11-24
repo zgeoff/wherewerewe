@@ -13,14 +13,25 @@ test.each([
   expect(fromMs).toBe(Date.parse(expected));
 });
 
-test.each([['yesterday'], ['24'], ['h'], ['-3d'], ['3 d'], ['day-'], ['day7'], ['1.5h'], ['']])(
-  'it reads %p as nothing',
-  (text) => {
-    const fromMs = parseSince(text, Date.parse('2026-03-10T11:43:00Z'), '2026-03-02T08:04:11Z');
+test.each([
+  ['yesterday'],
+  ['24'],
+  ['h'],
+  ['-3d'],
+  ['3 d'],
+  ['day-'],
+  ['day7'],
+  ['1.5h'],
+  [''],
+  ['day-100000002'],
+  ['day-3000000'],
+  ['99999999999999d'],
+  [`${'9'.repeat(400)}h`],
+])('it reads %p as nothing', (text) => {
+  const fromMs = parseSince(text, Date.parse('2026-03-10T11:43:00Z'), '2026-03-02T08:04:11Z');
 
-    expect(fromMs).toBeNull();
-  },
-);
+  expect(fromMs).toBeNull();
+});
 
 test.each([
   ['24h', true],

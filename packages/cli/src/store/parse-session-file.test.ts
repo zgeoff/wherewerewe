@@ -72,9 +72,13 @@ test('it reads a format 2 session with a grant, each bullet group in its order',
 });
 
 test.each([
-  ['a session with no format line', 'name=a\ngoal=b\nstarted=c\n', { kind: 'hand-kept' }],
+  [
+    'a session with no format line',
+    'name=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\n',
+    { kind: 'hand-kept' },
+  ],
   ['a hand-kept format', 'format=0-by-hand\nname=a\n', { kind: 'hand-kept' }],
-  ['format 1', 'format=1\nname=a\ngoal=b\nstarted=c\n', { kind: 'format-1' }],
+  ['format 1', 'format=1\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\n', { kind: 'format-1' }],
   [
     'format 1 with a line that is not key=value',
     'format=1\nfuture field syntax\n',
@@ -88,13 +92,18 @@ test.each([
   ],
   [
     'an unknown key',
-    'format=2\nname=a\ngoal=b\nstarted=c\ncolour=red\n',
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ncolour=red\n',
     { kind: 'broken', reason: 'the key colour is not in format 2' },
   ],
   [
     'a missing name',
-    'format=2\ngoal=b\nstarted=c\n',
+    'format=2\ngoal=b\nstarted=2026-03-02T08:04:11Z\n',
     { kind: 'broken', reason: 'name and goal are required' },
+  ],
+  [
+    'a started that is no UTC time',
+    'format=2\nname=a\ngoal=b\nstarted=yesterday\n',
+    { kind: 'broken', reason: 'the key started is not a UTC time' },
   ],
   [
     'a line with no equals sign',
@@ -103,7 +112,7 @@ test.each([
   ],
   [
     'a grant with no grant_may line',
-    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_not=prune the roses\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_not=prune the roses\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
     {
       kind: 'broken',
       reason: 'a grant needs a grant_may line and grant_reading, grant_where and grant_set',
@@ -111,7 +120,7 @@ test.each([
   ],
   [
     'a grant_may line with grant_set empty',
-    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water the beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=\n',
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water the beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=\n',
     {
       kind: 'broken',
       reason: 'a grant needs a grant_may line and grant_reading, grant_where and grant_set',
@@ -119,77 +128,77 @@ test.each([
   ],
   [
     'a bullet over 120 characters',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water the beds\ngrant_never=${'w'.repeat(121)}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water the beds\ngrant_never=${'w'.repeat(121)}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'a grant bullet is 121 characters, and the limit is 120' },
   ],
   [
     '13 bullets',
-    `format=2\nname=a\ngoal=b\nstarted=c\n${'grant_may=water\n'.repeat(13)}grant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\n${'grant_may=water\n'.repeat(13)}grant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'the grant has 13 bullets, and the limit is 12' },
   ],
   [
     'owner words over 700 characters across bullets and scope',
-    `format=2\nname=a\ngoal=b\nstarted=c\n${`grant_may=${'w'.repeat(120)}\n`.repeat(5)}grant_not=${'n'.repeat(100)}\ngrant_scope=s\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\n${`grant_may=${'w'.repeat(120)}\n`.repeat(5)}grant_not=${'n'.repeat(100)}\ngrant_scope=s\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: "the grant's words are 701 characters, and the limit is 700" },
   ],
   [
     'a grant scope over 40 characters',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water the beds\ngrant_scope=${'s'.repeat(41)}\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water the beds\ngrant_scope=${'s'.repeat(41)}\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'the key grant_scope is 41 characters, and the limit is 40' },
   ],
   [
     'a grant reading over 200 characters',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=${'r'.repeat(201)}\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=\ngrant_reading=${'r'.repeat(201)}\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'the key grant_reading is 201 characters, and the limit is 200' },
   ],
   [
     'a grant place over 16 characters',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=${'p'.repeat(17)}\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=${'p'.repeat(17)}\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'the key grant_where is 17 characters, and the limit is 16' },
   ],
   [
     'a grant bullet with a tab',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water\tthe beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water\tthe beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'a grant bullet holds a tab or a line break' },
   ],
   [
     'a grant bullet with a line separator',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water\u2028the beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water\u2028the beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'a grant bullet holds a tab or a line break' },
   ],
   [
     'a grant bullet of a lone dash',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=-\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=-\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'a grant bullet is empty' },
   ],
   [
     'a grant bullet with the bullet mark',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=water • mow\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water • mow\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'a grant bullet holds •' },
   ],
   [
     'a grant bullet that looks like a credential',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=token ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=token ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'a grant bullet looks like a credential (it matches ghp_)' },
   ],
   [
     'a grant scope of a lone dash',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=-\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=-\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'the key grant_scope is empty' },
   ],
   [
     'a grant reading with a paragraph separator',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=r\u2029s\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=\ngrant_reading=r\u2029s\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'the key grant_reading holds a tab or a line break' },
   ],
   [
     'a grant place with a separator',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=chat;x\ngrant_set=2026-03-03T09:00:00Z\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=chat;x\ngrant_set=2026-03-03T09:00:00Z\n`,
     { kind: 'broken', reason: 'the key grant_where holds ; or =' },
   ],
   [
     'a grant set that is no UTC time',
-    `format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=yesterday\n`,
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=yesterday\n`,
     { kind: 'broken', reason: 'the key grant_set is not a UTC time' },
   ],
   [
@@ -199,22 +208,22 @@ test.each([
   ],
   [
     'a grant scope with the bullet mark',
-    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=beds • shed\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=beds • shed\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
     { kind: 'broken', reason: 'the key grant_scope holds •' },
   ],
   [
     'a grant reading with the bullet mark',
-    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=works • fine\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=\ngrant_reading=works • fine\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
     { kind: 'broken', reason: 'the key grant_reading holds •' },
   ],
   [
     'a repeated grant_scope key',
-    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=one\ngrant_scope=two\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=w\ngrant_scope=one\ngrant_scope=two\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
     { kind: 'broken', reason: 'the key grant_scope repeats' },
   ],
   [
     'a repeated goal key',
-    'format=2\nname=a\ngoal=b\ngoal=c\nstarted=c\n',
+    'format=2\nname=a\ngoal=b\ngoal=c\nstarted=2026-03-02T08:04:11Z\n',
     { kind: 'broken', reason: 'the key goal repeats' },
   ],
 ])('it reads %s as %p', (_title, text, expected) => {
@@ -224,7 +233,7 @@ test.each([
 });
 
 test('it reads 700 characters of owner words across bullets and scope', () => {
-  const text = `format=2\nname=a\ngoal=b\nstarted=c\n${`grant_may=${'w'.repeat(120)}\n`.repeat(5)}grant_not=${'n'.repeat(99)}\ngrant_scope=s\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`;
+  const text = `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\n${`grant_may=${'w'.repeat(120)}\n`.repeat(5)}grant_not=${'n'.repeat(99)}\ngrant_scope=s\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`;
 
   expect(parseSessionFile(text)).toMatchObject({
     kind: 'session',
@@ -234,7 +243,7 @@ test('it reads 700 characters of owner words across bullets and scope', () => {
 
 test('it reads bullets of one group in file order when other keys sit between them', () => {
   const text =
-    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=third\ngrant_never=x\ngrant_may=first\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n';
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=third\ngrant_never=x\ngrant_may=first\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n';
 
   expect(parseSessionFile(text)).toMatchObject({
     kind: 'session',

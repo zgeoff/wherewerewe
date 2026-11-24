@@ -1664,26 +1664,72 @@ test('it prints the recap from the rows that parse when one item row is broken, 
   });
 });
 
-test('it prints a credential in a claim, a choice and an evidence as the placeholder, and cuts each line after it', async () => {
+test('it refuses recap with exit 3 and the broken session file when started is no UTC time', async () => {
   const ctx = setupTest();
   const folder = join(ctx.stateRoot, 'tide-alerts');
-  const text = `${'p'.repeat(40)} ${['xoxb', '-', '12345'].join('')}`;
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
 
-  await seedItem(folder, { id: 't-a', claim: text });
+  const session = readFileSync(join(folder, 'session'), 'utf8');
 
-  await ctx.run(['set', 't-a', '--note', 'A plain note']);
+  seedStoreFile(folder, 'session', session.replace(/^started=.*$/mu, 'started=yesterday'));
+
+  const result = await ctx.run(['recap']);
+
+  expect(result).toStrictEqual({
+    exitCode: 3,
+    stdout: '',
+    stderr: `www: tide-alerts's session does not parse: the key started is not a UTC time. Fix the file by hand.\nRun: less ${folder}/session\n`,
+  });
+});
+
+test('it refuses recap with exit 2 and no stack trace when --since names a day past year 9999', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const result = await ctx.run(['recap', '--since', 'day-100000002']);
+
+  expect(result).toStrictEqual({
+    exitCode: 2,
+    stdout: '',
+    stderr: 'www: --since takes 24h, 3d or day-7.\nRun: www recap --since 24h\n',
+  });
+});
+
+test('it prints a credential that crosses column 100 as the placeholder with no part of it left, and leaves out a note that holds one', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+  const credential = ['xoxb', '-', '12345'].join('');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedItem(folder, { id: 't-a', claim: `${'c'.repeat(82)} ${credential} tail` });
+  await seedItem(folder, { id: 't-b', claim: 'Draw it' });
+
+  seedStoreFile(
+    folder,
+    'notes.tsv',
+    formatNotesFile([
+      { id: 't-a', owed: false, written: '2026-03-10T11:40:00Z', note: 'A plain note' },
+      { id: 't-b', owed: false, written: '2026-03-10T11:41:00Z', note: `use ${credential}` },
+    ]),
+  );
 
   await seedJournalRow(folder, {
     ts: '2026-03-10T11:44:00Z',
     op: 'decide',
     id: 'd-1',
-    text,
-    why: text,
+    text: `${'c'.repeat(90)} ${credential} tail`,
+    why: 'plain',
   });
 
-  await seedJournalRow(folder, { ts: '2026-03-10T11:45:00Z', op: 'done', id: 't-b', why: text });
+  await seedJournalRow(folder, {
+    ts: '2026-03-10T11:45:00Z',
+    op: 'done',
+    id: 't-c',
+    why: `${'c'.repeat(75)} ${credential} tail`,
+  });
 
   const result = await ctx.run(['recap']);
 
@@ -1691,10 +1737,22 @@ test('it prints a credential in a claim, a choice and an evidence as the placeho
 
   expect({
     exitCode: result.exitCode,
-    hasCredential: result.stdout.includes('xoxb'),
-    placeholders: lines.filter((line) => line.includes('<where the secret lives>')).length,
+    cut: lines.filter((line) => line.includes('c'.repeat(75))),
+    leaked: lines.filter((line) => /xox|12345|use </u.test(line)),
     widest: Math.max(...lines.map((line) => [...line].length)),
-  }).toStrictEqual({ exitCode: 0, hasCredential: false, placeholders: 3, widest: 100 });
+    stderr: result.stderr,
+  }).toStrictEqual({
+    exitCode: 0,
+    cut: [
+      `  t-a         ${'c'.repeat(82)} <w…`,
+      `  d-1  ${'c'.repeat(90)} <…`,
+      `  t-c         done · ${'c'.repeat(75)} <w…`,
+    ],
+    leaked: [],
+    widest: 100,
+    stderr:
+      "www: tide-alerts's notes.tsv line 3 does not parse: the note holds a credential. This read leaves out what it could not read. Fix the file by hand.\n",
+  });
 });
 
 test.each([

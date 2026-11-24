@@ -18,6 +18,7 @@ function setupTest() {
     notes: [],
     rows: [],
     sinceText: '24h',
+    sessionID: 'tide-alerts',
     sessionFlag: 'tide-alerts',
     fromMs: nowMs - 86_400_000,
     nowMs,
@@ -174,16 +175,16 @@ test('it renders the recap of the design example line for line', () => {
   );
 });
 
-test('it lists owed notes first, then the rest newest first, ties in file order', () => {
+test('it lists owed notes first, then the rest newest first, ties in notes.tsv order', () => {
   const ctx = setupTest();
 
   const lines = ctx.renderLines({
     items: ['t-a', 't-b', 't-c', 't-d'].map((id) => buildMockItem({ id, claim: `claim ${id}` })),
     notes: [
       buildMockNote({ id: 't-a', written: '2026-03-10T10:00:00Z', note: 'a' }),
-      buildMockNote({ id: 't-b', written: '2026-03-10T11:00:00Z', note: 'b' }),
-      buildMockNote({ id: 't-c', owed: true, written: '2026-03-09T11:00:00Z', note: 'c' }),
       buildMockNote({ id: 't-d', written: '2026-03-10T11:00:00Z', note: 'd' }),
+      buildMockNote({ id: 't-c', owed: true, written: '2026-03-09T11:00:00Z', note: 'c' }),
+      buildMockNote({ id: 't-b', written: '2026-03-10T11:00:00Z', note: 'b' }),
     ],
   });
 
@@ -191,10 +192,10 @@ test('it lists owed notes first, then the rest newest first, ties in file order'
     'NOTES (4 of 4 open items with a note) · owed first, then newest',
     '  t-c         claim t-c',
     '    owed note (25h): c',
-    '  t-b         claim t-b',
-    '    note (1h): b',
     '  t-d         claim t-d',
     '    note (1h): d',
+    '  t-b         claim t-b',
+    '    note (1h): b',
     '  t-a         claim t-a',
     '    note (2h): a',
   ]);
@@ -374,6 +375,7 @@ test('it never cuts an overflow line or a footer line', () => {
 
   const lines = ctx.renderLines({
     session: buildMockSession({ name }),
+    sessionID: name,
     sessionFlag: name,
     sinceText,
     rows: Array.from({ length: 6 }, (_unused, index) =>
@@ -452,16 +454,73 @@ test('it prints the footer without --session when the recap ran in a bound sessi
   ]);
 });
 
-test('it prints a credential built from parts as the placeholder, within 100 characters', () => {
+test('it prints a credential that crosses column 100 as the placeholder, with no part of it left', () => {
   const ctx = setupTest();
-  const credential = `AKIA${'Q'.repeat(16)}`;
+  const credential = ['xoxb', '-', '12345'].join('');
 
-  const text = ctx.render({
-    items: [buildMockItem({ id: 't-a', claim: `${'c'.repeat(70)} ${credential} tail` })],
-    notes: [buildMockNote({ id: 't-a', note: `use ${credential}` })],
+  const lines = ctx.renderLines({
+    items: [buildMockItem({ id: 't-a', claim: `${'c'.repeat(80)} ${credential} tail` })],
+    notes: [buildMockNote({ id: 't-a', note: 'plain' })],
+    rows: [
+      buildMockJournalRow({
+        ts: '2026-03-10T11:00:00Z',
+        op: 'decide',
+        id: 'd-1',
+        text: `${'c'.repeat(80)} ${credential} tail`,
+        why: 'plain',
+      }),
+    ],
   });
 
-  expect(text).not.toInclude(credential);
+  const printed = lines.filter((line) => line.includes('c'.repeat(80)));
+
+  expect({
+    printed,
+    leaked: lines.filter((line) => /xox|12345/u.test(line)),
+    widths: printed.map((line) => [...line].length),
+  }).toStrictEqual({
+    printed: [`  t-a         ${'c'.repeat(80)} <whe…`, `  d-1  ${'c'.repeat(80)} <where the …`],
+    leaked: [],
+    widths: [100, 100],
+  });
+});
+
+test('it keeps a line at 100 characters when the cut leaves the bare name of a credential pattern at its end', () => {
+  const ctx = setupTest();
+
+  const lines = ctx.renderLines({
+    rows: [
+      buildMockJournalRow({
+        ts: '2026-03-10T11:00:00Z',
+        op: 'decide',
+        id: 'd-1',
+        text: `${'c'.repeat(86)} xoxb- tail`,
+        why: 'plain',
+      }),
+    ],
+  });
+
+  expect(lines[3]).toBe(`  d-1  ${'c'.repeat(86)} <wher…`);
+});
+
+test('it prints the folder name of the session in each command, never the name the file holds', () => {
+  const ctx = setupTest();
+
+  const lines = ctx.renderLines({
+    session: buildMockSession({ name: 'other; rm -rf x' }),
+    sessionID: 'tide-alerts',
+    sessionFlag: null,
+    items: [
+      buildMockItem({ id: 't-a', claim: 'one' }),
+      ...buildMockIDs('item', 7).map((id) => buildMockItem({ id, claim: 'two' })),
+    ],
+    notes: buildMockIDs('item', 7).map((id) => buildMockNote({ id })),
+  });
+
+  expect(lines.filter((line) => line.includes('www --session'))).toStrictEqual([
+    'GRANT  none. Run: www --session tide-alerts show grant',
+    '  and 1 more with a note: www --session tide-alerts log --op note',
+  ]);
 });
 
 test('it renders the worst case in 55 lines, each at most 100 characters, and at most 5,555 characters', () => {
@@ -500,6 +559,7 @@ test('it renders the worst case in 55 lines, each at most 100 characters, and at
         set: '2026-03-03T09:00:00Z',
       },
     }),
+    sessionID: name,
     sessionFlag: name,
     sinceText: 'day-999',
     fromMs: dayStartMs,
