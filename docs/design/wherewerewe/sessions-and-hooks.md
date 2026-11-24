@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
 
-The owner runs several agent sessions on one machine, and each can keep its own wherewerewe session. A binding file maps an agent session's id to the wherewerewe session it writes to. A command finds the id in its environment, and a hook finds it in its stdin. [store.md](store.md) owns the file formats, [brief.md](brief.md) the brief a hook prints, and [commands.md](commands.md) the commands and refusal texts named here. The hooks are installed once for the machine and do nothing for an agent session with no binding. A build agent reads this doc to build session finding, the bindings, the hooks, `www install` and `www doctor`, in the slice [build-order.md](build-order.md) names.
+The owner runs several agent sessions on one machine, and each can keep its own wherewerewe session. A binding file maps an agent session's id to the wherewerewe session it writes to. A command finds the id in its environment, and a hook finds it in its stdin. See [store.md](store.md) for the file formats, [brief.md](brief.md) for the brief a hook prints, and [commands.md](commands.md) for the commands and refusal texts named here. The hooks are installed once for the machine and print nothing for an agent session with no binding. Build session finding, the bindings, the hooks, `www install` and `www doctor` from this doc, in the slice [build-order.md](build-order.md) names.
 
 ## Shape
 
@@ -60,7 +60,7 @@ Each bind and detach adds a `bind` journal row with the harness and id in `extra
 The design works whichever way the unknowns fall:
 
 - The `PostToolUse` hook binds the `session_id` from its own stdin whenever it sees a successful `www init`, `www attach` or `www import` command. So when a Codex shell's id differs from its hook's id, both ids get a binding.
-- A subagent whose shell has no bound id gets the no-session refusal. The `SubagentStart` hook gives it the name first, by adding `This session keeps its notes in wherewerewe session <name>. When a www command says there is no session, add --session <name>.`
+- A subagent whose shell has no bound id gets the no-session refusal. In Claude Code, the `SubagentStart` hook gives it the name first, by adding `This session keeps its notes in wherewerewe session <name>. When a www command says there is no session, add --session <name>.`
 - After `/clear`, or a resume or fork that changes the id, the new id has no binding, and the hooks stay silent. The agent, or the owner with `! www attach <name>` in Claude Code, binds it again. The no-session text names `www attach`.
 
 ### The hooks
@@ -73,9 +73,11 @@ One command handles every event, so the hook entries never change between versio
 | `PostToolUse`   | matcher `Bash`, timeout 5                  | matcher `Bash`, timeout 5                  | a pull request record, a binding, or one nudge line, as below                                                   |
 | `SubagentStart` | no matcher, timeout 5                      | no matcher, timeout 5                      | the one line naming the session, as `additionalContext`                                                          |
 
+For a bound session whose store needs `www import`, a hand-kept or a format 1 store, `SessionStart` prints the exit 5 text from [commands.md](commands.md) and its `Run:` line in place of the brief, so the agent's next command is the import that lets the next compaction print the brief again.
+
 `PostToolUse` does these, in order, and prints at most one JSON object, `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"<line>"}}`:
 
-1. When the command runs `www` or `wherewerewe` with `init`, `attach` or `import` and a session name, and that session's store exists, it binds its stdin `session_id`. This is the only step that runs for an unbound id; for any other unbound id the hook stops here.
+1. When the command runs `www` or `wherewerewe` with `init`, `attach` or `import` and a session name, and that session's store exists, it binds its stdin `session_id`. This is the only step that runs for an unbound id.
 2. When `tool_input.command` runs `gh pr create`, it finds the first `https://github.com/<owner>/<repo>/pull/<n>` in `tool_response`, read as text whatever its shape, and appends `<owner>/<repo>#<n>` to the bound session's `prs.tsv` with a `pr` journal row, unless the ref is there already.
 3. When the command runs `git push`, `gh pr create` or `gh pr merge`, the last write was more than 20 minutes ago, and the last nudge was more than 20 minutes ago, it prints the nudge and sets `last_nudge`:
 
@@ -110,7 +112,7 @@ writable_roots = ["/home/sam/.local/state/wherewerewe"]   # the store root, as a
 ## Constraints
 
 - A hook always exits 0, never blocks a tool call, and writes any error to `hook-errors.log`, never to stdout or stderr.
-- For an agent session id with no binding, a hook prints nothing, writes nothing except the binding in `PostToolUse` step 1, and returns in under 150 ms. A test measures the median of 20 runs.
+- For an agent session id with no binding, a hook prints nothing, writes nothing except the binding in `PostToolUse` step 1 and any error line in `hook-errors.log`, and returns in under 150 ms. A test measures the median of 20 runs.
 - A `PostToolUse` hook for a bound session never runs a probe and never touches the network, and returns in under 300 ms.
 - A `SessionStart` hook returns within 6 s: the 5 s check deadline and the render.
 - A hook reads only `session_id`, `hook_event_name`, `source`, `tool_input.command` and `tool_response` from its stdin, and ignores any other field.
@@ -138,4 +140,4 @@ writable_roots = ["/home/sam/.local/state/wherewerewe"]   # the store root, as a
 
 ## Open questions
 
-- **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** A live test in the hooks slice settles both. Until then, a Codex subagent passes `--session`.
+- **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** Run a live test in the hooks slice to settle all three. Until then, a Codex subagent passes `--session`.
