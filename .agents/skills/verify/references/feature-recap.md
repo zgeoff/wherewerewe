@@ -30,7 +30,7 @@ bun verify www run --line 'www --session trial-recap decide "Hide docks closed f
 bun verify www run --line 'www --session trial-recap recap' --expect '  may    • merge the dock map PRs once CI is green'
 bun verify www run --line 'www --session trial-recap recap' --expect 'NOTES (2 of 2 open items with a note) · owed first, then newest'
 bun verify www run --line 'www --session trial-recap recap' --expect $'  t-flag      Turn on the dock_map flag in staging\n    owed note ('
-bun verify www run --line 'www --session trial-recap recap' --expect $'QA shares it.\n  t-dock      Draw the docks on the map\n    note ('
+bun verify www run --line 'www --session trial-recap recap' --expect $'): Turn the dock_map flag off in staging before this closes: QA shares it.\n  t-dock      Draw the docks on the map\n    note ('
 bun verify www run --line 'www --session trial-recap recap' --expect '): The dock feed sends lat and lng swapped for the old stations; swap them back in the …'
 bun verify www run --line 'www --session trial-recap recap' --expect '  no note: r-tests'
 bun verify www run --line 'www --session trial-recap recap' --expect '  t-icons     done · commit 7d2e4a1'
@@ -44,11 +44,11 @@ bun verify www run --line 'www --session trial-recap show t-dock' --expect 'Draw
 
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: the recap
   prints the grant in bullets, the notes heading, then both items with their notes in order, the
-  owed one first and the other cut at 100 characters, the item with no note, the close with its
-  evidence, the five oldest decisions in order with an overflow line for the sixth, and the footer's
-  `say` command. The overflow line's command prints the sixth decision, and `show` prints the item
-  whose note the recap cut. Each fails with `check-failed` when `www` exits other than 0 or prints
-  other text.
+  owed one first and the other's note line cut at 100 characters, the item with no note, the close
+  with its evidence, the five oldest decisions in order with an overflow line for the sixth, and the
+  footer's `say` command. The overflow line's command prints the sixth decision, and `show` prints
+  the item whose note the recap cut. Each fails with `check-failed` when `www` exits other than 0 or
+  prints other text.
 - The 4 counts in the replies are code points: 155 for the bullets and scope, 102 for the reading,
   91 and 71 for the notes.
 - No expected text holds a note's age, which is real time: a slow run prints `1m` where a fast one

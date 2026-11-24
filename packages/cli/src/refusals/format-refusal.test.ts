@@ -125,3 +125,16 @@ test.each([
     expect(text.split(/\r\n|[\n\v\f\r\u0085\u2028\u2029]/u)).toHaveLength(4);
   },
 );
+
+test('it prints a shell word that the credential test matches as the quoted placeholder', () => {
+  const text = formatRefusal(
+    {
+      exitCode: 3,
+      lines: ['www: x'],
+      runs: [{ shell: ['less', ['/srv/gh', 'p_demo/session'].join('')] }],
+    },
+    { sessionFlag: null },
+  );
+
+  expect(text).toBe('www: x\nRun: less "<where the secret lives>"\n');
+});

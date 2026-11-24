@@ -1,5 +1,6 @@
 import { parseCLIArgs } from '../args/parse-cli-args.ts';
 import { isSinceText } from '../reads/parse-since.ts';
+import { isSessionName } from '../rules/is-session-name.ts';
 import type { ParsedArgs, Placeholder, Refusal, RefusalReason, RunWord } from '../types.ts';
 import { pickGrantPartsRefusal } from '../writes/pick-grant-parts-refusal.ts';
 import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusals.ts';
@@ -11,18 +12,64 @@ import { toPrintedWords } from './to-printed-words.ts';
 export interface SettledRefusal {
   readonly refusal: Refusal;
 
-  // the scope to print it in: without the typed --session when the parser cannot read it back
+  // the scope to print it in: without the typed --session when that value can name no session
   readonly scope: RefusalScope;
 }
 
 // Fills each www Run line with samples and checks it as the parser and the store-free checks would.
-// A refused line's refusal prints in its place, up to the 3rd step, whose Run line is `www help`. A
-// --session that `www help` cannot carry, such as `--help`, leaves every Run line.
+// A refused line's refusal prints in its place, up to the 3rd step, whose Run line is `www help`.
+// No Run line carries a --session value that can name no session, such as `--help`.
 export function settleRefusal(refusal: Refusal, scope: RefusalScope): SettledRefusal {
-  const isSessionReadable = findRunProblem(toPrintedWords(['help'], scope.sessionFlag)) === null;
-  const printScope = isSessionReadable ? scope : { sessionFlag: null };
+  const printScope =
+    scope.sessionFlag === null || isSessionName(scope.sessionFlag) ? scope : { sessionFlag: null };
 
-  return { refusal: settle(refusal, printScope, 0), scope: printScope };
+  const named = {
+    ...refusal,
+    runs: refusal.runs.map((run) => ('www' in run ? { www: dropUnnamedSession(run.www) } : run)),
+  };
+
+  return { refusal: settle(named, printScope, 0), scope: printScope };
+}
+
+// The words without a `--session <value>` or `--session=<value>` before `--` whose value can name
+// no session.
+function dropUnnamedSession(www: readonly RunWord[]): RunWord[] {
+  const endOfFlags = www.indexOf('--');
+  const flagEnd = endOfFlags === -1 ? www.length : endOfFlags;
+
+  const dropped = new Set(
+    www.slice(0, flagEnd).flatMap((word, at): number[] => {
+      const next = www[at + 1];
+
+      if (word === '--session' && typeof next === 'string' && !isSessionName(next)) {
+        return [at, at + 1];
+      }
+
+      const isJoined = typeof word === 'string' && word.startsWith('--session=');
+
+      return isJoined && !isSessionName(word.slice('--session='.length)) ? [at] : [];
+    }),
+  );
+
+  return www.filter((_word, at) => !dropped.has(at));
+}
+
+const maxDepth = 3;
+
+function settle(refusal: Refusal, scope: RefusalScope, depth: number): Refusal {
+  const problem = refusal.runs.reduce<Refusal | null>(
+    (found, run) =>
+      found ?? ('www' in run ? findRunProblem(toPrintedWords(run.www, scope.sessionFlag)) : null),
+    null,
+  );
+
+  if (problem === null) {
+    return refusal;
+  }
+
+  return depth + 1 >= maxDepth
+    ? { ...problem, runs: [{ www: ['help'] }] }
+    : settle(problem, scope, depth + 1);
 }
 
 // The refusal the filled line would get, written back with its placeholders, or null.
@@ -118,22 +165,4 @@ function pickArgvReasons(args: ParsedArgs): RefusalReason[] {
   const parts = pickGrantPartsRefusal(args, args.command === 'grant');
 
   return [...(parts === null ? [] : [parts]), ...pickGrantTextRefusals(args)];
-}
-
-const maxDepth = 3;
-
-function settle(refusal: Refusal, scope: RefusalScope, depth: number): Refusal {
-  const problem = refusal.runs.reduce<Refusal | null>(
-    (found, run) =>
-      found ?? ('www' in run ? findRunProblem(toPrintedWords(run.www, scope.sessionFlag)) : null),
-    null,
-  );
-
-  if (problem === null) {
-    return refusal;
-  }
-
-  return depth + 1 >= maxDepth
-    ? { ...problem, runs: [{ www: ['help'] }] }
-    : settle(problem, scope, depth + 1);
 }

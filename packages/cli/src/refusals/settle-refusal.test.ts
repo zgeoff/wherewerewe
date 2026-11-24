@@ -173,6 +173,28 @@ test.each([
     stderr:
       'www: the value of --note starts with a dash, so it reads as a flag. Join the two with =, as in --note="<value>".\nRun: www task --note="-keep" -- t-a "<where the secret lives>"\n',
   },
+  {
+    title: 'a joined --session value that starts with a dash, in the typed command',
+    argv: ['--session=--help', 'task', 't-a', 'Write it', '--note', '-keep'],
+    exitCode: 2,
+    stderr:
+      'www: the value of --note starts with a dash, so it reads as a flag. Join the two with =, as in --note="<value>".\nRun: www task t-a "Write it" --note="-keep"\n',
+  },
+  {
+    title: 'a dash value whose quotes would complete a credential',
+    argv: [
+      'grant',
+      '--may',
+      ['-ops', '_', '1'.repeat(19)].join(''),
+      '--where',
+      'chat',
+      '--reading',
+      'covers it',
+    ],
+    exitCode: 2,
+    stderr:
+      'www: the value of --may starts with a dash, so it reads as a flag. Join the two with =, as in --may="<value>".\nRun: www grant --may "<where the secret lives>" --where chat --reading "covers it"\n',
+  },
 ])(
   'it prints a Run line that keeps each typed value and passes once filled, for $title',
   async (row) => {

@@ -2,10 +2,11 @@ import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { normaliseWords } from '../rules/normalise-words.ts';
 import { noSecretPlaceholder } from '../rules/redact-credential.ts';
 import type { RunWord } from '../types.ts';
+import { formatRunArgument } from './format-command-line.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
 // A Run line's words as printed: with the typed --session, each line break as a space, and each
-// credential as the placeholder. A joined flag before `--` keeps its flag, as `--may "<…>"`. A word
+// credential, in the word or in its quoted form, as the placeholder. A joined flag before `--` keeps its flag, as `--may "<…>"`. A word
 // after `--` is one positional, never split or read as a flag.
 export function toPrintedWords(www: readonly RunWord[], sessionFlag: string | null): RunWord[] {
   const endOfFlags = www.indexOf('--');
@@ -28,7 +29,9 @@ export function toPrintedWords(www: readonly RunWord[], sessionFlag: string | nu
 }
 
 function redactWord(word: string, isPositional: boolean): RunWord[] {
-  if (findCredentialMatch(word) === null) {
+  const printed = formatRunArgument(word, isPositional);
+
+  if (findCredentialMatch(word) === null && findCredentialMatch(printed) === null) {
     return [word];
   }
 

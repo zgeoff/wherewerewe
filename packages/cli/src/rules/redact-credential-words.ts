@@ -6,17 +6,23 @@ import { noSecretPlaceholder } from './redact-credential.ts';
 // left, so no output line holds text a write would refuse. The replaced part holds the whole match,
 // even one that runs past a space, quote, bracket, comma or semicolon, where a word ends.
 export function redactCredentialWords(text: string): string {
-  const span = findCredentialSpan(text);
+  return text.replaceAll(/\S+/gu, (token) => redactToken(token));
+}
+
+// No pattern matches across a space, so each run of non-spaces is redacted on its own, and a long
+// output costs one pass.
+function redactToken(token: string): string {
+  const span = findCredentialSpan(token);
 
   if (span === null) {
-    return text;
+    return token;
   }
 
-  const matchEnd = getMatchEnd(text, span);
-  const start = getWordStart(text, span.start);
-  const end = getWordEnd(text, matchEnd);
+  const matchEnd = getMatchEnd(token, span);
+  const start = getWordStart(token, span.start);
+  const end = getWordEnd(token, matchEnd);
 
-  return redactCredentialWords(`${text.slice(0, start)}${noSecretPlaceholder}${text.slice(end)}`);
+  return redactToken(`${token.slice(0, start)}${noSecretPlaceholder}${token.slice(end)}`);
 }
 
 // A pattern such as ops_ followed by 20 characters takes any run of non-spaces, so its match can

@@ -35,7 +35,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
     notes.tsv                     one row per open item with a note    rewritten by each note write and close
     owner.tsv                     the owner's notes still showing      created by init and import; rewritten by say and ack only
     prs.tsv                       pull requests this session opened    appended by the hook; state set by reads
-    journal.tsv                   every write, decision and change     append-only; import rewrites a hand-kept one once
+    journal.tsv                   every write, decision and change     append-only; import and the format 2 upgrade rewrite it once
     lock                          exists while a write, or a read that saves results, runs: pid=<n> ts=<iso>
     import-backup/                the hand-kept files, only after www import of a hand-kept store
     format-1-backup/              the format 1 files, only after the format 2 upgrade
@@ -188,7 +188,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - A cell or a `session` value never holds a tab or a line break, a Unicode line or paragraph separator among them: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
 - A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where` or `--scope` that holds one.
 - `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row.
-- `notes.tsv` holds only notes on open items, at most one per item, and at most 22 rows in format 1 and 20 in format 2. A missing `notes.tsv` reads as no notes.
+- `notes.tsv` holds only notes on open items, at most one per item, and at most 22 rows in format 1 and 20 in format 2. The format 2 upgrade keeps at most one approval, so the notes it keeps fit 20. A missing `notes.tsv` reads as no notes.
 - A write rewrites `items.tsv` before `notes.tsv`. A close that stops between the two leaves a `notes.tsv` row whose id names no open item, and never an open item that lost its note. Every read leaves such a row out with no warning, and the next write that rewrites `notes.tsv` drops it.
 - A `notes.tsv` row that does not parse never makes the store broken. Each read leaves the row out and names it on stderr, as `www: tide-alerts's notes.tsv line 3 does not parse: the id repeats an earlier row. The brief leaves out what it could not read. Fix the file by hand.` A write with `--note` or `--no-note`, `done`, `drop` and `use` refuse with the text in [commands.md](commands.md), because the row left out may be the item's owed note. Every other write works.
 - An id closed once is never reused in that session: a new item with a closed id is refused.

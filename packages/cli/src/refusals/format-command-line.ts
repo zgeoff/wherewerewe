@@ -9,7 +9,9 @@ export function formatCommandLine(argv: readonly RunWord[]): string {
 
   return [
     'www',
-    ...argv.map((argument, at) => formatArgument(argument, endOfFlags !== -1 && at > endOfFlags)),
+    ...argv.map((argument, at) =>
+      formatRunArgument(argument, endOfFlags !== -1 && at > endOfFlags),
+    ),
   ].join(' ');
 }
 
@@ -26,7 +28,7 @@ const bareWords: ReadonlySet<string> = new Set([
 
 // A flag before `--` joined to a value that starts with a dash prints as --flag="<value>", the form
 // a refusal tells the agent to type.
-function formatArgument(argument: RunWord, isPositional: boolean): string {
+export function formatRunArgument(argument: RunWord, isPositional: boolean): string {
   if (typeof argument !== 'string') {
     return bareWords.has(argument.placeholder)
       ? argument.placeholder

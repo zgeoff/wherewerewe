@@ -49,3 +49,14 @@ test('it leaves the name of each pattern in place', () => {
     names.map((name) => redactCredentialWords(`(it matches the ${name} pattern)`)),
   ).toStrictEqual(names.map((name) => `(it matches the ${name} pattern)`));
 });
+
+test('it redacts 20,000 credentials in one text in under a second', () => {
+  const text = `${['ghp', '_'].join('')} `.repeat(20_000);
+  const startMs = performance.now();
+  const redacted = redactCredentialWords(text);
+
+  expect({
+    isUnderASecond: performance.now() - startMs < 1000,
+    matched: findCredentialMatch(redacted),
+  }).toStrictEqual({ isUnderASecond: true, matched: null });
+});

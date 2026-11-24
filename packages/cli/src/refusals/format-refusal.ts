@@ -1,3 +1,5 @@
+import { findCredentialMatch } from '../rules/find-credential-match.ts';
+import { noSecretPlaceholder } from '../rules/redact-credential.ts';
 import type { Refusal, RunLine } from '../types.ts';
 import { formatCommandLine } from './format-command-line.ts';
 import { quoteShellWord } from './quote-shell-word.ts';
@@ -17,6 +19,14 @@ export function formatRefusal(refusal: Refusal, scope: RefusalScope): string {
 
 function formatRun(run: RunLine, scope: RefusalScope): string {
   return 'shell' in run
-    ? run.shell.map((word) => quoteShellWord(word)).join(' ')
+    ? run.shell.map((word) => formatShellWord(word)).join(' ')
     : formatCommandLine(toPrintedWords(run.www, scope.sessionFlag));
+}
+
+// A word whose quoted form the credential test matches prints as the quoted placeholder, so the
+// output's redaction never splits a quote off it.
+function formatShellWord(word: string): string {
+  const quoted = quoteShellWord(word);
+
+  return findCredentialMatch(quoted) === null ? quoted : quoteShellWord(noSecretPlaceholder);
 }
