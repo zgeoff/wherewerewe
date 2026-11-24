@@ -1,9 +1,10 @@
 import { match } from 'ts-pattern';
 import { countGrantLines } from '../brief/count-grant-lines.ts';
+import type { ApprovalLine, UpgradeProblem } from '../import/types.ts';
 import { countGrantWords } from '../rules/count-grant-words.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
-import type { ApprovalLine, ParsedArgs, Refusal, RefusalReason, UpgradeProblem } from '../types.ts';
+import type { ParsedArgs, Refusal, RefusalReason } from '../types.ts';
 import { toGrantWords } from '../writes/to-grant-words.ts';
 import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';

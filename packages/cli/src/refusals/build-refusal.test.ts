@@ -12,6 +12,7 @@ import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
+import { seedItems } from '../test-utils/seed-items.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 
 function setupTest() {
@@ -220,10 +221,8 @@ test.each([
   },
   {
     title: 'a full set of tasks',
-    setup: [
-      ['init', 'tide-alerts', '--goal', 'Ship it'],
-      ...buildMockIDs('t-', 30).map((id) => ['task', id, 'x']),
-    ],
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    seeded: buildMockIDs('t-', 30),
     files: [],
     argv: ['task', 't-31', 'x'],
     env: 'agent',
@@ -236,10 +235,8 @@ test.each([
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
       ['task', 't-01', 'x', '--note', 'Turn the flag off first', '--owed'],
-      ...buildMockIDs('t-', 30)
-        .slice(1)
-        .map((id) => ['task', id, 'x']),
     ],
+    seeded: buildMockIDs('t-', 30).slice(1),
     files: [],
     argv: ['task', 't-31', 'x'],
     env: 'agent',
@@ -1112,8 +1109,9 @@ test.each([
     argv: ['task', 't-a', 'x', '--colour', 'red'],
     env: 'agent',
     exitCode: 2,
-    stderr: 'www: unknown flag "--colour".\nRun: www help\n',
-    fills: [{}],
+    stderr:
+      'www: task takes no --colour flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]\n',
+    fills: [],
   },
   {
     title: 'a flag with no value',
@@ -1167,13 +1165,17 @@ test.each([
   },
   {
     title: 'a flag the command does not take',
-    setup: [],
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write the parser'],
+    ],
     files: [],
     argv: ['done', 't-a', '--why', 'x'],
     env: 'agent',
     exitCode: 2,
-    stderr: 'www: done takes no --why flag.\nRun: www help\n',
-    fills: [{}],
+    stderr:
+      'www: done takes no --why flag. It takes --evidence.\nRun: www done <id> --evidence "<PR, commit or test run>"\n',
+    fills: [{ '<id>': 't-a', '<PR, commit or test run>': 'the merged PR' }],
   },
   {
     title: 'the wrong number of arguments',
@@ -3379,8 +3381,9 @@ test.each([
     argv: ['goal', 'x', '--xoxb-fakesample'],
     env: 'agent',
     exitCode: 2,
-    stderr: 'www: unknown flag "<where the secret lives>".\nRun: www help\n',
-    fills: [{}],
+    stderr:
+      'www: goal takes no <where the secret lives> flag. It takes only --session.\nRun: www goal "<what done means>"\n',
+    fills: [],
   },
   {
     title: 'a session key that looks like a credential',
@@ -3575,6 +3578,13 @@ test.each([
 
   for (const setupArgv of row.setup) {
     await ctx.run(setupArgv, envs[row.setupEnv ?? 'agent'], terminals[row.setupEnv ?? 'agent']);
+  }
+
+  if (row.seeded !== undefined) {
+    await seedItems(
+      join(ctx.stateRoot, 'tide-alerts'),
+      row.seeded.map((id) => ({ id, claim: 'x' })),
+    );
   }
 
   if (row.format1 !== undefined) {

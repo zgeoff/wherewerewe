@@ -213,7 +213,7 @@ ts	op	id	by	text	why	extra
 // store module
 interface JournalRow {
   ts: string;
-  op: Op | string; // a row that www import carried over keeps its own op
+  op: Op | string; // a row that www import carried over keeps its own op, unless the import table below converts it
   id: string; // the item, decision (d-<n>), owner note (o-<n>), pull request ref, grant, or session name
   by: 'agent' | 'owner' | 'hook' | 'import';
   text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's bullets and scope, a lesson's instruction, a promise's text, the owner's words, or "<old> -> <new>" for changed; '-' when none
@@ -308,7 +308,7 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 - When the store holds more than one one-time approval, the upgrade refuses, names each with its age, and prints a `Run:` line whose `--drop` names every one except the newest.
 - When the store holds an item with the id `grant`, the upgrade refuses, and its `Run:` line adds `grant` to `--drop`.
 - The upgrade prints each note it removes in its reply, after the first line, so an owed note on a standing approval reaches the agent.
-- The upgrade copies `session`, `items.tsv`, `notes.tsv` when it exists, and `journal.tsv` into a temporary folder and renames the folder to `format-1-backup/`, so `format-1-backup/` is absent or holds the whole format 1 store. It never replaces a `format-1-backup/` that exists.
+- The upgrade copies `session`, `items.tsv`, `notes.tsv` when it exists, and `journal.tsv` into a temporary folder and renames the folder to `format-1-backup/`, so `format-1-backup/` is absent or holds each of those files that existed. `owner.tsv` and `prs.tsv` stay as they were, and the backup holds neither. It never replaces a `format-1-backup/` that exists.
 - It then writes `journal.tsv`, `items.tsv`, `notes.tsv` and `session`, each through a temporary file and a rename, and `session` last. A stop between those renames can leave the live files mixed while `session` still reads `format=1`, and every command except `import`, `sessions` and `help` exits 5 on that store.
 - A stop before the folder's rename leaves the format 1 store as it was, with no `format-1-backup/`. While `session` reads `format=1`, a rerun reads its input from `format-1-backup/` when it exists, and from the live files when it does not, and writes every file again from that input, the journal as the input's rows followed by the new ones, so no journal row doubles. Once `session` reads `format=2`, `www import` refuses the store as already format 2.
 - The `drop` rows and the `import` row have `by=agent`. The `grant` row has `by=owner` when the terminal test of [owner-notes.md](owner-notes.md) passes and `by=agent` otherwise, as the row of `www grant` does.
@@ -344,11 +344,11 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 ## Decisions
 
 - **Plain TSV and key=value files, with a format line.** The owner reads them with `less`, and an agent with no tool reads them with `cut`. [0001](../../decisions/0001-the-store-is-plain-tsv-files.md)
-- **The grant lives in `session`, like the goal.** There is one per session, every write already rewrites `session`, and the format line changes with it, so an older tool refuses the store instead of dropping the grant. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **The grant lives in `session`, like the goal.** There is one per session, every write already rewrites `session`, and the format line changes with it, so an older tool refuses the store and cannot drop the grant. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Notes live in their own file, which a missing file leaves empty.** Notes ship before format 2, so `notes.tsv` changes no format; each row names an open item, and a close removes it.
 - **The format 2 upgrade takes the grant in the same command.** A store with standing approvals never passes through a state where the brief shows neither them nor a grant, so after any compaction the agent still reads what it may do.
 - **Import and the upgrade convert in place and keep a backup.** The folder is already at the root under the session's name, and the backup is the session's only copy of what came before.
-- **The owner's notes live in their own file.** An agent write never opens `owner.tsv` for writing, so a bug in a write cannot drop an owner note.
+- **The owner's notes live in their own file.** No agent write other than `init` and `import`, which create `owner.tsv` with its header alone, opens it for writing, so a bug in a write cannot drop an owner note.
 
 ## Builder decides
 

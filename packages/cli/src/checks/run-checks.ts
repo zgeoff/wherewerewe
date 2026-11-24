@@ -14,7 +14,8 @@ export interface RunChecksOptions {
 }
 
 // A probe the deadline stops reads unchecked with the reason timeout. The deadline is checked
-// before every command starts, so a probe whose stat returns late starts no git.
+// before every command starts, against its time as well as the timer: a stat that holds the event
+// loop past it resolves before the timer runs, and must start no git.
 export async function runChecks(
   order: readonly string[],
   items: readonly Item[],
@@ -22,7 +23,13 @@ export async function runChecks(
   options: RunChecksOptions,
 ): Promise<CheckRun> {
   const kills = createKillSet();
-  const queue = { isStopped: false, next: 0 };
+  const queue = { isStopped: false, next: 0, deadlineAtMs: performance.now() + options.deadlineMs };
+
+  const isStopped = (): boolean => {
+    queue.isStopped ||= performance.now() >= queue.deadlineAtMs;
+
+    return queue.isStopped;
+  };
 
   const jobs = buildJobs({
     order,
@@ -31,7 +38,7 @@ export async function runChecks(
     env: options.env,
     kills,
     statPath: options.statPath,
-    isStopped: () => queue.isStopped,
+    isStopped,
   });
 
   if (jobs.length === 0) {
@@ -43,7 +50,7 @@ export async function runChecks(
   const found = new Map<string, ProbeResult>();
 
   const work = async (): Promise<void> => {
-    while (!queue.isStopped && queue.next < jobs.length) {
+    while (!isStopped() && queue.next < jobs.length) {
       const job = jobs[queue.next];
 
       queue.next += 1;
@@ -51,7 +58,7 @@ export async function runChecks(
       if (job !== undefined) {
         const result = await job.run();
 
-        if (!queue.isStopped) {
+        if (!isStopped()) {
           found.set(job.key, result);
         }
       }

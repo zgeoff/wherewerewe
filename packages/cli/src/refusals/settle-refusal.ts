@@ -1,12 +1,13 @@
 import { match } from 'ts-pattern';
 import { parseCLIArgs } from '../args/parse-cli-args.ts';
 import { isSinceText } from '../reads/parse-since.ts';
-import type { Placeholder, PlaceholderShape, Refusal, RunWord } from '../types.ts';
+import type { Placeholder, PlaceholderShape, Refusal, RunLine, RunWord } from '../types.ts';
 import { pickArgsRefusals } from '../writes/pick-args-refusals.ts';
 import { buildGrantRefusal } from './build-grant-refusal.ts';
 import { buildRefusal } from './build-refusal.ts';
 import type { RefusalScope } from './format-refusal.ts';
 import { toPrintedWords } from './to-printed-words.ts';
+import { toUsageWords } from './to-usage-words.ts';
 
 // The scope a Run line prints in, and the folder its relative paths resolve in.
 export interface RunScope extends RefusalScope {
@@ -60,9 +61,7 @@ const maxDepth = 3;
 
 function settle(refusal: Refusal, scope: RunScope, depth: number): Refusal {
   const problem = refusal.runs.reduce<Refusal | null>(
-    (found, run) =>
-      found ??
-      ('www' in run ? findRunProblem(toPrintedWords(run.www, scope.sessionFlag), scope.cwd) : null),
+    (found, run) => found ?? findLineProblem(run, scope),
     null,
   );
 
@@ -73,6 +72,14 @@ function settle(refusal: Refusal, scope: RunScope, depth: number): Refusal {
   return depth + 1 >= maxDepth
     ? { ...problem, runs: [{ www: ['help'] }] }
     : settle(problem, scope, depth + 1);
+}
+
+function findLineProblem(run: RunLine, scope: RunScope): Refusal | null {
+  if ('www' in run) {
+    return findRunProblem(toPrintedWords(run.www, scope.sessionFlag), scope.cwd);
+  }
+
+  return 'usage' in run ? findUsageProblem(run.usage, scope) : null;
 }
 
 // The refusal the filled line would get, written back with its placeholders, or null.
@@ -179,4 +186,16 @@ function restorePlaceholders(refusal: Refusal, samples: ReadonlyMap<string, Plac
       'www' in run ? { www: run.www.map((word) => restore(word)) } : run,
     ),
   };
+}
+
+// A usage line's optional groups decide whether the store-free checks pass, as grant needs one of
+// its optional bullets, so its required part is filled and checked as the parser reads it. The
+// refusal tests fill each usage line whole and run it.
+function findUsageProblem(line: string, scope: RunScope): Refusal | null {
+  const filled = fillPlaceholders(toPrintedWords(toUsageWords(line), scope.sessionFlag));
+  const parsed = parseCLIArgs(filled.argv);
+
+  return parsed.kind === 'refused'
+    ? restorePlaceholders(buildRefusal(parsed.reason), filled.samples)
+    : null;
 }

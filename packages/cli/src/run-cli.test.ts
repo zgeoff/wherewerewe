@@ -101,7 +101,7 @@ test.each([
   [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www help\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],
-    'www: unknown flag "--bogus".\nRun: www --session sample help\n',
+    'www: task takes no --bogus flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www --session sample task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]\n',
   ],
 ])('it refuses %p with exit 2', async (argv, stderr) => {
   const ctx = setupTest();
@@ -1387,7 +1387,7 @@ test('it exits 2 for a parse error in say before it checks for an owner terminal
   expect(result).toStrictEqual({
     exitCode: 2,
     stdout: '',
-    stderr: 'www: unknown flag "--bogus".\nRun: www help\n',
+    stderr: 'www: say takes no --bogus flag. It takes --on.\nRun: www say "<text>" [--on <id>]\n',
   });
 });
 
@@ -2844,4 +2844,57 @@ test('it prints a header with the count of checks and never says not run yet', a
     counts: /· 1 checks in \d+\.\ds(?: · 1 unchecked: gh missing)?$/u.test(header),
     notRun: brief.stdout.includes('not run yet'),
   }).toStrictEqual({ exitCode: 0, counts: true, notRun: false });
+});
+
+test('it stores the result of a --pr write in at_write', async () => {
+  const ctx = setupTest();
+  const bin = createTempDir('run-cli-write-pr').path;
+
+  seedGhAnswers(bin, { 'bosunhq/bosun-api#77': 'OPEN pending' });
+
+  const env = { ...ctx.agentEnv, PATH: bin };
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env);
+
+  const result = await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#77'], env);
+  const read = await readStore(join(ctx.stateRoot, 'tide-alerts'));
+
+  expect({
+    exitCode: result.exitCode,
+    saved: read.kind === 'store' && read.store.items.map((item) => [item.id, item.atWrite]),
+  }).toStrictEqual({ exitCode: 0, saved: [['pr-a', 'OPEN pending']] });
+});
+
+test('it stores the result of a --path write in at_write', async () => {
+  const ctx = setupTest();
+  const folder = createTempDir('run-cli-write-path').path;
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const result = await ctx.run(['where', 'wt-a', 'A tree', '--path', folder]);
+  const read = await readStore(join(ctx.stateRoot, 'tide-alerts'));
+
+  expect({
+    exitCode: result.exitCode,
+    saved: read.kind === 'store' && read.store.items.map((item) => [item.id, item.atWrite]),
+  }).toStrictEqual({ exitCode: 0, saved: [['wt-a', 'exists']] });
+});
+
+test('it stores - in at_write when the probe of a --pr write reads unchecked', async () => {
+  const ctx = setupTest();
+  const bin = createTempDir('run-cli-write-unchecked').path;
+  const env = { ...ctx.agentEnv, PATH: bin };
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env);
+
+  const result = await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#77'], env);
+
+  const row = readFileSync(join(ctx.stateRoot, 'tide-alerts', 'items.tsv'), 'utf8')
+    .split('\n')
+    .find((line) => line.startsWith('pr-a\t'));
+
+  expect({ exitCode: result.exitCode, cells: row?.split('\t').slice(4, 6) }).toStrictEqual({
+    exitCode: 0,
+    cells: ['-', '-'],
+  });
 });

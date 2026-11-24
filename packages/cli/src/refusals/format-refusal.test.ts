@@ -3,8 +3,14 @@ import { buildCredentialSamples } from '../test-utils/build-credential-samples.t
 import { formatRefusal } from './format-refusal.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
+function setupTest() {
+  return { formatRefusal };
+}
+
 test('it prints the lines, then each run as a Run line', () => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     {
       exitCode: 3,
       lines: ['www: refused: drop needs a reason.'],
@@ -34,7 +40,9 @@ test.each([
     'Run: www --session tide-alerts --note "<note>" -- task t-a --session',
   ],
 ])('it keeps --session on a Run line for %s', (_title, argv, expected) => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },
     { sessionFlag: 'tide-alerts' },
   );
@@ -50,7 +58,9 @@ test.each([
   [['help'], 'Run: www --session tide-alerts help'],
   [['import', 'tide-alerts'], 'Run: www --session tide-alerts import tide-alerts'],
 ])('it keeps --session on the run %p', (argv, expected) => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },
     { sessionFlag: 'tide-alerts' },
   );
@@ -59,7 +69,9 @@ test.each([
 });
 
 test('it adds no --session to a run that already names one', () => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: ['--session', 'other', 'task', 't-a'] }] },
     { sessionFlag: 'tide-alerts' },
   );
@@ -68,7 +80,9 @@ test('it adds no --session to a run that already names one', () => {
 });
 
 test('it prints a shell run as it is', () => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     {
       exitCode: 5,
       lines: ['www: x'],
@@ -81,7 +95,9 @@ test('it prints a shell run as it is', () => {
 });
 
 test('it redacts a --session value that looks like a credential', () => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     { exitCode: 2, lines: ['www: --goal needs a value.'], runs: [{ www: ['help'] }] },
     { sessionFlag: ['xoxb', '-', '12'].join('') },
   );
@@ -92,7 +108,9 @@ test('it redacts a --session value that looks like a credential', () => {
 });
 
 test('it adds no second --session to a Run line that holds --session=<name>', () => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     { exitCode: 2, lines: ['www: x'], runs: [{ www: ['--session=tide-alerts', 'goal', 'x'] }] },
     { sessionFlag: 'tide-alerts' },
   );
@@ -111,7 +129,9 @@ test.each([
 ])(
   'it prints each Run line as one output line, with %s in a value, the session or a shell word',
   (_title, lineBreak) => {
-    const text = formatRefusal(
+    const ctx = setupTest();
+
+    const text = ctx.formatRefusal(
       {
         exitCode: 3,
         lines: ['www: x'],
@@ -128,7 +148,9 @@ test.each([
 );
 
 test('it prints a shell word that the credential test matches as the quoted placeholder', () => {
-  const text = formatRefusal(
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
     {
       exitCode: 3,
       lines: ['www: x'],
@@ -152,6 +174,8 @@ test.each([
 ])(
   'it prints the placeholder for each credential that %s splits at any offset in a Run word or a shell word',
   (_title, lineBreak) => {
+    const ctx = setupTest();
+
     const cases = buildCredentialSamples().flatMap((credential) =>
       Array.from({ length: credential.sample.length - 1 }, (_unused, index) => ({
         name: `${credential.name} at ${String(index + 1)}`,
@@ -161,7 +185,7 @@ test.each([
 
     const printed = cases.filter(
       (entry) =>
-        formatRefusal(
+        ctx.formatRefusal(
           {
             exitCode: 3,
             lines: ['www: x'],

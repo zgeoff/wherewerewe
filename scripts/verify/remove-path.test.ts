@@ -7,34 +7,40 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { makePath } from './make-path.ts';
 import { readPathIdentity } from './read-path-identity.ts';
 import { removePath } from './remove-path.ts';
 
+function setupTest() {
+  return {
+    root: createTempDir('remove-path').path,
+    outside: createTempDir('remove-path-outside').path,
+  };
+}
+
 test('it removes the folder that makePath made, and refuses a second removal and a bad name', () => {
-  const root = createTempDir('remove-path').path;
-  const folder = makePath(root, 'dock-map');
-  const removed = removePath(root, 'dock-map');
+  const ctx = setupTest();
+  const folder = makePath(ctx.root, 'dock-map');
+  const removed = removePath(ctx.root, 'dock-map');
   const exists = existsSync(folder);
 
   expect([removed, exists]).toStrictEqual([folder, false]);
-  expect(() => removePath(root, 'dock-map')).toThrow('is missing in this run');
-  expect(() => removePath(root, 'A')).toThrow('must be 1 to 32 characters');
+  expect(() => removePath(ctx.root, 'dock-map')).toThrow('is missing in this run');
+  expect(() => removePath(ctx.root, 'A')).toThrow('must be 1 to 32 characters');
 });
 
 test('it refuses an entry that make-path did not make, and a link with its marker', () => {
-  const root = createTempDir('remove-path-foreign').path;
-  const outside = createTempDir('remove-path-outside').path;
+  const ctx = setupTest();
 
-  mkdirSync(join(root, 'paths', 'by-hand'), { recursive: true });
-  symlinkSync(outside, join(root, 'paths', 'linked'));
-  writeFileSync(join(root, 'paths', '.made-linked'), '');
+  mkdirSync(join(ctx.root, 'paths', 'by-hand'), { recursive: true });
+  symlinkSync(ctx.outside, join(ctx.root, 'paths', 'linked'));
+  writeFileSync(join(ctx.root, 'paths', '.made-linked'), '');
 
   const messages = ['by-hand', 'linked'].map((name) => {
     try {
-      removePath(root, name);
+      removePath(ctx.root, name);
 
       return 'removed';
     } catch (error) {
@@ -42,45 +48,49 @@ test('it refuses an entry that make-path did not make, and a link with its marke
     }
   });
 
-  expect([messages, existsSync(join(root, 'paths', 'by-hand')), existsSync(outside)]).toStrictEqual(
+  expect([
+    messages,
+    existsSync(join(ctx.root, 'paths', 'by-hand')),
+    existsSync(ctx.outside),
+  ]).toStrictEqual([
     [
-      [
-        'The path by-hand was not made by `www make-path` in this run, so it is not removed.',
-        'The path linked was not made by `www make-path` in this run, so it is not removed.',
-      ],
-      true,
-      true,
+      'The path by-hand was not made by `www make-path` in this run, so it is not removed.',
+      'The path linked was not made by `www make-path` in this run, so it is not removed.',
     ],
-  );
+    true,
+    true,
+  ]);
 });
 
 test('it refuses a paths folder that is a link out of the run', () => {
-  const root = createTempDir('remove-path-link').path;
-  const outside = createTempDir('remove-path-elsewhere').path;
+  const ctx = setupTest();
 
-  mkdirSync(join(outside, 'dock-map'));
-  writeFileSync(join(outside, '.made-dock-map'), '');
-  symlinkSync(outside, join(root, 'paths'));
+  mkdirSync(join(ctx.outside, 'dock-map'));
+  writeFileSync(join(ctx.outside, '.made-dock-map'), '');
+  symlinkSync(ctx.outside, join(ctx.root, 'paths'));
 
-  expect(() => removePath(root, 'dock-map')).toThrow('not a folder of its own');
-  expect(existsSync(join(outside, 'dock-map'))).toBe(true);
+  expect(() => removePath(ctx.root, 'dock-map')).toThrow('not a folder of its own');
+  expect(existsSync(join(ctx.outside, 'dock-map'))).toBe(true);
 });
 
 test('it refuses a folder that replaced the one make-path made, while the marker stays', () => {
-  const root = createTempDir('remove-path-replaced').path;
-  const folder = makePath(root, 'dock-map');
+  const ctx = setupTest();
+  const folder = makePath(ctx.root, 'dock-map');
 
-  renameSync(folder, join(root, 'paths', 'moved'));
+  renameSync(folder, join(ctx.root, 'paths', 'moved'));
   mkdirSync(folder);
   writeFileSync(join(folder, 'keep.txt'), 'by hand\n');
 
-  expect(() => removePath(root, 'dock-map')).toThrow('was not made by `www make-path` in this run');
+  expect(() => removePath(ctx.root, 'dock-map')).toThrow(
+    'was not made by `www make-path` in this run',
+  );
+
   expect(existsSync(join(folder, 'keep.txt'))).toBe(true);
 });
 
-test('it keeps a folder swapped in after the identity check, and removes nothing', () => {
-  const root = createTempDir('remove-path-swapped').path;
-  const folder = makePath(root, 'dock-map');
+test('it sets aside a folder swapped in after the identity check, with its files, and removes nothing', () => {
+  const ctx = setupTest();
+  const folder = makePath(ctx.root, 'dock-map');
   const reads = { count: 0 };
 
   const swapAfterFirstRead = (path: string): string => {
@@ -89,7 +99,7 @@ test('it keeps a folder swapped in after the identity check, and removes nothing
     reads.count += 1;
 
     if (reads.count === 1) {
-      renameSync(folder, join(root, 'paths', 'moved'));
+      renameSync(folder, join(ctx.root, 'paths', 'moved'));
       mkdirSync(folder);
       writeFileSync(join(folder, 'keep.txt'), 'by hand\n');
     }
@@ -97,12 +107,65 @@ test('it keeps a folder swapped in after the identity check, and removes nothing
     return identity;
   };
 
-  expect(() => removePath(root, 'dock-map', swapAfterFirstRead)).toThrow(
+  expect(() => removePath(ctx.root, 'dock-map', swapAfterFirstRead)).toThrow(
     'was not made by `www make-path` in this run',
   );
 
   expect([
-    existsSync(join(folder, 'keep.txt')),
-    readdirSync(join(root, 'paths')).toSorted(),
-  ]).toStrictEqual([true, ['.made-dock-map', 'dock-map', 'moved']]);
+    existsSync(folder),
+    readdirSync(join(ctx.root, 'paths'))
+      .filter((name) => name.startsWith('.kept-'))
+      .flatMap((name) => readdirSync(join(ctx.root, 'paths', name, 'dock-map'))),
+    readdirSync(join(ctx.root, 'paths'))
+      .filter((name) => !name.startsWith('.kept-'))
+      .toSorted(),
+  ]).toStrictEqual([false, ['keep.txt'], ['.made-dock-map', 'moved']]);
+});
+
+test('it never replaces an empty folder at the original name or beside the holding folder', () => {
+  const ctx = setupTest();
+  const folder = makePath(ctx.root, 'dock-map');
+  const reads = { count: 0 };
+
+  const swapAfterFirstRead = (path: string): string => {
+    const identity = readPathIdentity(path);
+
+    reads.count += 1;
+
+    if (reads.count === 1) {
+      renameSync(folder, join(ctx.root, 'paths', 'moved'));
+      mkdirSync(folder);
+      writeFileSync(join(folder, 'first.txt'), 'by hand\n');
+    }
+
+    return identity;
+  };
+
+  // empty folders take the original name and the names beside the holding folder just before the
+  // refused entry is moved off, as another process could do, and a rename replaces an empty folder
+  const renameWhileFoldersTakeNames = (from: string, to: string) => {
+    if (from !== folder) {
+      mkdirSync(folder);
+      mkdirSync(`${dirname(from)}.kept`);
+      mkdirSync(`${dirname(from)}.kept-dock-map`);
+    }
+
+    renameSync(from, to);
+  };
+
+  expect(() =>
+    removePath(ctx.root, 'dock-map', swapAfterFirstRead, renameWhileFoldersTakeNames),
+  ).toThrow('was not made by `www make-path` in this run');
+
+  const paths = readdirSync(join(ctx.root, 'paths'));
+
+  expect([
+    readdirSync(folder),
+    paths
+      .filter((name) => name.endsWith('.kept') || name.endsWith('.kept-dock-map'))
+      .map((name) => readdirSync(join(ctx.root, 'paths', name))),
+    paths
+      .filter((name) => name.startsWith('.kept-') && !name.endsWith('.kept-dock-map'))
+      .flatMap((name) => readdirSync(join(ctx.root, 'paths', name))),
+  ]).toStrictEqual([[], [[], []], ['dock-map']]);
 });

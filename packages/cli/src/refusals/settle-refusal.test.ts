@@ -101,7 +101,6 @@ test.each(
         ['extra'],
         ['--since', faultCredential],
         [`--since=${faultCredential}`],
-        ...(command === 'recap' ? [['--op', 'decide']] : []),
       ].map((flags) => ({ command, argv: [command, ...session, ...flags] })),
     ),
   ),
@@ -147,6 +146,39 @@ test('it ends at www help after three refusals in a row', () => {
       runs: [{ www: ['help'] }],
     },
     scope: { sessionFlag: null, cwd: '/' },
+  });
+});
+
+test.each([
+  'wait <id> "<what>" --who <who> [<check>]',
+  'set <id> ["<claim>"] [--note "<detail>" [--owed] | --no-note]',
+  'ack o-<n>',
+  '',
+])('it keeps the usage Run line %p, which the parser takes', (line) => {
+  const settled = settleRefusal(
+    { exitCode: 2, lines: ['www: x'], runs: [{ usage: line }] },
+    { sessionFlag: null, cwd: '/' },
+  );
+
+  expect(settled.refusal).toStrictEqual({
+    exitCode: 2,
+    lines: ['www: x'],
+    runs: [{ usage: line }],
+  });
+});
+
+test('it prints the refusal a usage Run line would get when the parser refuses the line', () => {
+  const settled = settleRefusal(
+    { exitCode: 2, lines: ['www: x'], runs: [{ usage: 'wait <id> "<what>" --on <id>' }] },
+    { sessionFlag: null, cwd: '/' },
+  );
+
+  expect(settled.refusal).toStrictEqual({
+    exitCode: 2,
+    lines: [
+      'www: wait takes no --on flag. It takes --pr, --branch, --path, --pid, --note, --owed and --who.',
+    ],
+    runs: [{ usage: 'wait <id> "<what>" --who <who> [<check>]' }],
   });
 });
 

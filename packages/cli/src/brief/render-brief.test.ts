@@ -11,6 +11,10 @@ import { collectBriefSections } from '../test-utils/collect-brief-sections.ts';
 import { pickPrintedTaskIDs } from './pick-printed-task-ids.ts';
 import { renderBrief } from './render-brief.ts';
 
+function setupTest() {
+  return { renderBrief };
+}
+
 test('it renders each section of one invented store in order', () => {
   const brief = renderBrief(
     buildMockBriefInput({
@@ -503,6 +507,33 @@ test.each([
     noteLines: 5,
   });
 });
+
+test.each([
+  { host: 'codex', taskCount: 6, lines: 73, characters: 7050 },
+  { host: null, taskCount: 6, lines: 73, characters: 7050 },
+  { host: 'claude', taskCount: 15, lines: 82, characters: 8770 },
+] as const)(
+  'it renders the worst case with the next step hidden by a change and every result unchecked for host $host',
+  (row) => {
+    const ctx = setupTest();
+
+    const brief = ctx.renderBrief(
+      buildWorstCaseBriefInput({
+        host: row.host,
+        taskCount: row.taskCount,
+        goal: 'short',
+        nowHidden: { kind: 'changed' },
+        results: 'unchecked',
+      }),
+    );
+
+    expect({
+      lines: brief.split('\n').length - 1,
+      characters: Array.from(brief, (character) => character).length,
+      hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
+    }).toStrictEqual({ lines: row.lines, characters: row.characters, hasCutLine: false });
+  },
+);
 
 test.each(
   (['wide-bullets', 'long-bullet', 'long-bullet-no-scope'] as const).flatMap((grant) => [

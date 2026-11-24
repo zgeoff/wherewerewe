@@ -28,7 +28,6 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with(
       { kind: 'unknown-command' },
       { kind: 'later-command' },
-      { kind: 'unknown-flag' },
       { kind: 'flag-needs-value' },
       { kind: 'flag-value-has-dash' },
       { kind: 'flag-takes-no-value' },

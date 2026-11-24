@@ -167,6 +167,61 @@ test('it copies the format 1 files into format-1-backup/ and writes the four new
   });
 });
 
+test('it never writes, copies into, renames or removes owner.tsv or prs.tsv, and leaves them out of format-1-backup/', () => {
+  const ctx = setupTest();
+
+  ctx.copyStore();
+
+  const before = ['owner.tsv', 'prs.tsv'].map((file) =>
+    readFileSync(join(ctx.folder, file), 'utf8'),
+  );
+
+  const touched: string[] = [];
+  const real = createImportFiles();
+
+  const recording: ImportFiles = {
+    ...real,
+    removeFolder: (path) => {
+      touched.push(path);
+      real.removeFolder(path);
+    },
+    removeFile: (path) => {
+      touched.push(path);
+      real.removeFile(path);
+    },
+    makeFolder: (path) => {
+      touched.push(path);
+      real.makeFolder(path);
+    },
+    copyFile: (from, to) => {
+      touched.push(from, to);
+      real.copyFile(from, to);
+    },
+    writeFile: (path, text, mode) => {
+      touched.push(path);
+      real.writeFile(path, text, mode);
+    },
+    rename: (from, to) => {
+      touched.push(from, to);
+      real.rename(from, to);
+    },
+  };
+
+  writeUpgradeFiles(ctx.folder, ctx.readUpgradeWrite(), recording);
+
+  expect({
+    touchedStoreFiles: touched.filter((path) => /(?:owner|prs)\.tsv/u.test(path)),
+    touchedAnyFile: touched.some((path) => basename(path) === 'items.tsv'),
+    kept: ['owner.tsv', 'prs.tsv'].map((file) => readFileSync(join(ctx.folder, file), 'utf8')),
+    backup: readdirSync(join(ctx.folder, 'format-1-backup')).toSorted(),
+  }).toStrictEqual({
+    touchedStoreFiles: [],
+    touchedAnyFile: true,
+    kept: before,
+    backup: ['items.tsv', 'journal.tsv', 'notes.tsv', 'session'],
+  });
+});
+
 test('it keeps the first backup when format-1-backup/ exists, so the true originals stay', () => {
   const ctx = setupTest();
 

@@ -3,7 +3,7 @@ import { formatNotesFile } from '../store/format-notes-file.ts';
 import type { CLIResult } from '../types.ts';
 import { buildMockIDs } from './build-mock-ids.ts';
 import { buildSpacedText } from './build-spaced-text.ts';
-import { seedItem } from './seed-item.ts';
+import { seedItems } from './seed-items.ts';
 import { seedStoreFile } from './seed-store-file.ts';
 
 type RunAsAgent = (argv: readonly string[]) => Promise<CLIResult>;
@@ -37,50 +37,44 @@ export async function seedWorstCaseStore(
     buildSpacedText(200),
   ]);
 
-  for (const id of tasks) {
-    await seedItem(folder, {
+  await seedItems(folder, [
+    ...tasks.map((id) => ({
       id,
       claim: 'c'.repeat(120),
       check,
       atWrite: 'alive',
       last: 'alive',
       extra: { blocked_by: waits[0] ?? '' },
-    });
-  }
-
-  for (const id of waits) {
-    await seedItem(folder, {
+    })),
+    ...waits.map((id) => ({
       id,
-      kind: 'wait',
+      kind: 'wait' as const,
       claim: 'c'.repeat(120),
       check,
       atWrite: 'alive',
       last: 'alive',
       extra: { who: 'w'.repeat(16) },
-    });
-  }
-
-  await seedItem(folder, {
-    id: 'appr01',
-    kind: 'ok',
-    claim: 'q'.repeat(120),
-    extra: { who: 'owner', scope: 's'.repeat(40) },
-  });
-
-  for (const id of buildMockIDs('rule', 5)) {
-    await seedItem(folder, { id, kind: 'rule', claim: 'c'.repeat(120) });
-  }
-
-  for (const id of buildMockIDs('here', 4)) {
-    await seedItem(folder, {
+    })),
+    {
+      id: 'appr01',
+      kind: 'ok' as const,
+      claim: 'q'.repeat(120),
+      extra: { who: 'owner', scope: 's'.repeat(40) },
+    },
+    ...buildMockIDs('rule', 5).map((id) => ({
       id,
-      kind: 'where',
+      kind: 'rule' as const,
+      claim: 'c'.repeat(120),
+    })),
+    ...buildMockIDs('here', 4).map((id) => ({
+      id,
+      kind: 'where' as const,
       claim: 'c'.repeat(120),
       check,
       atWrite: 'alive',
       last: 'alive',
-    });
-  }
+    })),
+  ]);
 
   await runAsAgent(['now', tasks[0] ?? '', 'n'.repeat(120)]);
 

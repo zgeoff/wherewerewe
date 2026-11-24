@@ -5,7 +5,7 @@
 
 ## Decision
 
-The gate never stops an agent for long. It changes state only on hook events, and no rule reads a clock. When a hook cannot start, fails or times out, the host runs the call, and `www install` never sets `onFailure: "block"`. While a brief command the gate let through runs, every other call is refused. When it ends with no whole read, the next call passes with one line. When a Codex read reaches the model cut, the gate refuses once with the cut reason and lets the agent read again; after that cut it refuses at most one call in all, however many retries are cut, and a failed retry opens it on the next call. When the host sends no end event for the brief command, the end of the turn counts as a failed end. Each hook applies its event under an exclusive lock on the gate file, so two hooks that run at once never lose a write. `Stop` blocks at most once per turn.
+The gate never stops an agent for long. It changes state only on hook events, and no rule reads a clock. When a hook cannot start, fails or times out, the host runs the call, and `www install` never sets `onFailure: "block"`. While the gate is closed and a brief command runs, every other call is refused. When it ends failed and no other brief command runs, the next call that is not a `www` command passes with one line. When a Codex read reaches the model cut, the gate refuses once with the cut reason and lets the agent read again; after that cut it refuses at most one call in all, however many retries are cut, and a failed retry opens it on the next call. When the host sends no end event for the brief command, the end of the turn counts as a failed end. Each hook applies its event under an exclusive lock on a lock file beside the gate file, so two hooks that run at once never lose a write. `Stop` blocks at most once per turn, and a `Stop` that passes while the state is `wiped` writes `failed`, so the next turn is not refused again.
 
 ## Why
 
@@ -26,6 +26,6 @@ The gate never stops an agent for long. It changes state only on hook events, an
 
 ## Consequences
 
-- A session whose `www` fails goes on without its brief, and `www`'s own output, already in context, says why.
+- A session whose `www` fails goes on without its brief, and the reason is in `www`'s own output, already in context.
 - When the permission step refuses `www`, the gate stays shut until the turn ends. The allow rules that `www install` writes keep `www` from reaching that step.
-- Claude Code takes a sixth hook entry, for `PostToolUseFailure`. Codex reports a failed shell call through `PostToolUse` with its exit code, as its docs say.
+- Claude Code takes a sixth hook entry, for `PostToolUseFailure`. Codex fires `PostToolUse` after a failed shell call too, as its docs say, and the hook sorts the call by its output. The Codex docs do not say whether a rejected or sandbox-refused call fires any hook, so the gate closes that case at the end of the turn on both hosts.

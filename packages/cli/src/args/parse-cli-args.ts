@@ -64,10 +64,15 @@ export function parseCLIArgs(argv: readonly string[]): ParseResult {
     const reason =
       joined !== null && joinedError === null
         ? { kind: 'flag-value-has-dash' as const, flag: joined.flag, argv: joined.argv }
-        : toParseRefusal(joinedError ?? error);
+        : toParseRefusal(joinedError ?? error, argv);
 
     return { kind: 'refused', reason, sessionFlag: pickSessionFlag(argv) };
   }
+}
+
+// Each command of the table, with the flags and the help line its refusal of a flag prints.
+export function listCommandShapes(): readonly CommandFlags[] {
+  return [...commandShapes].map(([command, shape]) => toCommandFlags(command, shape));
 }
 
 const checkFlags = ['pr', 'branch', 'path', 'pid'];
@@ -78,31 +83,75 @@ interface CommandShape {
   readonly counts: readonly number[];
   readonly usage: string;
   readonly flags: readonly string[];
+
+  // the command's line in the help text, after `www`, which a refused flag prints as its Run line
+  readonly line: string;
+
+  // flags the parser lets through so the command can refuse them with its own text, and that a
+  // refusal of an unknown flag therefore never lists as taken
+  readonly refused?: readonly string[];
 }
 
 // A map, so a command named like an inherited object property, such as toString, is unknown.
 const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
-  ['brief', { counts: [0], usage: 'no arguments', flags: [] }],
-  ['help', { counts: [0], usage: 'no arguments', flags: [] }],
-  ['sessions', { counts: [0], usage: 'no arguments', flags: [] }],
-  ['detach', { counts: [0], usage: 'no arguments', flags: [] }],
-  ['init', { counts: [1], usage: '<name>', flags: ['goal'] }],
-  ['attach', { counts: [1], usage: '<name>', flags: [] }],
-  ['import', { counts: [1], usage: '<name>', flags: [...grantFlags, 'drop'] }],
-  ['goal', { counts: [1], usage: '"<what done means>"', flags: [] }],
-  ['grant', { counts: [0], usage: 'no arguments', flags: grantFlags }],
-  ['now', { counts: [2], usage: '<id> "<next step>"', flags: noteFlags }],
+  ['brief', { counts: [0], usage: 'no arguments', flags: [], line: '' }],
+  ['help', { counts: [0], usage: 'no arguments', flags: [], line: 'help' }],
+  ['sessions', { counts: [0], usage: 'no arguments', flags: [], line: 'sessions' }],
+  ['detach', { counts: [0], usage: 'no arguments', flags: [], line: 'detach' }],
+  ['init', { counts: [1], usage: '<name>', flags: ['goal'], line: 'init <name> --goal "<goal>"' }],
+  ['attach', { counts: [1], usage: '<name>', flags: [], line: 'attach <name>' }],
+  [
+    'import',
+    { counts: [1], usage: '<name>', flags: [...grantFlags, 'drop'], line: 'import <name>' },
+  ],
+  [
+    'goal',
+    { counts: [1], usage: '"<what done means>"', flags: [], line: 'goal "<what done means>"' },
+  ],
+  [
+    'grant',
+    {
+      counts: [0],
+      usage: 'no arguments',
+      flags: grantFlags,
+      line: 'grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"] --where <where> --reading "<what they cover; what the owner kept back>"',
+    },
+  ],
+  [
+    'now',
+    {
+      counts: [2],
+      usage: '<id> "<next step>"',
+      flags: noteFlags,
+      line: 'now <id> "<next step>" [--note "<detail>" [--owed]]',
+    },
+  ],
   [
     'task',
-    { counts: [2], usage: '<id> "<claim>"', flags: [...checkFlags, ...noteFlags, 'blocked-by'] },
+    {
+      counts: [2],
+      usage: '<id> "<claim>"',
+      flags: [...checkFlags, ...noteFlags, 'blocked-by'],
+      line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
+    },
   ],
-  ['wait', { counts: [2], usage: '<id> "<what>"', flags: [...checkFlags, ...noteFlags, 'who'] }],
+  [
+    'wait',
+    {
+      counts: [2],
+      usage: '<id> "<what>"',
+      flags: [...checkFlags, ...noteFlags, 'who'],
+      line: 'wait <id> "<what>" --who <who> [<check>]',
+    },
+  ],
   [
     'rule',
     {
       counts: [2],
       usage: '<id> "<do it this way, and why>"',
       flags: [...checkFlags, ...noteFlags],
+      refused: checkFlags,
+      line: 'rule <id> "<do it this way, and why>"',
     },
   ],
   [
@@ -111,35 +160,65 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
       counts: [2],
       usage: '<id> "<what and where, and how to stop it>"',
       flags: [...checkFlags, ...noteFlags],
+      line: 'where <id> "<what and where, and how to stop it>" [<check>]',
     },
   ],
   [
     'set',
-    { counts: [1, 2], usage: '<id> ["<claim>"]', flags: [...checkFlags, ...noteFlags, 'no-note'] },
+    {
+      counts: [1, 2],
+      usage: '<id> ["<claim>"]',
+      flags: [...checkFlags, ...noteFlags, 'no-note'],
+      line: 'set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]',
+    },
   ],
-  ['done', { counts: [1], usage: '<id>', flags: ['evidence'] }],
-  ['drop', { counts: [1], usage: '<id>', flags: ['why'] }],
+  [
+    'done',
+    {
+      counts: [1],
+      usage: '<id>',
+      flags: ['evidence'],
+      line: 'done <id> --evidence "<PR, commit or test run>"',
+    },
+  ],
+  ['drop', { counts: [1], usage: '<id>', flags: ['why'], line: 'drop <id> --why "<reason>"' }],
   [
     'ok',
     {
       counts: [1],
       usage: '<id>',
       flags: ['quote', 'who', 'where', 'scope', 'once', 'standing', ...noteFlags],
+      refused: ['standing'],
+      line: 'ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>"',
     },
   ],
-  ['use', { counts: [1], usage: '<id>', flags: ['for'] }],
+  [
+    'use',
+    { counts: [1], usage: '<id>', flags: ['for'], line: 'use <id> --for "<what you did with it>"' },
+  ],
   [
     'decide',
-    { counts: [1], usage: '"<choice>"', flags: ['why', 'on', 'who', 'ruled-out', 'replaces'] },
+    {
+      counts: [1],
+      usage: '"<choice>"',
+      flags: ['why', 'on', 'who', 'ruled-out', 'replaces'],
+      line: 'decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]',
+    },
   ],
-  ['say', { counts: [1], usage: '"<text>"', flags: ['on'] }],
-  ['ack', { counts: [1], usage: 'o-<n>', flags: [] }],
-  ['show', { counts: [0, 1], usage: '[<id>]', flags: [] }],
-  ['log', { counts: [0], usage: 'no arguments', flags: ['since', 'op', 'id'] }],
-  ['recap', { counts: [0], usage: 'no arguments', flags: ['since'] }],
+  ['say', { counts: [1], usage: '"<text>"', flags: ['on'], line: 'say "<text>" [--on <id>]' }],
+  ['ack', { counts: [1], usage: 'o-<n>', flags: [], line: 'ack o-<n>' }],
+  ['show', { counts: [0, 1], usage: '[<id>]', flags: [], line: 'show [<id>]' }],
+  [
+    'log',
+    {
+      counts: [0],
+      usage: 'no arguments',
+      flags: ['since', 'op', 'id'],
+      line: 'log [--since <t>] [--op <op,...>] [--id <id>]',
+    },
+  ],
+  ['recap', { counts: [0], usage: 'no arguments', flags: ['since'], line: 'recap [--since <t>]' }],
 ]);
-
-const laterCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);
 
 function checkArgs(argv: readonly string[]): ParseResult {
   const parsed = parseArgs({
@@ -188,18 +267,18 @@ function checkArgs(argv: readonly string[]): ParseResult {
     sessionFlag: args.sessionFlag,
   });
 
-  if (first === 'brief' || (shape === undefined && !laterCommands.has(command))) {
-    return refuse({ kind: 'unknown-command', command });
-  }
-
-  if (shape === undefined) {
-    return refuse({ kind: 'later-command', command });
+  if (first === 'brief' || shape === undefined) {
+    return refuse(refuseCommand(command));
   }
 
   const stray = args.flags.find((flag) => !shape.flags.includes(flag.name));
 
   if (stray !== undefined) {
-    return refuse({ kind: 'flag-not-taken', command, flag: stray.name });
+    return refuse({
+      kind: 'flag-not-taken',
+      flag: `--${stray.name}`,
+      ...toCommandFlags(command, shape),
+    });
   }
 
   if (!shape.counts.includes(rest.length)) {
@@ -207,6 +286,31 @@ function checkArgs(argv: readonly string[]): ParseResult {
   }
 
   return { kind: 'args', args };
+}
+
+const laterCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);
+
+// The refusal of a command that is not in the table: one that comes in a later version, or none.
+function refuseCommand(command: string): RefusalReason {
+  return laterCommands.has(command)
+    ? { kind: 'later-command', command }
+    : { kind: 'unknown-command', command };
+}
+
+export interface CommandFlags {
+  readonly command: string;
+
+  // the flags a refusal of an unknown flag names, and the command's help line after `www`
+  readonly taken: readonly string[];
+  readonly line: string;
+}
+
+function toCommandFlags(command: string, shape: CommandShape): CommandFlags {
+  return {
+    command,
+    taken: shape.flags.filter((flag) => !(shape.refused ?? []).includes(flag)),
+    line: shape.line,
+  };
 }
 
 // The parser's error on a joined command, or null when it parses.
@@ -220,12 +324,15 @@ function findParseError(argv: readonly string[]): unknown {
   }
 }
 
-function toParseRefusal(error: unknown): RefusalReason {
+function toParseRefusal(error: unknown, argv: readonly string[]): RefusalReason {
   if (!(error instanceof Error) || !('code' in error)) {
     throw error;
   }
 
+  // the option as the parser quotes it, whole, so the output's redaction sees every character of a
+  // flag that holds a credential
   const flag =
+    /^Unknown option '(?<option>-[^']*)'/u.exec(error.message)?.groups?.['option'] ??
     /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
     /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
     '';
@@ -233,7 +340,7 @@ function toParseRefusal(error: unknown): RefusalReason {
   const name = flag.replace(/^-+/u, '');
 
   return match(error.code)
-    .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', (): RefusalReason => ({ kind: 'unknown-flag', flag }))
+    .with('ERR_PARSE_ARGS_UNKNOWN_OPTION', () => refuseUnknownFlag(argv, flag))
     .with('ERR_PARSE_ARGS_INVALID_OPTION_VALUE', (): RefusalReason =>
       isStringOption(name)
         ? { kind: 'flag-needs-value', flag: name }
@@ -242,6 +349,24 @@ function toParseRefusal(error: unknown): RefusalReason {
     .otherwise(() => {
       throw error;
     });
+}
+
+// A flag no command takes gets the refusal of its command, read leniently, so it names the flags
+// that command takes. `www brief` is unknown, as in the strict read.
+function refuseUnknownFlag(argv: readonly string[], flag: string): RefusalReason {
+  const [first] = parseArgs({
+    args: [...argv],
+    options,
+    strict: false,
+    allowPositionals: true,
+  }).positionals;
+
+  const command = first ?? 'brief';
+  const shape = commandShapes.get(command);
+
+  return first === 'brief' || shape === undefined
+    ? refuseCommand(command)
+    : { kind: 'flag-not-taken', flag, ...toCommandFlags(command, shape) };
 }
 
 function isStringOption(name: string): boolean {

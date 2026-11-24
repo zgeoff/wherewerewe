@@ -1,4 +1,4 @@
-import type { Extra, Item, Kind } from '../types.ts';
+import type { Extra, Item, Kind, RefusalReason } from '../types.ts';
 import type { HandKeptRow } from './parse-hand-kept-store.ts';
 
 export interface JournalFact {
@@ -54,3 +54,28 @@ export interface Format1Session {
   readonly lastNudge: string | null;
   readonly importedFrom: string | null;
 }
+
+export interface ApprovalLine {
+  readonly id: string;
+  readonly quote: string;
+  readonly scope: string;
+
+  // ISO 8601 UTC to the second, with Z
+  readonly written: string;
+
+  // the age of a one-time approval, such as 5d; null for a standing one
+  readonly age: string | null;
+}
+
+// What an upgrade or an import checks before it writes.
+export type UpgradeProblem =
+  | { readonly kind: 'needs-grant'; readonly approvals: readonly ApprovalLine[] }
+  | { readonly kind: 'too-many-once'; readonly approvals: readonly ApprovalLine[] }
+  | { readonly kind: 'grant-id' }
+  | { readonly kind: 'grant-needs-part' }
+  | { readonly kind: 'grant-text'; readonly reason: RefusalReason }
+  | {
+      readonly kind: 'drop-unknown';
+      readonly id: string;
+      readonly open: readonly string[];
+    };
