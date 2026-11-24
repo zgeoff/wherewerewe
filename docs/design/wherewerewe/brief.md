@@ -149,7 +149,7 @@ The Claude Code worst case is the same store under the larger budget. Every bloc
 | 16 to 30 tasks: `OPEN (30, max 30)`, 14 rows, count line | 66 + 16 = 82 | 5,928 + 17 + 14 × 196 + 69 + 82 = 8,840            |
 | 30 tasks, 15 rows and the count line (does not fit)  | 83            | 9,037                                              |
 
-With 16 or more tasks, the 15th row pays for the count line. Under either budget the brief prints all the rows when they fit, and otherwise the most that fit, never fewer than the budget's worst case keeps.
+With 16 or more tasks, the 15th row pays for the count line. Under either budget the brief prints all the rows when they fit, and otherwise the most that fit, never fewer lines, the count line among them, than the budget's worst case keeps.
 
 ## Constraints
 
