@@ -141,25 +141,15 @@ interface Note {
 }
 ```
 
-### lessons.tsv, promises.tsv and words.tsv
+### lessons.tsv
 
 ```text
 id	text	why	written	by
 l-seed	Reseed the staging alerts table before alerts-e2e	A stale row made alerts-e2e pass on day 6 while no alert fired	2026-03-07T15:20:44Z	agent
 ```
 
-```text
-id	what	to	by_when	written	by
-due-cost	Cost table for the alert fan-out	owner	day 10, before review	2026-03-09T16:05:10Z	agent
-```
-
-```text
-id	words	where	written	by
-w-plain	Plain words in every reply; I would rather read three short sentences than one clever one	chat	2026-03-04T09:30:00Z	agent
-```
-
 ```ts
-// store module: one row per open lesson, promise or piece of the owner's words
+// store module: one row per open lesson
 interface LessonRow {
   id: ItemID;
   text: string; // 1–120 characters, one line: the instruction; the credential test applies
@@ -167,7 +157,17 @@ interface LessonRow {
   written: string;
   by: 'agent' | 'owner';
 }
+```
 
+### promises.tsv
+
+```text
+id	what	to	by_when	written	by
+due-cost	Cost table for the alert fan-out	owner	day 10, before review	2026-03-09T16:05:10Z	agent
+```
+
+```ts
+// store module: one row per open promise
 interface PromiseRow {
   id: ItemID;
   what: string; // 1–120 characters, one line, in the agent's words
@@ -176,7 +176,17 @@ interface PromiseRow {
   written: string;
   by: 'agent' | 'owner';
 }
+```
 
+### words.tsv
+
+```text
+id	words	where	written	by
+w-plain	Plain words in every reply; I would rather read three short sentences than one clever one	chat	2026-03-04T09:30:00Z	agent
+```
+
+```ts
+// store module: one row per piece of the owner's words
 interface WordsRow {
   id: ItemID;
   words: string; // 1–300 characters, one line: the owner's exact words; the credential test applies
@@ -324,10 +334,10 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 | any other journal op, such as `init` or `note`                  | the same row with `by=import`                                                                 |
 | no `prs.tsv`, `owner.tsv` or `notes.tsv`                        | each created with its header row                                                              |
 
-- Import applies every limit a write applies to items and to `session`: lengths, ids, kinds and caps. Journal rows keep their text at any length.
+- Import applies every limit a write applies to items and to `session`: lengths, ids, kinds and caps. Journal rows keep their text at any length, and the brief cuts a decision's choice past 200 characters ([brief.md](brief.md)); `www list decisions` prints it whole.
 - Import never turns an agent-written row into an owner note: an owner note's author is the owner.
 - When a row breaks a rule, import exits 3 with one line per row, with the text in [commands.md](commands.md). The agent fixes those rows in the hand-kept files, for example by shortening a claim or appending a `closed` row for a question it settled, and runs import again.
-- On the hand-kept store as it stands at design time, import refuses: 6 open questions against the cap of 4 waits in [brief.md](brief.md), and claims, questions and `now_next` over their limits. Those are the rows the agent fixes first.
+- On the hand-kept store as it stands at design time, import refuses: claims, questions and `now_next` over their limits, and any open questions past the cap of 8 waits in [brief.md](brief.md). Those are the rows the agent fixes first.
 - A row's `ts` and `written` values are kept as they are.
 - The `drop` rows and the `import` row have `by=agent`. The `grant` row has `by=owner` when the terminal test of [owner-notes.md](owner-notes.md) passes and `by=agent` otherwise.
 

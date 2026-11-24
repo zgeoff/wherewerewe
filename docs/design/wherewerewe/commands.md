@@ -507,6 +507,18 @@ w-plain  owner's words, open since day 3, by agent · said in chat
 `www list <kind>` prints every open row of the kind whole, in the brief's order, with each item's note under it as `www show` prints it. It runs no check, so each tag shows the result the last read saved, and it never takes the lock. It takes the kind words because `www show <word>` reads its argument as an item id, and a task can have any id. `www list` with no kind, or an unknown one, exits 2 with `Run: www list tasks`.
 
 ```text
+$ www list tasks
+OPEN (4, max 30)
+  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07  [OPEN failing]
+    note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
+    s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
+    unused import in the retry helper, not on the retry logic.
+  t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
+    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: staging
+    is shared with the harbour team, who demo on Thursday.
+  pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
+  t-e2e       Write alerts-e2e against staging  [no check · 3d]
+
 $ www list waits
 WAITING (2, max 8)
   w-apns      upload the staging push key to the vault  [owner · 2d]
@@ -615,7 +627,7 @@ type ShowSubject =
 
 interface ShowJson {
   v: 1;
-  // show <id>: one subject, with its journal rows; show with no id: every open item, journal null
+  // show <id>: one subject, with its journal rows; show with no id: every open task, as the text form lists them, journal null
   subjects: (ShowSubject & { journal: JournalRow[] | null })[];
 }
 

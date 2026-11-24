@@ -5,7 +5,7 @@
 
 ## Decision
 
-The gate never stops an agent for long, and never refuses the same call twice in a row. When a hook cannot start, fails or times out, the host runs the call, and `www install` never sets `onFailure: "block"`. When the brief command ran and no whole read followed, the next call opens the gate and passes with one line. When a Codex read reaches the model cut, the gate refuses once more, then opens. `Stop` blocks at most once per turn.
+The gate never stops an agent for long, and never refuses the same call twice in a row. When a hook cannot start, fails or times out, the host runs the call, and `www install` never sets `onFailure: "block"`. When the brief command ran and no whole read followed, the gate refuses the first call after it once, because a call in the same batch can arrive before the read finishes, and opens on the next call with one line. When a Codex read reaches the model cut, the gate refuses once with the cut reason and lets the agent read again; a second cut read, or a failed read, opens the gate after one more refusal at most. `Stop` blocks at most once per turn.
 
 ## Why
 

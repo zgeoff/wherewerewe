@@ -41,4 +41,4 @@ After each start, resume and compaction of a bound agent session, the `SessionSt
 ## Consequences
 
 - This record replaces the earlier design's injection of the whole brief, which no record held.
-- It replaces the consequence of [0004](0004-hooks-install-once-per-machine.md) that every Bash call in every session on the machine starts the hook. Every tool call starts it now, so `PreToolUse` and `Stop` read at most the binding and the gate file, and return in under 150 ms.
+- It replaces the consequence of [0004](0004-hooks-install-once-per-machine.md) that every Bash call in every session on the machine starts the hook. `PreToolUse` now starts on every tool call that reaches a hook, and hosted tools such as web search never do, so they can run before the brief is read. `PreToolUse` and `Stop` read at most the binding and the gate file, and return in under 150 ms.

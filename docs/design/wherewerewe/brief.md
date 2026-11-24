@@ -70,7 +70,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | owner's words            | `  <id>  "<words>"  [<where> · <age>]`                                                          | 349    |
 | promise                  | `  <id>  <what>  [to <who> · by <when>]`                                                      | 193    |
 | lesson                   | `  <id>  <instruction>  [why: <why>]`                                                         | 349    |
-| decision                 | `  <d-n>  <choice>`; the heading is `DECISIONS (<n> in force)`                                | 212    |
+| decision                 | `  <d-n>  <choice>`, with a choice over 200 characters, such as one imported from a hand-kept journal, cut to 199 and `…`; the heading is `DECISIONS (<n> in force)` | 212    |
 | where                    | `  <id>  <claim>  [<result or no check · age>[ · owed]]`                                      | 166    |
 | open count line          | `  and <m> more open tasks: www show`, or `  and <m> more open tasks: www --session <name> show`; `<m>` is at most 25 | 69 |
 | pull request             | `  <ref>  opened <age> ago  [<result>]`; a ref over 60 characters is cut to 59 and `…`        | 98     |
@@ -207,7 +207,7 @@ Each section that lost rows ends with one line that names the command listing ev
 ## Constraints
 
 - The brief is within its host's limit in bytes. Write a test that renders the ASCII worst case for each host, and one that renders every stored text in a 3-byte script.
-- When a brief is over its limit, the renderer drops rows in [the cut order](#the-cut-order) and ends each section that lost rows with its cut line. It never drops or clips a never-cut line, and the cut line of a section is never cut. The cut line counts the rows of its section the cut dropped, and `OPEN`'s count line counts the task rows the fill left out.
+- When a brief is over its limit, the renderer drops rows in [the cut order](#the-cut-order) and ends each section that lost rows with its cut line. The cut runs once, on the rows as the read's check results leave them, after the probes finish or the deadline passes ([checks.md](checks.md)); no earlier cut decides which rows to probe. It never drops or clips a never-cut line, and the cut line of a section is never cut. The cut line counts the rows of its section the cut dropped, and `OPEN`'s count line counts the task rows the fill left out.
 - The header line starts with `<name> · day`, and the footer line is fixed, because the hook's whole-read check reads both ([sessions-and-hooks.md](sessions-and-hooks.md#what-counts-as-a-whole-read)). A test pins both for every store.
 - The grant prints whole on every brief, directly after `GOAL`.
 - A changed item is one whose check result differs from its `at_write`. A result of `unchecked` never counts as changed, and an `at_write` of `-` takes the first result without counting it as changed.
@@ -280,7 +280,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 
 ### After slice 3b
 
-Slice 3b moves this text into the block above, with the code and the test, in the same pull request. It is the same session on the same day, with the new kinds, the decisions section and the higher caps, and every other line slice 3b changes. This output is 60 lines and 4,227 bytes, 1,409 estimated tokens.
+Slice 3b moves this text into the block above, with the code and the test, in the same pull request. It is the same session on the same day, with the new kinds, the decisions section and the higher caps, and every other line slice 3b changes. This output is 60 lines and 4,228 bytes, 1,410 estimated tokens.
 
 ```text
 tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 2.8s
@@ -317,14 +317,14 @@ OPEN (5, max 30)
   t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
   pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
   t-e2e       Write alerts-e2e against staging  [no check · 3d]
-WAITING (2, max 4)
+WAITING (2, max 8)
   w-apns      upload the staging push key to the vault  [owner · 2d]
   w-tk        review tidal-org/tidekit#19  [tidekit team · OPEN pending]
 PROMISED (1, max 5)
   due-cost    Cost table for the alert fan-out  [to owner · by day 10, before review]
 APPROVED ONCE (1, max 1)
   ok-prod-index  "add the harbour_id index on the prod alerts table, once, after 22:00" · prod alerts table
-RULES (3, max 5)
+RULES (3, max 15)
   r-api-tests Run the API tests from api/; from the repo root the queue tests are skipped
   r-tk-fork   tidekit is a fork here: pass -R tidal-org/tidekit to gh, or the PR opens on the fork
   r-sim-port  Start the app simulator with PORT=8091; 8090 belongs to another session
@@ -335,7 +335,7 @@ DECISIONS (6 in force)
   d-21  Read low-water times from the feed, never compute them
   d-20  Store each saved harbour's time zone on the harbour, never on the device
   and 3 more: www list decisions
-WHERE (3, max 4)
+WHERE (3, max 8)
   wt-tz       bosun-api worktree for the time zone fix, branch tz-fix  [clean]
   p-sim       app simulator, pid 48211; stop it with kill 48211  [gone]
   s-staging   staging secrets live in the vault bosun-staging; never print a value  [no check · 8d]
@@ -352,7 +352,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 - **The grant prints whole, directly after `GOAL`, and cut-to-fit never touches it.** After a compaction, the agent reads what it may do in the owner's own words before any claim. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **The grant prints as bullets under `may`, `not` and `never`, one permission a bullet.** The owner reads a wrapped quote of 700 characters as a wall; a bullet per permission reads at a glance. The bullets cost up to 10 lines more than a quote. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Only the note of the item in focus prints.** The brief stays the same size however many items carry a note. An owed note shows as a tag on its item, and `now`, each close and `www show` print a note whole. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
-- **Row limits pay for the grant and the note, and the caps stay.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The wait, rule and where caps stay, so no store that fits them today is refused, and the task cap is 30 ([0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)); the format 2 upgrade in [store.md](store.md) handles the approvals.
+- **Row limits pay for the grant and the note, and the caps rise.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The wait, rule and where caps rise to 8, 15 and 8, so no store that fits the old caps is refused, and the task cap is 30 ([0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)); the format 2 upgrade in [store.md](store.md) handles the approvals.
 - **The brief prints the tasks that fit, in the order an agent needs them, and counts the rest.** The agent reads the item in focus first, then a claim that is no longer true, then work that waits on something or owes a note, then the newest. The count line names `www show`, which lists every open task in full. [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
 - **The brief's limit is 20,000 estimated tokens or the host's shell output limit, whichever is smaller.** Claude Code gets 24,000 bytes, Codex 30,000 and a reader with no known host 60,000. The host comes from the reader's environment, because one session can be bound to both hosts. [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md)
 - **A claim is at most 120 characters.** A claim stays one line in the brief and in `www show`.
