@@ -4,8 +4,8 @@ import type { ApprovalLine, Refusal, RefusalReason, UpgradeProblem } from '../ty
 import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
+import { fixGrantText } from './fix-grant-text.ts';
 import { formatList } from './format-list.ts';
-import { replaceGrantBullets } from './replace-grant-bullets.ts';
 
 type UpgradeRefusalReason = Extract<RefusalReason, { kind: 'upgrade-refused' }>;
 
@@ -103,7 +103,7 @@ function fixProblem(
     .with({ kind: 'needs-grant' }, { kind: 'grant-needs-part' }, () => spec)
     .with({ kind: 'too-many-once' }, (many) => dropAllButNewest(spec, many.approvals))
     .with({ kind: 'grant-id' }, () => spec.addFlag('drop', 'grant'))
-    .with({ kind: 'grant-text' }, (text) => replaceTextFlag(spec, text.reason, buildReason))
+    .with({ kind: 'grant-text' }, (text) => fixGrantText(spec, text.reason, buildReason))
     .with({ kind: 'drop-unknown' }, (unknown) => removeDrop(spec, unknown.id))
     .exhaustive();
 }
@@ -117,74 +117,6 @@ function dropAllButNewest(spec: RunSpec, approvals: readonly ApprovalLine[]): Ru
   return approvals
     .filter((approval) => approval.id !== newest.id)
     .reduce((current, approval) => current.addFlag('drop', approval.id), spec);
-}
-
-interface FlagPlace {
-  readonly flag: string;
-
-  // the value's place among the flag's values, for a flag that repeats; null for one that does not
-  readonly occurrence: number | null;
-}
-
-// The Run line of the text problem alone holds the value that replaces the flag's text. Too many
-// bullets or too many words replace every bullet, as that problem's own Run line does.
-function replaceTextFlag(
-  spec: RunSpec,
-  reason: RefusalReason,
-  buildReason: (reason: RefusalReason) => Refusal,
-): RunSpec {
-  const place: FlagPlace | null = match(reason)
-    .with(
-      { kind: 'text-too-long' },
-      { kind: 'text-not-one-line' },
-      { kind: 'text-empty' },
-      { kind: 'credential' },
-      (text): FlagPlace | null =>
-        'flag' in text.target.place
-          ? {
-              flag: text.target.place.flag,
-              occurrence: 'occurrence' in text.target.place ? text.target.place.occurrence : null,
-            }
-          : null,
-    )
-    .with({ kind: 'extra-has-separator' }, (separator) => ({
-      flag: separator.flag,
-      occurrence: null,
-    }))
-    .otherwise(() => null);
-
-  if (reason.kind === 'grant-words-too-long' || reason.kind === 'grant-too-many-bullets') {
-    return replaceGrantBullets(spec, reason.args.flags);
-  }
-
-  const [run] = buildReason(reason).runs;
-  const argv = run !== undefined && 'www' in run ? run.www : [];
-  const value = place === null ? null : readFlagValue(argv, place.flag, place.occurrence ?? 0);
-
-  if (place === null || value === null) {
-    return spec;
-  }
-
-  return place.occurrence === null
-    ? spec.replaceFlag(place.flag, value)
-    : spec.replaceFlagAt(place.flag, place.occurrence, value);
-}
-
-// The value of the given occurrence of --flag in a Run line's words, typed as --flag value or
-// --flag=value.
-function readFlagValue(argv: readonly string[], flag: string, occurrence: number): string | null {
-  const places = argv.flatMap((word, at) =>
-    word === `--${flag}` || word.startsWith(`--${flag}=`) ? [at] : [],
-  );
-
-  const at = places.at(occurrence);
-  const word = at === undefined ? undefined : argv.at(at);
-
-  if (at === undefined || word === undefined) {
-    return null;
-  }
-
-  return word.includes('=') ? word.slice(word.indexOf('=') + 1) : (argv.at(at + 1) ?? null);
 }
 
 // The spec holds each typed value through the credential test, so the id is matched the same way.

@@ -1,7 +1,7 @@
 import { formatAge } from '../brief/format-age.ts';
 import type { ApprovalLine, ParsedArgs, UpgradeProblem } from '../types.ts';
 import { pickGrantPartsRefusal } from '../writes/pick-grant-parts-refusal.ts';
-import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusal.ts';
+import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusals.ts';
 
 // An approval the upgrade or the import reads: standing ones fold into the grant, one-time ones stay.
 export interface UpgradeApproval {

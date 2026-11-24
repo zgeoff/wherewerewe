@@ -436,3 +436,98 @@ test.each([
     `www: refused: the text looks like a credential (it matches ${prefix}). Write where the secret lives, never its value.`,
   );
 });
+
+test.each([
+  [
+    'two bullets over 120 characters',
+    [
+      'grant',
+      '--may',
+      'a'.repeat(121),
+      '--may',
+      'b'.repeat(121),
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ],
+    [
+      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
+      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
+    ],
+    [
+      'grant',
+      '--may',
+      '<bullet of at most 120 characters>',
+      '--may',
+      '<bullet of at most 120 characters>',
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ],
+  ],
+  [
+    'a bullet over 120 characters and no --where',
+    ['grant', '--may', 'a'.repeat(121), '--reading', 'r'],
+    [
+      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
+    ],
+    ['grant', '--may', '<bullet of at most 120 characters>', '--reading', 'r', '--where', 'chat'],
+  ],
+  [
+    'a reading over 200 characters on a session with no grant',
+    ['grant', '--reading', 'r'.repeat(201)],
+    [
+      'www: refused: tide-alerts has no grant, so there is no reading to replace.',
+      'www: refused: the reading is 201 characters, and the limit is 200.',
+    ],
+    [
+      'grant',
+      '--may',
+      '<what the owner allows, in their words>',
+      '--where',
+      '<where>',
+      '--reading',
+      '<reading of at most 200 characters>',
+    ],
+  ],
+  [
+    '12 --not bullets and no --may, which the Run line would make 13',
+    [
+      'grant',
+      ...Array.from({ length: 12 }, () => ['--not', 'prune']).flat(),
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ],
+    [
+      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      'www: refused: the grant has 13 bullets, and the limit is 12. Put two parts that belong together in one bullet.',
+    ],
+    [
+      'grant',
+      '--not',
+      '<what the owner did not grant, in their words>',
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+      '--may',
+      '<what the owner allows, in their words>',
+    ],
+  ],
+])(
+  'it prints each problem and one Run line that fixes them all, for %s',
+  (_title, argv, lines, run) => {
+    const ctx = setupTest();
+
+    expect(ctx.readRefusal(ctx.pick(argv))).toStrictEqual({
+      exitCode: 3,
+      lines,
+      runs: [{ www: run }],
+    });
+  },
+);

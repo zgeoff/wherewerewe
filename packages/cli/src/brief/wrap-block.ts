@@ -31,7 +31,8 @@ export function wrapBlock(text: string, first: string, rest: string): string[] {
     prefix = rest;
   }
 
-  lines.push(prefix + remaining.join(''));
-
-  return lines;
+  // a space that ends the text at a break leaves nothing to carry, so no line of prefix alone
+  return remaining.length === 0 && lines.length > 0
+    ? lines
+    : [...lines, prefix + remaining.join('')];
 }

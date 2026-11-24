@@ -99,7 +99,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 | grant              | 1   | the owner's words in one place                                                  |
 | grant bullet       | 12, of at most 120 characters each | one permission each; the owner's real grant has about ten parts |
 
-The worst case fills every cap with every text at its limit: every item has its widest tag and an owed note, the grant has 12 bullets and a 40-character scope holding 700 characters of the owner's words, and a 200-character reading, the item in focus has a 400-character note, 3 changed rows and 1 pull request row each have an overflow line, those two headings each carry a two-digit count, and the header runs to two lines. The widths come from the line templates above.
+The worst case fills every cap with every text at its limit: every item has its widest tag and an owed note, the grant has 12 bullets and a 40-character scope holding 700 characters of the owner's words, and a 200-character reading, the item in focus has a 400-character note, 3 changed rows and 1 pull request row each have an overflow line, those two headings each carry a two-digit count, and the header runs to two lines on a day of at most 999. The widths come from the line templates above.
 
 A wrapped line holds at least 85 characters, so a line that carries a prefix of `p` characters carries at least `85 − p` characters of text. That gives each wrapped block its line count:
 

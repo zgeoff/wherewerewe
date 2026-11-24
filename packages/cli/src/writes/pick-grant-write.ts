@@ -1,11 +1,12 @@
 import { formatTimestamp } from '../format-timestamp.ts';
+import { buildGrantRefusal } from '../refusals/build-grant-refusal.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { countGrantWords } from '../rules/count-grant-words.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
 import type { Grant, RefusalReason } from '../types.ts';
 import { pickGrantPartsRefusal } from './pick-grant-parts-refusal.ts';
-import { pickGrantTextRefusal } from './pick-grant-text-refusal.ts';
+import { pickGrantTextRefusals } from './pick-grant-text-refusals.ts';
 import { toGrantWords } from './to-grant-words.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
@@ -15,14 +16,12 @@ import type { WriteInput, WriteResult } from './types.ts';
 export function pickGrantWrite(input: WriteInput & { readonly byOwner: boolean }): WriteResult {
   const args = input.args;
   const session = input.store.session;
+  const partReason = pickGrantNeedsPartRefusal(input) ?? pickReadingNoGrantRefusal(input);
+  const reasons = [...(partReason === null ? [] : [partReason]), ...pickGrantTextRefusals(args)];
+  const [first, ...rest] = reasons;
 
-  const reason =
-    pickGrantNeedsPartRefusal(input) ??
-    pickReadingNoGrantRefusal(input) ??
-    pickGrantTextRefusal(args);
-
-  if (reason !== null) {
-    return { kind: 'refused', refusal: buildRefusal(reason) };
+  if (first !== undefined) {
+    return { kind: 'refused', refusal: buildGrantRefusal(args, [first, ...rest], buildRefusal) };
   }
 
   const isReadingOnly = args.values.may === undefined;

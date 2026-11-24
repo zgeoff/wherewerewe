@@ -5,11 +5,6 @@ import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { TextCheck } from './pick-text-refusal.ts';
 import { toGrantWords } from './to-grant-words.ts';
 
-// The first problem in the grant's texts, in the order pickGrantTextRefusals lists them.
-export function pickGrantTextRefusal(args: ParsedArgs): RefusalReason | null {
-  return pickGrantTextRefusals(args).at(0) ?? null;
-}
-
 const bulletFlags = ['may', 'not', 'never'] as const;
 
 // The problems in the grant's texts, in the order a refusal prints them. Too many bullets or words
@@ -17,7 +12,10 @@ const bulletFlags = ['may', 'not', 'never'] as const;
 // command that fixes every flag in one Run line needs them all.
 export function pickGrantTextRefusals(args: ParsedArgs): RefusalReason[] {
   const words = toGrantWords(args);
-  const count = words.may.length + words.not.length + words.never.length;
+  const typedCount = words.may.length + words.not.length + words.never.length;
+
+  // a grant with bullets and no --may gets one in its Run line, which counts against the cap
+  const count = typedCount + (typedCount > 0 && words.may.length === 0 ? 1 : 0);
   const length = countGrantWords(words);
 
   const whole: RefusalReason[] = [
