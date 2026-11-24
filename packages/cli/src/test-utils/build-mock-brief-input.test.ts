@@ -1,8 +1,13 @@
 import { expect, test } from 'bun:test';
 import { buildMockBriefInput } from './build-mock-brief-input.ts';
 
+function setupTest() {
+  return { buildMockBriefInput };
+}
+
 test('it lays the named fields over an empty brief input', () => {
-  const input = buildMockBriefInput({ checks: { kind: 'not-run', count: 2 } });
+  const ctx = setupTest();
+  const input = ctx.buildMockBriefInput({ checks: { kind: 'not-run', count: 2 } });
 
   expect(input).toStrictEqual({
     session: expect.objectContaining({ name: 'tide-alerts' }),

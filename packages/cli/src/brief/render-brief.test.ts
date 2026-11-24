@@ -26,11 +26,17 @@ import { briefFooter } from './join-brief.ts';
 import { renderBrief } from './render-brief.ts';
 
 function setupTest() {
-  return { render: renderBrief, readDoc: readWorstCaseBlocks };
+  return {
+    render: renderBrief,
+    readDoc: readWorstCaseBlocks,
+    packageDir: join(import.meta.dir, '..', '..'),
+  };
 }
 
 test('it renders each section of one invented store in order', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: {
         format: '2',
@@ -106,7 +112,8 @@ test('it renders each section of one invented store in order', () => {
 });
 
 test('it leaves empty sections out and says NOW is none with the command to set it', () => {
-  const brief = renderBrief(buildMockBriefInput({}));
+  const ctx = setupTest();
+  const brief = ctx.render(buildMockBriefInput({}));
 
   expect(brief.split('\n').slice(0, 4)).toStrictEqual([
     'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · no checks',
@@ -130,7 +137,9 @@ test.each([
   ],
   ['a task blocked by a closed id', { extra: { blocked_by: 'gone-id' } }, '[no check · 5h]'],
 ])('it tags %s', (_title, fields, tag) => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       items: [
         buildMockItem({ id: 'w-a', kind: 'wait', extra: { who: 'owner' } }),
@@ -147,7 +156,9 @@ test.each([
   ['a wait with a saved result', { check: 'pid:42', last: 'gone' }, '[owner · gone]'],
   ['a wait with no check', {}, '[owner · 5h]'],
 ])('it tags %s', (_title, fields, tag) => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       items: [
         buildMockItem({
@@ -169,7 +180,9 @@ test.each([
   ['a where item with a saved result', { check: 'path:/srv/app', last: 'clean' }, '[clean]'],
   ['a where item with no check', {}, '[no check · 5h]'],
 ])('it tags %s', (_title, fields, tag) => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       items: [
         buildMockItem({ id: 'wt-a', kind: 'where', written: '2026-03-10T06:43:00Z', ...fields }),
@@ -181,7 +194,9 @@ test.each([
 });
 
 test('it puts the item in focus first among the tasks and pads a long id with two spaces', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: {
         format: '2',
@@ -229,7 +244,8 @@ test.each([
   ],
   ['no checks', { kind: 'none' } as const, 'no checks'],
 ])('it writes the header for %s', (_title, checks, tail) => {
-  const brief = renderBrief(buildMockBriefInput({ checks }));
+  const ctx = setupTest();
+  const brief = ctx.render(buildMockBriefInput({ checks }));
 
   expect(brief.split('\n')[0]).toBe(
     `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · ${tail}`,
@@ -240,13 +256,16 @@ test.each([
   ['not-writable', '  results not saved: the store is not writable here'] as const,
   ['lock-held', '  results not saved: another write held the lock'] as const,
 ])('it adds the second header line for %s', (resultsNotSaved, line) => {
-  const brief = renderBrief(buildMockBriefInput({ resultsNotSaved }));
+  const ctx = setupTest();
+  const brief = ctx.render(buildMockBriefInput({ resultsNotSaved }));
 
   expect(brief.split('\n')[1]).toBe(line);
 });
 
 test('it renders owner notes, changed rows with their overflow, and pull requests with theirs', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       ownerNotes: [
         { id: 'o-2', text: 'Ask me first.', said: '2026-03-10T09:40:12Z', on: null },
@@ -299,9 +318,10 @@ test('it renders owner notes, changed rows with their overflow, and pull request
 });
 
 test('it cuts a pull request ref over 60 characters to 59 and an ellipsis', () => {
+  const ctx = setupTest();
   const ref = `${'o'.repeat(30)}/${'r'.repeat(40)}#12`;
 
-  const brief = renderBrief(
+  const brief = ctx.render(
     buildMockBriefInput({
       pullRequests: [{ ref, opened: '2026-03-10T08:43:00Z', result: 'OPEN pending' }],
     }),
@@ -322,7 +342,9 @@ test.each([
     ['NOW  t-a · set 1h ago · owed note 1h ago', '  next: go', '    Stop the simulator'],
   ],
 ])('it prints %s whole under NOW after the next step', (_title, owed, expected) => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({}),
       items: [buildMockItem({ id: 't-a', written: '2026-03-10T10:31:00Z' })],
@@ -334,7 +356,9 @@ test.each([
 });
 
 test('it prints the note under NOW when the item has no next step', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({ nowNext: null }),
       items: [buildMockItem({ id: 't-a' })],
@@ -351,7 +375,9 @@ test('it prints the note under NOW when the item has no next step', () => {
 });
 
 test('it prints only the note of the item in focus', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({}),
       items: [buildMockItem({ id: 't-a' }), buildMockItem({ id: 't-b' })],
@@ -372,7 +398,9 @@ test('it prints only the note of the item in focus', () => {
 });
 
 test('it tags every item with an owed note, the item in focus included, and no item without one', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({}),
       items: [
@@ -409,7 +437,9 @@ test('it tags every item with an owed note, the item in focus included, and no i
 });
 
 test('it prints a grant of only not bullets under its heading, with no may line', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       host: 'codex',
       session: buildMockSession({
@@ -436,7 +466,9 @@ test('it prints a grant of only not bullets under its heading, with no may line'
 });
 
 test('it prints two short never bullets of a grant of only never bullets on one line', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       host: 'codex',
       session: buildMockSession({
@@ -459,7 +491,9 @@ test('it prints two short never bullets of a grant of only never bullets on one 
 });
 
 test('it orders the tasks as the day-9 example does: focus, changed, blocked and owed, then newest', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({ now: 'pr-api-77' }),
       items: [
@@ -498,7 +532,9 @@ test('it orders the tasks as the day-9 example does: focus, changed, blocked and
 });
 
 test('it prints every task and no count line when a brief with room holds 20', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       host: 'claude',
       items: buildMockIDs('task', 20).map((id) => buildMockItem({ id })),
@@ -513,7 +549,9 @@ test('it prints every task and no count line when a brief with room holds 20', (
 });
 
 test('it prints the changed overflow line that names the list of open tasks', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       changed: buildMockIDs('chng', 4).map((id) => ({
         item: buildMockItem({ id, check: 'pid:4', atWrite: 'alive' }),
@@ -541,9 +579,10 @@ test.each([
 ] as const)(
   'it prints the hidden line for $title in place of the next step, with the note whole under it',
   (row) => {
+    const ctx = setupTest();
     const note = buildMockNote({ id: 'pr-api-77', note: 'Wait for the owner to merge' });
 
-    const brief = renderBrief(
+    const brief = ctx.render(
       buildMockBriefInput({
         session: buildMockSession({
           now: 'pr-api-77',
@@ -568,7 +607,9 @@ test.each([
 );
 
 test('it prints no hidden line when no next step is set, and none of its text', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({ now: 'pr-api-77', nowNext: null, nowSet: null }),
       items: [buildMockItem({ id: 'pr-api-77', check: 'pr:bosunhq/bosun-api#77' })],
@@ -583,7 +624,9 @@ test('it prints no hidden line when no next step is set, and none of its text', 
 });
 
 test('it tags the row of an item whose probe read unchecked as unchecked, and keeps the saved result for the changed row', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       items: [
         buildMockItem({ id: 't-a', check: 'pid:42', atWrite: 'alive', last: 'gone' }),
@@ -606,7 +649,9 @@ test('it tags the row of an item whose probe read unchecked as unchecked, and ke
 });
 
 test("it tags each row from this read's result before the saved one", () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       items: [buildMockItem({ id: 't-a', check: 'pid:42', last: 'alive' })],
       results: new Map([['t-a', 'gone']]),
@@ -668,13 +713,16 @@ test.each([
     },
   },
 ])('it renders the row of $title as the day-9 brief does', (row) => {
-  const brief = renderBrief(buildMockBriefInput(row.input));
+  const ctx = setupTest();
+  const brief = ctx.render(buildMockBriefInput(row.input));
 
   expect(brief.split('\n')).toContain(row.expected);
 });
 
 test('it prints the headings of the new sections with their caps, in the order of the brief', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       words: [
         {
@@ -730,7 +778,9 @@ test('it prints the headings of the new sections with their caps, in the order o
 });
 
 test('it prints the 3 newest decisions in force and a count line for the rest', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       decisions: ['d-23', 'd-21', 'd-20', 'd-19', 'd-12', 'd-7'].map((id) => ({
         id,
@@ -749,7 +799,9 @@ test('it prints the 3 newest decisions in force and a count line for the rest', 
 });
 
 test('it cuts a decision of 300 characters to 199 and an ellipsis', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({ decisions: [{ id: 'd-1', choice: 'c'.repeat(300) }] }),
   );
 
@@ -757,31 +809,34 @@ test('it cuts a decision of 300 characters to 199 and an ellipsis', () => {
 });
 
 test('it drops the rows one at a time in the cut order, each from the end of its section', () => {
-  const ctx = buildCutOrderStore();
-  const full = renderBrief(ctx.input);
+  const ctx = setupTest();
+  const store = buildCutOrderStore();
+  const full = ctx.render(store.input);
   const violations: number[] = [];
 
   const droppedCounts = new Set<number>();
 
   for (let limit = Buffer.byteLength(full); limit >= 0; limit -= 1) {
-    const brief = renderBrief(ctx.input, limit);
-    const dropped = ctx.order.filter((mark) => !hasBriefRow(brief, mark));
+    const brief = ctx.render(store.input, limit);
+    const dropped = store.order.filter((mark) => !hasBriefRow(brief, mark));
 
     droppedCounts.add(dropped.length);
 
-    if (JSON.stringify(dropped) !== JSON.stringify(ctx.order.slice(0, dropped.length))) {
+    if (JSON.stringify(dropped) !== JSON.stringify(store.order.slice(0, dropped.length))) {
       violations.push(limit);
     }
   }
 
-  expect({ violations, reachesLast: droppedCounts.has(ctx.order.length) }).toStrictEqual({
+  expect({ violations, reachesLast: droppedCounts.has(store.order.length) }).toStrictEqual({
     violations: [],
     reachesLast: true,
   });
 });
 
 test('it keeps the item in focus and its count line when the cut takes every other task row', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({ now: 't-b' }),
       items: ['t-a', 't-b', 't-c', 't-d'].map((id) => buildMockItem({ id })),
@@ -803,16 +858,20 @@ test('it keeps the item in focus and its count line when the cut takes every oth
 });
 
 test('it leaves OPEN out when no task is in focus and no task exists, and keeps its heading and count line when every task row is cut', () => {
+  const ctx = setupTest();
+
   const input = buildMockBriefInput({
     session: buildMockSession({ now: null, nowNext: null, nowSet: null }),
     items: ['t-a', 't-b'].map((id) => buildMockItem({ id })),
   });
 
-  expect(renderBrief(input, 1).split('\n')).toContain('  and 2 more open tasks: www show');
+  expect(ctx.render(input, 1).split('\n')).toContain('  and 2 more open tasks: www show');
 });
 
 test('it keeps the row of a wait in focus, with its note, while the waits are cut', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({ now: 'w-a' }),
       items: [
@@ -830,6 +889,8 @@ test('it keeps the row of a wait in focus, with its note, while the waits are cu
 });
 
 test('it keeps a wait on the owner while every wait on someone else is cut, and the cut line counts only the cut ones', () => {
+  const ctx = setupTest();
+
   const waits = [
     buildMockItem({ id: 'w-own1', kind: 'wait', claim: 'Owner one', extra: { who: 'owner' } }),
     buildMockItem({ id: 'w-own2', kind: 'wait', claim: 'Owner two', extra: { who: 'owner' } }),
@@ -839,7 +900,7 @@ test('it keeps a wait on the owner while every wait on someone else is cut, and 
   ];
 
   const input = buildMockBriefInput({ session: buildMockSession({ now: null }), items: waits });
-  const full = renderBrief(input);
+  const full = ctx.render(input);
 
   const otherBytes = full
     .split('\n')
@@ -847,7 +908,7 @@ test('it keeps a wait on the owner while every wait on someone else is cut, and 
     .reduce((sum, line) => sum + Buffer.byteLength(line) + 1, 0);
 
   const cutLineBytes = Buffer.byteLength('  and 3 more: www list waits\n');
-  const brief = renderBrief(input, Buffer.byteLength(full) - otherBytes + cutLineBytes);
+  const brief = ctx.render(input, Buffer.byteLength(full) - otherBytes + cutLineBytes);
 
   expect(
     brief.split('\n').filter((line) => line.startsWith('  w-') || line.startsWith('  and')),
@@ -859,7 +920,9 @@ test('it keeps a wait on the owner while every wait on someone else is cut, and 
 });
 
 test('it keeps the heading and the cut line of a section that loses every row', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({ items: [buildMockItem({ id: 'r-a', kind: 'rule' })] }),
     1,
   );
@@ -875,7 +938,9 @@ test.each([
     prs: 'www --session tide-alerts list prs',
   },
 ])('it ends the cut sections with their list command for the session flag $sessionFlag', (row) => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       sessionFlag: row.sessionFlag,
       items: [buildMockItem({ id: 'r-a', kind: 'rule' })],
@@ -895,7 +960,9 @@ test.each([
 });
 
 test('it keeps the overflow line of the pull request section, counting every pull request, when the cut drops its row and hint', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     buildMockBriefInput({
       pullRequests: ['acme/tool#1', 'acme/tool#2'].map((ref) => ({
         ref,
@@ -912,6 +979,8 @@ test('it keeps the overflow line of the pull request section, counting every pul
 });
 
 test('it ends DECISIONS with its count line and then its cut line, when 6 are in force and 2 of its 3 rows are cut', () => {
+  const ctx = setupTest();
+
   const input = buildMockBriefInput({
     decisions: ['d-6', 'd-5', 'd-4', 'd-3', 'd-2', 'd-1'].map((id) => ({
       id,
@@ -919,7 +988,7 @@ test('it ends DECISIONS with its count line and then its cut line, when 6 are in
     })),
   });
 
-  const full = renderBrief(input);
+  const full = ctx.render(input);
 
   const rowBytes = ['  d-5  Choice number d-5\n', '  d-4  Choice number d-4\n'].map((line) =>
     Buffer.byteLength(line),
@@ -927,7 +996,7 @@ test('it ends DECISIONS with its count line and then its cut line, when 6 are in
 
   const cutLineBytes = Buffer.byteLength('  and 2 more: www list decisions\n');
 
-  const brief = renderBrief(
+  const brief = ctx.render(
     input,
     Buffer.byteLength(full) - (rowBytes[0] ?? 0) - (rowBytes[1] ?? 0) + cutLineBytes,
   );
@@ -938,9 +1007,10 @@ test('it ends DECISIONS with its count line and then its cut line, when 6 are in
 });
 
 test('it drops the open row of a changed task like any task row, and keeps its changed row', () => {
+  const ctx = setupTest();
   const changed = buildMockItem({ id: 't-chg', check: 'pid:4', atWrite: 'alive' });
 
-  const brief = renderBrief(
+  const brief = ctx.render(
     buildMockBriefInput({
       session: buildMockSession({ now: null, nowNext: null, nowSet: null }),
       items: [changed],
@@ -955,7 +1025,9 @@ test('it drops the open row of a changed task like any task row, and keeps its c
 });
 
 test('it prints the never-cut lines whole when they alone pass the limit, over a limit of 100 bytes', () => {
-  const brief = renderBrief(
+  const ctx = setupTest();
+
+  const brief = ctx.render(
     {
       ...buildWorstCaseBriefInput({ host: 'claude', taskCount: 30 }),
       nowHidden: { kind: 'changed' },
@@ -1036,7 +1108,8 @@ test.each([
 test.each(['claude', 'codex', null] as const)(
   'it cuts the 3-byte worst case for %p in the cut order, and each cut line counts what it cut',
   (host) => {
-    const brief = renderBrief(buildThreeByteCutInput(host));
+    const ctx = setupTest();
+    const brief = ctx.render(buildThreeByteCutInput(host));
     const limit = { claude: 24_000, codex: 30_000, none: 60_000 }[host ?? 'none'];
     const lines = brief.split('\n');
 
@@ -1174,13 +1247,15 @@ test('it holds the never-cut lines at their widest under 9,000 bytes, and under 
 });
 
 test('it starts the header with the session name and day, and ends with the footer, for every store', () => {
+  const ctx = setupTest();
+
   const briefs = [
-    renderBrief(buildMockBriefInput({})),
+    ctx.render(buildMockBriefInput({})),
     ...(['claude', 'codex', null] as const).flatMap((host) => [
-      renderBrief(buildWorstCaseBriefInput({ host, taskCount: 30 })),
-      renderBrief(buildThreeByteCutInput(host)),
+      ctx.render(buildWorstCaseBriefInput({ host, taskCount: 30 })),
+      ctx.render(buildThreeByteCutInput(host)),
     ]),
-    renderBrief(buildThreeByteCutInput(null), 100),
+    ctx.render(buildThreeByteCutInput(null), 100),
   ];
 
   expect(
@@ -1192,9 +1267,10 @@ test('it starts the header with the session name and day, and ends with the foot
 });
 
 test('it prints a credential in a stored decision as the placeholder, when the cut would split it', () => {
+  const ctx = setupTest();
   const sample = buildCredentialSamples()[0]?.sample ?? '';
   const choice = `${'c'.repeat(190)} ${sample} ${'d'.repeat(50)}`;
-  const brief = renderBrief(buildMockBriefInput({ decisions: [{ id: 'd-1', choice }] }));
+  const brief = ctx.render(buildMockBriefInput({ decisions: [{ id: 'd-1', choice }] }));
 
   expect({
     hasSample: brief.includes(sample.slice(0, 8)),
@@ -1218,7 +1294,8 @@ test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample] as 
 );
 
 test('it gives renderBrief a limit in no file but its tests', () => {
-  const packageDir = join(import.meta.dir, '..', '..');
+  const ctx = setupTest();
+  const packageDir = ctx.packageDir;
 
   const callers = listTypeScriptFiles(packageDir, ['src'])
     .filter((file) => !file.endsWith('.test.ts'))

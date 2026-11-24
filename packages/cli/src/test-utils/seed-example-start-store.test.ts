@@ -4,8 +4,14 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { readStore } from '../store/read-store.ts';
 import { seedExampleStartStore } from './seed-example-start-store.ts';
 
+function setupTest() {
+  return { seedExampleStartStore };
+}
+
 test('it seeds the day-9 store without t-flag and the lesson, promise and words the examples write', async () => {
-  const store = await seedExampleStartStore(createTempDir('example-start').path);
+  const ctx = setupTest();
+
+  const store = await ctx.seedExampleStartStore(createTempDir('example-start').path);
   const read = await readStore(join(store.stateRoot, 'tide-alerts'));
 
   expect(

@@ -5,7 +5,12 @@ import { runCLI } from '../run-cli.ts';
 import { readStore } from '../store/read-store.ts';
 import { seedWorstCaseStore } from './seed-worst-case-store.ts';
 
+function setupTest() {
+  return { seedWorstCaseStore };
+}
+
 test('it seeds the tasks, waits, approval, rules and where items, and the lessons, promises and words of the worst case', async () => {
+  const ctx = setupTest();
   const root = createTempDir('seed-worst-case').path;
   const env = { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
 
@@ -18,7 +23,9 @@ test('it seeds the tasks, waits, approval, rules and where items, and the lesson
       now: () => Date.parse('2026-03-10T11:43:00Z'),
     });
 
-  await seedWorstCaseStore(runAsAgent, join(root, 'wherewerewe'), 'tide-alerts', { taskCount: 7 });
+  await ctx.seedWorstCaseStore(runAsAgent, join(root, 'wherewerewe'), 'tide-alerts', {
+    taskCount: 7,
+  });
 
   const read = await readStore(join(root, 'wherewerewe', 'tide-alerts'));
 

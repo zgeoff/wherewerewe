@@ -4,9 +4,14 @@ import { buildMockBriefInput } from '../test-utils/build-mock-brief-input.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
 import { joinBrief } from './join-brief.ts';
 
+function setupTest() {
+  return { joinBrief };
+}
+
 test('it joins a brief with no credential in the session name', () => {
+  const ctx = setupTest();
   const sample = buildCredentialSamples()[0]?.sample ?? '';
   const input = buildMockBriefInput({ session: buildMockSession({ name: sample }) });
 
-  expect(joinBrief(input, [], [])).not.toInclude(sample);
+  expect(ctx.joinBrief(input, [], [])).not.toInclude(sample);
 });

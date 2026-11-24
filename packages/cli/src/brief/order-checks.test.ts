@@ -5,7 +5,13 @@ import { buildWorstCaseBriefInput } from '../test-utils/build-worst-case-brief-i
 import { orderChecks } from './order-checks.ts';
 import { orderOpenTasks } from './order-open-tasks.ts';
 
+function setupTest() {
+  return { orderChecks };
+}
+
 test('it starts the focus, the owner waits, the other waits, every task, the where items, then the pull requests', () => {
+  const ctx = setupTest();
+
   const tasks = Array.from({ length: 30 }, (_value, index) =>
     buildMockItem({
       id: `t-${String(index).padStart(2, '0')}`,
@@ -21,7 +27,7 @@ test('it starts the focus, the owner waits, the other waits, every task, the whe
     buildMockItem({ id: 'wh-tree', kind: 'where', check: 'path:/srv/tide' }),
   ];
 
-  const ordered = orderChecks({
+  const ordered = ctx.orderChecks({
     items,
     notes: [],
     focus: 't-03',
@@ -41,9 +47,10 @@ test('it starts the focus, the owner waits, the other waits, every task, the whe
 });
 
 test('it starts the tasks in the order the brief prints them', () => {
+  const ctx = setupTest();
   const input = buildWorstCaseBriefInput({ host: 'claude', taskCount: 30 });
 
-  const ordered = orderChecks({
+  const ordered = ctx.orderChecks({
     items: input.items,
     notes: input.notes,
     focus: input.session.now,
@@ -58,10 +65,12 @@ test('it starts the tasks in the order the brief prints them', () => {
 });
 
 test('it gives the same order for every host and limit', () => {
+  const ctx = setupTest();
+
   const orders = (['claude', 'codex', null] as const).map((host) => {
     const input = buildWorstCaseBriefInput({ host, taskCount: 30 });
 
-    return orderChecks({
+    return ctx.orderChecks({
       items: input.items,
       notes: input.notes,
       focus: input.session.now,
@@ -74,24 +83,28 @@ test('it gives the same order for every host and limit', () => {
 });
 
 test('it leaves out an item with no check and lists each item once', () => {
+  const ctx = setupTest();
+
   const items = [
     buildMockItem({ id: 't-a', check: 'pid:4' }),
     buildMockItem({ id: 't-b' }),
     buildMockItem({ id: 'w-a', kind: 'wait', check: 'pid:4', extra: { who: 'owner' } }),
   ];
 
-  const ordered = orderChecks({ items, notes: [], focus: 't-a', pullRequests: [] });
+  const ordered = ctx.orderChecks({ items, notes: [], focus: 't-a', pullRequests: [] });
 
   expect(ordered).toStrictEqual(['t-a', 'w-a']);
 });
 
 test('it starts the waits before the where items, whatever items.tsv holds', () => {
+  const ctx = setupTest();
+
   const items = [
     buildMockItem({ id: 'wh-tree', kind: 'where', check: 'path:/srv/tide' }),
     buildMockItem({ id: 'w-keys', kind: 'wait', check: 'pid:4242' }),
   ];
 
-  expect(orderChecks({ items, notes: [], focus: null, pullRequests: [] })).toStrictEqual([
+  expect(ctx.orderChecks({ items, notes: [], focus: null, pullRequests: [] })).toStrictEqual([
     'w-keys',
     'wh-tree',
   ]);

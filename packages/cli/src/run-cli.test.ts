@@ -53,8 +53,10 @@ function setupTest() {
   const clock = { nowMs: Date.parse('2026-03-10T11:43:00Z') };
 
   return {
+    root,
     stateRoot,
     agentEnv,
+    readSource: (name: string) => Bun.file(join(import.meta.dir, '..', name)).text(),
     ownerEnv: { HOME: root, XDG_STATE_HOME: root },
     ownerTerminal: { stdin: true, stdout: true },
     run: (
@@ -2146,7 +2148,8 @@ test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample, ent
 );
 
 test('it prints the Run line of a broken store whose path holds a line break as one line that a shell reads back', async () => {
-  const root = createTempDir('run-cli-break').path;
+  const ctx = setupTest();
+  const root = ctx.root;
   const stateHome = join(root, 'first\nsecond');
   const env = { HOME: root, XDG_STATE_HOME: stateHome, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
 
@@ -3260,6 +3263,8 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
 });
 
 test('it prints no text of the new files through process.stdout or console', async () => {
+  const ctx = setupTest();
+
   const names = [
     'src/commands/run-list-command.ts',
     'src/reads/render-list.ts',
@@ -3270,9 +3275,7 @@ test('it prints no text of the new files through process.stdout or console', asy
     'src/refusals/build-kind-refusal.ts',
   ];
 
-  const texts = await Promise.all(
-    names.map((name) => Bun.file(join(import.meta.dir, '..', name)).text()),
-  );
+  const texts = await Promise.all(names.map((name) => ctx.readSource(name)));
 
   expect(texts.filter((text) => /process\.stdout|console\./u.test(text))).toStrictEqual([]);
 });

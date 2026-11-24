@@ -46,7 +46,7 @@ function setupTest() {
 
   const capPhrase = `at most ${String(itemCaps.task)} tasks, ${String(itemCaps.wait)} waits, ${String(itemCaps.ok)} approval, ${String(itemCaps.rule)} rules, ${String(itemCaps.where)} where items, ${String(lessonCap)} lessons, ${String(promiseCap)} promises, ${String(wordsCap)} owner's words and ${String(ownerNoteCap)} owner notes`;
 
-  return { text, textPhrases, grantPhrases, capPhrase };
+  return { helpText, text, textPhrases, grantPhrases, capPhrase };
 }
 
 test('it holds each limit of the tables in its own phrase', () => {
@@ -62,7 +62,8 @@ test('it holds each limit of the tables in its own phrase', () => {
 });
 
 test('it keeps each line of the Limits text within 100 characters', () => {
-  const lines = helpText.split('\n');
+  const ctx = setupTest();
+  const lines = ctx.helpText.split('\n');
   const start = lines.findIndex((line) => line.startsWith('Limits:'));
   const end = lines.findIndex((line) => line.startsWith('Exit codes:'));
 

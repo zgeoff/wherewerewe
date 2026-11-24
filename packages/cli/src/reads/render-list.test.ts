@@ -6,8 +6,14 @@ import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { renderList } from './render-list.ts';
 
+function setupTest() {
+  return { renderList };
+}
+
 test('it lists every wait under its heading with its count and cap, a note under its row', () => {
-  const text = renderList(
+  const ctx = setupTest();
+
+  const text = ctx.renderList(
     'waits',
     buildMockBriefInput({
       items: [
@@ -47,10 +53,14 @@ test.each([
   { kind: 'prs', heading: 'PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (0)\n' },
   { kind: 'notes', heading: '' },
 ] as const)('it prints $kind with no row as its heading alone', (row) => {
-  expect(renderList(row.kind, buildMockBriefInput({}))).toBe(row.heading);
+  const ctx = setupTest();
+
+  expect(ctx.renderList(row.kind, buildMockBriefInput({}))).toBe(row.heading);
 });
 
 test('it lists the lessons, promises and words with the tags the brief prints', () => {
+  const ctx = setupTest();
+
   const input = buildMockBriefInput({
     lessons: [
       {
@@ -83,9 +93,9 @@ test('it lists the lessons, promises and words with the tags the brief prints', 
   });
 
   expect([
-    renderList('lessons', input),
-    renderList('promises', input),
-    renderList('words', input),
+    ctx.renderList('lessons', input),
+    ctx.renderList('promises', input),
+    ctx.renderList('words', input),
   ]).toStrictEqual([
     'LESSONS (1, max 5)\n  l-seed      Reseed the staging alerts table before alerts-e2e  [why: A stale row made alerts-e2e pass]\n',
     'PROMISED (1, max 5)\n  due-cost    Cost table for the alert fan-out  [to owner · by day 10, before review]\n',
@@ -94,9 +104,10 @@ test('it lists the lessons, promises and words with the tags the brief prints', 
 });
 
 test('it lists a decision whole, newest first, with no 200-character cut', () => {
+  const ctx = setupTest();
   const choice = 'c'.repeat(300);
 
-  const text = renderList(
+  const text = ctx.renderList(
     'decisions',
     buildMockBriefInput({
       decisions: [
@@ -112,7 +123,9 @@ test('it lists a decision whole, newest first, with no 200-character cut', () =>
 });
 
 test('it lists every open pull request no item names, with its saved state and no hint', () => {
-  const text = renderList(
+  const ctx = setupTest();
+
+  const text = ctx.renderList(
     'prs',
     buildMockBriefInput({
       pullRequests: [
@@ -133,7 +146,9 @@ test('it lists every open pull request no item names, with its saved state and n
 });
 
 test('it lists the notes owed first, then newest, as item lines with no tag and no heading', () => {
-  const text = renderList(
+  const ctx = setupTest();
+
+  const text = ctx.renderList(
     'notes',
     buildMockBriefInput({
       items: [
@@ -166,15 +181,17 @@ test('it lists the notes owed first, then newest, as item lines with no tag and 
 });
 
 test('it wraps a note of 120 characters at 85 to 100 columns under its row', () => {
+  const ctx = setupTest();
   const note = `${'word '.repeat(23)}end`;
 
-  const lines = renderList(
-    'where',
-    buildMockBriefInput({
-      items: [buildMockItem({ id: 'wh-a', kind: 'where', claim: 'A worktree' })],
-      notes: [buildMockNote({ id: 'wh-a', note })],
-    }),
-  )
+  const lines = ctx
+    .renderList(
+      'where',
+      buildMockBriefInput({
+        items: [buildMockItem({ id: 'wh-a', kind: 'where', claim: 'A worktree' })],
+        notes: [buildMockNote({ id: 'wh-a', note })],
+      }),
+    )
     .trimEnd()
     .split('\n');
 
@@ -182,10 +199,11 @@ test('it wraps a note of 120 characters at 85 to 100 columns under its row', () 
 });
 
 test('it prints a credential in a stored note as the placeholder, not split by the wrap', () => {
+  const ctx = setupTest();
   const sample = buildCredentialSamples()[0]?.sample ?? '';
   const note = `${'a '.repeat(40)}${sample} tail`;
 
-  const text = renderList(
+  const text = ctx.renderList(
     'rules',
     buildMockBriefInput({
       items: [buildMockItem({ id: 'r-a', kind: 'rule', claim: 'A rule' })],
@@ -200,9 +218,10 @@ test('it prints a credential in a stored note as the placeholder, not split by t
 });
 
 test('it lists every task of a store of 30, whole, with the ids in order', () => {
+  const ctx = setupTest();
   const ids = buildMockIDs('task', 30);
 
-  const text = renderList(
+  const text = ctx.renderList(
     'tasks',
     buildMockBriefInput({ items: ids.map((id) => buildMockItem({ id })) }),
   );
@@ -211,6 +230,8 @@ test('it lists every task of a store of 30, whole, with the ids in order', () =>
 });
 
 test('it attaches no note to a lesson whose id an item with a note also holds', () => {
+  const ctx = setupTest();
+
   const input = buildMockBriefInput({
     items: [buildMockItem({ id: 'l-seed', claim: 'A task of the same id' })],
     notes: [buildMockNote({ id: 'l-seed', note: 'The task keeps this note' })],
@@ -225,7 +246,7 @@ test('it attaches no note to a lesson whose id an item with a note also holds', 
     ],
   });
 
-  expect(renderList('lessons', input)).toBe(
+  expect(ctx.renderList('lessons', input)).toBe(
     'LESSONS (1, max 5)\n  l-seed      Reseed the staging alerts table before alerts-e2e  [why: A stale row made alerts-e2e pass]\n',
   );
 });

@@ -687,13 +687,7 @@ test.each([
   async (row) => {
     const ctx = setupTest();
     const name = 'n'.repeat(24);
-
-    const env = {
-      HOME: ctx.agentEnv.HOME,
-      XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME,
-      PATH: ctx.bin,
-      [row.variable]: row.id,
-    };
+    const env = { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: '', [row.variable]: row.id };
 
     const rowIDs: Readonly<Record<string, readonly string[]>> = {
       waits: buildMockIDs('wait', itemCaps.wait),

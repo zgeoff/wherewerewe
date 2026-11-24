@@ -4,13 +4,22 @@ import { buildThreeByteCutInput } from './build-three-byte-cut-input.ts';
 import { threeByteRanks } from './three-byte-ranks.ts';
 import { threeByteSections } from './three-byte-sections.ts';
 
+function setupTest() {
+  return {
+    buildThreeByteCutInput,
+    ranks: Object.keys(threeByteRanks),
+    sections: Object.keys(threeByteSections),
+  };
+}
+
 test('it names a prefix and a section for every rank of the cut order', () => {
-  expect([Object.keys(threeByteRanks), Object.keys(threeByteSections)]).toStrictEqual([
-    [...cutRanks],
-    [...cutRanks],
-  ]);
+  const ctx = setupTest();
+
+  expect([ctx.ranks, ctx.sections]).toStrictEqual([[...cutRanks], [...cutRanks]]);
 });
 
 test('it builds the same input on each call', () => {
-  expect(buildThreeByteCutInput('claude')).toStrictEqual(buildThreeByteCutInput('claude'));
+  const ctx = setupTest();
+
+  expect(ctx.buildThreeByteCutInput('claude')).toStrictEqual(ctx.buildThreeByteCutInput('claude'));
 });

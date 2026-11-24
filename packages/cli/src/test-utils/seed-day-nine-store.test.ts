@@ -4,8 +4,14 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { readStore } from '../store/read-store.ts';
 import { seedDayNineStore } from './seed-day-nine-store.ts';
 
+function setupTest() {
+  return { seedDayNineStore };
+}
+
 test('it seeds the session of day 9 with its items, owner notes, saved results and pull request row', async () => {
-  const store = await seedDayNineStore(createTempDir('day-nine').path);
+  const ctx = setupTest();
+
+  const store = await ctx.seedDayNineStore(createTempDir('day-nine').path);
   const read = await readStore(join(store.stateRoot, 'tide-alerts'));
 
   expect(

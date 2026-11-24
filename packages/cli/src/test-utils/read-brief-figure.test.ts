@@ -1,6 +1,10 @@
 import { expect, test } from 'bun:test';
 import { readBriefFigure } from './read-brief-figure.ts';
 
+function setupTest() {
+  return { readBriefFigure };
+}
+
 test.each([
   {
     title: 'a reply that ends with the figure',
@@ -9,5 +13,7 @@ test.each([
   },
   { title: 'a reply with no figure', reply: 'now: t-a.\n', figure: { tokens: null, limit: null } },
 ])('it reads $title', (row) => {
-  expect(readBriefFigure(row.reply)).toStrictEqual(row.figure);
+  const ctx = setupTest();
+
+  expect(ctx.readBriefFigure(row.reply)).toStrictEqual(row.figure);
 });

@@ -4,8 +4,14 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { readStore } from '../store/read-store.ts';
 import { seedDayNineRows } from './seed-day-nine-rows.ts';
 
+function setupTest() {
+  return { seedDayNineRows };
+}
+
 test('it leaves out the rows the examples of commands.md write, and keeps pr-app-61 open, for the example start', async () => {
-  const store = await seedDayNineRows(createTempDir('day-nine-rows').path, true);
+  const ctx = setupTest();
+
+  const store = await ctx.seedDayNineRows(createTempDir('day-nine-rows').path, true);
   const read = await readStore(join(store.stateRoot, 'tide-alerts'));
 
   expect(
@@ -20,7 +26,9 @@ test('it leaves out the rows the examples of commands.md write, and keeps pr-app
 });
 
 test('it writes every row of day 9 when it is not the example start', async () => {
-  const store = await seedDayNineRows(createTempDir('day-nine-rows').path, false);
+  const ctx = setupTest();
+
+  const store = await ctx.seedDayNineRows(createTempDir('day-nine-rows').path, false);
   const read = await readStore(join(store.stateRoot, 'tide-alerts'));
 
   expect(
