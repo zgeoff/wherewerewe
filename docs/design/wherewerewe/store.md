@@ -157,7 +157,7 @@ type Op =
 ```
 
 - Each note write adds a `note` row: `id` is the item, `text` is the note, and `extra` is `owed=1` for an owed note. Clearing a note adds a `note` row with `text` `-` and `extra` `cleared=1`. A close adds no `note` row; its own row closes the note with the item.
-- Each `www grant` adds a `grant` row with `id` `grant`, the words in `text` and the reading in `why`, both whole, so the journal keeps every version. A `www grant --reading` row adds `reading=1` to `extra`, and every other `grant` row wrote the words, where and reading together. A write that stops after its journal row leaves a row that `session` does not hold, so `www show grant` reads only the rows that hold the grant's words and `where`: a row without `reading=1` written at `grant_set`, and a `reading=1` row written since. It names the writer of the words from the newest row without `reading=1`, and dates the reading from the newest row that holds it.
+- Each `www grant` adds a `grant` row with `id` `grant`, the words in `text` and the reading in `why`, both whole, so the journal keeps every version. A `www grant --reading` row adds `reading=1` to `extra`, and every other `grant` row wrote the words, where and reading together. A write that stops after its journal row leaves a row that `session` does not hold, so `www show grant` reads only the rows that hold the grant's words and `where`: a row without `reading=1` written at `grant_set`, and a `reading=1` row written since. `www show grant` names the writer of the words from the newest row without `reading=1`, and dates the reading from the newest row that holds it.
 - A `note` row that `www import` carried from a hand-kept store keeps `by=import` and its own id, such as `n-12`, which names no item.
 
 ### owner.tsv and prs.tsv
@@ -187,7 +187,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - An id closed once is never reused in that session: a new item with a closed id is refused.
 - Each write takes `lock` with an exclusive create, appends its journal rows, rewrites each changed file through a temporary file and a rename in the same folder, and removes `lock`. The journal goes first because a write reads it to refuse a closed id, so a write that stops after the append leaves the id closed and its item still open, never an item gone while its id can be reused.
 - A write waits up to 2 s for `lock`, then refuses. A lock whose pid is gone, or that is older than 30 s, is stale: the next write removes it and goes on.
-- A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing; [brief.md](brief.md) says what the header shows then.
+- A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. [brief.md](brief.md) has what the header shows then.
 - The journal is never rewritten, with one exception: `www import` rewrites a hand-kept journal into the current format once, after it copies the original into `import-backup/`. The format 2 upgrade keeps every format 1 row as it was and adds its rows after them. Nothing prints the journal whole, except `www log` with no filter.
 - A session folder is never deleted by the tool.
 
@@ -195,7 +195,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 
 - `format=2` is the format the tool writes. Format 2 adds the four `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
-- A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. [commands.md](commands.md) fixes the text.
+- A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
 - A store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
 - A store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
@@ -229,7 +229,7 @@ Upgraded tide-alerts to format 2: grant 373 of 700 characters, 2 standing approv
 - A stop before the folder's rename leaves the format 1 store as it was, with no `format-1-backup/`. While `session` reads `format=1`, a rerun reads its input from `format-1-backup/` when it exists, and from the live files when it does not, and writes every file again from that input, the journal as the input's rows followed by the new ones, so no journal row doubles. Once `session` reads `format=2`, `www import` refuses the store as already format 2.
 - The `drop` rows and the `import` row have `by=agent`. The `grant` row has `by=owner` when the terminal test of [owner-notes.md](owner-notes.md) passes and `by=agent` otherwise, as the row of `www grant` does.
 - The upgrade binds the agent session that runs it, as `www init` does.
-- Every limit of `www grant` applies to `--quote`, `--where` and `--reading`; [commands.md](commands.md) gives them.
+- Every limit of `www grant` applies to `--quote`, `--where` and `--reading`; the limits are in [commands.md](commands.md).
 
 ## Import of the hand-kept store
 
@@ -252,7 +252,7 @@ Upgraded tide-alerts to format 2: grant 373 of 700 characters, 2 standing approv
 
 - Import applies every limit a write applies to items and to `session`: lengths, ids, kinds and caps. Journal rows keep their text at any length.
 - Import never turns an agent-written row into an owner note: an owner note's author is the owner.
-- When a row breaks a rule, import exits 3 with one line per row, in the text [commands.md](commands.md) fixes. The agent fixes those rows in the hand-kept files, for example by shortening a claim or appending a `closed` row for a question it settled, and runs import again.
+- When a row breaks a rule, import exits 3 with one line per row, with the text in [commands.md](commands.md). The agent fixes those rows in the hand-kept files, for example by shortening a claim or appending a `closed` row for a question it settled, and runs import again.
 - On the hand-kept store as it stands at design time, import refuses: 6 open questions against the cap of 4 waits in [brief.md](brief.md), and claims, questions and `now_next` over their limits. Those are the rows the agent fixes first.
 - A row's `ts` and `written` values are kept as they are.
 - The `drop` rows and the `import` row have `by=agent`. The `grant` row has `by=owner` when the terminal test of [owner-notes.md](owner-notes.md) passes and `by=agent` otherwise.

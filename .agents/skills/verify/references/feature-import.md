@@ -3,8 +3,9 @@
 Check that `www import` converts a hand-kept store. A user who kept notes by hand runs
 `www import <session>` once, with the owner's words when the store holds a standing approval, then
 reads the brief. Run the journey to import an invented hand-kept store with the real `www` and read
-its brief. It works on a copy in the run's folder under `.wringer/`, so it never touches your own
-stores. `seed-hand-kept` copies the invented store into the run as the session `trial-import`.
+its brief. The journey works on a copy in the run's folder under `.wringer/`, so it never touches
+your own stores. `seed-hand-kept` copies the invented store into the run as the session
+`trial-import`.
 
 ## Journey
 

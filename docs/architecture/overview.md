@@ -35,8 +35,8 @@ and `session` through a temporary file and a rename, and removes the lock, and a
 no note leaves `notes.tsv` alone. The journal comes first, so a write that stops half way leaves a
 close recorded and its item still open, never an item gone with no record. A writer wins the claim
 file named after the lock and reads the lock again before it removes that lock, its own or a stale
-one, so one writer is inside at a time as long as each write finishes within the stale age the store
-design sets, measured on the wall clock. A write that runs longer can lose the lock to the next
+one, so one writer is inside at a time as long as each write finishes within the stale age in the
+store design, measured on the wall clock. A write that runs longer can lose the lock to the next
 writer, and so can a write during which the clock jumps forward by more than that age.
 
 ## Finding the session
@@ -121,8 +121,8 @@ history and says so on stderr. Only a `--since` that `log` cannot read exits 2.
 
 ## Importing a hand-kept store
 
-`www import <session>` converts a session folder whose `session` file says `format=0-by-hand`, or
-has no `format` line, to format 2 in place. It takes the grant flags `--quote`, `--where` and
+`www import <session>` converts a session folder whose `session` file has `format=0-by-hand`, or has
+no `format` line, to format 2 in place. It takes the grant flags `--quote`, `--where` and
 `--reading`, folds an approval that the hand-kept store marks `standing` into the grant, and creates
 `notes.tsv`. It takes the session's lock, reads the three hand-kept files, and checks every row
 against the write rules. When any row breaks a rule, it exits 3 with one line per row and changes no
