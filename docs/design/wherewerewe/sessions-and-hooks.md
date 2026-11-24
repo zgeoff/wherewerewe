@@ -115,7 +115,7 @@ The gate uses `SessionStart`, `PreToolUse`, `PostToolUse` and `Stop` on both hos
 
 The gate refuses a call only for an agent session id that has a binding and a gate file. An unbound id and a bound id with no gate file pass every call without a refusal. A bound id gets its gate file at its first `SessionStart` after it is bound, so a session that runs `init`, `attach` or `import` mid-session is gated from its next resume or compaction. A missing gate file skips only the gate: `PostToolUse` still records pull requests, binds and nudges for every bound id. An agent session that never opted in is untouched, as [0004](../../decisions/0004-hooks-install-once-per-machine.md) requires.
 
-The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds the agent session id to another store, the file's `session` no longer matches the binding, and each hook reads the file as a fresh `wiped` for the new session, with `spare=1` and `reads` kept, before it applies the table below. So a `read` of the old store's brief never opens the gate for the new one.
+The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds an agent session id that already has a gate file to another store, the file's `session` no longer matches the binding, and each hook reads the file as a fresh `wiped` for the new session, with `spare=1` and `reads` kept, before it applies the table below. So a `read` of the old store's brief never opens the gate for the new one.
 
 Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> reads=<n> spare=<0|1>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about. `reads` counts the brief commands the gate let through, in any state, whose end it has not seen; a `SessionStart` keeps it, so a brief command that started before a compaction still counts. `spare` is 1 until the gate spends its one refusal after a cut read. `www` never writes the file.
 
@@ -219,7 +219,7 @@ The gate never stops an agent for long: after a read ends with no whole brief, i
 
 - When a hook cannot start, fails or times out, both hosts run the call. `www install` never sets `onFailure: "block"`.
 - When the brief command ends with no whole read, the state is `failed`, and the next call that is not a `www` command passes with the fail-open line. That covers `www` missing from the agent's `PATH`, a crash, exit 4, exit 5, and a brief over Claude Code's limit. `www`'s own output, already in context, says why. A permission prompt that refused `www` sends no end event, so the state becomes `failed` when the turn ends.
-- When a Codex read is cut, the next call that is not a `www` command is refused once with the cut reason, and the agent can read again with `max_output_tokens`. After that, at most one more call is refused before the gate opens, however many retries are cut, and a failed retry opens it on the next call.
+- When a Codex read is cut, the gate refuses one call with the cut reason, and no more however many retries are cut; the agent can read again with `max_output_tokens`. A failed retry opens the gate on the next call.
 - `Stop` blocks only while the state is `wiped`, and never when `stop_hook_active` is true. So it blocks at most once per turn while the state stays `wiped`, on either host, below Claude Code's cap of 8 consecutive continues.
 
 #### What counts as a whole read
@@ -267,7 +267,7 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 - For an agent session id with no binding, a hook prints nothing, writes nothing except the binding in `PostToolUse` step 1 and any error line in `hook-errors.log`, and returns in under 150 ms. A test measures the median of 20 runs. `PreToolUse` and `Stop` treat a bound id with no gate file the same way, and `PostToolUse` skips only step 0 for it.
 - `PreToolUse` and `Stop` read at most the binding and the gate file, and return in under 150 ms for a bound or an unbound id, as the median of 20 runs. `PreToolUse` runs on every tool call that reaches a hook, in every session on the machine.
 - A `PostToolUse` hook for a bound session never runs a probe and never touches the network, and returns in under 300 ms.
-- A `SessionStart` hook reads only the binding and the `session` file, runs no check, and returns in under 300 ms.
+- A `SessionStart` hook reads only the binding, the `session` file and the gate file, runs no check, and returns in under 300 ms.
 - A hook reads only `session_id`, `hook_event_name`, `source`, `tool_name`, `tool_input.command`, `tool_response`, `agent_id` and `stop_hook_active` from its stdin, and on Codex `tool_input.max_output_tokens`. It ignores any other field.
 - The tool never writes `classifierContext`.
 - `install` is idempotent: a second run changes nothing and says so.
@@ -278,7 +278,7 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 [README.md](README.md) lists each owner step for the whole build. The ones in this part:
 
 1. The build agent runs `www install`, which writes the hook entries into `~/.claude/settings.json` and `~/.codex/hooks.json`, and the allow rules into `~/.claude/settings.json` and `~/.codex/rules/wherewerewe.rules`. The owner's sign-off of the design authorises it. When the owner keeps those files in dotfiles, the agent applies `www install --print` there instead.
-2. The build agent adds the two lines above to `~/.codex/config.toml`, under the same sign-off. Without them, a Codex write fails, and a Codex read still prints the brief without saving results.
+2. The build agent adds the two lines above to `~/.codex/config.toml`, under the same sign-off. The Codex allow rule runs a `www` call it matches outside the sandbox, so the lines cover the calls it does not match, such as `wherewerewe`, an absolute path to `www` or a script with a redirect, and a Codex version that drops rules. Without them, such a Codex write fails, and such a Codex read still prints the brief without saving results.
 3. The owner opens `/hooks` in Codex and trusts the five new entries, by hand. Codex skips an untrusted hook.
 
 ## Decisions

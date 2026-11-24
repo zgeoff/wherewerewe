@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0012](../../decisions/0012-a-capped-heading-names-its-max.md), [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md), [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 
-`www` with no subcommand prints the brief: the session's state, within its limit ([The brief's limit](#the-briefs-limit)) on any day. It prints every section whole except three, and a brief over its limit drops rows in [the cut order](#the-cut-order): `OPEN` prints the tasks that fit and a line that counts the rest, and the changed claims and the open pull requests each print up to their row limit and a line that counts the rest. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that repeats the write commands. After a compaction, the `SessionStart` hook puts the goal and the grant in context, and the agent runs `www` for the rest ([sessions-and-hooks.md](sessions-and-hooks.md)). To build the brief renderer and its size test, read this doc and your slice of [build-order.md](build-order.md).
+`www` with no subcommand prints the brief: the session's state, within its limit ([The brief's limit](#the-briefs-limit)) on any day. It prints every section whole except four, and a brief over its limit drops rows in [the cut order](#the-cut-order): `OPEN` prints the tasks that fit and a line that counts the rest, `DECISIONS` prints the 3 newest decisions in force and a line that counts the rest, and the changed claims and the open pull requests each print up to their row limit and a line that counts the rest. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that repeats the write commands. After a compaction, the `SessionStart` hook puts the goal and the grant in context, and the agent runs `www` for the rest ([sessions-and-hooks.md](sessions-and-hooks.md)). To build the brief renderer and its size test, read this doc and your slice of [build-order.md](build-order.md).
 
 ## Shape
 
@@ -98,6 +98,8 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 ```
 
 ### Caps and the worst case
+
+The day-9 example in [The brief on day 9](#the-brief-on-day-9-of-an-invented-session) is the brief as built through slice 3, so its headings show that slice's caps: 4 waits, 5 rules and 4 where items. Its `After slice 3b` subsection shows the caps below.
 
 | Kind               | Cap | Why this number                                                                 |
 | ------------------ | --- | ------------------------------------------------------------------------------- |

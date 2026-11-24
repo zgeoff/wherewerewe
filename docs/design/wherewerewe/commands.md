@@ -231,13 +231,19 @@ Slice 3b moves this text into the block above, with the code and the test, in th
    www goal "<what done means>"
 +  www goal --paste           print a /goal text of the grant, for the owner to paste
    www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
-@@ -30,3 +38,4 @@
+@@ -27,2 +35,3 @@
+-Notes: --note "<detail>" and --owed work on now and on every item write. A note holds what you
+-need on your next turn to that item. An owed note stops done, drop and use until set clears it.
++Notes: --note "<detail>" and --owed work on now and on every task, wait, approval, rule and where
++write, and not on a lesson, a promise or the owner's words. A note holds what you need on your
++next turn to that item. An owed note stops done, drop and use until set clears it.
+@@ -30,3 +39,4 @@
 
 -Close. Each leaves the brief and stays in the journal:
 +Close. Each leaves the brief and stays in the journal. A lesson or the owner's words close with
 +drop only:
    www done <id> --evidence "<PR, commit or test run>"
-@@ -48,3 +57,5 @@
+@@ -48,3 +58,5 @@
  12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
 -A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 +A lesson takes 120 with its --why 200, a promise 120 with --to 16 and --by 24, and the owner's
