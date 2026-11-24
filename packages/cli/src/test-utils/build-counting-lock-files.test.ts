@@ -29,7 +29,10 @@ test('it passes the other calls on, and runs no callback before a second create'
   const path = join(createTempDir('counting-files').path, 'lock');
   const real = createLockFiles();
   const calls: string[] = [];
-  const counting = buildCountingLockFiles(real, () => calls.push('second'));
+
+  const counting = buildCountingLockFiles(real, () => {
+    calls.push('second');
+  });
 
   counting.files.create(path, 'pid=1 ts=a\n');
 

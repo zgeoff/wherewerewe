@@ -239,7 +239,12 @@ test('it appends the journal before it writes notes.tsv, so a failed notes write
     notes: [{ id: 't-a', owed: false, written: '2026-03-10T11:00:00Z', note: 'Stop it' }],
   });
 
-  await expect(writing).rejects.toThrow();
+  const outcome = await writing.then(
+    () => 'written',
+    () => 'failed',
+  );
+
+  expect(outcome).toBe('failed');
 
   const journalText = readFileSync(join(ctx.folder, 'journal.tsv'), 'utf8');
 

@@ -36,7 +36,7 @@ test('it breaks at the last space that leaves the line 85 to 100 characters long
 });
 
 test('it cuts at 100 when no space leaves the line 85 to 100 characters long', () => {
-  const text = `${'a'.repeat(120)}`;
+  const text = 'a'.repeat(120);
 
   expect(wrapBlock(text, '', '')).toStrictEqual(['a'.repeat(100), 'a'.repeat(20)]);
 });
