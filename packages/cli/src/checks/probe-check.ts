@@ -10,7 +10,7 @@ export function probeCheck(target: CheckTarget, context: ProbeContext): Promise<
   return match(target)
     .with({ kind: 'pr' }, (pr) => probePullRequest(pr, context.run))
     .with({ kind: 'branch' }, (branch) => probeBranch(branch, context.run))
-    .with({ kind: 'path' }, (path) => probePath(path, context.run))
+    .with({ kind: 'path' }, (path) => probePath(path, context.run, context.statPath))
     .with({ kind: 'pid' }, (pid) => Promise.resolve(probeProcess(pid, context.extra)))
     .exhaustive();
 }

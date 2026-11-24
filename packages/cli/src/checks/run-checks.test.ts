@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
@@ -196,6 +196,37 @@ test('it reads unchecked with timeout within the deadline for a gh that runs sle
     performance.now() - startedAtMs < 2000,
     children.exitCode,
   ]).toStrictEqual(['unchecked', 'timeout', true, 1]);
+});
+
+test('it calls no git for a path probe whose stat returns after the deadline', async () => {
+  const ctx = setupTest();
+  const marker = join(ctx.folder, 'git-called');
+  const stat = Promise.withResolvers<{ isDirectory: () => boolean }>();
+
+  seedStubCommand(ctx.folder, 'git', `echo called > "${marker}"`);
+
+  const run = await runChecks(
+    ['p-a'],
+    [buildMockItem({ id: 'p-a', check: `path:${ctx.folder}` })],
+    [],
+    { deadlineMs: 300, env: ctx.env, now: ctx.now, statPath: () => stat.promise },
+  );
+
+  stat.resolve({ isDirectory: () => true });
+
+  // nothing signals that a probe chose not to start git, so the test waits well past the time a
+  // started stub takes to write its marker
+  const releasedAtMs = performance.now();
+
+  await waitFor(() => {
+    expect(performance.now() - releasedAtMs).toBeGreaterThan(500);
+  });
+
+  expect([run.results.get('p-a'), run.reason, existsSync(marker)]).toStrictEqual([
+    'unchecked',
+    'timeout',
+    false,
+  ]);
 });
 
 test('it starts probes in the order given, and a probe the deadline stops before it starts reads unchecked with timeout', async () => {

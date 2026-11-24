@@ -2,9 +2,7 @@ import { stat } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
 import { match } from 'ts-pattern';
 import { checkLimits } from './check-limits.ts';
-import type { CheckProbe, RunProbeCommand } from './types.ts';
-
-export type StatPath = (path: string) => Promise<{ isDirectory: () => boolean }>;
+import type { CheckProbe, RunProbeCommand, StatPath } from './types.ts';
 
 interface PathTarget {
   readonly path: string;

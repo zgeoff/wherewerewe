@@ -55,4 +55,7 @@ export type CommandResult =
 export interface ProbeContext {
   readonly run: RunProbeCommand;
   readonly extra: Extra;
+  readonly statPath?: StatPath;
 }
+
+export type StatPath = (path: string) => Promise<{ isDirectory: () => boolean }>;

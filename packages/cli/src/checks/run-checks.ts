@@ -4,17 +4,17 @@ import { parseCheckTarget } from './parse-check-target.ts';
 import { probeCheck } from './probe-check.ts';
 import { createKillSet, runCommand } from './run-command.ts';
 import type { KillSet } from './run-command.ts';
-import type { CheckRun, ProbeResult, UncheckedReason } from './types.ts';
+import type { CheckRun, ProbeResult, StatPath, UncheckedReason } from './types.ts';
 
 export interface RunChecksOptions {
   readonly deadlineMs: number;
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly now: () => number;
+  readonly statPath?: StatPath;
 }
 
-// Probes each item with a check, and each prs.tsv row that is open and that no item names, at most
-// 8 at once, in the order given. A probe the deadline stops, running or not yet started, reads
-// unchecked with the reason timeout, and a running one's process group is killed.
+// A probe the deadline stops reads unchecked with the reason timeout. The deadline is checked
+// before every command starts, so a probe whose stat returns late starts no git.
 export async function runChecks(
   order: readonly string[],
   items: readonly Item[],
@@ -22,7 +22,17 @@ export async function runChecks(
   options: RunChecksOptions,
 ): Promise<CheckRun> {
   const kills = createKillSet();
-  const jobs = buildJobs({ order, items, prs, env: options.env, kills });
+  const queue = { isStopped: false, next: 0 };
+
+  const jobs = buildJobs({
+    order,
+    items,
+    prs,
+    env: options.env,
+    kills,
+    statPath: options.statPath,
+    isStopped: () => queue.isStopped,
+  });
 
   if (jobs.length === 0) {
     return { results: new Map(), ran: 0, unchecked: 0, reason: null, elapsedMs: 0 };
@@ -31,8 +41,6 @@ export async function runChecks(
   const startMs = options.now();
 
   const found = new Map<string, ProbeResult>();
-
-  const queue = { isStopped: false, next: 0 };
 
   const work = async (): Promise<void> => {
     while (!queue.isStopped && queue.next < jobs.length) {
@@ -53,7 +61,11 @@ export async function runChecks(
   let timer: ReturnType<typeof setTimeout> | undefined = undefined;
 
   const deadline = new Promise<void>((resolve) => {
-    timer = setTimeout(resolve, options.deadlineMs);
+    timer = setTimeout(() => {
+      queue.isStopped = true;
+
+      resolve();
+    }, options.deadlineMs);
   });
 
   await Promise.race([
@@ -96,6 +108,8 @@ interface JobsInput {
   readonly prs: readonly PullRequestRow[];
   readonly env: RunChecksOptions['env'];
   readonly kills: KillSet;
+  readonly statPath: StatPath | undefined;
+  readonly isStopped: () => boolean;
 }
 
 function buildJobs(input: JobsInput): ProbeJob[] {
@@ -124,8 +138,11 @@ function buildJobs(input: JobsInput): ProbeJob[] {
         run: async () => {
           const probe = await probeCheck(target, {
             extra: item?.extra ?? {},
+            ...(input.statPath === undefined ? {} : { statPath: input.statPath }),
             run: (argv, timeoutMs) =>
-              runCommand(argv, { env: input.env, timeoutMs, kills: input.kills }),
+              input.isStopped()
+                ? Promise.resolve({ kind: 'timeout' })
+                : runCommand(argv, { env: input.env, timeoutMs, kills: input.kills }),
           });
 
           return probe.result;
