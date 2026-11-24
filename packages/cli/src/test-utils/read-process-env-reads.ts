@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { listTypeScriptFiles } from './list-type-script-files.ts';
-import { stripComments } from './strip-comments.ts';
+import { parseSourceTokens } from './parse-source-tokens.ts';
+import type { SourceToken } from './parse-source-tokens.ts';
 
 const exemptFiles: ReadonlySet<string> = new Set([
   'src/cli.ts',
@@ -18,37 +19,72 @@ export function readProcessEnvReads(packageDir: string): string[] {
     .flatMap((file) => collectEnvReadLines(file, readFileSync(join(packageDir, file), 'utf8')));
 }
 
-// Each `process.env` becomes a marker that holds its source line before the transpiler cuts the
-// comments, so the line survives the transpiler's reprint, and no name is inlined as a constant.
-const marker = 'processEnvAtLine';
-const envAccess = /process\s*(?:\.\s*env\b|\[\s*["'`]env["'`]\s*\])/gu;
-
-const markedRead = new RegExp(
-  `${marker}(?<line>\\d+)(?:\\.(?<dotName>\\w+)|\\["(?<bracketName>\\w+)"\\])?`,
-  'gu',
-);
-
+// A read is `process` followed by `.env`, `?.env`, `["env"]` or `?.["env"]`, in any spacing and
+// over any lines, and it reports the line of `process`. A name in a comment or a string reads
+// nothing.
 function collectEnvReadLines(file: string, source: string): string[] {
-  const marked = source
-    .split('\n')
-    .map((line, index) => line.replaceAll(envAccess, `${marker}${String(index + 1)}`))
-    .join('\n');
+  const tokens = parseSourceTokens(source);
 
-  const lines = [...stripComments(marked).matchAll(markedRead)]
-    .map((match) => match.groups ?? {})
-    .filter((read) => !isExemptRead(file, read['dotName'], read['bracketName']))
-    .map((read) => `${file}:${String(read['line'])}`);
+  const lines = tokens.flatMap((token, at) => {
+    const access =
+      token.kind === 'word' && token.value === 'process' ? findEnvAccess(tokens, at + 1) : null;
+
+    return access === null || isExemptRead(file, access) ? [] : [`${file}:${String(token.line)}`];
+  });
 
   return [...new Set(lines)];
 }
 
-function isExemptRead(
-  file: string,
-  dotName: string | undefined,
-  bracketName: string | undefined,
-): boolean {
-  const isPathCopy = bracketName === 'PATH';
-  const isLockFolder = file === 'e2e/cli-stale-lock-takeover.test.ts' && dotName === 'LOCK_FOLDER';
+interface EnvAccess {
+  readonly dotName: string | undefined;
+  readonly bracketName: string | undefined;
+}
+
+// What follows `process`: the access to its env and the name read from it, or null for no access.
+function findEnvAccess(tokens: readonly SourceToken[], from: number): EnvAccess | null {
+  const first = tokens.at(from);
+  const isOptional = first?.value === '?' && tokens.at(from + 1)?.value === '.';
+  const afterDot = isOptional ? from + 2 : from + 1;
+
+  const isDotted =
+    (first?.value === '.' || isOptional) &&
+    tokens.at(afterDot)?.kind === 'word' &&
+    tokens.at(afterDot)?.value === 'env';
+
+  const open = isOptional ? from + 2 : from;
+
+  const isBracketed =
+    tokens.at(open)?.value === '[' &&
+    tokens.at(open + 1)?.kind === 'string' &&
+    tokens.at(open + 1)?.value === 'env' &&
+    tokens.at(open + 2)?.value === ']';
+
+  if (!isDotted && !isBracketed) {
+    return null;
+  }
+
+  const rest = isDotted ? afterDot + 1 : open + 3;
+  const named = tokens.at(rest);
+
+  return {
+    dotName:
+      named?.value === '.' && tokens.at(rest + 1)?.kind === 'word'
+        ? tokens.at(rest + 1)?.value
+        : undefined,
+    bracketName:
+      named?.value === '[' &&
+      tokens.at(rest + 1)?.kind === 'string' &&
+      tokens.at(rest + 2)?.value === ']'
+        ? tokens.at(rest + 1)?.value
+        : undefined,
+  };
+}
+
+function isExemptRead(file: string, access: EnvAccess): boolean {
+  const isPathCopy = access.bracketName === 'PATH';
+
+  const isLockFolder =
+    file === 'e2e/cli-stale-lock-takeover.test.ts' && access.dotName === 'LOCK_FOLDER';
 
   return isPathCopy || isLockFolder;
 }

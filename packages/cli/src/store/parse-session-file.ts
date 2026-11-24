@@ -1,3 +1,4 @@
+import { countGrantLines } from '../brief/count-grant-lines.ts';
 import { countGrantWords } from '../rules/count-grant-words.ts';
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { findTextProblem } from '../rules/find-text-problem.ts';
@@ -126,7 +127,7 @@ export function parseSessionFile(text: string): SessionParse {
   };
 }
 
-// A grant has at least one grant_may line and sets grant_reading, grant_where and grant_set; with
+// A grant has at least one grant_may, grant_not or grant_never line and sets grant_reading, grant_where and grant_set; with
 // no grant, the file has no bullet lines and those keys and grant_scope are empty. Returns a reason
 // when the keys are neither, or when a value holds what www grant refuses.
 function parseGrant(
@@ -146,12 +147,12 @@ function parseGrant(
     return null;
   }
 
-  if (may.length === 0 || [reading, where, set].some((value) => value === '')) {
-    return 'a grant needs a grant_may line and grant_reading, grant_where and grant_set';
+  if (all.length === 0 || [reading, where, set].some((value) => value === '')) {
+    return 'a grant needs a bullet line and grant_reading, grant_where and grant_set';
   }
 
   const textProblem = findGrantTextProblem([
-    ...all.map((bullet) => ({ name: 'a grant bullet', value: bullet, limit: grantLimits.bullet })),
+    ...all.map((bullet) => ({ name: 'a grant bullet', value: bullet, limit: grantLimits.words })),
     ...(scope === ''
       ? []
       : [{ name: 'the key grant_scope', value: scope, limit: grantLimits.scope }]),
@@ -191,6 +192,12 @@ function parseGrant(
 
   if (count > grantLimits.words) {
     return `the grant's words are ${String(count)} characters, and the limit is ${String(grantLimits.words)}`;
+  }
+
+  const lines = countGrantLines(words);
+
+  if (lines > grantLimits.lines) {
+    return `the grant takes ${String(lines)} lines in the brief, and the limit is ${String(grantLimits.lines)}`;
   }
 
   return { ...words, reading, where, set };

@@ -103,3 +103,96 @@ test('it reports a read of process.env written as a bracket access', () => {
 
   expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2', 'src/render.ts:3']);
 });
+
+test('it reports a read of process.env split over lines, on the line of process', () => {
+  const packageDir = createTempDir('process-env-split').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    'const a = 1;\nconst host = process[\n"env"\n].X;\n',
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2']);
+});
+
+test('it reports no read in a string that holds the access', () => {
+  const packageDir = createTempDir('process-env-string').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    'const a = 1;\nconst s = "process[\'env\']";\n',
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
+});
+
+test('it reports a read that a keyword follows, and parses it', () => {
+  const packageDir = createTempDir('process-env-keyword').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    'const a = 1;\nconst b = process["env"]instanceof Object;\n',
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2']);
+});
+
+test('it reports a read inside a template substitution, on its own line', () => {
+  const packageDir = createTempDir('process-env-template').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    `const a = 1;\nconst b = \`line\n\${process.env.HOME}\`;\n`,
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:3']);
+});
+
+test.each([
+  { title: 'a division after a postfix step', line: 'let n = 0; n++ / process.env.X;' },
+  { title: 'a division after a grouped value', line: 'const r = (a + b) / process.env.X;' },
+  { title: 'an optional bracket access', line: 'const host = process?.["env"].HOME;' },
+  {
+    title: 'a division after a non-null assertion',
+    line: 'const r = numerator / divisor! / Number(process.env.HOME);',
+  },
+  {
+    title: 'a computed key that starts with PATH',
+    line: 'const p = process.env["PATH" + suffix];',
+  },
+])('it reports a read on a line with $title', (row) => {
+  const packageDir = createTempDir('process-env-slash').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+  writeFileSync(join(packageDir, 'src', 'render.ts'), `const a = 1;\n${row.line}\n`);
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2']);
+});
+
+test.each([
+  { title: 'a regex after the head of an if', line: 'if (ok) /process.env/.test(s);' },
+  { title: 'a regex after the head of a while', line: 'while (ok) /process.env/.test(s);' },
+  { title: 'a regex that starts a statement after a block', line: '{}\n/process.env/.test(s);' },
+  { title: 'a PATH copy', line: 'const p = process.env["PATH"];' },
+])('it reports no read on a line with $title', (row) => {
+  const packageDir = createTempDir('process-env-slash-none').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+  writeFileSync(join(packageDir, 'src', 'render.ts'), `const a = 1;\n${row.line}\n`);
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
+});

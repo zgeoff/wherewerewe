@@ -10,6 +10,7 @@ import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeImportFiles } from '../store/write-import-files.ts';
 import { writeUpgradeFiles } from '../store/write-upgrade-files.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
@@ -1127,7 +1128,7 @@ test('it upgrades a format 1 store with --may, --not, --never and --scope, and w
   });
 });
 
-test('it refuses an upgrade with a second bullet of 121 characters and one Run line that fixes it and drops the extra one-time approvals', async () => {
+test('it refuses an upgrade with a grant of 20 lines and one Run line that fixes it and drops the extra one-time approvals', async () => {
   const ctx = setupTest();
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
   const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
@@ -1145,9 +1146,8 @@ test('it refuses an upgrade with a second bullet of 121 characters and one Run l
       'import',
       'old-notes',
       '--may',
-      'water the beds',
-      '--may',
-      'b'.repeat(121),
+      buildSpacedText(649, 74),
+      ...Array.from({ length: 11 }, () => ['--may', 'o']).flat(),
       '--where',
       'chat',
       '--reading',
@@ -1160,7 +1160,7 @@ test('it refuses an upgrade with a second bullet of 121 characters and one Run l
   const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www'));
 
   const filled = buildFilledRunArgv(runLine ?? '', {
-    '<bullet of at most 120 characters>': 'mow the lawn',
+    '<what the owner allows, in their words>': 'water the beds',
   });
 
   const upgraded = await ctx.run(filled, env, nowMs);
@@ -1173,8 +1173,79 @@ test('it refuses an upgrade with a second bullet of 121 characters and one Run l
   }).toStrictEqual({
     exitCode: 3,
     runLine:
-      'Run: www import old-notes --may "water the beds" --may "<bullet of at most 120 characters>" --where chat --reading "covers watering" --drop ok-wipe',
+      'Run: www import old-notes --may "<what the owner allows, in their words>" --where chat --reading "covers watering" --drop ok-wipe',
     upgradedExit: 0,
-    session: ['grant_may=water the beds', 'grant_may=mow the lawn', 'grant_scope='],
+    session: ['grant_may=water the beds', 'grant_scope=', 'grant_reading=covers watering'],
   });
 });
+
+test.each([
+  {
+    title: '12 bullets',
+    bullets: Array.from({ length: 12 }, () => 'hold'),
+  },
+  {
+    title: '700 characters of words',
+    bullets: [...Array.from({ length: 6 }, () => 'h'.repeat(100)), 'h'.repeat(87)],
+  },
+  {
+    title: '19 lines of the brief',
+    bullets: [buildSpacedText(649, 74), ...Array.from({ length: 10 }, () => 'o')],
+  },
+  {
+    title: 'words that leave room for one character',
+    bullets: [...Array.from({ length: 6 }, () => 'h'.repeat(100)), 'h'.repeat(86)],
+  },
+])(
+  'it refuses standing approvals and $title of --not with the needs-grant lines, and a Run line that runs',
+  async (row) => {
+    const ctx = setupTest();
+    const nowMs = Date.parse('2026-03-10T11:43:00Z');
+    const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
+
+    seedFormat1Store(ctx.stateRoot, 'old-notes');
+
+    const refused = await ctx.run(
+      [
+        'import',
+        'old-notes',
+        ...row.bullets.flatMap((bullet) => ['--not', bullet]),
+        '--scope',
+        'in garden-api',
+        '--where',
+        'chat',
+        '--reading',
+        'covers nothing yet',
+      ],
+      env,
+      nowMs,
+    );
+
+    const lines = refused.stderr.split('\n');
+    const runLine = lines.find((line) => line.startsWith('Run: www'));
+
+    const filled = buildFilledRunArgv(runLine ?? '', {
+      '<what the owner allows, in their words>': 'water the beds',
+      '<what the owner did not grant, in their words>': 'replant the north beds',
+    });
+
+    const upgraded = await ctx.run(filled, env, nowMs);
+
+    expect({
+      exitCode: refused.exitCode,
+      problems: lines.filter((line) => line.startsWith('www: refused')),
+      approvalLines: lines.filter((line) => line.startsWith('  ok-')).length,
+      runLine,
+      upgradedExit: upgraded.exitCode,
+    }).toStrictEqual({
+      exitCode: 3,
+      problems: [
+        "www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
+      ],
+      approvalLines: 2,
+      runLine:
+        'Run: www import old-notes --not "<what the owner did not grant, in their words>" --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"',
+      upgradedExit: 0,
+    });
+  },
+);

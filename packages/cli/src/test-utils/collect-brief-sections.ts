@@ -2,6 +2,6 @@
 export function collectBriefSections(brief: string): string[] {
   return brief
     .split('\n')
-    .filter((line) => /^[A-Z ]+ \(\d+(?: of \d+)?\)/u.test(line))
+    .filter((line) => /^[A-Z ]+ \(\d+(?:, max \d+)?\)/u.test(line))
     .map((line) => line.split(' (')[0] ?? '');
 }

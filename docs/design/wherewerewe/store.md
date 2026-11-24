@@ -1,7 +1,7 @@
 # The store
 
 - **Status:** agreed
-- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
+- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md)
 
 Each session keeps its state in one folder of plain UTF-8 text files that a person can read with `less` and an agent can read with `cut` when the tool is missing. `session`, `items.tsv`, `notes.tsv` and `owner.tsv` are rewritten whole and capped, so they stay the same size on day 14 as on day 2: `items.tsv` by the item caps in [brief.md](brief.md), `notes.tsv` by one row of at most 400 characters per open item, and `session` and `owner.tsv` by the limits in [commands.md](commands.md). `prs.tsv` gains one row per pull request the session opens, but a read probes and prints only the rows still open, and the brief shows at most 1. The journal grows, and no read prints it whole unless `www log` runs with no filter. A build agent reads this doc to build the store module, `www import`, the format 2 upgrade and the lock, in the slice [build-order.md](build-order.md) names.
 
@@ -47,7 +47,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
 format=2                         # the store's format version; see "Versions"
 name=tide-alerts                 # 2–24 of [a-z0-9-], starts with a letter; equals the folder name
 goal=Ship tide alerts in bosun-api and bosun-app: a push alert 2 hours before low water at a saved harbour, behind the tide_alerts flag. Done when alerts-e2e passes on staging.   # 1–200 characters
-grant_may=merge the alert PRs once CI is green and every review finding is answered   # one line per bullet of what the owner allows, 1–120 characters each; at least one in a grant
+grant_may=merge the alert PRs once CI is green and every review finding is answered   # one line per bullet of what the owner allows; none or more
 grant_may=deploy either app to staging whenever you need to
 grant_may=wipe or reseed the staging alerts table as often as you like
 grant_may=open PRs on tidal-org/tidekit from our fork
@@ -67,7 +67,7 @@ last_nudge=2026-03-10T10:40:00Z  # written by the hook; empty until the first nu
 imported_from=0-by-hand          # only in a store that www import converted from a hand-kept store
 ```
 
-A store with a grant has at least one `grant_may` line and sets `grant_reading`, `grant_where` and `grant_set`. A store with no grant has no `grant_may`, `grant_not` or `grant_never` line, and writes `grant_scope`, `grant_reading`, `grant_where` and `grant_set` empty. The bullet lines keep the order the owner gave them in. A grant holds at most 12 bullets, and its bullets and scope together hold at most 700 characters of the owner's words. Every key but the three bullet keys appears once. A `session` whose grant keys hold a value `www grant` would refuse, such as a tab, a lone `-`, a `•` in any of them, a `;` in `grant_where`, a value that looks like a credential, a value or a grant over its limit, or a `grant_set` or `started` that is no UTC time, does not parse. Every command that reads the store then refuses with the text in [commands.md](commands.md), and names the problem without quoting the value.
+A store with a grant has at least one `grant_may`, `grant_not` or `grant_never` line and sets `grant_reading`, `grant_where` and `grant_set`. A store with no grant has no `grant_may`, `grant_not` or `grant_never` line, and writes `grant_scope`, `grant_reading`, `grant_where` and `grant_set` empty. The bullet lines keep the order the owner gave them in. A grant holds at most 12 bullets, which take at most 19 lines of the brief, and its bullets and scope together hold at most 700 characters of the owner's words. Every key but the three bullet keys appears once. A `session` whose grant keys hold a value `www grant` would refuse, such as a tab, a lone `-`, a `•` in any of them, a `;` in `grant_where`, a value that looks like a credential, a value or a grant over its limit, or a `grant_set` or `started` that is no UTC time, does not parse. Every command that reads the store then refuses with the text in [commands.md](commands.md), and names the problem without quoting the value.
 
 ### items.tsv
 
@@ -188,7 +188,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - A cell or a `session` value never holds a tab or a line break, a Unicode line or paragraph separator among them: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
 - A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where` or `--scope` that holds one.
 - `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row.
-- `notes.tsv` holds only notes on open items, at most one per item, and at most 22 rows in format 1 and 44 in format 2. The format 2 upgrade keeps at most 22 notes, all of which fit under 44. A missing `notes.tsv` reads as no notes.
+- `notes.tsv` holds only notes on open items, at most one per item, so it holds no more rows than `items.tsv`. A missing `notes.tsv` reads as no notes.
 - A write rewrites `items.tsv` before `notes.tsv`. A close that stops between the two leaves a `notes.tsv` row whose id names no open item, and never an open item that lost its note. Every read leaves such a row out with no warning, and the next write that rewrites `notes.tsv` drops it.
 - A `notes.tsv` row that does not parse does not break the store. Each read leaves the row out and names it on stderr, as `www: tide-alerts's notes.tsv line 3 does not parse: the id repeats an earlier row. The brief leaves out what it could not read. Fix the file by hand.` A write with `--note` or `--no-note`, `done`, `drop` and `use` refuse with the text in [commands.md](commands.md), because the row left out may be the item's owed note. Every other write works.
 - An id closed once is never reused in that session: a new item with a closed id is refused.
@@ -200,13 +200,14 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 
 ## Versions
 
-- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. The item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks.
+- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. The other item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
 - A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
 - A store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
 - A store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
 - A read never converts a store. Each later format ships with an upgrade that `www import` runs.
+- A format 2 store whose grant has no `grant_may` line, or a bullet over 120 characters, is refused by the tool of `5fdaa5e`, the task-cap merge before [decision record 0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), and by every older one. Each of its commands that reads the store and fails on it, such as `www`, `www show` or `www task`, exits 3 with `www: <name>'s session does not parse: a grant needs a grant_may line and grant_reading, grant_where and grant_set. Fix the file by hand.`, or `a grant bullet is <n> characters, and the limit is 120` in place of the reason, and `Run: less <path to the store>/session`; `www help` skips the store, and `www sessions` reads the file, prints `<name>  unreadable session file` for it and exits 0. That tool writes nothing to that store, so the format stays 2.
 
 ## The format 2 upgrade
 
@@ -224,10 +225,10 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 | an `ok` item with `use=once`                           | the same row without `use`, unless `--drop` names it                                           |
 | an item that `--drop` names                            | removed, with its note; a `drop` row with `why` `dropped by the format 2 upgrade`              |
 | every other item, note, owner note and pull request row | the same row                                                                                   |
-| the journal                                            | the same rows, then the `drop` rows above, a `grant` row when `--may` is given, and an `import` row with `text` `format 1 -> 2` |
+| the journal                                            | the same rows, then the `drop` rows above, a `grant` row when a bullet flag is given, and an `import` row with `text` `format 1 -> 2` |
 | `now` naming an item the upgrade removes               | empty `now`, `now_next` and `now_set`, as a close of the item in focus leaves them              |
 
-- When the store holds a standing approval and the command has no `--may`, the upgrade refuses. The refusal prints each standing approval's words and scope, and a `Run:` line with `--may`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so every brief shows the approvals or the grant.
+- When the store holds a standing approval and the command has no `--may`, the upgrade refuses. A standing approval is something the owner allowed, so the grant that replaces it holds at least one `may` bullet, or the upgrade would drop a permission the owner gave. The refusal prints each standing approval's words and scope, and a `Run:` line with `--may`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so every brief shows the approvals or the grant.
 - When the store holds more than one one-time approval, the upgrade refuses, names each with its age, and prints a `Run:` line whose `--drop` names every one except the newest.
 - When the store holds an item with the id `grant`, the upgrade refuses, and its `Run:` line adds `grant` to `--drop`.
 - The upgrade prints each note it removes in its reply, after the first line, so an owed note on a standing approval reaches the agent.

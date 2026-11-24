@@ -106,7 +106,7 @@ function renderNotes(input: RecapInput): string[] {
 
   return [
     cutRedactedLine(
-      `NOTES (${String(shown.length)} of ${String(noted.length)} notes, on ${String(input.items.length)} open items) · owed first, then newest`,
+      `NOTES (${String(noted.length)} on ${String(input.items.length)} open items) · owed first, then newest`,
     ),
     ...shown.flatMap((entry) => {
       const item = entry.item;

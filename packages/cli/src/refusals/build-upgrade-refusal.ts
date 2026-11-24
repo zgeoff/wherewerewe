@@ -1,11 +1,16 @@
 import { match } from 'ts-pattern';
+import { countGrantLines } from '../brief/count-grant-lines.ts';
+import { countGrantWords } from '../rules/count-grant-words.ts';
+import { grantLimits } from '../rules/grant-limits.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
-import type { ApprovalLine, Refusal, RefusalReason, UpgradeProblem } from '../types.ts';
+import type { ApprovalLine, ParsedArgs, Refusal, RefusalReason, UpgradeProblem } from '../types.ts';
+import { toGrantWords } from '../writes/to-grant-words.ts';
 import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
 import { fixGrantText } from './fix-grant-text.ts';
 import { formatList } from './format-list.ts';
+import { replaceGrantBullets } from './replace-grant-bullets.ts';
 import { toRedactedRunWord } from './to-redacted-run-word.ts';
 
 type UpgradeRefusalReason = Extract<RefusalReason, { kind: 'upgrade-refused' }>;
@@ -63,7 +68,7 @@ function buildProblemLines(
       `www: refused: format 2 keeps the id grant for the grant, and ${name} has an item grant. Drop it, and write it again under a new id after the upgrade.`,
     ])
     .with({ kind: 'grant-needs-part' }, () => [
-      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
     ])
     .with({ kind: 'grant-text' }, (found) => [...buildReason(found.reason).lines])
     .with({ kind: 'drop-unknown' }, (found) => [
@@ -90,9 +95,39 @@ function addNeededGrantFlags(spec: RunSpec, found: UpgradeRefusalReason): RunSpe
     (problem) => problem.kind === 'needs-grant' || problem.kind === 'grant-needs-part',
   );
 
+  // a standing approval is something the owner allowed, so its grant needs a --may of its own
+  const needsMay = found.problems.some((problem) => problem.kind === 'needs-grant');
+
   const typed = new Set(found.args.flags.map((flag) => flag.name));
 
-  return needsGrant ? addGrantFlags(spec, typed) : spec;
+  const mayFlags = needsMay ? ['may'] : ['may', 'not', 'never'];
+
+  // the may bullet the line adds holds the standing approvals' words, so it must fit beside the
+  // typed bullets, or the filled line would be refused for a grant the command never typed
+  const standingWords = found.problems
+    .flatMap((problem) => (problem.kind === 'needs-grant' ? problem.approvals : []))
+    .map((approval) => approval.quote)
+    .join('; ');
+
+  const fitted =
+    needsMay && !typed.has('may') && isGrantFullForMayBullet(found.args, standingWords)
+      ? replaceGrantBullets(spec, found.args.flags)
+      : spec;
+
+  return needsGrant ? addGrantFlags(fitted, typed, mayFlags) : fitted;
+}
+
+// Whether one more bullet of the words, at least one character, breaks a limit of the grant's
+// bullets, words or lines.
+function isGrantFullForMayBullet(args: ParsedArgs, words: string): boolean {
+  const typedWords = toGrantWords(args);
+  const withMay = { ...typedWords, may: [...typedWords.may, words === '' ? '\u2460' : words] };
+
+  return (
+    withMay.may.length + withMay.not.length + withMay.never.length > grantLimits.bullets ||
+    countGrantWords(withMay) > grantLimits.words ||
+    countGrantLines(withMay) > grantLimits.lines
+  );
 }
 
 function fixProblem(

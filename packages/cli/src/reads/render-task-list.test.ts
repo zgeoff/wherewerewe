@@ -28,7 +28,7 @@ test('it lists the tasks in the brief order with a note and an owed note under t
 
   expect(text).toStrictEqual(
     [
-      'OPEN (3 of 30)',
+      'OPEN (3, max 30)',
       '  t-c         Write the parser  [no check · 3h · owed]',
       '    owed note (3h): Turn the flag off',
       '  t-b         Write the parser  [no check · 1h]',
@@ -69,7 +69,7 @@ test('it prints only the heading when no task is open', () => {
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
   });
 
-  expect(text).toStrictEqual('OPEN (0 of 30)\n');
+  expect(text).toStrictEqual('OPEN (0, max 30)\n');
 });
 
 test('it lists a task whose saved result differs from the one written second, after the focus', () => {

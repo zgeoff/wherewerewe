@@ -585,6 +585,46 @@ test('it prints show grant with no scope and one group, the heading and the read
   );
 });
 
+test('it prints show grant for a grant of only a not bullet', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'grant',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-03T09:00:00Z',
+        op: 'grant',
+        id: 'grant',
+        by: 'agent',
+        text: 'not: replant the north beds before the soil report is in',
+        why: 'covers nothing yet',
+        extra: 'where=chat',
+      }),
+    ],
+    {
+      grant: {
+        may: [],
+        not: ['replant the north beds before the soil report is in'],
+        never: [],
+        scope: null,
+        reading: 'covers nothing yet',
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    },
+  );
+
+  expect(
+    text.split('\n').filter((line) => /^(?:grant|  (?:may|not|never|reading|journal))/u.test(line)),
+  ).toStrictEqual([
+    'grant  from the owner in chat',
+    '  not    • replant the north beds before the soil report is in',
+    '  reading (7d), set on day 2: covers nothing yet',
+    '  journal: day 2 grant',
+  ]);
+});
+
 test('it names the owner as the one who set the words when the agent replaces the reading in the same second', () => {
   const ctx = setupTest();
 

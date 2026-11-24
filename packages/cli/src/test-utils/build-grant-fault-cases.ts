@@ -1,3 +1,5 @@
+import { buildSpacedText } from './build-spaced-text.ts';
+
 export interface GrantFaultCase {
   // the faults it holds, joined by commas
   readonly title: string;
@@ -9,6 +11,10 @@ interface GrantCommand {
   readonly bullets: readonly (readonly [string, string])[];
   readonly reading: string;
   readonly where: string | null;
+
+  // the --may water that every command carries, and the --scope some faults add in its place
+  readonly isBaseKept: boolean;
+  readonly scope: string | null;
 }
 
 // `www grant` commands with each fault alone, each pair of faults, and all of them at once.
@@ -27,6 +33,8 @@ export function buildGrantFaultCases(): GrantFaultCase[] {
         bullets: [],
         reading: 'covers watering',
         where: 'chat',
+        isBaseKept: true,
+        scope: null,
       }),
     ),
   }));
@@ -47,6 +55,18 @@ function buildFaults(): Fault[] {
       'words over 700 characters',
       addBullets(...Array.from({ length: 6 }, (): [string, string] => ['not', 'n'.repeat(120)])),
     ],
+    [
+      'a grant over 19 lines',
+      addBullets(
+        ['may', buildSpacedText(649, 74)],
+        ...Array.from({ length: 10 }, (): [string, string] => ['may', 'o']),
+      ),
+    ],
+    [
+      '13 bullets',
+      addBullets(...Array.from({ length: 12 }, (): [string, string] => ['never', 'n'])),
+    ],
+    ['no bullet', (command) => ({ ...command, isBaseKept: false, scope: 'in garden-api' })],
     ['a line break', addBullets(['may', 'water\nthe beds'])],
     ['a bullet mark', addBullets(['not', 'dig • spray'])],
     ['a credential', addBullets(['not', `token ${faultCredential}`])],
@@ -66,8 +86,8 @@ function buildArgv(command: GrantCommand): string[] {
   return [
     'grant',
     ...command.positionals,
-    '--may',
-    'water',
+    ...(command.isBaseKept ? ['--may', 'water'] : []),
+    ...(command.scope === null ? [] : ['--scope', command.scope]),
     ...command.bullets.flatMap(([flag, value]) => [`--${flag}`, value]),
     '--reading',
     command.reading,

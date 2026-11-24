@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
 import type { AgentID } from '../types.ts';
 import { pickUpgrade } from './pick-upgrade.ts';
@@ -263,13 +264,13 @@ test.each([
     title: 'only --may',
     argv: ['--may', 'Go.'],
     first:
-      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
   },
   {
-    title: 'only --not',
+    title: 'standing approvals and only --not',
     argv: ['--not', 'Go.', '--where', 'chat', '--reading', 'r'],
     first:
-      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      "www: refused: garden-beds holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
   },
   {
     title: 'words of 701 characters across bullets and scope',
@@ -288,10 +289,18 @@ test.each([
       "www: refused: the grant's words are 701 characters in its bullets and scope, and the limit is 700.",
   },
   {
-    title: 'a bullet of 121 characters',
-    argv: ['--may', 'b'.repeat(121), '--where', 'chat', '--reading', 'r'],
+    title: 'a grant of 20 lines in the brief',
+    argv: [
+      '--may',
+      buildSpacedText(649, 74),
+      ...Array.from({ length: 11 }, () => ['--may', 'o']).flat(),
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ],
     first:
-      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
+      'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.',
   },
   {
     title: '13 bullets',
@@ -321,9 +330,9 @@ test.each([
     'an item named grant': `${noStanding}${grantRow}`,
     'a --drop that names no item': noStanding,
     'only --may': ctx.files.items,
-    'only --not': noStanding,
+    'standing approvals and only --not': ctx.files.items,
     'words of 701 characters across bullets and scope': ctx.files.items,
-    'a bullet of 121 characters': ctx.files.items,
+    'a grant of 20 lines in the brief': ctx.files.items,
     '13 bullets': ctx.files.items,
     'a scope of 41 characters': ctx.files.items,
   };
@@ -495,12 +504,20 @@ test('it writes the bullets, the scope and the grant journal row of an upgrade w
   });
 });
 
-test('it refuses a second bullet of 121 characters with one Run line that replaces only that bullet and adds --drop', () => {
+test('it refuses a grant of 20 lines with one Run line that replaces its bullets and adds --drop', () => {
   const ctx = setupTest();
   const once = ctx.files.items.replaceAll('use=standing', 'use=once');
 
   const picked = ctx.pick(
-    ['--may', 'water the beds', '--may', 'b'.repeat(121), '--where', 'chat', '--reading', 'r'],
+    [
+      '--may',
+      buildSpacedText(649, 74),
+      ...Array.from({ length: 11 }, () => ['--may', 'o']).flat(),
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ],
     { files: { items: once } },
   );
 
@@ -509,7 +526,7 @@ test('it refuses a second bullet of 121 characters with one Run line that replac
     '  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api  [7d]',
     '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds  [6d]',
     '  ok-wipe    "you can wipe the staging sensor table once" · staging sensor table  [5d]',
-    'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
-    'Run: www import garden-beds --may water the beds --may <bullet of at most 120 characters> --where chat --reading r --drop ok-merge --drop ok-deploy',
+    'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.',
+    'Run: www import garden-beds --may <what the owner allows, in their words> --where chat --reading r --drop ok-merge --drop ok-deploy',
   ]);
 });

@@ -2,7 +2,7 @@
 
 Check that a session holds 20 open tasks and that the owner reads them in two places. A user starts
 a session, writes a wait, a task blocked by it, a task with an owed note and 18 more tasks, and sets
-one in focus. The brief prints all 20 task rows under `OPEN (20 of 30)`, 30 being the task limit,
+one in focus. The brief prints all 20 task rows under `OPEN (20, max 30)`, 30 being the task limit,
 the item in focus first, once for a Codex agent and once for a Claude Code agent. `www show` with no
 id lists every task with the owed note whole. The journey runs the real `www` as a process, with its
 home and state folders inside the run's folder under `.wringer/`, so it never touches your own
@@ -37,13 +37,13 @@ bun verify www run --line 'www --session trial-tasks task t-18 "Check the app si
 bun verify www run --line 'www --session trial-tasks task t-19 "Write the migration notes for support"' --expect 't-19  task, open, no check.'
 bun verify www run --line 'www --session trial-tasks task t-20 "Write the release notes for the routing move"' --expect 't-20  task, open, no check.'
 bun verify www run --line 'www --session trial-tasks now t-20 "draft the notes from the merged PRs"' --expect 'now: t-20.'
-bun verify www run --host codex --line 'www --session trial-tasks' --expect 'OPEN (20 of 30)'
+bun verify www run --host codex --line 'www --session trial-tasks' --expect 'OPEN (20, max 30)'
 bun verify www run --host codex --line 'www --session trial-tasks' --expect '  t-20        Write the release notes for the routing move'
 bun verify www run --host codex --line 'www --session trial-tasks' --expect '  t-01        Port the stop search to the routing API'
-bun verify www run --host claude --line 'www --session trial-tasks' --expect 'OPEN (20 of 30)'
+bun verify www run --host claude --line 'www --session trial-tasks' --expect 'OPEN (20, max 30)'
 bun verify www run --host claude --line 'www --session trial-tasks' --expect '  t-20        Write the release notes for the routing move'
 bun verify www run --host claude --line 'www --session trial-tasks' --expect '  t-01        Port the stop search to the routing API'
-bun verify www run --line 'www --session trial-tasks show' --expect 'OPEN (20 of 30)'
+bun verify www run --line 'www --session trial-tasks show' --expect 'OPEN (20, max 30)'
 bun verify www run --line 'www --session trial-tasks show' --expect 'Turn the ferry_v2 flag off in staging before this closes: QA demos on Friday.'
 bun verify www run --line 'www --session trial-tasks show' --expect '  t-11        Update the offline timetable bundle'
 ```
@@ -51,11 +51,10 @@ bun verify www run --line 'www --session trial-tasks show' --expect '  t-11     
 ## End state
 
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: the session
-  holds 20 open tasks, which a store capped at 6 refuses from the 7th. The brief prints all 20 rows
-  under `OPEN (20 of 30)`, with the item in focus and the oldest task among them, read once with the
-  Codex host and once with the Claude Code host. `www show` lists every task with the owed note
-  whole. A `bun verify www run` fails with `check-failed` when `www` exits other than 0 or prints
-  other text.
+  holds 20 open tasks. The brief prints all 20 rows under `OPEN (20, max 30)`, with the item in
+  focus and the oldest task among them, read once with the Codex host and once with the Claude Code
+  host. `www show` lists every task with the owed note whole. A `bun verify www run` fails with
+  `check-failed` when `www` exits other than 0 or prints other text.
 - The note's count, 77, is code points.
 - No expected text holds an age or the order of two tasks written in the same second, which depend
   on real time.

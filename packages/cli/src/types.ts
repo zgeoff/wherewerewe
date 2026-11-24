@@ -49,8 +49,9 @@ export interface Note {
   readonly note: string;
 }
 
+// A grant has at least one bullet in may, not or never.
 export interface Grant {
-  // what the owner allows, one bullet each in the owner's words; at least one
+  // what the owner allows, one bullet each in the owner's words
   readonly may: readonly string[];
 
   // what the owner did not grant, one bullet each in the owner's words
@@ -396,6 +397,11 @@ export type RefusalReason =
       readonly kind: 'grant-too-many-bullets';
       readonly args: ParsedArgs;
       readonly count: number;
+    }
+  | {
+      readonly kind: 'grant-too-many-lines';
+      readonly args: ParsedArgs;
+      readonly lines: number;
     }
   | {
       readonly kind: 'text-has-mark';

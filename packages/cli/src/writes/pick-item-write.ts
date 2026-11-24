@@ -7,6 +7,7 @@ import { formatCommandLine } from '../refusals/format-command-line.ts';
 import { toPlaceholder } from '../refusals/to-placeholder.ts';
 import { canBlock } from '../rules/can-block.ts';
 import { isItemID } from '../rules/is-item-id.ts';
+import { itemCaps } from '../rules/item-caps.ts';
 import { parseCheckFlags } from '../rules/parse-check-flags.ts';
 import type { CheckFlagsResult } from '../rules/parse-check-flags.ts';
 import type { Extra, Item, Kind, Note, ParsedArgs, RefusalReason } from '../types.ts';
@@ -373,8 +374,6 @@ function pickCapRefusal(input: WriteInput, id: string, isSet: boolean): RefusalR
   return pickFullKind(input.store.items, input.store.notes, kind);
 }
 
-const caps: Readonly<Record<Kind, number>> = { task: 30, wait: 4, rule: 5, where: 4, ok: 1 };
-
 // The refusal offers to close the oldest item that owes no note, because `done` refuses an owed
 // note; when every item owes one, the oldest, whose `done` refusal names the way to clear it.
 function pickFullKind(
@@ -388,7 +387,7 @@ function pickFullKind(
 
   const oldest = ofKind.find((item) => !owedIDs.has(item.id)) ?? ofKind[0];
 
-  return oldest !== undefined && ofKind.length >= caps[kind]
+  return oldest !== undefined && ofKind.length >= itemCaps[kind]
     ? { kind: 'kind-full', itemKind: kind, oldestID: oldest.id }
     : null;
 }

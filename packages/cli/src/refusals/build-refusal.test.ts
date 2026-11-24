@@ -8,6 +8,7 @@ import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
@@ -2579,6 +2580,30 @@ test.each([
     ],
   },
   {
+    title: 'an upgrade of a store with standing approvals and only --not',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nok-merge\tok\tmerge the garden-api PRs yourself once CI is green\t-\t-\t-\t2026-03-03T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=standing\nok-deploy\tok\tdeploy to the staging beds whenever you need to\t-\t-\t-\t2026-03-04T09:00:00Z\tagent\twho=owner;where=chat;scope=staging beds;use=standing\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes', '--not', 'Replant the north beds.'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nwww: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --not "Replant the north beds." --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [
+      {
+        '<what the owner allows, in their words>': 'Merge it yourself.',
+        '<what they cover; what the owner kept back>': 'covers merges',
+      },
+    ],
+  },
+  {
     title: 'an upgrade of a store with two one-time approvals',
     format1: 'old-notes',
     setup: [],
@@ -2746,7 +2771,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --may "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --may "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [{ '<what they cover; what the owner kept back>': 'covers merges' }],
   },
   {
@@ -2784,36 +2809,6 @@ test.each([
         '<what the owner did not grant, in their words>': 'Prune the roses.',
       },
     ],
-  },
-  {
-    title: 'an upgrade with a second --may of 121 characters',
-    format1: 'old-notes',
-    setup: [],
-    files: [
-      {
-        session: 'old-notes',
-        name: 'items.tsv',
-        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
-      },
-      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
-    ],
-    argv: [
-      'import',
-      'old-notes',
-      '--may',
-      'Water the beds.',
-      '--may',
-      'b'.repeat(121),
-      '--where',
-      'chat',
-      '--reading',
-      'covers watering',
-    ],
-    env: 'agent',
-    exitCode: 3,
-    stderr:
-      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.\nRun: www import old-notes --may "Water the beds." --may "<bullet of at most 120 characters>" --where chat --reading "covers watering"\n',
-    fills: [{ '<bullet of at most 120 characters>': 'Mow the lawn.' }],
   },
   {
     title: 'an upgrade that meets every problem at once',
@@ -2875,7 +2870,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
         '<what the owner allows, in their words>': 'Merge it yourself.',
@@ -2891,18 +2886,57 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --may "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --may "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
     fills: [{ '<what they cover; what the owner kept back>': 'covers merges' }],
   },
   {
-    title: 'a grant with only --not and no --may',
+    title: 'a grant with only --not',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     files: [],
-    argv: ['grant', '--not', 'Prune the roses.', '--where', 'chat', '--reading', 'covers watering'],
+    argv: ['grant', '--not', 'Replant the north beds before the soil report is in.'],
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --not "Prune the roses." --where chat --reading "covers watering" --may "<what the owner allows, in their words>"\n',
+      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --not "Replant the north beds before the soil report is in." --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [{ '<what they cover; what the owner kept back>': 'covers nothing yet' }],
+  },
+  {
+    title: 'a grant with only --scope, --where and --reading',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--scope',
+      'in garden-api',
+      '--where',
+      'chat',
+      '--reading',
+      'covers nothing yet',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"\n',
+    fills: [{ '<what the owner allows, in their words>': 'Water the beds.' }],
+  },
+  {
+    title: 'a grant of 20 lines in the brief',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      buildSpacedText(649, 74),
+      ...Array.from({ length: 11 }, () => ['--may', 'o']).flat(),
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.\nRun: www grant --may "<what the owner allows, in their words>" --where chat --reading "covers watering"\n',
     fills: [{ '<what the owner allows, in their words>': 'Water the beds.' }],
   },
   {
@@ -2913,7 +2947,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a grant needs at least one --may in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --where chat --may "<what the owner allows, in their words>" --reading "<what they cover; what the owner kept back>"\n',
+      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --where chat --may "<what the owner allows, in their words>" --reading "<what they cover; what the owner kept back>"\n',
     fills: [
       {
         '<what the owner allows, in their words>': 'Merge it yourself.',
@@ -2983,27 +3017,6 @@ test.each([
         '<what the owner ruled out, in their words>': 'Dig up the roses.',
       },
     ],
-  },
-  {
-    title: 'a grant with a second --may of 121 characters',
-    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
-    files: [],
-    argv: [
-      'grant',
-      '--may',
-      'Water the beds.',
-      '--may',
-      'b'.repeat(121),
-      '--where',
-      'chat',
-      '--reading',
-      'covers watering',
-    ],
-    env: 'agent',
-    exitCode: 3,
-    stderr:
-      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.\nRun: www grant --may "Water the beds." --may "<bullet of at most 120 characters>" --where chat --reading "covers watering"\n',
-    fills: [{ '<bullet of at most 120 characters>': 'Mow the lawn.' }],
   },
   {
     title: 'a grant scope of 41 characters',
@@ -3358,31 +3371,6 @@ test.each([
     stderr:
       'www: the value of --never starts with a dash, so it reads as a flag. Join the two with =, as in --never="<value>".\nRun: www grant --may water --where chat --reading "covers watering" --never="-keep the gate shut"\n',
     fills: [{}],
-  },
-  {
-    title: 'a grant of 700 characters with no --may, which has no room for one',
-    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
-    files: [],
-    argv: [
-      'grant',
-      '--not',
-      'n'.repeat(100),
-      ...Array.from({ length: 5 }, () => ['--not', 'n'.repeat(120)]).flat(),
-      '--where',
-      'chat',
-      '--reading',
-      'covers watering',
-    ],
-    env: 'agent',
-    exitCode: 3,
-    stderr:
-      'www: refused: the grant\'s words are 701 characters in its bullets and scope, and the limit is 700.\nRun: www grant --may "<what the owner allows, in their words>" --not "<what the owner did not grant, in their words>" --where chat --reading "covers watering"\n',
-    fills: [
-      {
-        '<what the owner allows, in their words>': 'Water.',
-        '<what the owner did not grant, in their words>': 'Prune.',
-      },
-    ],
   },
   {
     title: 'an unknown flag that looks like a credential',

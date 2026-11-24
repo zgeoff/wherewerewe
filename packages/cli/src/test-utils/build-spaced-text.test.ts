@@ -8,3 +8,11 @@ test.each([700, 200, 21, 20, 1])('it builds text of exactly %i characters', (len
 test('it joins words of at most 20 characters with single spaces', () => {
   expect(buildSpacedText(45)).toBe(`${'g'.repeat(20)} ${'g'.repeat(20)} ${'g'.repeat(3)}`);
 });
+
+test('it joins words of the length asked for, the last one shorter', () => {
+  expect(
+    buildSpacedText(649, 74)
+      .split(' ')
+      .map((word) => word.length),
+  ).toStrictEqual([74, 74, 74, 74, 74, 74, 74, 74, 49]);
+});
