@@ -192,6 +192,12 @@ export function createVerifyRegistry(): Wringer {
         "Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant",
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
+    .feature({
+      name: 'recap',
+      summary:
+        'Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
     .shared(
       'scripts/verify/**',
       'package.json',
