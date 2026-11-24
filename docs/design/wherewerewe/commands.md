@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0012](../../decisions/0012-a-capped-heading-names-its-max.md)
 
-`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note below that line, and a claim write that keeps an older note adds the older-note line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
+`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note before that line, and a claim write that keeps an older note prints the older-note line before it, so the reply always ends on that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
 
 ## Contracts
 
@@ -64,7 +64,7 @@ A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items an
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2d and decision records 0009 and 0011, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff and the grant's diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 2d, decision records 0009 and 0011, and the limits' diff, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff and the limits' diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -185,6 +185,21 @@ The grant's shapes and its lines, decision record 0011:
 +4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
+Every limit the code enforces, so an agent reads each one before a write refuses it:
+
+```diff
+@@ -44,3 +44,6 @@
+-Limits: a claim is one line of at most 120 characters, a note 400, the grant's words 700 in at most
+-12 bullets on at most 19 lines of the brief, and its reading 200. A session holds at most 30 tasks,
+-4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
++Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
++a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or --for 200.
++An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 120, --who 16,
++--where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
++12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
++A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
+```
+
 ### Signatures
 
 ```ts
@@ -296,8 +311,8 @@ $ www task t-flag "Turn on the tide_alerts flag in staging config" --blocked-by 
 t-flag  task, open, no check, note 135 of 400, owed. Brief: 49 lines.
 
 $ www set pr-api-77 "Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07" --pr bosunhq/bosun-api#77
-pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.
   its note is 1h older than this claim. Replace it with www set pr-api-77 --note "<detail>", or clear it with www set pr-api-77 --no-note
+pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.
 
 $ www decide "Retry a 503 from the tide feed 3 times, 2 s apart" --why "The feed returns 503 for about 4 s during its hourly refresh" --on pr-api-77
 d-23  decision on pr-api-77. Read it with: www show pr-api-77. Brief: 47 lines.
@@ -306,10 +321,10 @@ $ www done pr-app-61 --evidence "merged as 51aa0e2, seen by check"
 pr-app-61  done. Off the brief, kept in the journal. Brief: 45 lines.
 
 $ www now pr-api-77 "fix the failing lint job on 9b41c07, push, then request review"
-now: pr-api-77, with its note (1h). Brief: 45 lines.
     The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a
     longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in
     the retry helper, not on the retry logic.
+now: pr-api-77, with its note (1h). Brief: 45 lines.
 
 $ www grant --reading "covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases"
 grant reading: 197 of 200. Brief: 45 lines.
