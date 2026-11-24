@@ -5,7 +5,7 @@
 
 ## Decision
 
-A `PostToolUse` hook writes `read` to the gate file when the main agent ran the brief command, the host reported success, the output starts with the bound session's header and ends with the brief's footer, the output holds no host truncation marker, and on Codex the call's `max_output_tokens` leaves room for the whole output. A subagent's read, where the payload shows it, and a piped, filtered or redirected read never counts.
+A `PostToolUse` hook writes `read` to the gate file when the main agent ran the brief command, the host reported success, the output starts with the bound session's header and ends with the brief's footer, the output holds no host truncation marker, and on Codex the call's `max_output_tokens` leaves room for the whole output. A subagent's read, where the payload carries `agent_id`, and a piped, filtered or redirected read never counts.
 
 ## Why
 
@@ -26,4 +26,4 @@ A `PostToolUse` hook writes `read` to the gate file when the main agent ran the 
 
 - The brief's header start and its footer line are a contract between the renderer and the hook, pinned by a test.
 - On Codex, the shape of `tool_response` for a shell call is unverified until a real Codex session records it.
-- Codex documents `agent_id` on no tool event, so a Codex subagent's whole read can pass for the main agent's. A real Codex session settles it before the hooks slice merges, and the rule for Codex changes if a subagent's payload shows nothing that tells it apart.
+- Codex documents `agent_id` on no tool event, so a Codex subagent's whole read counts like the main agent's. The cost is accepted: the subagent exists only after the parent's call passed the gate, and it reads the parent's own brief. A real Codex session records whether Codex sends `agent_id` on tool events, and when it does, this rule already covers it.

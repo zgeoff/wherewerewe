@@ -57,7 +57,7 @@ Each bind and detach adds a `bind` journal row with the harness and id in `extra
 | -------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------- |
 | Session id in a shell command's environment                         | `CLAUDE_CODE_SESSION_ID`, equal to the hook's `session_id` (docs) | `CODEX_SESSION_ID` and `CODEX_THREAD_ID`, both equal to the thread id, which a compaction keeps (seen in Codex 0.169.1) |
 | Session id on hook stdin                                             | `session_id`                                  | `session_id`                                  |
-| A subagent's shell sees the parent's id                              | yes: a subagent of this design's own session saw the parent's `CLAUDE_CODE_SESSION_ID`, and its tool calls carry `agent_id` | the docs say subagents report the parent's id, and document `agent_id` on no tool event; not tested |
+| A subagent's shell sees the parent's id                              | yes: a subagent of this design's own session saw the parent's `CLAUDE_CODE_SESSION_ID`, and its tool calls carry `agent_id` | the docs say subagents report the parent's id, and document `agent_id` on no tool event, so a subagent's payload is taken as the main agent's; not tested |
 | The id changes                                                       | on `/clear` (docs); resume and fork not documented | not documented                           |
 | Hook output put into context                                         | 10,000 characters of plain stdout; past that, a 2,000-character preview ([hooks](https://code.claude.com/docs/en/hooks)) | about 2,500 tokens, which a handler's `additionalContextLimit` raises (docs) |
 | Shell output that reaches the model whole                            | 30,000 characters; past that, a file path and a 2,000-character preview (measured on 2.1.331) | 39,000 bytes with `max_output_tokens` at 10,000 or absent, and the model sets that parameter itself, at 1,000 to 6,000 when nothing names it; past 39,000 the middle is cut (measured on 0.169.1) |
@@ -115,14 +115,14 @@ The gate refuses a call only for an agent session id that has a binding and a ga
 
 The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds the agent session id to another store, the file's `session` no longer matches the binding, and `PreToolUse` and `Stop` treat the state as `wiped` for the new session and rewrite the file, so a `read` of the old store's brief never opens the gate for the new one.
 
-Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> cuts=<0|1> at=<UTC time>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about, and `cuts` counts the cut reads since the last wipe. `www` never writes it.
+Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> cuts=<0|1> at=<UTC time to the millisecond>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about, `cuts` counts the cut reads since the last wipe, and `at` is when the state was last written: a refusal that leaves the state alone does not rewrite the file. `www` never writes it.
 
 ```ts
 // hooks module: the gate file's one line
 type GateState =
   | 'wiped' // SessionStart wrote it: the brief is not in context
-  | 'tried' // PreToolUse let the brief command through, and PostToolUse has not seen a whole read; the read may still be running
-  | 'held' // PreToolUse refused one call while the state was tried, so the next call that is not a www command opens the gate
+  | 'tried' // PreToolUse let the brief command through from wiped or cut, and PostToolUse has not seen a whole read; the read may still be running
+  | 'held' // PreToolUse refused the first call that arrived 2 seconds or more after tried, so the next call that is not a www command opens the gate
   | 'read' // PostToolUse saw the main agent read this session's brief whole
   | 'cut' // on Codex, the brief command's output reached the model cut; PreToolUse refuses the next call once with the cut reason
   | 'open'; // the brief command ran with no whole read after it, so calls pass until the next SessionStart
@@ -131,7 +131,7 @@ type GateState =
 When each hook writes a state:
 
 - `SessionStart` writes `wiped` with `cuts=0` for a bound id, on every source: `startup`, `resume`, `clear`, `compact` and `fork`. After `clear` or `fork` the id can change, and a new id has no binding, so nothing is gated.
-- `PreToolUse` writes `tried` when it lets the brief command through while the state is `wiped`. In any other state the brief command passes and changes nothing.
+- `PreToolUse` writes `tried` when it lets the brief command through while the state is `wiped` or `cut`, so a retry from `cut` that fails follows the same path as any failed read. In any other state the brief command passes and changes nothing.
 - `PostToolUse` writes `read` on a whole read, whatever the state.
 - `PostToolUse` writes `cut` when a Codex brief command's output was cut and `cuts` is 0, and sets `cuts` to 1. When `cuts` is already 1, it writes `held`: a second cut read counts as no whole read.
 - `PreToolUse` on a call that is not a `www` command acts on the state as the table says.
@@ -139,7 +139,7 @@ When each hook writes a state:
 | State | A call that is not a `www` command |
 | --- | --- |
 | `wiped` | refused with the standard reason; the state stays |
-| `tried` | refused once with the standard reason, and `held` is written, because a call in the same batch as the brief command can reach `PreToolUse` before the read finishes |
+| `tried` | refused with the standard reason. A call that arrives less than 2 seconds after `at` leaves the state alone, because any number of calls in the same batch as the brief command can reach `PreToolUse` before the read finishes. The first call that arrives later is refused once and writes `held` |
 | `cut` | refused once with the cut reason, and `wiped` is written, so the next brief command moves the state to `tried` again |
 | `held` | `open` is written, the call passes, and the fail-open line is added once |
 | `read`, `open` | passes |
@@ -180,20 +180,20 @@ The classifier kept the permission across a compaction only when the compaction 
 
 #### Subagents and failing open
 
-A `PreToolUse`, `PostToolUse` or `Stop` payload that carries `agent_id` passes, and its read never counts. Claude Code sends `agent_id` on a subagent's tool calls. Codex documents `agent_id` only on `SubagentStart`, `SubagentStop` and the model-request events, and gives a subagent's hooks the parent's `session_id`. So on Codex, as documented, a subagent's calls pass on the parent's state, which is `read` or `open` whenever the parent could spawn it, and a payload with no `agent_id` is taken for the main agent's, so a subagent's whole read of the brief would count. That breaks the rule of [0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md) that a subagent's read never counts. Slice 4 proves which holds, and when a Codex subagent's payload shows nothing that tells it from the main agent, the rule for Codex changes before slice 4 merges, in this doc and in 0015.
+A `PreToolUse`, `PostToolUse` or `Stop` payload that carries `agent_id` passes, and its read never counts. That is the one rule on both hosts. Claude Code sends `agent_id` on a subagent's tool calls. Codex documents `agent_id` only on `SubagentStart`, `SubagentStop` and the model-request events, and gives a subagent's hooks the parent's `session_id`. So on Codex, as documented, a subagent's payload has no `agent_id`: its calls are gated on the parent's state, which is `read` or `open` whenever the parent could spawn it, and its whole read of the brief counts like the main agent's. That is a known gap of the rule on Codex, accepted because the subagent exists only after the parent's `spawn_agent` call passed the gate, and the brief it reads is the parent's own. It matters only when a compaction wipes the state while the subagent runs. Slice 4 records whether Codex sends `agent_id` on tool events, and when it does, the rule above covers it with no change.
 
 The gate never stops an agent for long, and never refuses the same call twice in a row ([0014](../../decisions/0014-the-gate-fails-open.md)):
 
 - When a hook cannot start, fails or times out, both hosts run the call. `www install` never sets `onFailure: "block"`.
-- When a Codex read was cut, the state is `cut`, and the next call that is not a `www` command is refused once with the cut reason, which writes `wiped`. A second cut read counts as no whole read and writes `held`.
-- When the brief command ran and no whole read followed, the first call that is not a `www` command is refused once, and the second writes `open`, passes, and adds this line once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next compaction.` That covers `www` missing from the agent's `PATH`, a permission prompt that refused it, a crash, exit 4, exit 5, and a brief over the host's limit. `www`'s own output, already in context, says why.
+- When a Codex read was cut, the state is `cut`, and the next call that is not a `www` command is refused once with the cut reason, which writes `wiped`. A retry of the brief command from `cut` writes `tried`, so a retry that fails ends like any failed read, with one more refusal at most. A second cut read counts as no whole read and writes `held`.
+- When the brief command ran and no whole read followed, calls in its own batch are refused and leave the state alone, the first call after that is refused once, and the next writes `open`, passes, and adds this line once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next compaction.` That covers `www` missing from the agent's `PATH`, a permission prompt that refused it, a crash, exit 4, exit 5, and a brief over the host's limit. `www`'s own output, already in context, says why.
 - `Stop` blocks only while the state is `wiped`, and never when `stop_hook_active` is true. So it blocks at most once per turn while the state stays `wiped`, on either host, below Claude Code's cap of 8 consecutive continues.
 
 #### What counts as a whole read
 
 `PostToolUse` writes `read` when all of these hold ([0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md)):
 
-- the payload has no `agent_id`, so a subagent's read never counts;
+- the payload has no `agent_id`, so on Claude Code a subagent's read never counts, and on Codex it can ([above](#subagents-and-failing-open));
 - the tool is the shell tool, and the command is the brief command, so a piped, filtered or redirected read never counts;
 - the host reports the call as a success: Claude Code fires `PostToolUse` only then, and fires `PostToolUseFailure` for a failed `www`; on Codex the hook reads the exit code from `tool_response`;
 - the output in `tool_response` starts with the header line of the bound session, `<name> · day`, and ends with the footer line of [brief.md](brief.md);
@@ -267,5 +267,5 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 
 - **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** Run a live test in the hooks slice to settle all three. Until then, a Codex subagent passes `--session`.
 - **Does the gate work on Codex?** Slice 4's Codex proofs settle it: the refusal, the whole read, the compaction source, and `tool_response`. Until then, every Codex claim in [The gate](#the-gate) rests on the docs.
-- **Does a call in the same batch as `www` reach `PreToolUse` before `PostToolUse` writes `read`?** When it does, `PreToolUse` refuses that call once and the agent retries it. Measure how often the refusal comes first. In Claude Code, the second call's hook ran after `www` finished in the one batched run. Measure the hook log's times in sessions where the model batches calls, on both hosts.
+- **Does a call in the same batch as `www` reach `PreToolUse` before `PostToolUse` writes `read`?** When it does, `PreToolUse` refuses every call in that batch and the agent retries them. Measure how often the refusal comes first. In Claude Code, the second call's hook ran after `www` finished in the one batched run. Measure the hook log's times in sessions where the model batches calls, on both hosts.
 - **Does a goal's periodic re-injection carry a permission across a compaction?** A `/goal` condition was blocked in 2 of 2 runs after a compaction and allowed in 1 of 1 before one, and those runs did not test the goal's re-injection. Run the scripted auto mode sessions with a pasted `www goal --paste` text, a compaction, and enough turns for the goal to re-inject, and count the classifier's allows and blocks. Until then, the paste carries authority only until the next compaction.
