@@ -112,7 +112,7 @@ export function collectSessionProblems(
     const label = findCredentialMatch(pairs.get(key) ?? '');
 
     if (label !== null) {
-      addKeyProblem(key, `the text looks like a credential (it matches ${label}).`);
+      addKeyProblem(key, `the text looks like a credential (it matches the ${label} pattern).`);
     }
   }
 

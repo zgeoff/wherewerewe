@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { buildRunSpec } from './build-run-spec.ts';
+import { toPlaceholder } from './to-placeholder.ts';
 
 test('it rebuilds the command as typed, positionals first and flags after', () => {
   const spec = buildRunSpec({
@@ -206,5 +207,10 @@ test('it puts a placeholder where a typed value looks like a credential', () => 
     flags: [{ name: 'quote', value: `AKIA${'Q'.repeat(16)}` }],
   });
 
-  expect(spec.toArgv()).toStrictEqual(['ok', 'ok-a', '--quote', '<where the secret lives>']);
+  expect(spec.toArgv()).toStrictEqual([
+    'ok',
+    'ok-a',
+    '--quote',
+    toPlaceholder('<where the secret lives>'),
+  ]);
 });

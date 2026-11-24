@@ -1,6 +1,6 @@
 import { parseCLIArgs } from '../args/parse-cli-args.ts';
 import { isSinceText } from '../reads/parse-since.ts';
-import type { ParsedArgs, Refusal, RefusalReason } from '../types.ts';
+import type { ParsedArgs, Placeholder, Refusal, RefusalReason, RunWord } from '../types.ts';
 import { pickGrantPartsRefusal } from '../writes/pick-grant-parts-refusal.ts';
 import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusals.ts';
 import { buildGrantRefusal } from './build-grant-refusal.ts';
@@ -8,33 +8,25 @@ import { buildRefusal } from './build-refusal.ts';
 import type { RefusalScope } from './format-refusal.ts';
 import { toPrintedWords } from './to-printed-words.ts';
 
-// Fills each www Run line with samples and puts it through the parser and the checks that need no
-// store. When that would be refused, the refusal it would get prints in its place, and so on, until
-// the 3rd step, whose Run line is `www help`.
-export function settleRefusal(refusal: Refusal, scope: RefusalScope): Refusal {
-  return settle(refusal, scope, 0);
+export interface SettledRefusal {
+  readonly refusal: Refusal;
+
+  // the scope to print it in: without the typed --session when the parser cannot read it back
+  readonly scope: RefusalScope;
 }
 
-const maxDepth = 3;
+// Fills each www Run line with samples and checks it as the parser and the store-free checks would.
+// A refused line's refusal prints in its place, up to the 3rd step, whose Run line is `www help`. A
+// --session that `www help` cannot carry, such as `--help`, leaves every Run line.
+export function settleRefusal(refusal: Refusal, scope: RefusalScope): SettledRefusal {
+  const isSessionReadable = findRunProblem(toPrintedWords(['help'], scope.sessionFlag)) === null;
+  const printScope = isSessionReadable ? scope : { sessionFlag: null };
 
-function settle(refusal: Refusal, scope: RefusalScope, depth: number): Refusal {
-  const problem = refusal.runs.reduce<Refusal | null>(
-    (found, run) =>
-      found ?? ('www' in run ? findRunProblem(toPrintedWords(run.www, scope.sessionFlag)) : null),
-    null,
-  );
-
-  if (problem === null) {
-    return refusal;
-  }
-
-  return depth + 1 >= maxDepth
-    ? { ...problem, runs: [{ www: ['help'] }] }
-    : settle(problem, scope, depth + 1);
+  return { refusal: settle(refusal, printScope, 0), scope: printScope };
 }
 
 // The refusal the filled line would get, written back with its placeholders, or null.
-function findRunProblem(words: readonly string[]): Refusal | null {
+function findRunProblem(words: readonly RunWord[]): Refusal | null {
   const filled = fillPlaceholders(words);
   const parsed = parseCLIArgs(filled.argv);
 
@@ -66,45 +58,48 @@ function findRunProblem(words: readonly string[]): Refusal | null {
       );
 }
 
-const placeholderPattern = /^(?<flag>--[a-z][a-z-]*=)?(?<placeholder><[^<>]+>)$/u;
-
 interface Filled {
   readonly argv: readonly string[];
 
   // each sample value and the placeholder it stands for
-  readonly samples: ReadonlyMap<string, string>;
+  readonly samples: ReadonlyMap<string, Placeholder>;
 }
 
-function fillPlaceholders(words: readonly string[]): Filled {
-  const samples = new Map<string, string>();
+// Each placeholder becomes a sample: one circled digit or letter that no value of the line holds,
+// the shortest text a check passes. So a sample in the refusal the filled line gets stands for its
+// placeholder, and a value the agent typed, a circled digit too, stays a value.
+function fillPlaceholders(words: readonly RunWord[]): Filled {
+  const values = words.filter((word) => typeof word === 'string').join('');
+
+  const samples = new Map<string, Placeholder>();
+
+  let next = 0x24_60;
 
   const argv = words.map((word) => {
-    const groups = placeholderPattern.exec(word)?.groups;
-    const placeholder = groups?.['placeholder'];
-
-    if (placeholder === undefined) {
+    if (typeof word === 'string') {
       return word;
     }
 
-    const sample = String.fromCodePoint(0x24_60 + samples.size);
+    while (values.includes(String.fromCodePoint(next))) {
+      next += 1;
+    }
 
-    samples.set(sample, placeholder);
+    const sample = String.fromCodePoint(next);
 
-    return `${groups?.['flag'] ?? ''}${sample}`;
+    next += 1;
+
+    samples.set(sample, word);
+
+    return sample;
   });
 
   return { argv, samples };
 }
 
-// A sample is one circled digit, the shortest text a check passes, so a length a refusal measures
-// is the least the filled line can have. Only Run line words hold samples.
-function restorePlaceholders(refusal: Refusal, samples: ReadonlyMap<string, string>): Refusal {
-  const restore = (word: string): string => {
-    const joined = /^(?<flag>--[a-z][a-z-]*=)?(?<value>.*)$/su.exec(word)?.groups;
-    const placeholder = samples.get(joined?.['value'] ?? '');
-
-    return placeholder === undefined ? word : `${joined?.['flag'] ?? ''}${placeholder}`;
-  };
+// Only Run line words hold samples, each one whole.
+function restorePlaceholders(refusal: Refusal, samples: ReadonlyMap<string, Placeholder>): Refusal {
+  const restore = (word: RunWord): RunWord =>
+    typeof word === 'string' ? (samples.get(word) ?? word) : word;
 
   return {
     ...refusal,
@@ -123,4 +118,22 @@ function pickArgvReasons(args: ParsedArgs): RefusalReason[] {
   const parts = pickGrantPartsRefusal(args, args.command === 'grant');
 
   return [...(parts === null ? [] : [parts]), ...pickGrantTextRefusals(args)];
+}
+
+const maxDepth = 3;
+
+function settle(refusal: Refusal, scope: RefusalScope, depth: number): Refusal {
+  const problem = refusal.runs.reduce<Refusal | null>(
+    (found, run) =>
+      found ?? ('www' in run ? findRunProblem(toPrintedWords(run.www, scope.sessionFlag)) : null),
+    null,
+  );
+
+  if (problem === null) {
+    return refusal;
+  }
+
+  return depth + 1 >= maxDepth
+    ? { ...problem, runs: [{ www: ['help'] }] }
+    : settle(problem, scope, depth + 1);
 }

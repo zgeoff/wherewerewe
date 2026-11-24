@@ -1,5 +1,5 @@
 import { match } from 'ts-pattern';
-import type { Refusal, RefusalReason } from '../types.ts';
+import type { Refusal, RefusalReason, RunWord } from '../types.ts';
 import type { RunSpec } from './build-run-spec.ts';
 import { replaceGrantBullets } from './replace-grant-bullets.ts';
 
@@ -57,9 +57,9 @@ export function fixGrantText(
 
 // The value of the given occurrence of --flag in a Run line's words, typed as --flag value or
 // --flag=value.
-function readFlagValue(argv: readonly string[], flag: string, occurrence: number): string | null {
+function readFlagValue(argv: readonly RunWord[], flag: string, occurrence: number): RunWord | null {
   const places = argv.flatMap((word, at) =>
-    word === `--${flag}` || word.startsWith(`--${flag}=`) ? [at] : [],
+    word === `--${flag}` || (typeof word === 'string' && word.startsWith(`--${flag}=`)) ? [at] : [],
   );
 
   const at = places.at(occurrence);
@@ -69,5 +69,7 @@ function readFlagValue(argv: readonly string[], flag: string, occurrence: number
     return null;
   }
 
-  return word.includes('=') ? word.slice(word.indexOf('=') + 1) : (argv.at(at + 1) ?? null);
+  return typeof word === 'string' && word.includes('=')
+    ? word.slice(word.indexOf('=') + 1)
+    : (argv.at(at + 1) ?? null);
 }

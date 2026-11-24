@@ -7,5 +7,9 @@ import { settleRefusal } from './settle-refusal.ts';
 export function buildRefusalResult(refusal: Refusal, scope: RefusalScope): CLIResult {
   const settled = settleRefusal(refusal, scope);
 
-  return { exitCode: settled.exitCode, stdout: '', stderr: formatRefusal(settled, scope) };
+  return {
+    exitCode: settled.refusal.exitCode,
+    stdout: '',
+    stderr: formatRefusal(settled.refusal, settled.scope),
+  };
 }

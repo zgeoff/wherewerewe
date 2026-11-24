@@ -1,7 +1,6 @@
 import { match } from 'ts-pattern';
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
-import { redactCredential } from '../rules/redact-credential.ts';
 import type { Refusal, RefusalReason } from '../types.ts';
 import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';
@@ -9,6 +8,8 @@ import { grantPlaceholders } from './grant-placeholders.ts';
 import { refuse } from './refuse.ts';
 import { replaceGrantBullets } from './replace-grant-bullets.ts';
 import { replaceText } from './replace-text.ts';
+import { toPlaceholder } from './to-placeholder.ts';
+import { toRedactedRunWord } from './to-redacted-run-word.ts';
 
 type ApprovalRefusalReason = Extract<
   RefusalReason,
@@ -25,10 +26,10 @@ type ApprovalRefusalReason = Extract<
 >;
 
 const approvalPlaceholders = {
-  quote: '<their exact words>',
-  who: '<who>',
-  where: '<where>',
-  scope: '<what it covers>',
+  quote: toPlaceholder('<their exact words>'),
+  who: toPlaceholder('<who>'),
+  where: toPlaceholder('<where>'),
+  scope: toPlaceholder('<what it covers>'),
 } as const;
 
 // The refusals of www ok and www grant that hold the owner's words: what is missing, a standing
@@ -52,7 +53,7 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
         buildRunSpec({ ...found.args, command: 'grant', positionals: [] })
           .keepFlags([])
           .addFlag('may', grantPlaceholders.may)
-          .addFlag('where', redactCredential(found.args.values.where ?? 'chat'))
+          .addFlag('where', toRedactedRunWord(found.args.values.where ?? 'chat'))
           .addFlag('reading', grantPlaceholders.reading)
           .toArgv(),
       ),
@@ -70,7 +71,7 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
         `www: refused: ${found.name} has no grant, so there is no reading to replace.`,
         buildRunSpec(found.args)
           .addFlagBefore('reading', 'may', grantPlaceholders.may)
-          .addFlagBefore('reading', 'where', '<where>')
+          .addFlagBefore('reading', 'where', approvalPlaceholders.where)
           .toArgv(),
       ),
     )
@@ -89,7 +90,9 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
     .with({ kind: 'text-has-mark' }, (found) => {
       const label = found.target.label;
       const fixed = found.text.replaceAll('•', '-');
-      const value = fixed === '-' || findCredentialMatch(fixed) !== null ? `<${label}>` : fixed;
+
+      const value =
+        fixed === '-' || findCredentialMatch(fixed) !== null ? toPlaceholder(`<${label}>`) : fixed;
 
       return refuse(
         `www: refused: the ${label} cannot hold •, which the brief prints before each bullet.`,

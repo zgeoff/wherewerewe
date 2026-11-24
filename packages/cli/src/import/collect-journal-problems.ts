@@ -60,7 +60,7 @@ export function collectJournalProblems(
           : collectQuestionProblems(question, itemLines, seenQuestions)),
         ...(credential === null
           ? []
-          : [`the text looks like a credential (it matches ${credential}).`]),
+          : [`the text looks like a credential (it matches the ${credential} pattern).`]),
         ...(fact.hasCarriageReturn ? [carriageReturnProblem] : []),
       ];
 

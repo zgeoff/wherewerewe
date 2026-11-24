@@ -1,9 +1,9 @@
-import type { ParsedArgs, TextTarget } from '../types.ts';
+import type { ParsedArgs, RunWord, TextTarget } from '../types.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
 
 // The refused command with the text at the target replaced, so its Run line keeps every other flag.
-export function replaceText(args: ParsedArgs, target: TextTarget, value: string): string[] {
+export function replaceText(args: ParsedArgs, target: TextTarget, value: RunWord): RunWord[] {
   const spec: RunSpec = buildRunSpec(args);
   const place = target.place;
 

@@ -50,6 +50,8 @@ function buildFaults(): Fault[] {
     ['a line break', addBullets(['may', 'water\nthe beds'])],
     ['a bullet mark', addBullets(['not', 'dig • spray'])],
     ['a credential', addBullets(['not', `token ${faultCredential}`])],
+    ['a circled digit', addBullets(['may', '①'])],
+    ['a value that reads like a placeholder', addBullets(['not', '<dig • spray>'])],
   ];
 }
 

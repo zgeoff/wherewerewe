@@ -471,7 +471,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www where s-staging "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www where s-staging "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'the vault bosun-staging' }],
   },
   {
@@ -482,7 +482,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www where t-a "<where the secret lives>" --note "Rotate it Friday." --owed\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www where t-a "<where the secret lives>" --note "Rotate it Friday." --owed\n',
     fills: [{ '<where the secret lives>': 'the vault bosun-staging' }],
   },
   {
@@ -496,7 +496,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www where <new id> "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www where <new id> "<where the secret lives>"\n',
     fills: [{ '<new id>': 's-staging', '<where the secret lives>': 'the vault bosun-staging' }],
   },
   {
@@ -507,7 +507,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www goal "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www goal "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'Ship it' }],
   },
   {
@@ -521,7 +521,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www done t-a --evidence "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www done t-a --evidence "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'commit 4c1d2e0' }],
   },
   {
@@ -1450,7 +1450,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --scope bosun-api --once\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --scope bosun-api --once\n',
     fills: [{ '<where the secret lives>': 'merge yourself' }],
   },
   {
@@ -1473,7 +1473,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope "<where the secret lives>" --once\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope "<where the secret lives>" --once\n',
     fills: [{ '<where the secret lives>': 'bosun-api' }],
   },
   {
@@ -1754,7 +1754,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www use ok-a --for "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www use ok-a --for "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'merged it' }],
   },
   {
@@ -1820,7 +1820,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "<where the secret lives>" --why "The feed flaps"\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www decide "<where the secret lives>" --why "The feed flaps"\n',
     fills: [{ '<where the secret lives>': 'Retry a 503 3 times' }],
   },
   {
@@ -1831,7 +1831,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "Retry a 503 3 times" --why "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www decide "Retry a 503 3 times" --why "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'The feed flaps' }],
   },
   {
@@ -2030,7 +2030,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "<where the secret lives>" --why "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www decide "<where the secret lives>" --why "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'Retry a 503 3 times' }],
   },
   {
@@ -2205,7 +2205,7 @@ test.each([
     env: 'owner',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www --session tide-alerts say "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www --session tide-alerts say "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'Ask me first' }],
   },
   {
@@ -2319,7 +2319,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www task t-a "Write it" --note "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the AKIA pattern). Write where the secret lives, never its value.\nRun: www task t-a "Write it" --note "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'The key is in the vault' }],
   },
   {
@@ -3042,7 +3042,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may "Water the beds." --not "<where the secret lives>" --where chat --reading "covers merges"\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "Water the beds." --not "<where the secret lives>" --where chat --reading "covers merges"\n',
     fills: [{ '<where the secret lives>': 'the vault item for the owner' }],
   },
   {
@@ -3063,7 +3063,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may "Water the beds." --scope "<where the secret lives>" --where chat --reading "covers merges"\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "Water the beds." --scope "<where the secret lives>" --where chat --reading "covers merges"\n',
     fills: [{ '<where the secret lives>': 'the east garden' }],
   },
   {
@@ -3082,7 +3082,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may "Merge it yourself." --where chat --reading "<where the secret lives>"\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "Merge it yourself." --where chat --reading "<where the secret lives>"\n',
     fills: [{ '<where the secret lives>': 'covers merges' }],
   },
   {
@@ -3441,7 +3441,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may water --where "<where the secret lives>" --reading "covers watering"\n',
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may water --where "<where the secret lives>" --reading "covers watering"\n',
     fills: [{ '<where the secret lives>': 'chat' }],
   },
   {

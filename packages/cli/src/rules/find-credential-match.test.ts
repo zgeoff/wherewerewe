@@ -2,29 +2,29 @@ import { expect, test } from 'bun:test';
 import { findCredentialMatch } from './find-credential-match.ts';
 
 test.each([
-  ['token ghp_abc', 'ghp_'],
-  ['gho_abc', 'gho_'],
-  ['ghs_abc', 'ghs_'],
-  ['ghu_abc', 'ghu_'],
-  ['github_pat_abc', 'github_pat_'],
-  ['xoxb-12', 'xoxb-'],
-  ['xoxp-12', 'xoxp-'],
-  ['sk-abcdefghijklmnopqrstuv', 'sk-'],
-  ['ghr_abc', 'ghr_'],
-  ['xoxa-1', 'xoxa-'],
-  ['xoxr-1', 'xoxr-'],
-  ['xapp-1', 'xapp-'],
+  ['token ghp_abc', 'ghp'],
+  ['gho_abc', 'gho'],
+  ['ghs_abc', 'ghs'],
+  ['ghu_abc', 'ghu'],
+  ['github_pat_abc', 'github_pat'],
+  ['xoxb-12', 'xoxb'],
+  ['xoxp-12', 'xoxp'],
+  ['sk-abcdefghijklmnopqrstuv', 'sk'],
+  ['ghr_abc', 'ghr'],
+  ['xoxa-1', 'xoxa'],
+  ['xoxr-1', 'xoxr'],
+  ['xapp-1', 'xapp'],
   [`AKIA${'Q'.repeat(16)}`, 'AKIA'],
-  ['ops_abcdefghijklmnopqrstuvwx', 'ops_'],
-  ['-----BEGIN PRIVATE KEY-----', '-----BEGIN'],
+  ['ops_abcdefghijklmnopqrstuvwx', 'ops'],
+  ['-----BEGIN PRIVATE KEY-----', 'BEGIN'],
   ['eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl', 'eyJ'],
-  [`glpat-${'a'.repeat(21)}`, 'glpat-'],
-  ['npm_abcdefghijklmnopqrstu', 'npm_'],
-  [`sk_live_${'a'.repeat(21)}`, 'sk_live_'],
-  [`rk_live_${'a'.repeat(21)}`, 'rk_live_'],
+  [`glpat-${'a'.repeat(21)}`, 'glpat'],
+  ['npm_abcdefghijklmnopqrstu', 'npm'],
+  [`sk_live_${'a'.repeat(21)}`, 'sk_live'],
+  [`rk_live_${'a'.repeat(21)}`, 'rk_live'],
   ['AIzaabcdefghijklmnopqrstu', 'AIza'],
-])('it names the label of %s', (text, label) => {
-  expect(findCredentialMatch(text)).toBe(label);
+])('it names the pattern of %s', (text, name) => {
+  expect(findCredentialMatch(text)).toBe(name);
 });
 
 test.each([

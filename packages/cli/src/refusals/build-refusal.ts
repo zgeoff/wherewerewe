@@ -2,8 +2,8 @@ import { match } from 'ts-pattern';
 import { getKindWord } from '../rules/get-kind-word.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
-import { noSecretPlaceholder, redactCredential } from '../rules/redact-credential.ts';
-import type { ParsedArgs, Refusal, RefusalReason } from '../types.ts';
+import { redactCredential } from '../rules/redact-credential.ts';
+import type { ParsedArgs, Placeholder, Refusal, RefusalReason, RunWord } from '../types.ts';
 import { buildApprovalRefusal } from './build-approval-refusal.ts';
 import { buildArgvRefusal } from './build-argv-refusal.ts';
 import { buildMalformedCheckRefusal } from './build-malformed-check-refusal.ts';
@@ -14,12 +14,10 @@ import type { RunSpec } from './build-run-spec.ts';
 import { buildUpgradeRefusal } from './build-upgrade-refusal.ts';
 import { formatList } from './format-list.ts';
 import { pickClosestID } from './pick-closest-id.ts';
-import { quoteShellWord } from './quote-shell-word.ts';
 import { refuse } from './refuse.ts';
 import { replaceText } from './replace-text.ts';
-
-const evidencePlaceholder = '<PR, commit or test run>';
-const goalPlaceholder = '<what done means>';
+import { runPlaceholders } from './run-placeholders.ts';
+import { toPlaceholder } from './to-placeholder.ts';
 
 // Every refusal text and its Run lines live here, so each has one place to read and to test.
 export function buildRefusal(reason: RefusalReason): Refusal {
@@ -42,24 +40,24 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'text-not-one-line' }, (found) =>
       refuse(
         'www: refused: the text must be one line, with no tab or newline.',
-        replaceText(found.args, found.target, '<one line>'),
+        replaceText(found.args, found.target, toPlaceholder('<one line>')),
       ),
     )
     .with({ kind: 'check-not-one-line' }, (found) =>
       refuse(
         'www: refused: the text must be one line, with no tab or newline.',
-        buildRunSpec(found.args).replaceFlag(found.flag, '<one line>').toArgv(),
+        buildRunSpec(found.args).replaceFlag(found.flag, toPlaceholder('<one line>')).toArgv(),
       ),
     )
     .with({ kind: 'text-empty' }, (found) =>
       refuse(
         `www: refused: the ${found.target.label} is empty.`,
-        replaceText(found.args, found.target, `<${found.target.label}>`),
+        replaceText(found.args, found.target, toPlaceholder(`<${found.target.label}>`)),
       ),
     )
     .with({ kind: 'credential' }, (found) =>
       refuse(
-        `www: refused: the text looks like a credential (it matches ${found.label}). Write where the secret lives, never its value.`,
+        `www: refused: the text looks like a credential (it matches the ${found.label} pattern). Write where the secret lives, never its value.`,
         buildCredentialRun(found),
       ),
     )
@@ -76,19 +74,19 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'needs-evidence' }, (found) =>
       refuse(
         'www: refused: done needs evidence a reader can open, such as a PR, a commit or a test run. For work you stopped, use drop.',
-        buildRunSpec(found.args).addFlag('evidence', evidencePlaceholder).toArgv(),
+        buildRunSpec(found.args).addFlag('evidence', runPlaceholders.evidence).toArgv(),
       ),
     )
     .with({ kind: 'needs-reason' }, (found) =>
       refuse(
         'www: refused: drop needs a reason.',
-        buildRunSpec(found.args).addFlag('why', '<reason>').toArgv(),
+        buildRunSpec(found.args).addFlag('why', runPlaceholders.reason).toArgv(),
       ),
     )
     .with({ kind: 'needs-who' }, (found) =>
       refuse(
         'www: refused: a wait names who it waits on.',
-        buildRunSpec(found.args).addFlag('who', '<who>').toArgv(),
+        buildRunSpec(found.args).addFlag('who', toPlaceholder('<who>')).toArgv(),
       ),
     )
     .with({ kind: 'extra-has-separator' }, (found) =>
@@ -112,13 +110,13 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'decide-needs-why' }, (found) =>
       refuse(
         'www: refused: a decision needs its reason.',
-        buildRunSpec(found.args).addFlag('why', '<reason>').toArgv(),
+        buildRunSpec(found.args).addFlag('why', runPlaceholders.reason).toArgv(),
       ),
     )
     .with({ kind: 'bad-decision-who' }, (found) =>
       refuse(
         'www: refused: --who on a decision is owner or agent.',
-        buildRunSpec(found.args).replaceFlag('who', '<owner or agent>').toArgv(),
+        buildRunSpec(found.args).replaceFlag('who', toPlaceholder('<owner or agent>')).toArgv(),
       ),
     )
     .with({ kind: 'no-such-decision' }, (found) => {
@@ -144,9 +142,9 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         `www: refused: ${found.id} is the owner's decision, so only a decision recorded with --who owner replaces it.`,
         [
           'decide',
-          "<the owner's answer>",
+          toPlaceholder("<the owner's answer>"),
           '--why',
-          '<reason>',
+          runPlaceholders.reason,
           '--who',
           'owner',
           '--replaces',
@@ -168,20 +166,20 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'use-needs-for' }, (found) =>
       refuse(
         'www: refused: use needs what you did with it.',
-        buildRunSpec(found.args).addFlag('for', '<what you did with it>').toArgv(),
+        buildRunSpec(found.args).addFlag('for', runPlaceholders.what).toArgv(),
       ),
     )
     .with({ kind: 'use-not-approval' }, (found) =>
       refuse(
         `www: refused: ${found.id} is a ${getKindWord(found.itemKind)}, and use spends the one-time approval.`,
-        ['done', found.id, '--evidence', evidencePlaceholder],
+        ['done', found.id, '--evidence', runPlaceholders.evidence],
       ),
     )
     .with({ kind: 'no-open-item' }, (found) => buildNoOpenItem(found))
     .with({ kind: 'closed-id' }, (found) =>
       refuse(
         `www: refused: ${found.id} closed on day ${String(found.day)}. Pick a new id.`,
-        buildRunSpec(found.args).replacePositional(0, '<new id>').toArgv(),
+        buildRunSpec(found.args).replacePositional(0, runPlaceholders.newID).toArgv(),
       ),
     )
     .with({ kind: 'other-kind' }, (found) =>
@@ -191,7 +189,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       ),
     )
     .with({ kind: 'bad-id' }, (found) => {
-      const repaired = repairID(found.id, 16, isItemID, '<new id>');
+      const repaired = repairID(found.id, 16, isItemID, runPlaceholders.newID);
 
       return refuse(
         'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not grant, d-<n> or o-<n>.',
@@ -218,7 +216,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         'www: refused: a rule has no check. Make the checked thing a where item.',
         buildRunSpec(found.args)
           .renameCommand('where')
-          .replacePositional(0, '<new id>')
+          .replacePositional(0, runPlaceholders.newID)
           .keepFirstCheck()
           .keepCheckAndNoteFlags()
           .toArgv(),
@@ -234,9 +232,9 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'needs-goal' }, (found) =>
       refuse('www: refused: a session needs its goal.', [
         'init',
-        found.args.positionals[0] ?? '<name>',
+        found.args.positionals[0] ?? runPlaceholders.name,
         '--goal',
-        goalPlaceholder,
+        runPlaceholders.goal,
       ]),
     )
     .with({ kind: 'bad-session-name' }, (found) =>
@@ -244,9 +242,9 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         'www: refused: a session name is 2 to 24 characters of a-z, 0-9 and -, and starts with a letter.',
         [
           'init',
-          repairID(found.name, 24, isSessionName, '<name>'),
+          repairID(found.name, 24, isSessionName, runPlaceholders.name),
           '--goal',
-          found.args.values.goal ?? goalPlaceholder,
+          found.args.values.goal ?? runPlaceholders.goal,
         ],
       ),
     )
@@ -254,7 +252,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'no-agent-id' }, (found) =>
       refuse(
         'www: refused: this shell has no agent session id (no CLAUDE_CODE_SESSION_ID or CODEX_SESSION_ID). Name the session on each command.',
-        ['--session', found.name ?? '<name>'],
+        ['--session', found.name ?? runPlaceholders.name],
       ),
     )
     .with({ kind: 'detach-no-binding' }, (found) =>
@@ -301,13 +299,13 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'newer' }, (found): Refusal => ({
       exitCode: 5,
       lines: [`www: ${found.name} is format ${found.format}, and this www reads format 2.`],
-      runs: [{ shell: 'bun add -g @wherewerewe/cli@latest' }],
+      runs: [{ shell: ['bun', 'add', '-g', '@wherewerewe/cli@latest'] }],
     }))
     .with({ kind: 'broken-store' }, (found) => buildBrokenStore(found))
     .exhaustive();
 }
 
-function usage(exitCode: 2 | 4, line: string, argv: readonly string[] = ['help']): Refusal {
+function usage(exitCode: 2 | 4, line: string, argv: readonly RunWord[] = ['help']): Refusal {
   return { exitCode, lines: [line], runs: [{ www: argv }] };
 }
 
@@ -317,11 +315,14 @@ function buildTooLong(found: Found<'text-too-long'>): Refusal {
   if (found.target.label === 'note') {
     return refuse(
       `www: refused: the note is ${String(found.length)} characters, and the limit is ${String(found.limit)}. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.`,
-      replaceText(found.args, found.target, '<note of at most 400 characters>'),
+      replaceText(found.args, found.target, toPlaceholder('<note of at most 400 characters>')),
     );
   }
 
-  const placeholder = `<${found.target.label} of at most ${String(found.limit)} characters>`;
+  const placeholder = toPlaceholder(
+    `<${found.target.label} of at most ${String(found.limit)} characters>`,
+  );
+
   const measured = `the ${found.target.label} is ${String(found.length)} characters, and the limit is ${String(found.limit)}.`;
 
   const advice = match(found.target.label)
@@ -344,25 +345,25 @@ function buildTooLong(found: Found<'text-too-long'>): Refusal {
 const grantLabels: ReadonlySet<string> = new Set(['bullet', "grant's scope", 'reading']);
 const itemWriteCommands: ReadonlySet<string> = new Set(['task', 'wait', 'rule', 'where', 'set']);
 
-function buildCredentialRun(found: Found<'credential'>): string[] {
-  if (found.target.label === 'note') {
-    return replaceText(found.args, found.target, '<where the secret lives>');
-  }
-
-  if (grantLabels.has(found.target.label)) {
-    return replaceText(found.args, found.target, '<where the secret lives>');
+function buildCredentialRun(found: Found<'credential'>): RunWord[] {
+  if (found.target.label === 'note' || grantLabels.has(found.target.label)) {
+    return replaceText(found.args, found.target, runPlaceholders.secret);
   }
 
   if (itemWriteCommands.has(found.args.command)) {
-    const id = found.onOtherKind ? '<new id>' : (found.args.positionals[0] ?? '<new id>');
+    const id = found.onOtherKind
+      ? runPlaceholders.newID
+      : (found.args.positionals[0] ?? runPlaceholders.newID);
 
-    return buildRunSpec({ ...found.args, positionals: [id, '<where the secret lives>'] })
+    return buildRunSpec({ ...found.args, positionals: [] })
+      .addPositional(id)
+      .addPositional(runPlaceholders.secret)
       .renameCommand('where')
       .keepFlags(['note', 'owed'])
       .toArgv();
   }
 
-  return replaceText(found.args, found.target, noSecretPlaceholder);
+  return replaceText(found.args, found.target, runPlaceholders.secret);
 }
 
 const capWords = {
@@ -378,13 +379,13 @@ function buildKindFull(found: Found<'kind-full'>): Refusal {
   const plural = capWords[found.itemKind].plural;
 
   const argv = match(found.itemKind)
-    .with('ok', () => ['use', found.oldestID, '--for', '<what you did with it>'])
-    .with('rule', () => ['drop', found.oldestID, '--why', '<reason>'])
-    .with('task', 'wait', 'where', () => [
+    .with('ok', (): RunWord[] => ['use', found.oldestID, '--for', runPlaceholders.what])
+    .with('rule', (): RunWord[] => ['drop', found.oldestID, '--why', runPlaceholders.reason])
+    .with('task', 'wait', 'where', (): RunWord[] => [
       'done',
       found.oldestID,
       '--evidence',
-      evidencePlaceholder,
+      runPlaceholders.evidence,
     ])
     .exhaustive();
 
@@ -417,7 +418,7 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
   const argv = match({ command: found.args.command, closest })
     .with({ command: 'set' }, () => buildTaskForSet(spec, found.args).toArgv())
     .with({ command: 'use', closest: null }, () => ['show', found.id])
-    .otherwise(() => spec.replacePositional(0, closest ?? '<open id>').toArgv());
+    .otherwise(() => spec.replacePositional(0, closest ?? toPlaceholder('<open id>')).toArgv());
 
   return refuse(
     `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,
@@ -429,17 +430,19 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
 function buildTaskForSet(spec: RunSpec, args: ParsedArgs): RunSpec {
   const task = spec.renameCommand('task').keepCheckAndNoteFlags();
 
-  return args.positionals.length === 1 ? task.addPositional('<claim>') : task;
+  return args.positionals.length === 1 ? task.addPositional(runPlaceholders.claim) : task;
 }
 
 // A rule has no check, so the set that turns the claim into a rule's new text drops the flags.
-function buildOtherKindRun(found: Found<'other-kind'>): string[] {
+function buildOtherKindRun(found: Found<'other-kind'>): RunWord[] {
   const typed = buildRunSpec(found.args);
 
   // ok takes its words in --quote, so the set that replaces it takes them as the claim
   const spec = (
     found.args.command === 'ok'
-      ? typed.keepFlags(['note', 'owed']).addPositional(found.args.values.quote ?? '<claim>')
+      ? typed
+          .keepFlags(['note', 'owed'])
+          .addPositional(found.args.values.quote ?? runPlaceholders.claim)
       : typed
   ).renameCommand('set');
 
@@ -455,8 +458,8 @@ function repairID(
   typed: string,
   length: number,
   isValid: (candidate: string) => boolean,
-  placeholder: string,
-): string {
+  placeholder: Placeholder,
+): RunWord {
   const repaired = typed
     .toLowerCase()
     .replaceAll(/[^a-z0-9-]+/gu, '-')
@@ -484,8 +487,10 @@ function buildBlockedByUnknown(found: Found<'blocked-by-unknown'>): Refusal {
 
 function buildAttachNoSession(found: Found<'attach-no-session'>): Refusal {
   const closest = pickClosestID(found.name, found.sessions);
-  const name = isSessionName(found.name) ? found.name : '<name>';
-  const argv = closest === null ? ['init', name, '--goal', goalPlaceholder] : ['attach', closest];
+  const name = isSessionName(found.name) ? found.name : runPlaceholders.name;
+
+  const argv: RunWord[] =
+    closest === null ? ['init', name, '--goal', runPlaceholders.goal] : ['attach', closest];
 
   return refuse(
     `www: refused: no session ${found.name}. Sessions: ${formatList(found.sessions)}.`,
@@ -520,7 +525,10 @@ function buildNoSession(found: Found<'no-session'>): Refusal {
   return {
     exitCode: 4,
     lines: [`${head} ${listed}`],
-    runs: [{ www: ['attach', '<name>'] }, { www: ['init', '<name>', '--goal', goalPlaceholder] }],
+    runs: [
+      { www: ['attach', runPlaceholders.name] },
+      { www: ['init', runPlaceholders.name, '--goal', runPlaceholders.goal] },
+    ],
   };
 }
 
@@ -533,6 +541,6 @@ function buildBrokenStore(found: Found<'broken-store'>): Refusal {
   return {
     exitCode: 3,
     lines: [`www: ${found.name}'s ${where}`],
-    runs: [{ shell: `less ${quoteShellWord(found.path)}` }],
+    runs: [{ shell: ['less', found.path] }],
   };
 }

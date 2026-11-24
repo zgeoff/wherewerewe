@@ -224,7 +224,7 @@ function findGrantTextProblem(texts: readonly GrantText[]): string | null {
     const label = findCredentialMatch(text.value);
 
     if (label !== null) {
-      return `${text.name} looks like a credential (it matches ${label})`;
+      return `${text.name} looks like a credential (it matches the ${label} pattern)`;
     }
   }
 

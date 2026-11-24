@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { toPlaceholder } from '../refusals/to-placeholder.ts';
 import { formatItemsFile } from '../store/format-items-file.ts';
 import { formatJournalRows } from '../store/format-journal-rows.ts';
 import { formatSessionFile } from '../store/format-session-file.ts';
@@ -84,13 +85,13 @@ test.each([
   {
     title: 'a goal that looks like a credential',
     session: `name=old-notes\ngoal=key AKIA${'Q'.repeat(16)}\nstarted=2026-03-02T08:00:00Z\n`,
-    problems: ['session (goal): the text looks like a credential (it matches AKIA).'],
+    problems: ['session (goal): the text looks like a credential (it matches the AKIA pattern).'],
   },
   {
     title: 'a name that looks like a credential, which the line never prints',
     session: `name=AKIA${'Q'.repeat(16)}\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n`,
     problems: [
-      'session (name): the name <where the secret lives> is not the folder name old-notes.; the text looks like a credential (it matches AKIA).',
+      'session (name): the name <where the secret lives> is not the folder name old-notes.; the text looks like a credential (it matches the AKIA pattern).',
     ],
   },
   {
@@ -363,14 +364,16 @@ test.each([
     title: 'a claim that looks like a credential',
     items: [buildHandKeptItemRow({ claim: `token AKIA${'Q'.repeat(16)}` })],
     journal: [],
-    problems: ['items.tsv line 2 (t-b): the text looks like a credential (it matches AKIA).'],
+    problems: [
+      'items.tsv line 2 (t-b): the text looks like a credential (it matches the AKIA pattern).',
+    ],
   },
   {
     title: 'a check that looks like a credential, which the line never prints',
     items: [buildHandKeptItemRow({ check: `AKIA${'Q'.repeat(16)}` })],
     journal: [],
     problems: [
-      'items.tsv line 2 (t-b): the check <where the secret lives> does not parse.; the text looks like a credential (it matches AKIA).',
+      'items.tsv line 2 (t-b): the check <where the secret lives> does not parse.; the text looks like a credential (it matches the AKIA pattern).',
     ],
   },
   {
@@ -379,14 +382,16 @@ test.each([
       `t-b\ttask\tAnother\tpid:5\tOPEN AKIA${'Q'.repeat(16)}\t-\t2026-03-02T09:00:00Z\tagent\t-`,
     ],
     journal: [],
-    problems: ['items.tsv line 2 (t-b): the text looks like a credential (it matches AKIA).'],
+    problems: [
+      'items.tsv line 2 (t-b): the text looks like a credential (it matches the AKIA pattern).',
+    ],
   },
   {
     title: 'an item id that looks like a credential, which the line never prints',
     items: [buildHandKeptItemRow({ id: `AKIA${'Q'.repeat(16)}` })],
     journal: [],
     problems: [
-      'items.tsv line 2 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
+      'items.tsv line 2 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches the AKIA pattern).',
     ],
   },
   {
@@ -415,7 +420,9 @@ test.each([
     title: 'a closed row for an item whose claim looks like a credential',
     items: [buildHandKeptItemRow({ claim: `token AKIA${'Q'.repeat(16)}` })],
     journal: ['2026-03-02T10:00:00Z\tclosed\tt-b\tfinished'],
-    problems: ['journal.tsv line 2 (t-b): the text looks like a credential (it matches AKIA).'],
+    problems: [
+      'journal.tsv line 2 (t-b): the text looks like a credential (it matches the AKIA pattern).',
+    ],
   },
   {
     title: 'a closed row for a question whose text looks like a credential',
@@ -425,8 +432,8 @@ test.each([
       '2026-03-02T10:00:00Z\tclosed\tq-1\tfinished',
     ],
     problems: [
-      'journal.tsv line 2 (q-1): the text looks like a credential (it matches AKIA).',
-      'journal.tsv line 3 (q-1): the text looks like a credential (it matches AKIA).',
+      'journal.tsv line 2 (q-1): the text looks like a credential (it matches the AKIA pattern).',
+      'journal.tsv line 3 (q-1): the text looks like a credential (it matches the AKIA pattern).',
     ],
   },
   {
@@ -505,7 +512,9 @@ test.each([
     title: 'a journal text that looks like a credential',
     items: [],
     journal: [`2026-03-02T09:00:00Z\tnote\tn-1\ttoken AKIA${'Q'.repeat(16)}`],
-    problems: ['journal.tsv line 2 (n-1): the text looks like a credential (it matches AKIA).'],
+    problems: [
+      'journal.tsv line 2 (n-1): the text looks like a credential (it matches the AKIA pattern).',
+    ],
   },
   {
     title: 'a journal row with a carriage return',
@@ -572,7 +581,7 @@ test.each([
     ),
     journal: [],
     problems: [
-      'items.tsv line 8 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
+      'items.tsv line 8 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches the AKIA pattern).',
       'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, <where the secret lives>), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
     ],
   },
@@ -1276,11 +1285,11 @@ test('it refuses a standing token with no --may, and prints the flags that fix i
             'import',
             'old-notes',
             '--may',
-            '<what the owner allows, in their words>',
+            toPlaceholder('<what the owner allows, in their words>'),
             '--where',
             'chat',
             '--reading',
-            '<what they cover; what the owner kept back>',
+            toPlaceholder('<what they cover; what the owner kept back>'),
           ],
         },
       ],

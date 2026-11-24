@@ -179,7 +179,10 @@ test.each([
   [
     'a grant bullet that looks like a credential',
     `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=token ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
-    { kind: 'broken', reason: 'a grant bullet looks like a credential (it matches ghp_)' },
+    {
+      kind: 'broken',
+      reason: 'a grant bullet looks like a credential (it matches the ghp pattern)',
+    },
   ],
   [
     'a grant scope of a lone dash',

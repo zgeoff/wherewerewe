@@ -57,10 +57,12 @@ test.each(buildGrantFaultCases().map((entry) => [entry.title, entry.argv] as con
       runLines: runLines.length,
       retries,
       credential: refused.stderr.includes(faultCredential),
+      marked: runLines.filter((line) => line.includes('•')),
     }).toStrictEqual({
       runLines: isWritten ? 0 : 1,
       retries: isWritten ? [] : [0],
       credential: false,
+      marked: [],
     });
   },
 );
@@ -108,12 +110,86 @@ test.each(
 test('it ends at www help after three refusals in a row', () => {
   const settled = settleRefusal(
     { exitCode: 2, lines: ['www: x'], runs: [{ www: ['goal', 'a', 'b'] }] },
-    { sessionFlag: null, typedWords: [] },
+    { sessionFlag: null },
   );
 
   expect(settled).toStrictEqual({
-    exitCode: 2,
-    lines: ['www: goal takes "<what done means>".'],
-    runs: [{ www: ['help'] }],
+    refusal: {
+      exitCode: 2,
+      lines: ['www: goal takes "<what done means>".'],
+      runs: [{ www: ['help'] }],
+    },
+    scope: { sessionFlag: null },
   });
 });
+
+test.each([
+  {
+    title: 'a typed circled digit beside a credential in another flag',
+    argv: [
+      'grant',
+      '--may',
+      '①',
+      '--where',
+      'chat',
+      '--reading',
+      '-',
+      '--never',
+      '-keep',
+      '--not',
+      faultCredential,
+    ],
+    exitCode: 3,
+    stderr:
+      'www: refused: the reading is empty.\nRun: www grant --may ① --where chat --reading "<reading>" --never="-keep" --not "<where the secret lives>"\n',
+  },
+  {
+    title: 'a typed value that reads like a placeholder and holds a bullet mark',
+    argv: [
+      'grant',
+      '--may',
+      'water',
+      '--where',
+      '<chat • log>',
+      '--reading',
+      'works',
+      '--never',
+      '-keep',
+    ],
+    exitCode: 3,
+    stderr:
+      'www: refused: the where cannot hold •, which the brief prints before each bullet.\nRun: www grant --may water --where "<chat - log>" --reading works --never="-keep"\n',
+  },
+  {
+    title: 'a --session value that starts with a dash',
+    argv: ['--session=--help', 'grant', 'extra'],
+    exitCode: 2,
+    stderr: 'www: grant takes no arguments.\nRun: www help\n',
+  },
+  {
+    title: 'a joined flag with a credential after --',
+    argv: ['task', '--note', '-keep', '--', 't-a', `--may=${faultCredential}`],
+    exitCode: 2,
+    stderr:
+      'www: the value of --note starts with a dash, so it reads as a flag. Join the two with =, as in --note="<value>".\nRun: www task --note="-keep" -- t-a "<where the secret lives>"\n',
+  },
+])(
+  'it prints a Run line that keeps each typed value and passes once filled, for $title',
+  async (row) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const refused = await ctx.run(row.argv);
+
+    const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www')) ?? '';
+
+    const retried = await ctx.run(ctx.fill(runLine));
+
+    expect({
+      exitCode: refused.exitCode,
+      stderr: refused.stderr,
+      retried: retried.exitCode,
+    }).toStrictEqual({ exitCode: row.exitCode, stderr: row.stderr, retried: 0 });
+  },
+);

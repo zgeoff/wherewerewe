@@ -165,7 +165,7 @@ function checkItemRow(
       : []),
     ...(credentialLabel === null
       ? []
-      : [`the text looks like a credential (it matches ${credentialLabel}).`]),
+      : [`the text looks like a credential (it matches the ${credentialLabel} pattern).`]),
     ...(hasCarriageReturn ? [carriageReturnProblem] : []),
   ];
 

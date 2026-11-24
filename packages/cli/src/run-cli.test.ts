@@ -3,6 +3,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync }
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { findCredentialMatch } from './rules/find-credential-match.ts';
 import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
 import { formatNotesFile } from './store/format-notes-file.ts';
@@ -11,6 +12,7 @@ import { parseJournalFile } from './store/parse-journal-file.ts';
 import { readJournalRows } from './store/read-journal-rows.ts';
 import { readStore } from './store/read-store.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
+import { buildCredentialSamples } from './test-utils/build-credential-samples.ts';
 import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
@@ -1920,5 +1922,85 @@ test('it prints a footer with no --session for a recap in a bound session, and i
   }).toStrictEqual({
     footer: ['Whole text: www show <id>', 'Correct: www say "<text>" [--on <id>]', ''],
     wholeExit: 0,
+  });
+});
+
+test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample, entry.tail] as const))(
+  'it prints no part of a %s credential in any place www echoes what it was given',
+  async (_name, sample, tail) => {
+    const ctx = setupTest();
+    const folder = join(ctx.stateRoot, 'tide-alerts');
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    await seedItem(folder, { id: sample, claim: 'Write the parser' });
+
+    const typed = [
+      [sample],
+      ['task', `--${sample}`],
+      ['task', `--${sample}=x`],
+      ['task', 't-a', 'Write it', '--note', sample],
+      ['task', 't-a', 'Write it', `--note=${sample}`],
+      ['log', '--since', sample],
+      ['task', 't-a', sample],
+      ['task', '--note', '-keep', '--', 't-a', `--may=${sample}`],
+      ['show', sample],
+      ['done', sample, '--evidence', 'PR 12'],
+      ['--session', sample],
+      [],
+    ];
+
+    const outputs = await Promise.all(typed.map((argv) => ctx.run(argv)));
+
+    seedStoreFile(
+      folder,
+      'session',
+      `${readFileSync(join(folder, 'session'), 'utf8')}${sample}=1\n`,
+    );
+
+    const storedKey = await ctx.run([]);
+
+    const lines = [...outputs, storedKey].flatMap((result) =>
+      `${result.stdout}${result.stderr}`.split('\n'),
+    );
+
+    expect({
+      matched: lines.filter((line) => findCredentialMatch(line) !== null),
+      leaked: lines.filter((line) => line.includes(tail)),
+    }).toStrictEqual({ matched: [], leaked: [] });
+  },
+);
+
+test('it prints the Run line of a broken store whose path holds a line break as one line that a shell reads back', async () => {
+  const root = createTempDir('run-cli-break').path;
+  const stateHome = join(root, 'first\nsecond');
+  const env = { HOME: root, XDG_STATE_HOME: stateHome, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+
+  const run = (argv: readonly string[]) =>
+    runCLI({
+      argv,
+      env,
+      cwd: '/work',
+      terminal: { stdin: false, stdout: false },
+      now: () => Date.parse('2026-03-10T11:43:00Z'),
+    });
+
+  await run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const folder = join(stateHome, 'wherewerewe', 'tide-alerts');
+  const session = readFileSync(join(folder, 'session'), 'utf8');
+
+  seedStoreFile(folder, 'session', session.replace(/^started=.*$/mu, 'started=yesterday'));
+
+  const refused = await run(['recap']);
+
+  const lines = refused.stderr.split('\n');
+
+  const words = await readShellWords((lines[1] ?? '').slice('Run: '.length));
+
+  expect({ exitCode: refused.exitCode, lines: lines.length, words }).toStrictEqual({
+    exitCode: 3,
+    lines: 3,
+    words: ['less', join(folder, 'session')],
   });
 });

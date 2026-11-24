@@ -1,36 +1,53 @@
-const credentialPatterns: readonly { readonly label: string; readonly pattern: RegExp }[] = [
-  { label: 'ghp_', pattern: /ghp_/u },
-  { label: 'gho_', pattern: /gho_/u },
-  { label: 'ghs_', pattern: /ghs_/u },
-  { label: 'ghu_', pattern: /ghu_/u },
-  { label: 'github_pat_', pattern: /github_pat_/u },
-  { label: 'xoxb-', pattern: /xoxb-/u },
-  { label: 'xoxp-', pattern: /xoxp-/u },
-  { label: 'sk-', pattern: /sk-[A-Za-z0-9]{20,}/u },
-  { label: 'ghr_', pattern: /ghr_/u },
-  { label: 'xoxa-', pattern: /xoxa-/u },
-  { label: 'xoxr-', pattern: /xoxr-/u },
-  { label: 'xapp-', pattern: /xapp-/u },
-  { label: 'AKIA', pattern: /AKIA[A-Z0-9]{16}/u },
-  { label: 'ops_', pattern: /ops_\S{20,}/u },
-  { label: '-----BEGIN', pattern: /-----BEGIN/u },
-  { label: 'eyJ', pattern: /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/u },
-  { label: 'glpat-', pattern: /glpat-[A-Za-z0-9_-]{20,}/u },
-  { label: 'npm_', pattern: /npm_[A-Za-z0-9_-]{20,}/u },
-  { label: 'sk_live_', pattern: /sk_live_[A-Za-z0-9_-]{20,}/u },
-  { label: 'rk_live_', pattern: /rk_live_[A-Za-z0-9_-]{20,}/u },
-  { label: 'AIza', pattern: /AIza[A-Za-z0-9_-]{20,}/u },
+// Each pattern of the credential test, with the name a refusal prints for it. No name holds text
+// that a pattern matches, so the output's redaction leaves each name in place.
+export const credentialPatterns: readonly { readonly name: string; readonly pattern: RegExp }[] = [
+  { name: 'ghp', pattern: /ghp_/u },
+  { name: 'gho', pattern: /gho_/u },
+  { name: 'ghs', pattern: /ghs_/u },
+  { name: 'ghu', pattern: /ghu_/u },
+  { name: 'github_pat', pattern: /github_pat_/u },
+  { name: 'xoxb', pattern: /xoxb-/u },
+  { name: 'xoxp', pattern: /xoxp-/u },
+  { name: 'sk', pattern: /sk-[A-Za-z0-9]{20,}/u },
+  { name: 'ghr', pattern: /ghr_/u },
+  { name: 'xoxa', pattern: /xoxa-/u },
+  { name: 'xoxr', pattern: /xoxr-/u },
+  { name: 'xapp', pattern: /xapp-/u },
+  { name: 'AKIA', pattern: /AKIA[A-Z0-9]{16}/u },
+  { name: 'ops', pattern: /ops_\S{20,}/u },
+  { name: 'BEGIN', pattern: /-----BEGIN/u },
+  { name: 'eyJ', pattern: /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/u },
+  { name: 'glpat', pattern: /glpat-[A-Za-z0-9_-]{20,}/u },
+  { name: 'npm', pattern: /npm_[A-Za-z0-9_-]{20,}/u },
+  { name: 'sk_live', pattern: /sk_live_[A-Za-z0-9_-]{20,}/u },
+  { name: 'rk_live', pattern: /rk_live_[A-Za-z0-9_-]{20,}/u },
+  { name: 'AIza', pattern: /AIza[A-Za-z0-9_-]{20,}/u },
 ];
 
-// The label of the first pattern that matches, or null. A bare prefix such as ghp_ matches too:
+// The name of the first pattern that matches, or null. A bare prefix such as ghp_ matches too:
 // the design says the test matches at least its list.
 export function findCredentialMatch(text: string): string | null {
   const match = credentialPatterns.find((entry) => entry.pattern.test(text));
 
-  return match === undefined ? null : match.label;
+  return match === undefined ? null : match.name;
 }
 
-// True for the bare name of a pattern, such as ghp_, which a refusal prints to say what matched.
-export function isCredentialLabel(text: string): boolean {
-  return credentialPatterns.some((entry) => entry.label === text);
+export interface CredentialSpan {
+  readonly start: number;
+
+  // the index after the match's last character
+  readonly end: number;
+}
+
+// The earliest place in the text that a pattern matches, or null exactly when no pattern does.
+export function findCredentialSpan(text: string): CredentialSpan | null {
+  return credentialPatterns.reduce<CredentialSpan | null>((first, entry) => {
+    const found = entry.pattern.exec(text);
+
+    if (found === null || (first !== null && first.start <= found.index)) {
+      return first;
+    }
+
+    return { start: found.index, end: found.index + found[0].length };
+  }, null);
 }

@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { toPlaceholder } from '../refusals/to-placeholder.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
 import { getPickedWrite } from '../test-utils/get-picked-write.ts';
@@ -328,9 +329,9 @@ test('it puts the one placeholder of each typed group at the first bullet of a g
       www: [
         'grant',
         '--may',
-        '<what the owner allows, in their words>',
+        toPlaceholder('<what the owner allows, in their words>'),
         '--never',
-        '<what the owner ruled out, in their words>',
+        toPlaceholder('<what the owner ruled out, in their words>'),
         '--where',
         'chat',
         '--reading',
@@ -362,7 +363,7 @@ test('it replaces only the second --may when it is 121 characters long, in the R
         '--may',
         'water the beds',
         '--may',
-        '<bullet of at most 120 characters>',
+        toPlaceholder('<bullet of at most 120 characters>'),
         '--where',
         'chat',
         '--reading',
@@ -391,7 +392,7 @@ test('it refuses a credential in a bullet and replaces only that value in the Ru
 
   expect([ctx.readRefusal(picked)?.lines, ctx.readRefusal(picked)?.runs]).toStrictEqual([
     [
-      `www: refused: the text looks like a credential (it matches ${prefix}). Write where the secret lives, never its value.`,
+      `www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.`,
     ],
     [
       {
@@ -400,7 +401,7 @@ test('it refuses a credential in a bullet and replaces only that value in the Ru
           '--may',
           'water the beds',
           '--not',
-          '<where the secret lives>',
+          toPlaceholder('<where the secret lives>'),
           '--where',
           'chat',
           '--reading',
@@ -433,7 +434,7 @@ test.each([
   ]);
 
   expect(ctx.readRefusal(picked)?.lines[0]).toBe(
-    `www: refused: the text looks like a credential (it matches ${prefix}). Write where the secret lives, never its value.`,
+    `www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.`,
   );
 });
 
@@ -458,9 +459,9 @@ test.each([
     [
       'grant',
       '--may',
-      '<bullet of at most 120 characters>',
+      toPlaceholder('<bullet of at most 120 characters>'),
       '--may',
-      '<bullet of at most 120 characters>',
+      toPlaceholder('<bullet of at most 120 characters>'),
       '--where',
       'chat',
       '--reading',
@@ -474,7 +475,15 @@ test.each([
       "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
       'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
     ],
-    ['grant', '--may', '<bullet of at most 120 characters>', '--reading', 'r', '--where', 'chat'],
+    [
+      'grant',
+      '--may',
+      toPlaceholder('<bullet of at most 120 characters>'),
+      '--reading',
+      'r',
+      '--where',
+      'chat',
+    ],
   ],
   [
     'a reading over 200 characters on a session with no grant',
@@ -486,11 +495,11 @@ test.each([
     [
       'grant',
       '--may',
-      '<what the owner allows, in their words>',
+      toPlaceholder('<what the owner allows, in their words>'),
       '--where',
-      '<where>',
+      toPlaceholder('<where>'),
       '--reading',
-      '<reading of at most 200 characters>',
+      toPlaceholder('<reading of at most 200 characters>'),
     ],
   ],
   [
@@ -510,13 +519,13 @@ test.each([
     [
       'grant',
       '--not',
-      '<what the owner did not grant, in their words>',
+      toPlaceholder('<what the owner did not grant, in their words>'),
       '--where',
       'chat',
       '--reading',
       'r',
       '--may',
-      '<what the owner allows, in their words>',
+      toPlaceholder('<what the owner allows, in their words>'),
     ],
   ],
 ])(

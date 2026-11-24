@@ -53,10 +53,7 @@ function runCommand(input: CLIInput): Promise<CLIResult> {
   return match(parseCLIArgs(input.argv))
     .with({ kind: 'refused' }, (refused) =>
       Promise.resolve(
-        buildRefusalResult(buildRefusal(refused.reason), {
-          sessionFlag: refused.sessionFlag,
-          typedWords: input.argv,
-        }),
+        buildRefusalResult(buildRefusal(refused.reason), { sessionFlag: refused.sessionFlag }),
       ),
     )
     .with({ kind: 'args' }, (parsed) => runParsedArgs(input, parsed.args))
