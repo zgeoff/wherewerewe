@@ -35,7 +35,7 @@ o-2  cleared. Kept in the journal. Brief: <t> of <limit> tokens.
 - The owner corrects the grant's reading with a plain `say`, as in `o-2` above: `--on` takes an item id, and the grant is no item. The agent then rewrites the reading with `www grant --reading`, and the owner clears the note with `ack` once the brief shows the new reading.
 - The owner reads what the session kept with `www --session <name> recap`: the grant, the notes on open items, the promises, the decisions and the closes since a time, in at most 61 lines, and it ends with the `say` command, with `--session <name>`, that corrects what it shows. Take its sections from [commands.md](commands.md). `recap` writes nothing, so it runs from any shell, with no terminal test: the owner runs it from a terminal outside any agent, and an agent may run it too.
 - At most 2 notes show; a third `say` is refused until the owner clears one.
-- After a grant changes, the owner pastes the output of [`www goal --paste`](commands.md#www-goal---paste) as a `/goal`.
+- After a grant changes, the owner pastes the output of [`www goal --paste`](lists-and-json.md#www-goal---paste) as a `/goal`.
 - An agent's `Run:` line in a refusal never suggests `say` or `ack`.
 
 ## What this does not protect against

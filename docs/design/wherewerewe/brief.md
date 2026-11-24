@@ -179,7 +179,7 @@ The ASCII worst case above fits each host's limit:
 | Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,684 bytes, 28.9%   |
 | no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,684 bytes, 64.5%  |
 
-So the ASCII worst case cuts nothing on any host, and Claude Code's room is the smallest. A store whose stored texts are all in a 3-byte script takes more: the never-cut lines then take under 9,000 bytes, and with the owner's words under 17,000, so they fit the smallest limit and [the cut order](#the-cut-order) decides what else stays. The `--json` output of [commands.md](commands.md#--json) is outside this limit.
+So the ASCII worst case cuts nothing on any host, and Claude Code's room is the smallest. A store whose stored texts are all in a 3-byte script takes more: the never-cut lines then take under 9,000 bytes, and with the owner's words under 17,000, so they fit the smallest limit and [the cut order](#the-cut-order) decides what else stays. The `--json` output of [commands.md](lists-and-json.md#--json) is outside this limit.
 
 ### The cut order
 
@@ -361,7 +361,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 - **A grant takes any of `may`, `not` and `never`, and its bullets take at most 19 lines.** A limit alone is a grant, and the brief's size bounds the grant in place of a cap on one bullet. The 19 lines bound the `SessionStart` injection ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)) and the grant's share of the never-cut lines. [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md)
 - **The brief prints no journal rows.** `www log`, `www show` and `www recap` read the journal; the brief stays the same size however long the session runs. `DECISIONS` is the one place the brief prints journal rows: the 3 newest decisions in force, read from the journal, and a count line.
 - **The cut order is a rule of this doc, with no record.** A renderer change reverses it, and it changes no stored format. The kinds of the order, from never cut to first cut, are in [The cut order](#the-cut-order).
-- **`www list <kind>` lists every row the brief can cut.** Each cut line names it, so the agent sees the rest in one command. [commands.md](commands.md#www-list)
+- **`www list <kind>` lists every row the brief can cut.** Each cut line names it, so the agent sees the rest in one command. [commands.md](lists-and-json.md#www-list)
 - **A lesson, a promise and the owner's words are kinds of their own.** Each prints its own section and takes its own file ([store.md](store.md)). [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 
 ## Builder decides

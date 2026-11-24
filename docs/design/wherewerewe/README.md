@@ -29,7 +29,8 @@ flowchart LR
 | Doc                                         | What it settles                                                                    |
 | ------------------------------------------- | ---------------------------------------------------------------------------------- |
 | [store.md](store.md)                        | where the store lives, each file's format and version, the hand-store import and the format 2 upgrade |
-| [commands.md](commands.md)                  | every command, its output, each refusal with its exact text, and the owner's recap |
+| [commands.md](commands.md)                  | the help, each command's signature, limits and reply, `show`, `log` and the owner's recap, and each refusal with its exact text |
+| [lists-and-json.md](lists-and-json.md)      | `www list`, `--json` on the read commands, and the `/goal` text of `www goal --paste` |
 | [brief.md](brief.md)                        | the brief's order and lines, the caps, the limit and the cut order, the worst-case size, and a day-9 example    |
 | [checks.md](checks.md)                      | the probes, their timeouts, and what a failed or offline check prints              |
 | [sessions-and-hooks.md](sessions-and-hooks.md) | how a command and a hook find their session, the hooks, the gate, install and doctor     |

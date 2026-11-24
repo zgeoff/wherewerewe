@@ -205,7 +205,7 @@ The owner's own acts carry authority: an allow rule the owner installs and a `/g
 | a `/goal` condition, before any compaction | 1 of 1 | 0 |
 | `SessionStart` hook context | 0 | 2 of 2 |
 
-The classifier kept the permission across a compaction only when the compaction summary restated it. With the owner's words in front of it after every compaction, the agent can restate them accurately when it next writes a summary, and that is what the injection is for. The owner's paste of the text from [`www goal --paste`](commands.md#www-goal---paste) carries authority before a compaction, and after one only when the agent's summary restates the grant. Whether a goal's periodic re-injection counts after a compaction is untested ([open questions](#open-questions)).
+The classifier kept the permission across a compaction only when the compaction summary restated it. With the owner's words in front of it after every compaction, the agent can restate them accurately when it next writes a summary, and that is what the injection is for. The owner's paste of the text from [`www goal --paste`](lists-and-json.md#www-goal---paste) carries authority before a compaction, and after one only when the agent's summary restates the grant. Whether a goal's periodic re-injection counts after a compaction is untested ([open questions](#open-questions)).
 
 #### Subagents and failing open
 
