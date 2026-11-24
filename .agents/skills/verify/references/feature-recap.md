@@ -1,12 +1,12 @@
 # recap
 
 Check that the owner can read one screen of what a session kept, and correct it from what it prints.
-A user starts a session, writes a grant, two items with a note and one without, closes an item with
-its evidence, records six decisions, and runs `www recap`. The recap prints the grant in bullets,
-both notes with the owed one first, the item with no note, the close with its evidence, and five of
-the six decisions with an overflow line. The user runs the overflow line's command and reads the
-sixth decision. The journey runs the real `www` as a process, with its home and state folders inside
-the run's folder under `.wringer/`, so it never touches your own stores.
+A user starts a session, writes a grant, two items with a note, one without and a fourth that it
+closes with its evidence, records six decisions, and runs `www recap`. The recap prints the grant in
+bullets, both notes with the owed one first, the item with no note, the close with its evidence, and
+five of the six decisions with an overflow line. The user runs the overflow line's command and reads
+the sixth decision. The journey runs the real `www` as a process, with its home and state folders
+inside the run's folder under `.wringer/`, so it never touches your own stores.
 
 ## Journey
 

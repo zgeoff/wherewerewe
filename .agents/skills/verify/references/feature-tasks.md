@@ -1,11 +1,12 @@
 # tasks
 
 Check that a session holds 20 open tasks and that the owner reads them in two places. A user starts
-a session, writes a wait, a task blocked by it, a task with an owed note and 17 more tasks, and sets
-one in focus. The brief prints all 20 rows under `OPEN (20 of 30)`, the item in focus first, once
-for a Codex agent and once for a Claude Code agent. `www show` with no id lists every task with the
-owed note whole. The journey runs the real `www` as a process, with its home and state folders
-inside the run's folder under `.wringer/`, so it never touches your own stores.
+a session, writes a wait, a task blocked by it, a task with an owed note and 18 more tasks, and sets
+one in focus. The brief prints all 20 task rows under `OPEN (20 of 30)`, 30 being the task limit,
+the item in focus first, once for a Codex agent and once for a Claude Code agent. `www show` with no
+id lists every task with the owed note whole. The journey runs the real `www` as a process, with its
+home and state folders inside the run's folder under `.wringer/`, so it never touches your own
+stores.
 
 ## Journey
 
