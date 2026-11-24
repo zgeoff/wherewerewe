@@ -188,7 +188,8 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - `www grant` with `--quote` replaces the words, where they were given and the reading at once. `www grant --reading` alone replaces only the reading.
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
 - `ok` accepts `--once` and ignores it, because every approval is one-time. `--standing` gets the refusal below.
-- `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; see [store.md](store.md) for when each is needed.
+- `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
+- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above. `install`, `doctor` and `hook` are slice 4's, and `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
 
 ### Text limits
 
@@ -403,8 +404,10 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | Import finds rows that break a rule               | `www: refused: import found 3 rows that break the rules, and wrote nothing.` then one line per row, such as `items.tsv line 9 (r-models): the claim is 151 characters, and the limit is 120.` and `journal.tsv: 6 open waits (q-2, q-4, q-5, q-6, q-7, q-8), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`, then `Run: www import build` |
 | An unknown command or flag (exit 2)               | `www: unknown command "taks".` `Run: www help`                                                                                                                                                         |
 
-- When one upgrade finds more than one of its problems, it prints each problem's lines and one `Run:` line with every flag the problems need.
-- The credential test matches at least these: `ghp_`, `gho_`, `ghs_`, `ghu_`, `github_pat_`, `sk-` followed by 20 or more letters and digits, `xoxb-`, `xoxp-`, `AKIA` followed by 16 capitals or digits, `ops_` followed by 20 or more characters, `-----BEGIN`, and a JWT (`eyJ` then two `.`-separated parts). It applies to notes and to the grant's words and reading.
+- When one upgrade finds more than one of its problems, it prints each problem's lines and one `Run:` line with every flag the problems need. `--drop` repeats once per id, such as `--drop ok-wipe --drop grant`.
+- The `Run:` line of a reading over its limit is the refused command with only the reading replaced, so `www grant --quote … --reading …` and `www import … --reading …` keep their other flags.
+- A claim, a next step and an approval quote, whose commands take `--note`, end an over-limit text with "Write what is true now, and put the detail in its note with --note." Every other text over its limit ends "Write what is true now; the story belongs in a PR or a commit." The note, the grant's words and the reading have their own rows.
+- The credential test matches at least these: `ghp_`, `gho_`, `ghs_`, `ghu_`, `github_pat_`, `sk-` followed by 20 or more letters and digits, `xoxb-`, `xoxp-`, `AKIA` followed by 16 capitals or digits, `ops_` followed by 20 or more characters, `-----BEGIN`, and a JWT (`eyJ` then two `.`-separated parts). It applies to notes and to the grant's words and reading. A credential in the grant's words or reading keeps the refused command and replaces only the text that matched with `"<where the secret lives>"`.
 - A refusal of a note keeps the refused command and fixes only the note. A note over its limit, with a tab or a newline, or that looks like a credential becomes `--note "<note of at most 400 characters>"`, `--note "<one line>"` or `--note "<where the secret lives>"`, and `--owed` with no `--note` gets `--note "<what is owed>"`. The `Run:` line then passes for a new item and for an item of any kind.
 - When the agent typed `www` with `--session`, each `Run:` line keeps `--session <name>`.
 

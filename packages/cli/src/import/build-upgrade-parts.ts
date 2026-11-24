@@ -38,10 +38,6 @@ export interface UpgradeParts {
 const foldedWhy = 'folded into the grant by the format 2 upgrade';
 const droppedWhy = 'dropped by the format 2 upgrade';
 
-export function isStanding(item: Format1Item): boolean {
-  return item.kind === 'ok' && item.extra.use === 'standing';
-}
-
 export function toApprovals(items: readonly Format1Item[]): UpgradeApproval[] {
   return items.flatMap((item): UpgradeApproval[] =>
     item.kind === 'ok'
@@ -116,6 +112,10 @@ export function buildUpgradeParts(
     folded: removed.filter((item) => isStanding(item)).length,
     kept: items.filter((item) => item.kind === 'ok' && !removedIDs.has(item.id)).length,
   };
+}
+
+function isStanding(item: Format1Item): boolean {
+  return item.kind === 'ok' && item.extra.use === 'standing';
 }
 
 function toItem(item: Format1Item): Item {
