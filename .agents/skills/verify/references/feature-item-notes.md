@@ -32,9 +32,9 @@ bun verify www run --line 'www --session trial-item-notes' --expect 'NOW  none. 
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: the task's
   reply counts its note and marks it owed, the brief tags the task owed before and after it is in
   focus and prints the note under `NOW` once it is, `show` prints the owed note, clearing the note
-  shortens the brief by its line, the close keeps it in the journal, and the journal shows the owed
-  note and its clearing. Each fails with `check-failed` when `www` exits other than 0 or prints
-  other text.
+  reports a brief of 7 lines with no line for the note, closing the task keeps it in the journal,
+  and the journal shows the owed note and its clearing. Each fails with `check-failed` when `www`
+  exits other than 0 or prints other text.
 - `bun verify www refuse` exits 0: `www` refused `done` while the note was owed, with exit 3, and
   printed the `Run:` line that clears it.
 - When a command fails, follow its row in [Exit codes](exit-codes.md) (step 4 of
