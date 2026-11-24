@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, as built through slice 2d and decision records 0009 and 0011, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2d, decision records 0009 and 0011, and the limits' diff, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -185,7 +185,7 @@ The grant's shapes and its lines, decision record 0011:
 +4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
-Every limit the code enforces, so an agent reads each one before a write refuses it:
+The limits' diff adds every limit the code enforces to the help, so an agent can read each one before a write refuses it:
 
 ```diff
 @@ -44,3 +44,6 @@
@@ -281,7 +281,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 
 ### Write replies
 
-Each write prints the note lines or the older-note line in its row first and its status line last, the one that ends in `Brief: <n> lines.`, and exits 0. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
+Each write prints the note lines or the older-note line in its row first and its status line last, and exits 0. A status line ends in `Brief: <n> lines.`, except the replies of `init`, `attach`, `detach` and `import`, whose rows give their whole reply. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -528,7 +528,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 
 ## Constraints
 
-- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `www` and `show` probe; `log` and `recap` never do. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
+- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `www` and `show <id>` probe; `show` with no id, `log` and `recap` never do. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
 - A changed check never makes `set` refuse, so the agent can always fix a stale claim.
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
