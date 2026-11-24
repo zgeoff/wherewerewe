@@ -27,12 +27,10 @@ test.each([
     bullets: (grant?.may.length ?? 0) + (grant?.not.length ?? 0) + (grant?.never.length ?? 0),
     scope: grant?.scope === null ? null : grant?.scope.length,
     words: [
-      ...[
-        ...(grant?.may ?? []),
-        ...(grant?.not ?? []),
-        ...(grant?.never ?? []),
-        grant?.scope ?? '',
-      ].join(''),
-    ].length,
+      ...(grant?.may ?? []),
+      ...(grant?.not ?? []),
+      ...(grant?.never ?? []),
+      grant?.scope ?? '',
+    ].join('').length,
   }).toStrictEqual({ bullets: row.bullets, scope: row.scope, words: 700 });
 });
