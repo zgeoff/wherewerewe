@@ -7,7 +7,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { makePath } from './make-path.ts';
 import { readPathIdentity } from './read-path-identity.ts';
@@ -114,15 +114,15 @@ test('it sets aside a folder swapped in after the identity check, with its files
   expect([
     existsSync(folder),
     readdirSync(join(ctx.root, 'paths'))
-      .filter((name) => name.endsWith('.kept'))
-      .flatMap((name) => readdirSync(join(ctx.root, 'paths', name))),
+      .filter((name) => name.startsWith('.kept-'))
+      .flatMap((name) => readdirSync(join(ctx.root, 'paths', name, 'dock-map'))),
     readdirSync(join(ctx.root, 'paths'))
-      .filter((name) => !name.endsWith('.kept'))
+      .filter((name) => !name.startsWith('.kept-'))
       .toSorted(),
   ]).toStrictEqual([false, ['keep.txt'], ['.made-dock-map', 'moved']]);
 });
 
-test('it never replaces a folder that takes the name while a refused entry is put aside', () => {
+test('it never replaces an empty folder at the original name or beside the holding folder', () => {
   const ctx = setupTest();
   const folder = makePath(ctx.root, 'dock-map');
   const reads = { count: 0 };
@@ -141,24 +141,31 @@ test('it never replaces a folder that takes the name while a refused entry is pu
     return identity;
   };
 
-  // an empty folder takes the name just before the refused entry is moved off it, as another
-  // process could do, and a rename replaces an empty folder
-  const renameWhileFolderTakesName = (from: string, to: string) => {
+  // empty folders take the original name and the names beside the holding folder just before the
+  // refused entry is moved off, as another process could do, and a rename replaces an empty folder
+  const renameWhileFoldersTakeNames = (from: string, to: string) => {
     if (from !== folder) {
       mkdirSync(folder);
+      mkdirSync(`${dirname(from)}.kept`);
+      mkdirSync(`${dirname(from)}.kept-dock-map`);
     }
 
     renameSync(from, to);
   };
 
   expect(() =>
-    removePath(ctx.root, 'dock-map', swapAfterFirstRead, renameWhileFolderTakesName),
+    removePath(ctx.root, 'dock-map', swapAfterFirstRead, renameWhileFoldersTakeNames),
   ).toThrow('was not made by `www make-path` in this run');
+
+  const paths = readdirSync(join(ctx.root, 'paths'));
 
   expect([
     readdirSync(folder),
-    readdirSync(join(ctx.root, 'paths'))
-      .filter((name) => name.endsWith('.kept'))
+    paths
+      .filter((name) => name.endsWith('.kept') || name.endsWith('.kept-dock-map'))
+      .map((name) => readdirSync(join(ctx.root, 'paths', name))),
+    paths
+      .filter((name) => name.startsWith('.kept-') && !name.endsWith('.kept-dock-map'))
       .flatMap((name) => readdirSync(join(ctx.root, 'paths', name))),
-  ]).toStrictEqual([[], ['first.txt']]);
+  ]).toStrictEqual([[], [[], []], ['dock-map']]);
 });

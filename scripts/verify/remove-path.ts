@@ -1,5 +1,5 @@
 import { existsSync, lstatSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { WringerError } from '@wringer/core';
 import { checkPathName } from './check-path-name.ts';
 import { readPathIdentity } from './read-path-identity.ts';
@@ -42,7 +42,7 @@ export function removePath(
   rename(join(parent, name), held);
 
   if (!probeMadeFolder(held, marker, readIdentity)) {
-    setEntryAside(held, rename);
+    setEntryAside(held, parent, name, rename);
     rmSync(holding, { recursive: true, force: true });
     throw notMade;
   }
@@ -66,7 +66,15 @@ function probeMadeFolder(
 }
 
 // A refused entry never goes back to its name, because a rename replaces an empty folder that took
-// the name since. It stays beside the holding folder, under a name of its own.
-function setEntryAside(held: string, rename: (from: string, to: string) => void): void {
-  rename(held, `${dirname(held)}.kept`);
+// the name since. It moves into a folder made here, so nothing at a name that was fixed in advance
+// can be replaced.
+function setEntryAside(
+  held: string,
+  parent: string,
+  name: string,
+  rename: (from: string, to: string) => void,
+): void {
+  const kept = mkdtempSync(join(parent, '.kept-'));
+
+  rename(held, join(kept, name));
 }
