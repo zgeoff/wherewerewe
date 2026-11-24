@@ -117,9 +117,9 @@ that command alone. A command with neither runs on the registry's first target, 
 
 <!-- repo: targets -->
 
-| Target  | Start with                                            | Access     | Notes                                                                                                                  |
-| ------- | ----------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `local` | `bun verify use --target local`, then `bun verify up` | read-write | `www` has no server. `up` starts a process that holds the run open, and hands over the run's folder under `.wringer/`. |
+| Target  | Start with                                            | Access     | Notes                                                  |
+| ------- | ----------------------------------------------------- | ---------- | ------------------------------------------------------ |
+| `local` | `bun verify use --target local`, then `bun verify up` | read-write | `up` holds the run open in a folder under `.wringer/`. |
 
 <!-- /repo -->
 
@@ -143,8 +143,8 @@ for its commands.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, and its stderr holds the text and `Run: <run line>`.
 - `bun verify terminal ...` drives `www` in a terminal: see
-  [the owner-notes file](references/feature-owner-notes.md).
-- The doctor check `www-help` runs `www help`. When it fails, `www` is broken: fix it first.
+  [feature-owner-notes.md](references/feature-owner-notes.md).
+- When the doctor check `www-help`, which runs `www help`, fails, fix `www` first.
 
 <!-- /repo -->
 
@@ -153,8 +153,8 @@ for its commands.
 <!-- repo: registry -->
 
 Declare the target, commands, doctor check, features and globs in the registry,
-[create-verify-registry.ts](../../../scripts/verify/create-verify-registry.ts). CI runs
-`bun verify lint` and `bun verify gate` in the `verify / gate` check.
+[create-verify-registry.ts](../../../scripts/verify/create-verify-registry.ts). CI runs `lint` and
+`gate` in `verify / gate`.
 
 <!-- /repo -->
 
