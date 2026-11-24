@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-`www` with no subcommand prints the brief: the whole state of the session in at most 63 lines and 7,000 characters on any day. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that teaches the write commands again. The same text is what the hooks put in context after a compaction. A build agent reads this doc to build the brief renderer and its size test, in its slice of [build-order.md](build-order.md).
+`www` with no subcommand prints the brief: the whole state of the session in at most 73 lines and 7,200 characters on any day. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that teaches the write commands again. The same text is what the hooks put in context after a compaction. A build agent reads this doc to build the brief renderer and its size test, in its slice of [build-order.md](build-order.md).
 
 ## Shape
 
@@ -25,7 +25,7 @@ flowchart TD
 | ---------------------------- | -------------------------------------------------------------------------------------------------- | ----------- |
 | header                       | session, day, time, age of the last write, how many checks ran and how long they took             | always      |
 | `GOAL`                       | the goal                                                                                           | always      |
-| `GRANT`                      | the owner's words whole, where and when they were given, and the agent's reading of what they cover and what the owner kept back | `GRANT  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"` |
+| `GRANT`                      | where and when the owner gave the grant, the owner's scope, the owner's words in bullets under `may`, `not` and `never`, and the agent's reading of what they cover and what the owner kept back | `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"` |
 | `OWNER SAYS`                 | each owner note, oldest first                                                                      | left out    |
 | `CHANGED SINCE WRITTEN`      | each item whose check result differs from `at_write`, at most 3 rows, with the command that fixes it | left out  |
 | `NOW`                        | the item in focus, its next step or why the step is hidden, then the item's note                   | `NOW  none. Run: www now <id> "<next step>"` |
@@ -41,15 +41,15 @@ flowchart TD
 
 The day is the number of UTC calendar days from the date of `started` to today, plus 1, so the day the session starts is day 1; `--since day-<n>` and "closed on day <n>" use the same count. An age is `<n>m` under an hour, `<n>h` under 48 hours, and `<n>d` after that, so it is at most 4 characters. In a template, `<id>  ` stands for the id padded with spaces to 12 columns; an id of 12 or more characters takes two spaces after it, and pushes the rest of the line. A tag is the bracketed text at the end of an item line.
 
-A wrapped block breaks each line at the last space that leaves the line 85 to 100 characters long, and drops that space. When no space falls in that range, the line ends at 100 characters. The goal, the grant's words, the grant's reading and the note wrap this way.
+A wrapped block breaks each line at the last space that leaves the line 85 to 100 characters long, and drops that space. When no space falls in that range, the line ends at 100 characters. The goal, each grant bullet, the grant's reading and the note wrap this way.
 
 | Line                     | Template                                                                                     | Widest |
 | ------------------------ | -------------------------------------------------------------------------------------------- | ------ |
 | header                   | `<name> · day <d> · <Ddd YYYY-MM-DD HH:MMZ> · last write <age> ago · <n> checks in <t>s[ · <n> unchecked: <reason>]`, or `no checks` in place of the check count when nothing has a check | 133 |
 | header, second line      | `  results not saved: <the store is not writable here \| another write held the lock>`        | 51     |
 | goal                     | `GOAL  <goal>`, wrapped, each further line indented 6                                         | 3 lines, 218 |
-| grant heading            | `GRANT  from the owner in <where>, <age> ago`; the age is that of the words                   | 51     |
-| grant words              | `  "<the owner's words>"`, wrapped, each further line indented 3                              | 9 lines, 728 |
+| grant heading            | `GRANT  from the owner in <where>, <age> ago`, then ` · <scope>` when the owner gave one; the age is that of the words | 94     |
+| grant bullet             | `  may    • <bullet>`, `  not    • <bullet>` or `  never  • <bullet>` for a group's first bullet, `         • <bullet>` for each further one; wrapped, each further line indented 11 | 2 lines, 142 |
 | grant reading            | `  reading: <reading>`, wrapped, each further line indented 4                                 | 3 lines, 219 |
 | owner note               | `  o-<n>  <text>  [<age>]`, or `[on <id> · <age>]` when it has `--on`                         | 198    |
 | changed row              | `  <id>  was <at_write> (<age>) · now <result> · run: <fix command>`                          | 131    |
@@ -65,6 +65,8 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | pull request             | `  <ref>  opened <age> ago  [<result>]`; a ref over 60 characters is cut to 59 and `…`        | 98     |
 | pull request overflow    | `  and <n> more: www log --op pr`                                                             | 30     |
 | pull request hint        | `  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>`                     | 71     |
+
+A group with no bullets is left out. A `never` bullet joins the line before, after two spaces, when that line holds only whole `never` bullets, neither bullet holds a `•`, and the joined line stays within 100 characters. A `may` or `not` bullet takes a line of its own, so each permission reads alone. The labels and the scope are the only words the brief adds to the owner's: `may`, `not` and `never` name what the owner said, and the scope prints as the owner gave it.
 
 A check result is at most 15 characters; the list is in [checks.md](checks.md). The fix command in a changed row is at most 64 characters with a 16-character id, the longest an id can be, and the widest changed row pairs the 6-character `CLOSED` with that 64-character fix:
 
@@ -94,14 +96,15 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 | where              | 4   | worktrees, processes and secret locations in use at once                        |
 | owner note         | 2   | the owner clears one before adding a third                                      |
 | note               | 1 per open item | a rewrite replaces it, and only the note of the item in focus prints |
-| grant              | 1   | the owner's words whole, in one place                                           |
+| grant              | 1   | the owner's words in one place                                                  |
+| grant bullet       | 12, of at most 120 characters each | one permission each; the owner's real grant has about ten parts |
 
-The worst case fills every cap with every text at its limit: every item has its widest tag and an owed note, the grant has 700 characters of words and a 200-character reading, the item in focus has a 400-character note, 3 changed rows and 1 pull request row each have an overflow line, those two headings each carry a two-digit count, and the header runs to two lines. The widths come from the renderer's line templates above.
+The worst case fills every cap with every text at its limit: every item has its widest tag and an owed note, the grant has 12 bullets and a 40-character scope holding 700 characters of the owner's words, and a 200-character reading, the item in focus has a 400-character note, 3 changed rows and 1 pull request row each have an overflow line, those two headings each carry a two-digit count, and the header runs to two lines. The widths come from the renderer's line templates above.
 
 A wrapped line holds at least 85 characters, so a line that carries a prefix of `p` characters carries at least `85 − p` characters of text. That gives each wrapped block its line count:
 
 - Goal, 200 characters behind a 6-character prefix: 2 lines carry at least 2 × 79 = 158, so 3 lines.
-- Grant words, 700 characters and the closing quote mark behind a 3-character prefix: 8 lines carry at least 8 × 82 = 656, so 9 lines.
+- Grant bullets, behind an 11-character prefix: a bullet wraps once its text passes 89 characters, and a first line that wraps carries at least 85 − 11 = 74, so a bullet of at most 120 characters takes at most 2 lines. The scope leaves 660 characters for the bullets, which pay for at most 7 bullets of 90 characters, so the most lines come from 7 bullets of 90 and 5 of 6: 7 × 2 + 5 = 19 lines. A search through the renderer over bullet counts, lengths, groups and spacing finds no layout with more lines or more characters.
 - Grant reading, 200 characters behind `  reading: ` (11), then a 4-character indent: 2 lines carry at least 74 + 81 = 155, so 3 lines.
 - Note, 400 characters behind a 4-character indent: 4 lines carry at least 4 × 81 = 324, so 5 lines.
 
@@ -111,7 +114,7 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | ----------------- | ------ | --------------------------------------------- |
 | header            | 2      | 133 + 51 = 184                                |
 | goal              | 3      | 200 + 3 × 6 = 218                             |
-| grant             | 13     | 51 + (701 + 9 × 3) + (200 + 11 + 2 × 4) = 998 |
+| grant             | 23     | 94 + (660 + 19 × 11) + (200 + 11 + 2 × 4) = 1,182 |
 | owner notes       | 3      | 52 + 2 × 198 = 448                            |
 | changed           | 5      | 60 + 3 × 131 + 57 = 510                       |
 | now and its note  | 7      | 57 + 128 + (400 + 5 × 4) = 605               |
@@ -122,15 +125,15 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | where (4)         | 5      | 14 + 4 × 166 = 678                            |
 | pull requests     | 4      | 57 + 98 + 30 + 71 = 256                       |
 | footer            | 1      | 95                                            |
-| newlines          |        | 63                                            |
-| **Total**         | **63** | **6,969**                                     |
+| newlines          |        | 73                                            |
+| **Total**         | **73** | **7,163**                                     |
 
-Codex puts at most about 2,500 tokens of hook output into context. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. At the pessimistic rate, 6,969 characters is about 2,323 tokens, 7.1% under Codex's limit, and the 7,000-character cap is about 2,333 tokens, 6.7% under it. The cap is 30% under Claude Code's limit of 10,000 characters.
+Codex puts at most about 2,500 tokens of hook output into context. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. At the pessimistic rate, 7,163 characters is about 2,388 tokens, 4.5% under Codex's limit, and the 7,200-character cap is 2,400 tokens, 4% under it. The cap is 28% under Claude Code's limit of 10,000 characters. The line cap of 73 is the line count of this worst case; Codex and Claude Code limit characters and tokens, not lines.
 
 ## Constraints
 
-- The brief is at most 7,000 characters and 63 lines. A test renders the worst case above and checks both numbers.
-- When a bug makes the brief longer than 7,000 characters, the renderer drops item lines from the bottom up, starting with pull request rows, then where, rules, the one-time approval, waits and tasks, and ends the last kept section with `  (<n> lines cut to fit; run www show <id>)`. It never drops or clips the header, goal, grant, owner notes, changed rows, now, the note, or footer.
+- The brief is at most 7,200 characters and 73 lines. A test renders the worst case above and checks both numbers.
+- When a bug makes the brief longer than 7,200 characters or 73 lines, the renderer drops item lines from the bottom up, starting with pull request rows, then where, rules, the one-time approval, waits and tasks, and ends the last kept section with `  (<n> lines cut to fit; run www show <id>)`. It never drops or clips the header, goal, grant, owner notes, changed rows, now, the note, or footer.
 - The grant prints whole on every brief, directly after `GOAL`.
 - A changed item is one whose check result differs from its `at_write`. A result of `unchecked` never counts as changed, and an `at_write` of `-` takes the first result without counting it as changed.
 - When the item in focus changed after `now_set`, or its check reads `MERGED`, `CLOSED`, `gone` or `missing`, the brief hides the next step and prints the `next step hidden` line. The step stays in the journal, and the note still prints.
@@ -144,17 +147,19 @@ Codex puts at most about 2,500 tokens of hook output into context. Ids, paths an
 
 ## The brief on day 9 of an invented session
 
-The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 45 lines and 3,310 characters.
+The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 47 lines and 3,332 characters.
 
 ```text
 tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 2.8s
 GOAL  Ship tide alerts in bosun-api and bosun-app: a push alert 2 hours before low water at a saved
       harbour, behind the tide_alerts flag. Done when alerts-e2e passes on staging.
-GRANT  from the owner in chat, 7d ago
-  "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding
-   is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging
-   alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from
-   the prod push certificate and the prod database, and don't publish a tidekit release."
+GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
+  may    • merge the alert PRs once CI is green and every review finding is answered
+         • deploy either app to staging whenever you need to
+         • wipe or reseed the staging alerts table as often as you like
+         • open PRs on tidal-org/tidekit from our fork
+  not    • publishing a tidekit release
+  never  • the prod push certificate  • the prod database
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
     staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit
     releases
@@ -199,6 +204,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 ## Decisions
 
 - **The grant prints whole, directly after `GOAL`, and cut-to-fit never touches it.** After a compaction, the agent reads what it may do in the owner's own words before any claim. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **The grant prints as bullets under `may`, `not` and `never`, one permission a bullet.** The owner reads a wrapped quote of 700 characters as a wall; a bullet per permission reads at a glance. The bullets cost up to 10 lines more than a quote, and the line cap rises to pay for them, because the limit that matters is Codex's token count, and the worst case stays 4.5% under it. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Only the note of the item in focus prints.** The brief stays the same size however many items carry a note. An owed note shows as a tag on its item, and `now`, each close and `www show` print a note whole. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Row limits pay for the grant and the note, and the caps stay.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The task, wait, rule and where caps stay, so no store that fits them today is refused; the format 2 upgrade in [store.md](store.md) handles the approvals.
 - **A claim is at most 120 characters.** At 160, the worst case passes 7,700 characters, over Codex's limit at 3 characters per token.
@@ -211,4 +217,4 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 
 ## Open questions
 
-- **Does Codex put the worst-case brief into context whole?** A measurement settles it: the hooks slice renders the worst case through a Codex `SessionStart` hook and looks for the temp-file preview. Until then, the 7,000-character cap stands.
+- **Does Codex put the worst-case brief into context whole?** A measurement settles it: the hooks slice renders the worst case through a Codex `SessionStart` hook and looks for the temp-file preview. Until then, the 7,200-character cap stands.

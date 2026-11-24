@@ -14,8 +14,8 @@ Run `bun verify up --restart` first, so `trial-import` does not exist yet, then 
 ```bash
 bun verify use --feature import
 bun verify www seed-hand-kept
-bun verify www refuse --line 'www import trial-import' --expect 'holds 1 standing approvals' --run 'www import trial-import --quote "<the owner'"'"'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"'
-bun verify www run --line 'www import trial-import --quote "Push the alert branches yourself whenever the tests pass, and open the pull request from the same branch." --where terminal --reading "covers pushing the alert branches and opening their pull requests; kept back: merges and releases"' --expect 'Imported trial-import: 6 items, 10 journal rows.'
+bun verify www refuse --line 'www import trial-import' --expect 'holds 1 standing approvals' --run 'www import trial-import --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"'
+bun verify www run --line 'www import trial-import --may "push the alert branches yourself whenever the tests pass" --may "open the pull request from the same branch" --where terminal --reading "covers pushing the alert branches and opening their pull requests; kept back: merges and releases"' --expect 'Imported trial-import: 6 items, 10 journal rows.'
 bun verify www run --line 'www --session trial-import' --expect 'GOAL  Ship the kiln temperature alerts in the pottery app, behind the kiln_alerts flag.'
 bun verify www run --line 'www --session trial-import' --expect '  q-1         Which kilns get alerts first  [owner · '
 ```

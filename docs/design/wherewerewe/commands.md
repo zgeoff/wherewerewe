@@ -158,9 +158,9 @@ www.sessions();
 www.init(name: SessionName, opts: { goal: string });
 www.attach(name: SessionName);                    // sessions-and-hooks.md
 www.detach();
-www.import(name: SessionName, opts: { quote?: string; where?: string; reading?: string; drop?: ItemID[] }); // store.md
+www.import(name: SessionName, opts: Partial<GrantOpts> & { drop?: ItemID[] }); // store.md
 www.goal(goal: string);
-www.grant(opts: { quote: string; where: string; reading: string } | { reading: string });
+www.grant(opts: GrantOpts | { reading: string });
 www.now(id: ItemID, next: string, opts: NoteOpts);
 www.task(id: ItemID, claim: string, opts: { check?: CheckRef; blockedBy?: ItemID } & NoteOpts);
 www.wait(id: ItemID, what: string, opts: { who: string; check?: CheckRef } & NoteOpts);
@@ -178,6 +178,15 @@ www.install(opts: { print?: boolean });           // sessions-and-hooks.md
 www.doctor();
 www.hook(harness: 'claude' | 'codex');            // reads the hook payload on stdin
 
+interface GrantOpts {
+  may: string[]; // one bullet per --may, in the owner's words; at least one
+  not?: string[]; // one bullet per --not
+  never?: string[]; // one bullet per --never
+  scope?: string; // where the grant applies, in the owner's words
+  where: string;
+  reading: string;
+}
+
 interface NoteOpts {
   note?: string; // replaces the item's note
   owed?: boolean; // only with note
@@ -190,10 +199,10 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 
 - `set` with no claim changes only the note: it keeps the claim, its check, `at_write` and `written`, and runs no probe. A check belongs to a claim, so `set` with a check and no claim gets the refusal below, with or without `--note`.
 - A write without `--note` keeps the item's note. `--no-note` clears it.
-- `www grant` with `--quote` replaces the words, where they were given and the reading at once. `www grant --reading` alone replaces only the reading.
+- `www grant` with `--may` replaces the whole grant at once: every bullet, the scope, where the words were given and the reading. Each `--may`, `--not` and `--never` holds one bullet in the owner's words, and the brief prints the bullets of each group in the order typed. `--not`, `--never` and `--scope` are optional. `www grant --reading` alone replaces only the reading.
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
 - `ok` accepts `--once` and ignores it, because every approval is one-time. `--standing` gets the refusal below.
-- `www import` takes `--quote`, `--where`, `--reading` and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
+- `www import` takes the grant's flags and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install` and `doctor` are in the help, and they and `hook` exit 2 until slice 4 builds them; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
 
 ### Text limits
@@ -205,7 +214,9 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 | next step (`now`)                   | 120 characters  |
 | note (`--note`)                     | 400 characters  |
 | goal                                | 200 characters  |
-| the grant's words (`grant --quote`) | 700 characters, after each line break becomes a space |
+| a grant bullet (`--may`, `--not`, `--never`) | 120 characters, after each line break becomes a space |
+| the grant's scope (`--scope`)       | 40 characters, after each line break becomes a space |
+| the grant's words: every bullet and the scope | 700 characters, in at most 12 bullets |
 | the grant's reading (`--reading`)   | 200 characters  |
 | owner note (`say`)                  | 160 characters  |
 | `--why`, `--evidence`, `--for`      | 200 characters  |
@@ -225,7 +236,7 @@ Each write prints its reply line on stdout, then the note lines or the older-not
 | `set --no-note`                 | `<id>  note cleared. Brief: <n> lines.`                                                           |
 | `now`                           | `now: <id>. Brief: <n> lines.`, or, when the item has a note, `now: <id>, with its note (<age>). Brief: <n> lines.` or `with its owed note (<age>)`, then `<note lines>` |
 | `goal`                          | `goal set. Brief: <n> lines.`                                                                     |
-| `grant` with `--quote`          | `grant: <k> of 700 characters, reading <m> of 200. Brief: <n> lines.`                              |
+| `grant` with `--may`            | `grant: <k> of 700 characters in <b> of 12 bullets, reading <m> of 200. Brief: <n> lines.`         |
 | `grant --reading`               | `grant reading: <m> of 200. Brief: <n> lines.`                                                     |
 | `decide`                        | `d-<n>  decision[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`                |
 | `decide --ruled-out`            | `d-<n>  ruled out[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`               |
@@ -239,29 +250,29 @@ Examples from the invented session:
 
 ```text
 $ www task t-e2e "Write alerts-e2e against staging"
-t-e2e  task, open, no check. Brief: 46 lines.
+t-e2e  task, open, no check. Brief: 48 lines.
 
 $ www task t-flag "Turn on the tide_alerts flag in staging config" --blocked-by w-apns --note "Turn the tide_alerts flag back off in staging config before this closes: staging is shared with the harbour team, who demo on Thursday." --owed
-t-flag  task, open, no check, note 135 of 400, owed. Brief: 47 lines.
+t-flag  task, open, no check, note 135 of 400, owed. Brief: 49 lines.
 
 $ www set pr-api-77 "Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07" --pr bosunhq/bosun-api#77
-pr-api-77  task, open, checked now: OPEN pending. Brief: 45 lines.
+pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.
   its note is 1h older than this claim. Replace it with www set pr-api-77 --note "<detail>", or clear it with www set pr-api-77 --no-note
 
 $ www decide "Retry a 503 from the tide feed 3 times, 2 s apart" --why "The feed returns 503 for about 4 s during its hourly refresh" --on pr-api-77
-d-23  decision on pr-api-77. Read it with: www show pr-api-77. Brief: 45 lines.
+d-23  decision on pr-api-77. Read it with: www show pr-api-77. Brief: 47 lines.
 
 $ www done pr-app-61 --evidence "merged as 51aa0e2, seen by check"
-pr-app-61  done. Off the brief, kept in the journal. Brief: 43 lines.
+pr-app-61  done. Off the brief, kept in the journal. Brief: 45 lines.
 
 $ www now pr-api-77 "fix the failing lint job on 9b41c07, push, then request review"
-now: pr-api-77, with its note (1h). Brief: 43 lines.
+now: pr-api-77, with its note (1h). Brief: 45 lines.
     The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a
     longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in
     the retry helper, not on the retry logic.
 
 $ www grant --reading "covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases"
-grant reading: 197 of 200. Brief: 43 lines.
+grant reading: 197 of 200. Brief: 45 lines.
 ```
 
 - A write with a check runs that one probe before it replies and stores the result in `at_write`. Before the checks slice, the reply says `no check run` and `at_write` is `-`.
@@ -283,15 +294,17 @@ pr-api-77  task, open since day 7, by agent · check: pr:bosunhq/bosun-api#77
   journal: day 7 task · day 8 set · day 9 note · day 9 set · day 9 changed
 
 $ www show grant
-grant  from the owner in chat, words set on day 2 by agent, reading set on day 9
-  words (7d): "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every
-    review finding is answered. Deploy either app to staging whenever you need to, and wipe or
-    reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our
-    fork. Keep away from the prod push certificate and the prod database, and don't publish a
-    tidekit release."
-  reading (12m): covers merges in both repos on green CI with findings answered, staging deploys,
-    the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit
-    merges and releases
+grant  from the owner in chat · in bosun-api, bosun-app and tidekit
+  words (7d), set on day 2 by agent:
+  may    • merge the alert PRs once CI is green and every review finding is answered
+         • deploy either app to staging whenever you need to
+         • wipe or reseed the staging alerts table as often as you like
+         • open PRs on tidal-org/tidekit from our fork
+  not    • publishing a tidekit release
+  never  • the prod push certificate  • the prod database
+  reading (12m), set on day 9: covers merges in both repos on green CI with findings answered,
+    staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod
+    database, tidekit merges and releases
   journal: day 2 grant · day 9 grant
 
 $ www log --op done,decide --since day-9
@@ -302,10 +315,10 @@ day 9  11:51  done      pr-app-61  agent  Alert settings screen: in review
 ```
 
 - Each `log` row shows the day, the time, the op, the id, who (the `who=` value for a decision, otherwise `by`), the text, and `why:` on its own line when the row has one.
-- A `grant` row labels its second line `reading:` in place of `why:`.
+- A `grant` row prints its text as [store.md](store.md) keeps it, the bullets and scope in one line, and labels its second line `reading:` in place of `why:`.
 - A `note` row with `owed=1` shows `owed: ` before its text, and a row with `cleared=1` shows `note cleared` as its text. A `note` row carried from a hand-kept store shows `import` as who.
 - `www show <id>` prints the item's note whole, as `note (<age>):` or `owed note (<age>):`, wrapped as the brief wraps a note, with each further line indented 4.
-- `www show grant` prints the words and the reading whole, and the journal days of every `grant` row. With no grant, it prints `grant  none. Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<what they cover; what the owner kept back>"`.
+- `www show grant` prints where the owner gave the words and the scope, the bullets as the brief prints them, the reading whole, and the journal days of every `grant` row. With no grant, it prints `grant  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`.
 
 ### www recap
 
@@ -314,11 +327,13 @@ day 9  11:51  done      pr-app-61  agent  Alert settings screen: in review
 ```text
 $ www --session tide-alerts recap
 tide-alerts · day 9 · recap since day 8 12:00Z (24h) · 24 writes
-GRANT  from the owner in chat, 7d ago
-  "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding
-   is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging
-   alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from
-   the prod push certificate and the prod database, and don't publish a tidekit release."
+GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
+  may    • merge the alert PRs once CI is green and every review finding is answered
+         • deploy either app to staging whenever you need to
+         • wipe or reseed the staging alerts table as often as you like
+         • open PRs on tidal-org/tidekit from our fork
+  not    • publishing a tidekit release
+  never  • the prod push certificate  • the prod database
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
     staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit
     merges and releases
@@ -343,13 +358,13 @@ Whole text: www show <id> · correct: www --session tide-alerts say "<text>" [--
 | Section   | Shows                                                                                         | Lines at most |
 | --------- | --------------------------------------------------------------------------------------------- | ------------- |
 | header    | `<name> · day <d> · recap since day <d> <HH:MMZ> (<t>) · <n> writes`                         | 1             |
-| `GRANT`   | the grant, exactly as the brief prints it, or `GRANT  none. Run: www show grant`             | 13            |
+| `GRANT`   | the grant, exactly as the brief prints it, or `GRANT  none. Run: www show grant`             | 23            |
 | `NOTES`   | open items with a note, owed first, then newest: the item line, then `    note (<age>): <note>` or `    owed note (<age>): <note>`; at most 6 items, then `  and <n> more with a note: www show <id>`, then `  no note: <ids>` | 15 |
 | `DECIDED SINCE` | `decide` and `ruled-out` rows since `<t>`, oldest first: `  <d-n>  [ruled out: ]<choice> · why: <reason>`; at most 5, then `  and <n> more: www log --op decide,ruled-out --since <t>` | 7 |
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; at most 5, then `  and <n> more: www log --op done,drop,use --since <t>` | 7 |
 | footer    | `Whole text: www show <id> · correct: www --session <name> say "<text>" [--on <id>]`         | 1             |
 
-The recap is at most 44 lines: 1 + 13 + (1 heading + 6 × 2 + 1 overflow + 1 no-note line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 1 = 44. Every line is at most 100 characters: the grant wraps at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer with a 24-character name is 100, and each other line that would pass 100 is cut to 99 characters and `…`. So the recap is at most 44 × 100 + 44 newlines = 4,444 characters. A section with no rows is left out, except `GRANT`, which prints `GRANT  none` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
+The recap is at most 54 lines: 1 + 23 + (1 heading + 6 × 2 + 1 overflow + 1 no-note line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 1 = 54. Every line is at most 100 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer with a 24-character name is 100, and each other line that would pass 100 is cut to 99 characters and `…`. So the recap is at most 54 × 100 + 54 newlines = 5,454 characters. A section with no rows is left out, except `GRANT`, which prints `GRANT  none` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
 
 ## Refusals
 
@@ -359,10 +374,10 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A claim, step or other text is over its limit     | `www: refused: the claim is 152 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.` `Run: www task t-e2e "<claim of at most 120 characters>"`      |
 | A note is over its limit                          | `www: refused: the note is 512 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.` `Run: www task t-e2e "Write alerts-e2e against staging" --note "<note of at most 400 characters>"` |
-| A text holds a tab or a newline, except a line break in the grant's words, which `www grant` turns into a space | `www: refused: the text must be one line, with no tab or newline.` `Run: www rule r-sim-port "<one line>"`                                                                                             |
+| A text holds a tab or a newline, except a line break in a grant bullet or the grant's scope, which `www grant` turns into a space | `www: refused: the text must be one line, with no tab or newline.` `Run: www rule r-sim-port "<one line>"`                                                                                             |
 | A kind is full                                    | `www: refused: the brief holds 6 of 6 tasks. Close one, or replace one with www set.` `Run: www done t-e2e --evidence "<PR, commit or test run>"`                                                      |
 | `ok` while the one-time approval is open          | `www: refused: the brief holds 1 of 1 one-time approvals. Spend it with www use, or drop it.` `Run: www use ok-prod-index --for "<what you did with it>"`                                              |
-| `ok --standing`                                   | `www: refused: lasting permission lives in the grant, in the owner's words whole.` `Run: www grant --quote "<the owner's words, whole>" --where chat --reading "<what they cover; what the owner kept back>"` |
+| `ok --standing`                                   | `www: refused: lasting permission lives in the grant, in the owner's words whole.` `Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"` |
 | `done`, `drop` or `use` on an item with an owed note | `www: refused: t-flag has an owed note (2d). Clear it once the work is done, or replace it with a note that is not owed.` then the note, indented 4, then `Run: www set t-flag --no-note` `Run: www set t-flag --note "<detail>"` |
 | `--owed` with no `--note`                         | `www: refused: --owed marks a note, and this command gives none.` `Run: www task t-e2e "Write alerts-e2e against staging" --note "<what is owed>" --owed`                                                                                 |
 | `set` with only an id                             | `www: refused: set needs a claim, --note or --no-note.` `Run: www set t-flag "<claim>"`                                                                                                                |
@@ -373,10 +388,13 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | `done` has no `--evidence`                        | `www: refused: done needs evidence a reader can open, such as a PR, a commit or a test run. For work you stopped, use drop.` `Run: www done pr-app-61 --evidence "<PR, commit or test run>"`           |
 | `drop` has no `--why`                             | `www: refused: drop needs a reason.` `Run: www drop p-sim --why "<reason>"`                                                                                                                            |
 | `ok` lacks a part                                 | `www: refused: an approval needs the owner's exact words, who gave them, where, and what they cover.` `Run: www ok ok-prod-index --quote "<their exact words>" --who owner --where chat --scope "<what it covers>"` |
-| `grant` lacks a part                              | `www: refused: a grant needs the owner's words, where they were given, and your reading of what they cover and what the owner kept back.` `Run: www grant --quote "<the owner's words, whole>" --where chat --reading "<what they cover; what the owner kept back>"` |
-| The grant's words are over 700 characters         | `www: refused: the grant's words are 812 characters, and the limit is 700. The grant holds the owner's words whole, so it takes a statement of at most 700 characters.` `Run: www grant --quote "<the owner's words, at most 700 characters>" --where chat --reading "<the reading as typed>"` |
+| `grant` lacks a part                              | `www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.` `Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"` |
+| A grant bullet is over 120 characters             | `www: refused: the bullet is 131 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.` `Run:` the refused command with only that bullet replaced by `"<bullet of at most 120 characters>"`, such as `Run: www grant --may "merge the alert PRs once CI is green" --may "<bullet of at most 120 characters>" --where chat --reading "covers merges in both repos"` |
+| The grant has more than 12 bullets                | `www: refused: the grant has 13 bullets, and the limit is 12. Put two parts that belong together in one bullet.` `Run:` the refused command with its bullets replaced by one placeholder for each group it typed, `--may "<what the owner allows, in their words>"`, `--not "<what the owner did not grant, in their words>"` and `--never "<what the owner ruled out, in their words>"`, and every other flag as typed |
+| The grant's words are over 700 characters         | `www: refused: the grant's words are 812 characters in its bullets and scope, and the limit is 700.` `Run:` the refused command with its bullets replaced as for more than 12 bullets, such as `Run: www grant --may "<what the owner allows, in their words>" --never "<what the owner ruled out, in their words>" --scope "in bosun-api, bosun-app and tidekit" --where chat --reading "covers merges in both repos"` |
+| The grant's scope is over 40 characters           | `www: refused: the grant's scope is 52 characters, and the limit is 40.` `Run:` the refused command with only the scope replaced by `"<grant's scope of at most 40 characters>"` |
 | The grant's reading is over 200 characters        | `www: refused: the reading is 231 characters, and the limit is 200.` `Run: www grant --reading "<reading of at most 200 characters>"`                                                                  |
-| `grant --reading` with no grant                   | `www: refused: tide-alerts has no grant, so there is no reading to replace.` `Run: www grant --quote "<the owner's words, whole>" --where <where> --reading "<the reading as typed>"`                   |
+| `grant --reading` with no grant                   | `www: refused: tide-alerts has no grant, so there is no reading to replace.` `Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<the reading as typed>"`                   |
 | `wait` has no `--who`                             | `www: refused: a wait names who it waits on.` `Run: www wait w-apns "upload the staging push key" --who "<who>"`                                                                                       |
 | `decide` has no `--why`                           | `www: refused: a decision needs its reason.` `Run: www decide "Retry a 503 3 times" --why "<reason>"`                                                                                                  |
 | An id names no open item                          | `www: refused: no open item pr-api-78. Open items: pr-api-77, pr-tk-19, t-flag, t-e2e.` `Run: www task pr-api-78 "<claim>"`                                                                            |
@@ -403,16 +421,16 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | The store is format 1 (exit 5)                    | `www: tide-alerts is format 1, and this www reads format 2. Upgrade it in place; the upgrade keeps a copy of each file it changes, and changes nothing when it refuses.` `Run: www import tide-alerts` |
 | The store's format is newer (exit 5)              | `www: tide-alerts is format 3, and this www reads format 2.` `Run: bun add -g @wherewerewe/cli@latest`                                                                                             |
 | `import` of a store already in format 2           | `www: refused: tide-alerts is already format 2. Bind this agent session to it.` `Run: www attach tide-alerts`                                                                                          |
-| The upgrade finds standing approvals and no `--quote` | `www: refused: tide-alerts holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.` then each approval as `  ok-merge  "merge the alert PRs yourself once CI is green" · bosun-api, bosun-app`, then `Run: www import tide-alerts --quote "<the owner's words, whole>" --where chat --reading "<what they cover; what the owner kept back>"` |
+| The upgrade finds standing approvals and no `--may` | `www: refused: tide-alerts holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.` then each approval as `  ok-merge  "merge the alert PRs yourself once CI is green" · bosun-api, bosun-app`, then `Run: www import tide-alerts --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"` |
 | The upgrade finds more than one one-time approval | `www: refused: tide-alerts holds 2 one-time approvals, and format 2 holds 1. Drop all but one.` then each as `  ok-wipe  "you can wipe the staging alerts table once" · staging alerts table  [5d]`, then `Run: www import tide-alerts --drop ok-wipe` |
 | The upgrade finds an item with the id `grant`     | `www: refused: format 2 keeps the id grant for the grant, and tide-alerts has an item grant. Drop it, and write it again under a new id after the upgrade.` `Run: www import tide-alerts --drop grant` |
 | Import finds rows that break a rule               | `www: refused: import found 3 rows that break the rules, and wrote nothing.` then one line per row, such as `items.tsv line 9 (r-models): the claim is 151 characters, and the limit is 120.` and `journal.tsv: 6 open waits (q-2, q-4, q-5, q-6, q-7, q-8), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`, then `Run: www import build` |
 | An unknown command or flag (exit 2)               | `www: unknown command "taks".` `Run: www help`                                                                                                                                                         |
 
 - When one upgrade finds more than one of its problems, it prints each problem's lines and one `Run:` line with every flag the problems need. `--drop` repeats once per id, such as `--drop ok-wipe --drop grant`.
-- The `Run:` line of a reading over its limit is the refused command with only the reading replaced, so `www grant --quote … --reading …` and `www import … --reading …` keep their other flags.
-- A claim, a next step and an approval quote, whose commands take `--note`, end an over-limit text with "Write what is true now, and put the detail in its note with --note." Every other text over its limit ends "Write what is true now; the story belongs in a PR or a commit." The note, the grant's words and the reading have their own rows.
-- The credential test matches at least these: `ghp_`, `gho_`, `ghs_`, `ghu_`, `github_pat_`, `sk-` followed by 20 or more letters and digits, `xoxb-`, `xoxp-`, `AKIA` followed by 16 capitals or digits, `ops_` followed by 20 or more characters, `-----BEGIN`, and a JWT (`eyJ` then two `.`-separated parts). It applies to notes and to the grant's words and reading. A credential in the grant's words or reading keeps the refused command and replaces only the text that matched with `"<where the secret lives>"`.
+- The `Run:` line of a reading over its limit is the refused command with only the reading replaced, so `www grant --may … --reading …` and `www import … --reading …` keep their other flags.
+- A claim, a next step and an approval quote, whose commands take `--note`, end an over-limit text with "Write what is true now, and put the detail in its note with --note." Every other text over its limit ends "Write what is true now; the story belongs in a PR or a commit." The note, a grant bullet, the grant's words, the grant's scope and the reading have their own rows.
+- The credential test matches at least these: `ghp_`, `gho_`, `ghs_`, `ghu_`, `github_pat_`, `sk-` followed by 20 or more letters and digits, `xoxb-`, `xoxp-`, `AKIA` followed by 16 capitals or digits, `ops_` followed by 20 or more characters, `-----BEGIN`, and a JWT (`eyJ` then two `.`-separated parts). It applies to notes and to the grant's bullets, scope and reading. A credential in one of those keeps the refused command and replaces only that value with `"<where the secret lives>"`.
 - A refusal of a note keeps the refused command and fixes only the note. A note over its limit, with a tab or a newline, or that looks like a credential becomes `--note "<note of at most 400 characters>"`, `--note "<one line>"` or `--note "<where the secret lives>"`, and `--owed` with no `--note` gets `--note "<what is owed>"`. The `Run:` line then passes for a new item and for an item of any kind.
 - When the agent typed `www` with `--session`, each `Run:` line keeps `--session <name>`.
 
@@ -431,8 +449,9 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 - **`--blocked-by` stays.** The hand-kept store uses `blocked_by` on 3 of its 4 tasks, and the brief shows the blocker in the task's tag.
 - **A ruled-out approach is its own journal op.** The Ruled out section of the [handoff skill](https://github.com/zgeoff/skills/blob/main/skills/handoff/SKILL.md) gets its rows from `www log --op ruled-out`.
 - **A note is written only through `--note`, and `set` without a claim changes only the note.** One path means one place for the 400 limit, the credential test and the older-note line, and a note change never resets a claim's age or check. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
-- **`www grant` sets the grant, and `ok --standing` is gone.** An approval is an item with a 120-character quote and a 40-character scope that counts against a cap; the grant is one per session, holds 700 characters of the owner's words and a reading, and lives in `session`. One command per shape keeps each limit in one place. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **`www grant` sets the grant, and `ok --standing` is gone.** An approval is an item with a 120-character quote and a 40-character scope that counts against a cap; the grant is one per session, holds up to 12 bullets and 700 characters of the owner's words and a reading, and lives in `session`. One command per shape keeps each limit in one place. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **The owner corrects the reading with `www say`, and the agent rewrites it.** `say --on` takes an item id, so a plain `say` names the grant in its text; the agent then runs `www grant --reading`, and the owner clears the note with `ack`. [owner-notes.md](owner-notes.md)
+- **Each bullet of the grant is its own flag.** `--may`, `--not` and `--never` repeat once per bullet, so the agent copies each part of what the owner said as it was said, and a refusal's `Run:` line names the one bullet to fix. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **The format 2 upgrade runs through `www import`.** The exit 5 text already names it for every store the tool cannot read, and one command covers both conversions.
 
 ## Builder decides

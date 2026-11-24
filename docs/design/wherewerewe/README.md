@@ -3,7 +3,7 @@
 - **Status:** agreed
 - **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0003](../../decisions/0003-checks-are-built-in-read-only-probes.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md), [0005](../../decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md), [0006](../../decisions/0006-ship-typescript-source-run-by-bun.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
-One coding agent session runs for about two weeks and is compacted many times. Its Markdown notes file rots: the agent appends below a stale top until the file is too long to read back, and by day 9 it stops keeping notes at all. `wherewerewe` (typed as `www`) replaces the file with a store that holds one short line per thing that is true now, with an optional note of detail on each, and the owner's grant in the owner's words. It prints the whole state in at most 63 lines with live checks of each pull request, branch, path and process the lines name, and puts that brief back in the agent's context after every compaction through a hook in Claude Code and in Codex.
+One coding agent session runs for about two weeks and is compacted many times. Its Markdown notes file rots: the agent appends below a stale top until the file is too long to read back, and by day 9 it stops keeping notes at all. `wherewerewe` (typed as `www`) replaces the file with a store that holds one short line per thing that is true now, with an optional note of detail on each, and the owner's grant in the owner's words. It prints the whole state in at most 73 lines with live checks of each pull request, branch, path and process the lines name, and puts that brief back in the agent's context after every compaction through a hook in Claude Code and in Codex.
 
 The goal: after any compaction on any day, the agent reads one bounded brief whose stale claims are marked before it acts, and writing a note costs one short command.
 
@@ -55,7 +55,7 @@ Signing off this design authorises the build agent to take these steps when its 
 - Run `www install`, which adds hook entries to `~/.claude/settings.json` and `~/.codex/hooks.json` and keeps every other hook. [sessions-and-hooks.md](sessions-and-hooks.md)
 - Add `hooks = true` and the store root to `writable_roots` in `~/.codex/config.toml`. [sessions-and-hooks.md](sessions-and-hooks.md)
 - Run `www import build` on the build session's hand-kept store, after fixing the rows it names. [store.md](store.md)
-- Run `www import build` again in slice 2c to upgrade that store to format 2, with the owner's words that authorise the build as its grant and the agent's reading of them. [store.md](store.md)
+- Run `www import build` again in slice 2c to upgrade that store to format 2, with the owner's words that authorise the build as its grant, one `--may`, `--not` or `--never` bullet per permission, and the agent's reading of them. [store.md](store.md)
 - Make `verify / gate` a required check on `main`, once the workflow has run. [build-order.md](build-order.md)
 
 Only the owner can do these, by hand:

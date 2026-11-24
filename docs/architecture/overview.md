@@ -18,11 +18,11 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 ## The store
 
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
-or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal, the grant in
-four keys and the item in focus, `items.tsv` the open items, `notes.tsv` one row for each open item
-that has a note, `owner.tsv` the owner's notes that still show, and `journal.tsv` every write.
-`init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A note write and a
-close rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A session never reuses a
+or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal, the grant with
+one line per bullet, and the item in focus, `items.tsv` the open items, `notes.tsv` one row for each
+open item that has a note, `owner.tsv` the owner's notes that still show, and `journal.tsv` every
+write. `init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A note write and
+a close rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A session never reuses a
 closed id: a write reads from the journal the ids that `done`, `drop` and `use` closed, the decision
 numbers, who made each decision and, for `say`, the highest note number among its `say` rows, and
 nothing else from the journal. The store is format 2. Every command except `import`, `sessions` and
@@ -74,10 +74,12 @@ gave them, where and what they cover. The brief holds one, so a second `ok` refu
 is spent. `use` spends it: it leaves `items.tsv` and stays in the journal with what the agent did
 with it. `ok --standing` is refused, because lasting permission lives in the grant.
 
-`grant` sets the owner's words whole, where they were given and the agent's reading of what they
-cover, or with `--reading` alone replaces only the reading. Any shell can run it, and its journal
-row has `by=owner` when the terminal test of the owner notes passes and `by=agent` otherwise. The
-words take 700 characters once each line break becomes a space, the reading 200 and `--where` 16.
+`grant` sets the owner's words as bullets, one `--may`, `--not` or `--never` flag per bullet, with
+an optional `--scope`, where the owner gave them and the agent's reading of what they cover, or with
+`--reading` alone replaces only the reading. Any shell can run it, and its journal row has
+`by=owner` when the terminal test of the owner notes passes and `by=agent` otherwise. A bullet takes
+120 characters once each line break becomes a space, the scope 40, and the bullets and scope
+together 700 in at most 12 bullets; the reading takes 200 and `--where` 16.
 
 `decide` writes a decision, or with `--ruled-out` an approach that lost, as a journal row and no
 item. The tool numbers it `d-<n>`, one past the highest decision in the journal. A decision made by
@@ -122,11 +124,11 @@ the item without its history and says so on stderr. Only a `--since` that `log` 
 ## Importing a hand-kept store
 
 `www import <session>` converts a session folder whose `session` file has `format=0-by-hand`, or has
-no `format` line, to format 2 in place. It takes the grant flags `--quote`, `--where` and
-`--reading`, folds an approval that the hand-kept store marks `standing` into the grant, and creates
-`notes.tsv`. It takes the session's lock, reads the three hand-kept files, and checks every row
-against the write rules. When any row breaks a rule, it exits 3 with one line per row and changes no
-file. See [the store design](../design/wherewerewe/store.md) for the conversion and
+no `format` line, to format 2 in place. It takes the grant's flags, folds an approval that the
+hand-kept store marks `standing` into the grant, and creates `notes.tsv`. It takes the session's
+lock, reads the three hand-kept files, and checks every row against the write rules. When any row
+breaks a rule, it exits 3 with one line per row and changes no file. See
+[the store design](../design/wherewerewe/store.md) for the conversion and
 [the commands design](../design/wherewerewe/commands.md) for the refusal text.
 
 Otherwise, when an agent session runs the import, the import takes the lock in `.bindings/` that
@@ -155,24 +157,25 @@ like a credential.
 
 `www import <session>` on a store whose `session` file says `format=1` upgrades it to format 2 in
 place, under the same locks. It refuses, and changes nothing, when the store holds a standing
-approval and the command has no `--quote`, more than one one-time approval, or an item with the id
+approval and the command has no `--may`, more than one one-time approval, or an item with the id
 `grant`, and one refusal holds every problem it finds with one `Run:` line. A standing approval
-folds into the grant that `--quote`, `--where` and `--reading` give, and `--drop` repeats once for
-each item that goes. The upgrade copies the format 1 files into `format-1-backup/` through a
-temporary folder and a rename, writes `journal.tsv`, `items.tsv`, `notes.tsv` and `session` in that
-order, and binds the agent last. A stop before the backup's rename leaves the format 1 store as it
-was, with no `format-1-backup/`, and a rerun reads the live files. A later stop leaves `session` at
-`format=1` with a whole backup, which a rerun reads in place of the live files, or at `format=2`
-with every file written. See [the store design](../design/wherewerewe/store.md) for the conversion
-table.
+folds into the grant that the grant's flags give, and `--drop` repeats once for each item that goes.
+The upgrade copies the format 1 files into `format-1-backup/` through a temporary folder and a
+rename, writes `journal.tsv`, `items.tsv`, `notes.tsv` and `session` in that order, and binds the
+agent last. A stop before the backup's rename leaves the format 1 store as it was, with no
+`format-1-backup/`, and a rerun reads the live files. A later stop leaves `session` at `format=1`
+with a whole backup, which a rerun reads in place of the live files, or at `format=2` with every
+file written. See [the store design](../design/wherewerewe/store.md) for the conversion table.
 
 ## The brief
 
 `www` prints the goal, the grant, the item in focus with its note, and the open tasks, waits, the
-one-time approval, rules and where items, in at most 63 lines and 7,000 characters. The grant prints
-whole after the goal and is never cut. Only the note of the item in focus prints, and every item
-with an owed note is tagged `owed`. The goal and the note wrap at 100 columns by the rule in the
-brief design, at most 3 changed rows and 1 pull request row show, and the footer is one line.
+one-time approval, rules and where items, in at most 73 lines and 7,200 characters. The grant prints
+whole after the goal and is never cut: its bullets under `may`, `not` and `never`, one a line, with
+short `never` bullets sharing a line. Only the note of the item in focus prints, and every item with
+an owed note is tagged `owed`. The goal, each grant bullet, the reading and the note wrap at 100
+columns by the rule in the brief design, at most 3 changed rows and 1 pull request row show, and the
+footer is one line.
 
 The brief runs no check: an item with a check shows the last result saved in `items.tsv`, or
 `not checked yet` when none is saved. A task or where item with no check reads `no check · <age>`,

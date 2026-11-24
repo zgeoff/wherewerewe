@@ -47,7 +47,14 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
 format=2                         # the store's format version; see "Versions"
 name=tide-alerts                 # 2–24 of [a-z0-9-], starts with a letter; equals the folder name
 goal=Ship tide alerts in bosun-api and bosun-app: a push alert 2 hours before low water at a saved harbour, behind the tide_alerts flag. Done when alerts-e2e passes on staging.   # 1–200 characters
-grant=Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from the prod push certificate and the prod database, and don't publish a tidekit release.   # the owner's words, 1–700 characters; empty with no grant
+grant_may=merge the alert PRs once CI is green and every review finding is answered   # one line per bullet of what the owner allows, 1–120 characters each; at least one in a grant
+grant_may=deploy either app to staging whenever you need to
+grant_may=wipe or reseed the staging alerts table as often as you like
+grant_may=open PRs on tidal-org/tidekit from our fork
+grant_not=publishing a tidekit release   # one line per bullet of what the owner did not grant; none or more
+grant_never=the prod push certificate    # one line per bullet of what the owner ruled out; none or more
+grant_never=the prod database
+grant_scope=in bosun-api, bosun-app and tidekit   # where the grant applies, in the owner's words; 1–40 characters, or empty
 grant_reading=covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases   # 1–200 characters; empty with no grant
 grant_where=chat                 # where the owner gave the words; 1–16 characters; empty with no grant
 grant_set=2026-03-03T09:12:40Z   # when the words were last written; a new reading alone keeps it
@@ -60,7 +67,7 @@ last_nudge=2026-03-10T10:40:00Z  # written by the hook; empty until the first nu
 imported_from=0-by-hand          # only in a store that www import converted from a hand-kept store
 ```
 
-The four `grant` keys are all set or all empty: a store with no grant writes them empty, and a store with a grant sets all four.
+A store with a grant has at least one `grant_may` line and sets `grant_reading`, `grant_where` and `grant_set`. A store with no grant has no `grant_may`, `grant_not` or `grant_never` line, and writes `grant_scope`, `grant_reading`, `grant_where` and `grant_set` empty. The bullet lines keep the order the owner gave them in. A grant holds at most 12 bullets, and its bullets and scope together hold at most 700 characters of the owner's words. Every key but the three bullet keys appears once.
 
 ### items.tsv
 
@@ -131,7 +138,7 @@ interface Note {
 
 ```text
 ts	op	id	by	text	why	extra
-2026-03-03T09:12:40Z	grant	grant	agent	Merge the alert PRs in bosun-api and bosun-app yourself once CI is green and every review finding is answered. Deploy either app to staging whenever you need to, and wipe or reseed the staging alerts table as often as you like. Open PRs on tidal-org/tidekit from our fork. Keep away from the prod push certificate and the prod database, and don't publish a tidekit release.	covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases	where=chat
+2026-03-03T09:12:40Z	grant	grant	agent	may: merge the alert PRs once CI is green and every review finding is answered • deploy either app to staging whenever you need to • wipe or reseed the staging alerts table as often as you like • open PRs on tidal-org/tidekit from our fork · not: publishing a tidekit release · never: the prod push certificate • the prod database · scope: in bosun-api, bosun-app and tidekit	covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases	where=chat
 2026-03-10T10:42:18Z	note	pr-api-77	agent	The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in the retry helper, not on the retry logic.	-	-
 2026-03-10T10:48:15Z	decide	d-23	agent	Retry a 503 from the tide feed 3 times, 2 s apart	The feed returns 503 for about 4 s during its hourly refresh	on=pr-api-77;who=agent
 2026-03-10T11:43:05Z	changed	pr-app-61	agent	OPEN passing -> MERGED	-	-
@@ -144,7 +151,7 @@ interface JournalRow {
   op: Op | string; // a row that www import carried over keeps its own op
   id: string; // the item, decision (d-<n>), owner note (o-<n>), pull request ref, grant, or session name
   by: 'agent' | 'owner' | 'hook' | 'import';
-  text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's words, or "<old> -> <new>" for changed; '-' when none
+  text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's bullets and scope, or "<old> -> <new>" for changed; '-' when none
   why: string; // the reason (decide, ruled-out, drop), the evidence (done), what it was used for (use), or the grant's reading (grant); '-' when none
   extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1 or where=chat
 }
@@ -157,7 +164,7 @@ type Op =
 ```
 
 - Each note write adds a `note` row: `id` is the item, `text` is the note, and `extra` is `owed=1` for an owed note. Clearing a note adds a `note` row with `text` `-` and `extra` `cleared=1`. A close adds no `note` row; its own row closes the note with the item.
-- Each `www grant` adds a `grant` row with `id` `grant`, the words in `text` and the reading in `why`, both whole, so the journal keeps every version. A `www grant --reading` row adds `reading=1` to `extra`, and every other `grant` row carries the words, where and reading from one write. A write that stops after its journal row leaves a row that `session` does not hold, so `www show grant` reads only the rows that hold the grant's words and `where`: a row without `reading=1` written at `grant_set`, and a `reading=1` row written since. `www show grant` dates the reading from the newest of those rows that holds it. When that row has no `reading=1`, it also names the writer of the words; otherwise the writer comes from the newest row without `reading=1`.
+- Each `www grant` adds a `grant` row with `id` `grant`, the reading in `why`, and in `text` every group that has bullets, as its label, a colon and its bullets joined by ` • `, then `scope: <scope>`, the parts joined by ` · `. Both are whole, so the journal keeps every version. A `www grant --reading` row adds `reading=1` to `extra`, and every other `grant` row carries the words, where and reading from one write. A write that stops after its journal row leaves a row that `session` does not hold, so `www show grant` reads only the rows whose `text` holds the grant's bullets and scope and whose `where` matches: a row without `reading=1` written at `grant_set`, and a `reading=1` row written since. `www show grant` dates the reading from the newest of those rows that holds it. When that row has no `reading=1`, it also names the writer of the words; otherwise the writer comes from the newest row without `reading=1`.
 - A `note` row that `www import` carried from a hand-kept store keeps `by=import` and its own id, such as `n-12`, which names no item.
 
 ### owner.tsv and prs.tsv
@@ -178,7 +185,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 ## Constraints
 
 - Every file is UTF-8 with LF line endings, and every `.tsv` starts with its header row.
-- A cell or a `session` value never holds a tab or a newline: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in the owner's words into one space before it checks the length.
+- A cell or a `session` value never holds a tab or a newline: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
 - A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where` or `--scope` that holds one.
 - `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row.
 - `notes.tsv` holds only notes on open items, at most one per item, so it holds at most 22 rows in format 1 and 20 in format 2. A missing `notes.tsv` reads as no notes.
@@ -193,7 +200,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 
 ## Versions
 
-- `format=2` is the format the tool writes. Format 2 adds the four `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike.
+- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
 - A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
@@ -206,21 +213,21 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 `www import <session>` on a format 1 store upgrades it to format 2 in place. It takes the store lock, checks the store first, and writes nothing when a check fails.
 
 ```text
-$ www import tide-alerts --quote "Merge the alert PRs in bosun-api and bosun-app yourself once CI is green …" --where chat --reading "covers merges in both repos on green CI …; kept back: …"
-Upgraded tide-alerts to format 2: grant 373 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in /home/sam/.local/state/wherewerewe/tide-alerts/format-1-backup/.
+$ www import tide-alerts --may "merge the alert PRs once CI is green and every review finding is answered" --may … --not "publishing a tidekit release" --never "the prod push certificate" --never "the prod database" --scope "in bosun-api, bosun-app and tidekit" --where chat --reading "covers merges in both repos on green CI …; kept back: …"
+Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in /home/sam/.local/state/wherewerewe/tide-alerts/format-1-backup/.
 ```
 
 | In the format 1 store                                  | In format 2                                                                                     |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `session` with `format=1`                              | the same keys, `format=2`, and the four `grant` keys from `--quote`, `--where` and `--reading`, or empty without them |
+| `session` with `format=1`                              | the same keys, `format=2`, and the `grant` keys from `--may`, `--not`, `--never`, `--scope`, `--where` and `--reading`, or none and empty without them |
 | an `ok` item with `use=standing`                       | removed, with its note; a `drop` row with `why` `folded into the grant by the format 2 upgrade` |
 | an `ok` item with `use=once`                           | the same row without `use`, unless `--drop` names it                                           |
 | an item that `--drop` names                            | removed, with its note; a `drop` row with `why` `dropped by the format 2 upgrade`              |
 | every other item, note, owner note and pull request row | the same row                                                                                   |
-| the journal                                            | the same rows, then the `drop` rows above, a `grant` row when `--quote` is given, and an `import` row with `text` `format 1 -> 2` |
+| the journal                                            | the same rows, then the `drop` rows above, a `grant` row when `--may` is given, and an `import` row with `text` `format 1 -> 2` |
 | `now` naming an item the upgrade removes               | empty `now`, `now_next` and `now_set`, as a close of the item in focus leaves them              |
 
-- When the store holds a standing approval and the command has no `--quote`, the upgrade refuses. The refusal prints each standing approval's words and scope, and a `Run:` line with `--quote`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so every brief shows the approvals or the grant.
+- When the store holds a standing approval and the command has no `--may`, the upgrade refuses. The refusal prints each standing approval's words and scope, and a `Run:` line with `--may`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so every brief shows the approvals or the grant.
 - When the store holds more than one one-time approval, the upgrade refuses, names each with its age, and prints a `Run:` line whose `--drop` names every one except the newest.
 - When the store holds an item with the id `grant`, the upgrade refuses, and its `Run:` line adds `grant` to `--drop`.
 - The upgrade prints each note it removes in its reply, after the first line, so an owed note on a standing approval reaches the agent.
@@ -229,11 +236,11 @@ Upgraded tide-alerts to format 2: grant 373 of 700 characters, 2 standing approv
 - A stop before the folder's rename leaves the format 1 store as it was, with no `format-1-backup/`. While `session` reads `format=1`, a rerun reads its input from `format-1-backup/` when it exists, and from the live files when it does not, and writes every file again from that input, the journal as the input's rows followed by the new ones, so no journal row doubles. Once `session` reads `format=2`, `www import` refuses the store as already format 2.
 - The `drop` rows and the `import` row have `by=agent`. The `grant` row has `by=owner` when the terminal test of [owner-notes.md](owner-notes.md) passes and `by=agent` otherwise, as the row of `www grant` does.
 - The upgrade binds the agent session that runs it, as `www init` does.
-- Every limit of `www grant` applies to `--quote`, `--where` and `--reading`; the limits are in [commands.md](commands.md).
+- Every limit of `www grant` applies to `--may`, `--not`, `--never`, `--scope`, `--where` and `--reading`; the limits are in [commands.md](commands.md).
 
 ## Import of the hand-kept store
 
-`www import <session>` converts the folder `<root>/<session>/` from `format=0-by-hand` to `format=2` in place. It reads a `session` file with no `format` line as `format=0-by-hand`. It checks every row first, writes nothing when any row breaks a rule, copies the original `session`, `items.tsv` and `journal.tsv` into `import-backup/`, then writes the new files. It binds the agent session that runs it, as `www init` does. It takes the same `--quote`, `--where`, `--reading` and `--drop` flags as the format 2 upgrade, with the same rules for standing approvals, one-time approvals and an item named `grant`.
+`www import <session>` converts the folder `<root>/<session>/` from `format=0-by-hand` to `format=2` in place. It reads a `session` file with no `format` line as `format=0-by-hand`. It checks every row first, writes nothing when any row breaks a rule, copies the original `session`, `items.tsv` and `journal.tsv` into `import-backup/`, then writes the new files. It binds the agent session that runs it, as `www init` does. It takes the same grant flags and `--drop` as the format 2 upgrade, with the same rules for standing approvals, one-time approvals and an item named `grant`.
 
 | In the hand-kept store                                          | In format 2                                                                                   |
 | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |

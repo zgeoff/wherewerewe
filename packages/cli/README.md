@@ -37,8 +37,8 @@ www --help
 - `--note` keeps a note of detail on an item. `--owed` blocks closing the item until
   `www set <id> --no-note` clears the note.
 - `www ok` records the owner's one-time approval, and `use` spends it.
-- `www grant` keeps the owner's words whole, where they were given, and your reading of them; the
-  brief prints them after the goal.
+- `www grant` keeps the owner's words as bullets of what they allow, did not grant and ruled out,
+  where they were given, and your reading of them; the brief prints them after the goal.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
 - `www done` and `drop` close an item and keep it in the journal.
 - `www say` and `ack` let the owner write a note from a terminal outside any agent. The note stays
