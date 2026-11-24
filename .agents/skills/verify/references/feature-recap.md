@@ -47,8 +47,8 @@ bun verify www run --line 'www --session trial-recap show t-dock' --expect 'Draw
   owed one first and the other's note line cut at 100 characters, the item with no note, the close
   with its evidence, the five oldest decisions in order with an overflow line for the sixth, and the
   footer's `say` command. The overflow line's command prints the sixth decision, and `show` prints
-  the item whose note the recap cut. Each fails with `check-failed` when `www` exits other than 0 or
-  prints other text.
+  the item whose note the recap cut. A `bun verify www run` fails with `check-failed` when `www`
+  exits other than 0 or prints other text.
 - The 4 counts in the replies are code points: 155 for the bullets and scope, 102 for the reading,
   91 and 71 for the notes.
 - No expected text holds a note's age, which is real time: a slow run prints `1m` where a fast one
