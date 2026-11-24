@@ -348,7 +348,7 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 - **Notes live in their own file, which a missing file leaves empty.** Notes ship before format 2, so `notes.tsv` changes no format; each row names an open item, and a close removes it.
 - **The format 2 upgrade takes the grant in the same command.** A store with standing approvals never passes through a state where the brief shows neither them nor a grant, so after any compaction the agent still reads what it may do.
 - **Import and the upgrade convert in place and keep a backup.** The folder is already at the root under the session's name, and the backup is the session's only copy of what came before.
-- **The owner's notes live in their own file.** An agent write never opens `owner.tsv` for writing, so a bug in a write cannot drop an owner note.
+- **The owner's notes live in their own file.** No agent write other than `init` and `import`, which create `owner.tsv` with its header alone, opens it for writing, so a bug in a write cannot drop an owner note.
 
 ## Builder decides
 
