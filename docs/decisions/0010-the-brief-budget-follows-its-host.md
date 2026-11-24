@@ -11,7 +11,7 @@ The brief's size limit follows the host that reads it: 82 lines and 9,000 charac
 
 - The owner decided that a Claude Code session's brief may have a limit of its own, apart from Codex's.
 - Each budget sits under its host's limit on hook output put into context, with a margin. Codex puts about 2,500 tokens into context. Claude Code puts 10,000 characters, and past that only a 2,000-character preview ([hooks](https://code.claude.com/docs/en/hooks)).
-- One session can be bound to both hosts at once, so only the reader's environment says which host reads the brief. With no known host, the smaller budget fits either agent.
+- One session can be bound to both hosts at once, so the brief can learn its host only from the reader's environment. With no known host, the smaller budget fits either agent.
 
 ## Rejected alternatives
 

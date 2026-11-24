@@ -313,7 +313,7 @@ pr-api-77  task, open since day 7, by agent · check: pr:bosunhq/bosun-api#77
 
 $ www show
 OPEN (5 of 30)
-  pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa  [OPEN failing]
+  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07  [OPEN failing]
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
     s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
     unused import in the retry helper, not on the retry logic.
@@ -405,7 +405,7 @@ The owner runs the recap from a terminal that has no binding, so the no-grant li
 
 The recap is at most 55 lines: 1 + 23 + (1 heading + 6 × 2 + 1 overflow + 1 other-items line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 2 = 55. Every line is at most 100 characters, except a `SINCE` overflow line when `<t>` is longer than 7 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer's two lines with a 24-character name are 60 and 72, and each other line that would pass 100 is cut to 99 characters and `…`, after a credential in a stored text becomes `<where the secret lives>`, so the cut counts the placeholder. The grant's lines, the overflow lines and the footer's two lines are never cut, so each command runs as printed, and each overflow line stays within 100 for a `<t>` of at most 7 characters. A longer `<t>`, such as `0000024h`, adds each character past 7 to the two `SINCE` overflow lines, which stay whole so their commands run as typed. So the recap is at most 55 × 100 + 55 = 5,555 characters, plus 2 for each character of `<t>` past 7.
 
-With counts of at most 4 digits where no cap applies, at most 44 open items and a header of 87 characters, the widest lines sum to at most 4,160 characters, or 4,173 when a header is cut at 100, under the bound of 5,555. `NOTES` prints at most 6 items, so its `<m>` is at most 44 and its overflow count at most 38, both 2 digits, and its overflow line stays at 79 characters.
+With counts of at most 4 digits where no cap applies, at most 44 open items and a header of 87 characters, the widest lines sum to at most 4,160 characters, or 4,173 when a header is cut at 100, under the bound of 5,555. In `NOTES`, `<m>` is at most 44, and with 6 items printed the overflow count is at most 38. Both have 2 digits, and the overflow line stays at 79 characters.
 
 ## Refusals
 

@@ -7,13 +7,13 @@
 
 A session holds up to 30 open tasks. The wait, rule, where and one-time approval caps stay. The store stays in format 2.
 
-The brief prints, in a fixed order, as many task rows as fit in its budget, and one line that counts the rest and names `www show`. `www show` with no id lists every open task in full.
+The brief prints, in a fixed order, as many task rows as fit in its budget, and one line that counts the rest and points to `www show`. `www show` with no id lists every open task in full.
 
 ## Why
 
 - The owner found a cap of 6 open tasks too small for a long session, and expects an agent on a long task to hold about 20.
-- The order puts first what the agent acts on: the item in focus, a claim that is no longer true, work that waits on something or owes a note, then the newest.
-- 30 leaves half again of room over 20, and a limit still bounds three things: `items.tsv` and `notes.tsv` stay the same size on day 14 as on day 2 (at most 44 open items and 44 notes), every count the brief and the recap print stays at 2 digits, and each probe is one more a read must start. A read starts its probes in the order the brief prints rows and keeps each saved result, so a probe that does not finish in 5 s leaves its task with the result it had.
+- The brief prints first what the agent acts on: the item in focus, a claim that is no longer true, work that waits on something or owes a note, then the newest.
+- 30 leaves half again of room over 20. A limit still keeps `items.tsv` and `notes.tsv` the same size on day 14 as on day 2 (at most 44 open items and 44 notes), keeps every count the brief and the recap print at 2 digits, and limits the probes a read must start. A read starts its probes in the order the brief prints rows and keeps each saved result, so a probe that does not finish in 5 s leaves its task with the result it had.
 
 ## Rejected alternatives
 
