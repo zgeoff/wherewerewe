@@ -22,5 +22,5 @@ A section of a capped kind prints its heading as `(<n>, max <cap>)`, where `<n>`
 
 ## Consequences
 
-- This record replaces the heading text that [0009](0009-30-open-tasks-and-a-count-of-the-rest.md) records, `OPEN (<n> of 30)`: the heading is `OPEN (<n>, max 30)`.
+- This record replaces the heading `OPEN (<n> of 30)` from [0009](0009-30-open-tasks-and-a-count-of-the-rest.md) with `OPEN (<n>, max 30)`.
 - The headings `OPEN`, `WAITING`, `APPROVED ONCE`, `RULES` and `WHERE` change, and so does the recap's `NOTES`. `OWNER SAYS (<n>)` keeps its form, as [0008](0008-notes-the-grant-and-no-caution-steering.md) keeps it.
