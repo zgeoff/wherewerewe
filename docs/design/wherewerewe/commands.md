@@ -337,7 +337,7 @@ grant reading: 197 of 200. Brief: 45 lines.
 
 ### www show and www log
 
-`show` runs the item's probe and saves nothing. After `OPEN failing` it names the failing checks in parentheses, as the example's `checked now: OPEN failing (oxlint)` does.
+`show <id>` runs the item's probe and saves nothing. After `OPEN failing` it names the failing checks in parentheses, as the example's `checked now: OPEN failing (oxlint)` does.
 
 ```text
 $ www show pr-api-77
