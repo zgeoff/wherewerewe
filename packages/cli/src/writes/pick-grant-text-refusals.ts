@@ -3,6 +3,7 @@ import { countGrantWords } from '../rules/count-grant-words.ts';
 import type { GrantWords } from '../rules/count-grant-words.ts';
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
+import { joinSplitLines } from '../rules/join-split-lines.ts';
 import { normaliseWords } from '../rules/normalise-words.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
@@ -10,7 +11,6 @@ import type { TextCheck } from './pick-text-refusal.ts';
 import { toGrantWords } from './to-grant-words.ts';
 
 const bulletFlags = ['may', 'not', 'never'] as const;
-const lineBreaks = /[ \t]*(?:\r\n|[\n\v\f\r\u0085\u2028\u2029])[ \t]*/gu;
 
 // The problems in the grant's texts, in the order a refusal prints them. Too many bullets, lines or
 // words replace every bullet in the Run line, so each bullet's own problem waits for those fixes.
@@ -111,14 +111,14 @@ export function pickGrantTextRefusals(
   const typedTexts = [...typedBullets, ...typedScopes];
 
   const splitCredentials: RefusalReason[] = typedTexts.flatMap((typedText, at) => {
-    const label = findCredentialMatch(typedText.typed.replaceAll(lineBreaks, ''));
+    const label = findCredentialMatch(joinSplitLines(typedText.typed));
     const target = typedText.check.target;
 
     const isFirstForTarget =
       typedTexts.findIndex(
         (other) =>
           other.check.target === target &&
-          findCredentialMatch(other.typed.replaceAll(lineBreaks, '')) !== null,
+          findCredentialMatch(joinSplitLines(other.typed)) !== null,
       ) === at;
 
     return label === null ||
