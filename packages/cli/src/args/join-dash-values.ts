@@ -1,5 +1,3 @@
-import { redactCredential } from '../rules/redact-credential.ts';
-
 export interface JoinedDashValues {
   // the first flag whose value starts with a dash
   readonly flag: string;
@@ -49,7 +47,7 @@ export function joinDashValues(
 
   const [flag] = flags;
 
-  return flag === undefined ? null : { flag, argv: joined.map((word) => redactCredential(word)) };
+  return flag === undefined ? null : { flag, argv: joined };
 }
 
 // A lone `-` is a value to the parser, and so is a word with no dash in front. A word that names

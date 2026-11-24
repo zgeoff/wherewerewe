@@ -29,3 +29,8 @@ export function findCredentialMatch(text: string): string | null {
 
   return match === undefined ? null : match.label;
 }
+
+// True for the bare name of a pattern, such as ghp_, which a refusal prints to say what matched.
+export function isCredentialLabel(text: string): boolean {
+  return credentialPatterns.some((entry) => entry.label === text);
+}

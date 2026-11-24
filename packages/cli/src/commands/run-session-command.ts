@@ -4,9 +4,9 @@ import { match } from 'ts-pattern';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { findFormat } from '../import/find-format.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
+import { buildRefusalResult } from '../refusals/build-refusal-result.ts';
 import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
-import { formatRefusal } from '../refusals/format-refusal.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { buildBindRow } from '../sessions/build-bind-row.ts';
 import { findAgentID } from '../sessions/find-agent-id.ts';
@@ -135,11 +135,7 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
 }
 
 function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
-  return {
-    exitCode: refusal.exitCode,
-    stdout: '',
-    stderr: formatRefusal(refusal, buildRefusalScope(context.args)),
-  };
+  return buildRefusalResult(refusal, buildRefusalScope(context.args));
 }
 
 // The refusal of a format 1 store names its upgrade, which the session-exists refusal's own Run

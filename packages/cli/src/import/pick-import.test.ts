@@ -90,7 +90,7 @@ test.each([
     title: 'a name that looks like a credential, which the line never prints',
     session: `name=AKIA${'Q'.repeat(16)}\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n`,
     problems: [
-      'session (name): the name <text with no secret in it> is not the folder name old-notes.; the text looks like a credential (it matches AKIA).',
+      'session (name): the name <where the secret lives> is not the folder name old-notes.; the text looks like a credential (it matches AKIA).',
     ],
   },
   {
@@ -370,7 +370,7 @@ test.each([
     items: [buildHandKeptItemRow({ check: `AKIA${'Q'.repeat(16)}` })],
     journal: [],
     problems: [
-      'items.tsv line 2 (t-b): the check <text with no secret in it> does not parse.; the text looks like a credential (it matches AKIA).',
+      'items.tsv line 2 (t-b): the check <where the secret lives> does not parse.; the text looks like a credential (it matches AKIA).',
     ],
   },
   {
@@ -386,7 +386,7 @@ test.each([
     items: [buildHandKeptItemRow({ id: `AKIA${'Q'.repeat(16)}` })],
     journal: [],
     problems: [
-      'items.tsv line 2 (<text with no secret in it>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
+      'items.tsv line 2 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
     ],
   },
   {
@@ -572,8 +572,8 @@ test.each([
     ),
     journal: [],
     problems: [
-      'items.tsv line 8 (<text with no secret in it>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
-      'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, <text with no secret in it>), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      'items.tsv line 8 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches AKIA).',
+      'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, <where the secret lives>), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
     ],
   },
 ])('it refuses $title, with the exact problem lines', (row) => {

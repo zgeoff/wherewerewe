@@ -415,9 +415,9 @@ test('it prints no credential from a stored approval or a --drop value, in a lin
 
   expect(refused).toStrictEqual([
     "www: refused: garden-beds holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
-    '  ok-merge   "<text with no secret in it>" · garden-api',
+    '  ok-merge   "<where the secret lives>" · garden-api',
     '  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds',
-    'www: refused: --drop <text with no secret in it> names no item in garden-beds. Items: ok-merge, ok-deploy, ok-wipe, t-valves, t-timer, r-tests.',
+    'www: refused: --drop <where the secret lives> names no item in garden-beds. Items: ok-merge, ok-deploy, ok-wipe, t-valves, t-timer, r-tests.',
     'Run: www import garden-beds --may <what the owner allows, in their words> --where chat --reading <what they cover; what the owner kept back>',
   ]);
 });

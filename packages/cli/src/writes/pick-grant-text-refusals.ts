@@ -86,27 +86,14 @@ export function pickGrantTextRefusals(args: ParsedArgs): RefusalReason[] {
     (reason) => 'target' in reason && reason.target.label === 'where',
   );
 
-  // a bullet with a text problem gets that refusal alone, whose Run line replaces it
-  const marks: RefusalReason[] =
-    whole.length > 0
-      ? []
-      : bulletFlags.flatMap((flag) =>
-          words[flag].flatMap((bullet, occurrence) =>
-            bullet.includes('•') && !isRefused(textReasons, flag, occurrence)
-              ? [{ kind: 'bullet-has-mark' as const, args, flag, occurrence, bullet }]
-              : [],
-          ),
-        );
+  // a text with another problem gets that refusal alone, whose Run line replaces it
+  const marks: RefusalReason[] = [...readingCheck, ...bulletChecks, ...otherChecks].flatMap(
+    (check) =>
+      check.text.includes('•') &&
+      !textReasons.some((reason) => 'target' in reason && reason.target === check.target)
+        ? [{ kind: 'text-has-mark' as const, args, target: check.target, text: check.text }]
+        : [],
+  );
 
   return [...whole, ...textReasons, ...marks, ...(isWhereRefused ? [] : separator)];
-}
-
-function isRefused(reasons: readonly RefusalReason[], flag: string, occurrence: number): boolean {
-  return reasons.some(
-    (reason) =>
-      'target' in reason &&
-      'occurrence' in reason.target.place &&
-      reason.target.place.flag === flag &&
-      reason.target.place.occurrence === occurrence,
-  );
 }

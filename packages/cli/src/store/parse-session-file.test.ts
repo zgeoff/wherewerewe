@@ -195,7 +195,17 @@ test.each([
   [
     'a line with no equals sign that looks like a credential',
     `format=2\n${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}\n`,
-    { kind: 'broken', reason: 'the line "<text with no secret in it>" is not key=value' },
+    { kind: 'broken', reason: 'the line "<where the secret lives>" is not key=value' },
+  ],
+  [
+    'a grant scope with the bullet mark',
+    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=beds • shed\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
+    { kind: 'broken', reason: 'the key grant_scope holds •' },
+  ],
+  [
+    'a grant reading with the bullet mark',
+    'format=2\nname=a\ngoal=b\nstarted=c\ngrant_may=w\ngrant_scope=\ngrant_reading=works • fine\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
+    { kind: 'broken', reason: 'the key grant_reading holds •' },
   ],
   [
     'a repeated grant_scope key',

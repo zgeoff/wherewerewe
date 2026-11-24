@@ -1,6 +1,6 @@
 import { findCredentialMatch } from './find-credential-match.ts';
 
-export const noSecretPlaceholder = '<text with no secret in it>';
+export const noSecretPlaceholder = '<where the secret lives>';
 
 // The text, or a placeholder when it looks like a credential, so a refusal never prints a secret
 // that the agent typed.

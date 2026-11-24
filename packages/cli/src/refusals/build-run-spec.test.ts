@@ -206,5 +206,5 @@ test('it puts a placeholder where a typed value looks like a credential', () => 
     flags: [{ name: 'quote', value: `AKIA${'Q'.repeat(16)}` }],
   });
 
-  expect(spec.toArgv()).toStrictEqual(['ok', 'ok-a', '--quote', '<text with no secret in it>']);
+  expect(spec.toArgv()).toStrictEqual(['ok', 'ok-a', '--quote', '<where the secret lives>']);
 });

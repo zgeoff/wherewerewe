@@ -23,6 +23,7 @@ export function fixGrantText(
       { kind: 'text-not-one-line' },
       { kind: 'text-empty' },
       { kind: 'credential' },
+      { kind: 'text-has-mark' },
       (text): FlagPlace | null =>
         'flag' in text.target.place
           ? {
@@ -34,10 +35,6 @@ export function fixGrantText(
     .with({ kind: 'extra-has-separator' }, (separator) => ({
       flag: separator.flag,
       occurrence: null,
-    }))
-    .with({ kind: 'bullet-has-mark' }, (mark) => ({
-      flag: mark.flag,
-      occurrence: mark.occurrence,
     }))
     .otherwise(() => null);
 

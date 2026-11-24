@@ -256,5 +256,8 @@ function pickSessionFlag(argv: readonly string[]): string | null {
     allowPositionals: true,
   });
 
-  return typeof lenient.values.session === 'string' ? lenient.values.session : null;
+  const session = lenient.values.session;
+
+  // `--session --help` names no session: the parser took the next flag as its value
+  return typeof session === 'string' && !session.startsWith('-') ? session : null;
 }

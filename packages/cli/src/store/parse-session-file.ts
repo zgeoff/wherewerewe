@@ -159,8 +159,15 @@ function parseGrant(
     return textProblem;
   }
 
-  if (all.some((bullet) => bullet.includes('•'))) {
-    return 'a grant bullet holds •';
+  const marked = [
+    ...all.map((bullet) => ({ name: 'a grant bullet', value: bullet })),
+    { name: 'the key grant_scope', value: scope },
+    { name: 'the key grant_reading', value: reading },
+    { name: 'the key grant_where', value: where },
+  ].find((text) => text.value.includes('•'));
+
+  if (marked !== undefined) {
+    return `${marked.name} holds •`;
   }
 
   if (/[;=]/u.test(where)) {

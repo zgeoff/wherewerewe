@@ -77,7 +77,7 @@ test('it redacts a --session value that looks like a credential', () => {
   );
 
   expect(text).toBe(
-    'www: --goal needs a value.\nRun: www --session "<text with no secret in it>" help\n',
+    'www: --goal needs a value.\nRun: www --session "<where the secret lives>" help\n',
   );
 });
 

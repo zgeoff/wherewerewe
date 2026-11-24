@@ -507,8 +507,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www goal "<text with no secret in it>"\n',
-    fills: [{ '<text with no secret in it>': 'Ship it' }],
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www goal "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'Ship it' }],
   },
   {
     title: 'a credential in evidence',
@@ -521,8 +521,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www done t-a --evidence "<text with no secret in it>"\n',
-    fills: [{ '<text with no secret in it>': 'commit 4c1d2e0' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www done t-a --evidence "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'commit 4c1d2e0' }],
   },
   {
     title: 'two checks',
@@ -1450,8 +1450,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "<text with no secret in it>" --who owner --where chat --scope bosun-api --once\n',
-    fills: [{ '<text with no secret in it>': 'merge yourself' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --scope bosun-api --once\n',
+    fills: [{ '<where the secret lives>': 'merge yourself' }],
   },
   {
     title: 'a credential in an approval scope',
@@ -1473,8 +1473,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope "<text with no secret in it>" --once\n',
-    fills: [{ '<text with no secret in it>': 'bosun-api' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope "<where the secret lives>" --once\n',
+    fills: [{ '<where the secret lives>': 'bosun-api' }],
   },
   {
     title: 'a second approval while the one-time approval is open',
@@ -1754,8 +1754,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www use ok-a --for "<text with no secret in it>"\n',
-    fills: [{ '<text with no secret in it>': 'merged it' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www use ok-a --for "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'merged it' }],
   },
   {
     title: 'a decision with no --why',
@@ -1820,8 +1820,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "<text with no secret in it>" --why "The feed flaps"\n',
-    fills: [{ '<text with no secret in it>': 'Retry a 503 3 times' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "<where the secret lives>" --why "The feed flaps"\n',
+    fills: [{ '<where the secret lives>': 'Retry a 503 3 times' }],
   },
   {
     title: 'a credential in a decision reason',
@@ -1831,8 +1831,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "Retry a 503 3 times" --why "<text with no secret in it>"\n',
-    fills: [{ '<text with no secret in it>': 'The feed flaps' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "Retry a 503 3 times" --why "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'The feed flaps' }],
   },
   {
     title: 'a decision with a --who that is neither owner nor agent',
@@ -1957,8 +1957,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<text with no secret in it>" --who owner --where chat --scope "<what it covers>"\n',
-    fills: [{ '<text with no secret in it>': 'merge yourself', '<what it covers>': 'bosun-api' }],
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --scope "<what it covers>"\n',
+    fills: [{ '<where the secret lives>': 'merge yourself', '<what it covers>': 'bosun-api' }],
   },
   {
     title: 'an approval that lacks a part, with a quote that starts with two dashes',
@@ -1979,8 +1979,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "<text with no secret in it>" --why "<text with no secret in it>"\n',
-    fills: [{ '<text with no secret in it>': 'Retry a 503 3 times' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www decide "<where the secret lives>" --why "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'Retry a 503 3 times' }],
   },
   {
     title: 'a decision that replaces a credential-shaped id',
@@ -1997,7 +1997,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: there is no decision <text with no secret in it>; there are no decisions yet.\nRun: www log --op decide,ruled-out\n',
+      'www: refused: there is no decision <where the secret lives>; there are no decisions yet.\nRun: www log --op decide,ruled-out\n',
     fills: [{}],
   },
   {
@@ -2154,8 +2154,8 @@ test.each([
     env: 'owner',
     exitCode: 3,
     stderr:
-      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www --session tide-alerts say "<text with no secret in it>"\n',
-    fills: [{ '<text with no secret in it>': 'Ask me first' }],
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www --session tide-alerts say "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'Ask me first' }],
   },
   {
     title: 'a say when the journal holds the last safe owner note number',
@@ -2606,7 +2606,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: --drop <text with no secret in it> names no item in old-notes. Items: t-valves.\nRun: www import old-notes\n',
+      'www: refused: --drop <where the secret lives> names no item in old-notes. Items: t-valves.\nRun: www import old-notes\n',
     fills: [{}],
   },
   {
@@ -3203,7 +3203,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a bullet cannot hold •, which the brief prints before each bullet.\nRun: www grant --may "Water the beds." --never "dig - spray" --where chat --reading "covers watering"\n',
+      'www: refused: the bullet cannot hold •, which the brief prints before each bullet.\nRun: www grant --may "Water the beds." --never "dig - spray" --where chat --reading "covers watering"\n',
     fills: [{}],
   },
   {
@@ -3222,8 +3222,208 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: a bullet cannot hold •, which the brief prints before each bullet.\nRun: www grant --may "<bullet>" --where chat --reading "covers watering"\n',
+      'www: refused: the bullet cannot hold •, which the brief prints before each bullet.\nRun: www grant --may "<bullet>" --where chat --reading "covers watering"\n',
     fills: [{ '<bullet>': 'Water the beds.' }],
+  },
+  {
+    title: 'a dash value that holds a credential, which keeps its flag',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      `--allow ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}`,
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 2,
+    stderr:
+      'www: the value of --may starts with a dash, so it reads as a flag. Join the two with =, as in --may="<value>".\nRun: www grant --may "<where the secret lives>" --where chat --reading "covers watering"\n',
+    fills: [{ '<where the secret lives>': 'Water the beds.' }],
+  },
+  {
+    title: 'a dash value with a --session that has no value',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      'water',
+      '--never',
+      '-keep',
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+      '--session',
+      '--help',
+    ],
+    env: 'agent',
+    exitCode: 2,
+    stderr: 'www: --session needs a value.\nRun: www help\n',
+    fills: [{}],
+  },
+  {
+    title: 'a dash value that spans two lines',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      'water',
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+      '--never',
+      '-keep\nthe gate shut',
+    ],
+    env: 'agent',
+    exitCode: 2,
+    stderr:
+      'www: the value of --never starts with a dash, so it reads as a flag. Join the two with =, as in --never="<value>".\nRun: www grant --may water --where chat --reading "covers watering" --never="-keep the gate shut"\n',
+    fills: [{}],
+  },
+  {
+    title: 'a grant of 700 characters with no --may, which has no room for one',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--not',
+      'n'.repeat(100),
+      ...Array.from({ length: 5 }, () => ['--not', 'n'.repeat(120)]).flat(),
+      '--where',
+      'chat',
+      '--reading',
+      'covers watering',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the grant\'s words are 701 characters in its bullets and scope, and the limit is 700.\nRun: www grant --may "<what the owner allows, in their words>" --not "<what the owner did not grant, in their words>" --where chat --reading "covers watering"\n',
+    fills: [
+      {
+        '<what the owner allows, in their words>': 'Water.',
+        '<what the owner did not grant, in their words>': 'Prune.',
+      },
+    ],
+  },
+  {
+    title: 'an unknown flag that looks like a credential',
+    setup: [],
+    files: [],
+    argv: ['goal', 'x', '--xoxb-fakesample'],
+    env: 'agent',
+    exitCode: 2,
+    stderr: 'www: unknown flag "<where the secret lives>".\nRun: www help\n',
+    fills: [{}],
+  },
+  {
+    title: 'a session key that looks like a credential',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'session',
+        text: `format=2\nname=tide-alerts\ngoal=Ship it\ngrant_scope=\ngrant_reading=\ngrant_where=\ngrant_set=\nstarted=2026-03-02T08:00:00Z\n${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}=pasted\n`,
+      },
+    ],
+    argv: ['task', 't-b', 'x'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      "www: tide-alerts's session does not parse: the key <where the secret lives> is not in format 2. Fix the file by hand.\nRun: less <STATE>/tide-alerts/session\n",
+    fills: [],
+  },
+  {
+    title: 'a format 1 session key that looks like a credential',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'session',
+        text: `format=1\nname=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nnow=\nnow_next=\nnow_set=\nlast_write=\nlast_nudge=\n${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}=pasted\n`,
+      },
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      "www: old-notes's session does not parse: the key <where the secret lives> is not in format 1. Fix the file by hand.\nRun: less <STATE>/old-notes/session\n",
+    fills: [],
+  },
+  {
+    title: 'an upgrade whose older one-time approval has an id that looks like a credential',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nxoxb-fakedemo\tok\tyou can wipe the staging sensor table once\t-\t-\t-\t2026-03-05T09:00:00Z\tagent\twho=owner;where=chat;scope=staging sensor table;use=once\nok-tags\tok\tpush the garden-api tags\t-\t-\t-\t2026-03-08T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=once\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: old-notes holds 2 one-time approvals, and format 2 holds 1. Drop all but one.\n  <where the secret lives>  "you can wipe the staging sensor table once" · staging sensor table  [5d]\n  ok-tags                   "push the garden-api tags" · garden-api  [2d]\nRun: www import old-notes --drop "<where the secret lives>"\n',
+    fills: [],
+  },
+  {
+    title: 'a grant where that looks like a credential',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['grant', '--may', 'water', '--where', 'ghp_fake', '--reading', 'covers watering'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --may water --where "<where the secret lives>" --reading "covers watering"\n',
+    fills: [{ '<where the secret lives>': 'chat' }],
+  },
+  {
+    title: 'a grant bullet of one bullet mark',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['grant', '--may', '•', '--where', 'chat', '--reading', 'covers watering'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the bullet cannot hold •, which the brief prints before each bullet.\nRun: www grant --may "<bullet>" --where chat --reading "covers watering"\n',
+    fills: [{ '<bullet>': 'Water the beds.' }],
+  },
+  {
+    title: 'a grant scope and reading that hold the bullet mark',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--may',
+      'water',
+      '--scope',
+      'beds\n• shed',
+      '--where',
+      'chat',
+      '--reading',
+      'works • fine',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the reading cannot hold •, which the brief prints before each bullet.\nwww: refused: the grant\'s scope cannot hold •, which the brief prints before each bullet.\nRun: www grant --may water --scope "beds - shed" --where chat --reading "works - fine"\n',
+    fills: [{}],
   },
   {
     title: 'an upgrade whose bullet starts with two dashes',
@@ -3280,7 +3480,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the text must be one line, with no tab or newline.\nwww: refused: a bullet cannot hold •, which the brief prints before each bullet.\nRun: www import old-notes --may "Merge - deploy" --where chat --reading "<one line>"\n',
+      'www: refused: the text must be one line, with no tab or newline.\nwww: refused: the bullet cannot hold •, which the brief prints before each bullet.\nRun: www import old-notes --may "Merge - deploy" --where chat --reading "<one line>"\n',
     fills: [{ '<one line>': 'covers merges' }],
   },
   {

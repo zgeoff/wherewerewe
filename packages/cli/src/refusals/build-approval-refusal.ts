@@ -8,6 +8,7 @@ import { buildRunSpec } from './build-run-spec.ts';
 import { grantPlaceholders } from './grant-placeholders.ts';
 import { refuse } from './refuse.ts';
 import { replaceGrantBullets } from './replace-grant-bullets.ts';
+import { replaceText } from './replace-text.ts';
 
 type ApprovalRefusalReason = Extract<
   RefusalReason,
@@ -19,7 +20,7 @@ type ApprovalRefusalReason = Extract<
       | 'grant-reading-no-grant'
       | 'grant-words-too-long'
       | 'grant-too-many-bullets'
-      | 'bullet-has-mark';
+      | 'text-has-mark';
   }
 >;
 
@@ -85,13 +86,14 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
         replaceGrantBullets(buildRunSpec(found.args), found.args.flags).toArgv(),
       ),
     )
-    .with({ kind: 'bullet-has-mark' }, (found) => {
-      const fixed = found.bullet.replaceAll('•', '-');
-      const bullet = fixed === '-' || findCredentialMatch(fixed) !== null ? '<bullet>' : fixed;
+    .with({ kind: 'text-has-mark' }, (found) => {
+      const label = found.target.label;
+      const fixed = found.text.replaceAll('•', '-');
+      const value = fixed === '-' || findCredentialMatch(fixed) !== null ? `<${label}>` : fixed;
 
       return refuse(
-        'www: refused: a bullet cannot hold •, which the brief prints before each bullet.',
-        buildRunSpec(found.args).replaceFlagAt(found.flag, found.occurrence, bullet).toArgv(),
+        `www: refused: the ${label} cannot hold •, which the brief prints before each bullet.`,
+        replaceText(found.args, found.target, value),
       );
     })
     .exhaustive();

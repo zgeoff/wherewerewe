@@ -9,9 +9,9 @@ import { pickImport } from '../import/pick-import.ts';
 import { pickUpgrade } from '../import/pick-upgrade.ts';
 import type { Format1Files } from '../import/pick-upgrade.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
+import { buildRefusalResult } from '../refusals/build-refusal-result.ts';
 import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
-import { formatRefusal } from '../refusals/format-refusal.ts';
 import { countGrantWords } from '../rules/count-grant-words.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { findAgentID } from '../sessions/find-agent-id.ts';
@@ -63,11 +63,7 @@ async function replyNoSession(context: CommandContext, name: string): Promise<CL
 }
 
 function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
-  return {
-    exitCode: refusal.exitCode,
-    stdout: '',
-    stderr: formatRefusal(refusal, buildRefusalScope(context.args)),
-  };
+  return buildRefusalResult(refusal, buildRefusalScope(context.args));
 }
 
 async function importStore(

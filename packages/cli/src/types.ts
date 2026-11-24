@@ -382,13 +382,10 @@ export type RefusalReason =
       readonly count: number;
     }
   | {
-      readonly kind: 'bullet-has-mark';
+      readonly kind: 'text-has-mark';
       readonly args: ParsedArgs;
-      readonly flag: 'may' | 'not' | 'never';
-
-      // the bullet's place among that flag's values
-      readonly occurrence: number;
-      readonly bullet: string;
+      readonly target: TextTarget;
+      readonly text: string;
     }
   | { readonly kind: 'decide-needs-why'; readonly args: ParsedArgs }
   | { readonly kind: 'bad-decision-who'; readonly args: ParsedArgs }

@@ -66,7 +66,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | pull request overflow    | `  and <n> more: www log --op pr`                                                             | 30     |
 | pull request hint        | `  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>`                     | 71     |
 
-A group with no bullets is left out. A `never` bullet joins the line before, after two spaces, when that line holds only whole `never` bullets and the joined line stays within 100 characters. `www grant` refuses a `•` in a bullet, so each `•` starts a bullet. A `may` or `not` bullet takes a line of its own, so each permission reads alone. The brief adds only the labels `may`, `not` and `never` to the owner's words, and prints the scope as the owner gave it.
+A group with no bullets is left out. A `never` bullet joins the line before, after two spaces, when that line holds only whole `never` bullets and the joined line stays within 100 characters. `www grant` refuses a `•` in a bullet, the scope, the reading and `--where`, so each `•` starts a bullet. A `may` or `not` bullet takes a line of its own, so each permission reads alone. The brief adds only the labels `may`, `not` and `never` to the owner's words, and prints the scope in the owner's words, with each line break as one space.
 
 A check result is at most 15 characters; the list is in [checks.md](checks.md). The fix command in a changed row is at most 64 characters with a 16-character id, the longest an id can be, and the widest changed row pairs the 6-character `CLOSED` with that 64-character fix:
 

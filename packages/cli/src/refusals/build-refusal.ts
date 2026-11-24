@@ -106,7 +106,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'grant-reading-no-grant' },
       { kind: 'grant-words-too-long' },
       { kind: 'grant-too-many-bullets' },
-      { kind: 'bullet-has-mark' },
+      { kind: 'text-has-mark' },
       (found) => buildApprovalRefusal(found),
     )
     .with({ kind: 'decide-needs-why' }, (found) =>
