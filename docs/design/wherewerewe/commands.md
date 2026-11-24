@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, as built through slice 2c, and `www --help` and `www -h` do the same. It lists no `recap` until slice 2d applies its diff below. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2d, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -22,6 +22,7 @@ Read. Run www first, after every compaction, and whenever you are unsure:
   www log [--since <t>] [--op <op,...>] [--id <id>]
                              the journal, oldest first. <t> is 24h, 3d or day-7
   www sessions               every session on this machine
+  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
 
 Write as you go. One id holds one claim and one note; --note replaces the note:
   www now <id> "<next step>" [--note "<detail>" [--owed]]
@@ -60,7 +61,7 @@ words 700 in at most 12 bullets, and its reading 200. The brief holds at most 6 
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2c, and the test compares the tool's output with it. The slice 2b and 2c diffs below are what those slices changed. In the pull request that builds slice 2d, apply its diff below to this block and to the tool. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 2d, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs below are what those slices changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 

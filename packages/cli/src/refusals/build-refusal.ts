@@ -162,8 +162,8 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'owner-note-unknown' },
       (found) => buildOwnerRefusal(found),
     )
-    .with({ kind: 'bad-since' }, () =>
-      usage(2, 'www: --since takes 24h, 3d or day-7.', ['log', '--since', '24h']),
+    .with({ kind: 'bad-since' }, (found) =>
+      usage(2, 'www: --since takes 24h, 3d or day-7.', [found.command, '--since', '24h']),
     )
     .with({ kind: 'use-needs-for' }, (found) =>
       refuse(

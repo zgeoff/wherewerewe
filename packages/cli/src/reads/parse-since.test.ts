@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { parseSince } from './parse-since.ts';
+import { isSinceText, parseSince } from './parse-since.ts';
 
 test.each([
   ['24h', '2026-03-09T11:43:00Z'],
@@ -21,3 +21,15 @@ test.each([['yesterday'], ['24'], ['h'], ['-3d'], ['3 d'], ['day-'], ['day7'], [
     expect(fromMs).toBeNull();
   },
 );
+
+test.each([
+  ['24h', true],
+  ['3d', true],
+  ['day-7', true],
+  ['-2h', false],
+  ['soon', false],
+  ['', false],
+  ['day-', false],
+])('it reads whether %p is a time written as 24h, 3d or day-7: %p', (text, expected) => {
+  expect(isSinceText(text)).toBe(expected);
+});

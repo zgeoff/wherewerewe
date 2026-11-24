@@ -413,7 +413,7 @@ export type RefusalReason =
       readonly id: string;
       readonly shownIDs: readonly string[];
     }
-  | { readonly kind: 'bad-since' }
+  | { readonly kind: 'bad-since'; readonly command: 'log' | 'recap' }
   | { readonly kind: 'use-needs-for'; readonly args: ParsedArgs }
   | { readonly kind: 'use-not-approval'; readonly id: string; readonly itemKind: Kind }
   | {

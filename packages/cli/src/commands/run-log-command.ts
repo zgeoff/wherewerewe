@@ -18,7 +18,10 @@ export async function runLogCommand(
   const fromMs = since === undefined ? null : parseSince(since, nowMs, store.session.started);
 
   if (since !== undefined && fromMs === null) {
-    return buildRefusalResult(buildRefusal({ kind: 'bad-since' }), buildRefusalScope(args));
+    return buildRefusalResult(
+      buildRefusal({ kind: 'bad-since', command: 'log' }),
+      buildRefusalScope(args),
+    );
   }
 
   const filter = {

@@ -1,4 +1,5 @@
 import { parseCLIArgs } from '../args/parse-cli-args.ts';
+import { isSinceText } from '../reads/parse-since.ts';
 import type { ParsedArgs, Refusal, RefusalReason } from '../types.ts';
 import { pickGrantPartsRefusal } from '../writes/pick-grant-parts-refusal.ts';
 import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusals.ts';
@@ -39,6 +40,19 @@ function findRunProblem(words: readonly string[]): Refusal | null {
 
   if (parsed.kind === 'refused') {
     return restorePlaceholders(buildRefusal(parsed.reason), filled.samples);
+  }
+
+  const since = parsed.args.values.since;
+
+  if (
+    (parsed.args.command === 'log' || parsed.args.command === 'recap') &&
+    since !== undefined &&
+    !isSinceText(since)
+  ) {
+    return restorePlaceholders(
+      buildRefusal({ kind: 'bad-since', command: parsed.args.command }),
+      filled.samples,
+    );
   }
 
   const reasons = pickArgvReasons(parsed.args);

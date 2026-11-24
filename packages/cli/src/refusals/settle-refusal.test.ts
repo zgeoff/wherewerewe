@@ -65,6 +65,46 @@ test.each(buildGrantFaultCases().map((entry) => [entry.title, entry.argv] as con
   },
 );
 
+test.each(
+  ['log', 'recap'].flatMap((command) =>
+    [[], ['--session', 'tide-alerts']].flatMap((session) =>
+      [
+        ['--since', '-2h'],
+        ['--since=-2h'],
+        ['--since', 'soon'],
+        ['--since'],
+        ['extra'],
+        ['--since', faultCredential],
+        [`--since=${faultCredential}`],
+        ...(command === 'recap' ? [['--op', 'decide']] : []),
+      ].map((flags) => ({ command, argv: [command, ...session, ...flags] })),
+    ),
+  ),
+)('it prints one Run line for $argv that passes once filled', async (row) => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const refused = await ctx.run(row.argv);
+
+  const runLines = refused.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
+
+  const retries = await Promise.all(
+    runLines.map(async (line) => {
+      const retried = await ctx.run(ctx.fill(line));
+
+      return retried.exitCode;
+    }),
+  );
+
+  expect({
+    isRefused: refused.exitCode !== 0,
+    runLines: runLines.length,
+    retries,
+    credential: refused.stderr.includes(faultCredential),
+  }).toStrictEqual({ isRefused: true, runLines: 1, retries: [0], credential: false });
+});
+
 test('it ends at www help after three refusals in a row', () => {
   const settled = settleRefusal(
     { exitCode: 2, lines: ['www: x'], runs: [{ www: ['goal', 'a', 'b'] }] },

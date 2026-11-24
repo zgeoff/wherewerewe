@@ -7,6 +7,7 @@ import { formatSessionLines } from './commands/format-session-lines.ts';
 import { runBriefCommand } from './commands/run-brief-command.ts';
 import { runImportCommand } from './commands/run-import-command.ts';
 import { runLogCommand } from './commands/run-log-command.ts';
+import { runRecapCommand } from './commands/run-recap-command.ts';
 import { runSessionCommand } from './commands/run-session-command.ts';
 import { runShowCommand } from './commands/run-show-command.ts';
 import type { CommandContext } from './commands/types.ts';
@@ -117,7 +118,7 @@ async function runSessionBoundCommand(context: CommandContext): Promise<CLIResul
     .exhaustive();
 }
 
-const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log']);
+const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'recap']);
 
 async function runNamedSession(context: CommandContext, name: string): Promise<CLIResult> {
   const folder = join(context.root, name);
@@ -196,6 +197,7 @@ function runReadCommand(
   return match(args.command)
     .with('show', () => runShowCommand(store, args.positionals[0] ?? '', context.nowMs, unread))
     .with('log', () => runLogCommand(store, args, context.nowMs, unread))
+    .with('recap', () => runRecapCommand(store, args, context.nowMs, unread))
     .otherwise(() => Promise.resolve(runBriefCommand(store, context.nowMs, unread)));
 }
 

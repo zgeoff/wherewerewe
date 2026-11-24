@@ -9,6 +9,7 @@ Read. Run www first, after every compaction, and whenever you are unsure:
   www log [--since <t>] [--op <op,...>] [--id <id>]
                              the journal, oldest first. <t> is 24h, 3d or day-7
   www sessions               every session on this machine
+  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
 
 Write as you go. One id holds one claim and one note; --note replaces the note:
   www now <id> "<next step>" [--note "<detail>" [--owed]]
