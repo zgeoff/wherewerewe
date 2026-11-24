@@ -202,6 +202,8 @@ When the brief is over its limit, the renderer drops the rows of one rank at a t
 
 Changed rows are never cut, because a claim that is now false leads to a wrong act. The note of the item in focus is never cut, and no other note prints in the brief.
 
+The owner set the order of the kinds the owner ranked: the goal, the grant, the owner's notes, the item in focus and its next step are never cut; then come waits on the owner, rules and lessons; then changed or failing checks, task rows and where rows; then promises, notes and counts of history. The table keeps that order. The design placed the rest, each either more protective than the owner's order or of a kind the owner did not rank: the header, the footer, the cut lines, the changed rows and the note of the item in focus among the never-cut lines; owner's words at rank 2; the one-time approval at rank 4; decision rows at rank 7; waits on someone else at rank 8; and pull request rows last.
+
 Each section that lost rows ends with one line that names the command listing every row of its kind: `  and <n> more: www list <kind>`, with `--session <name>` when the brief ran with it. `OPEN` keeps its count line, `  and <m> more open tasks: www show`. A section that loses every row keeps its heading and that line.
 
 ## Constraints

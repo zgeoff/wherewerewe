@@ -23,7 +23,7 @@ Authority comes from the owner's own acts. `www install` writes an allow rule fo
 | `SessionStart` hook context | 0 | 2 of 2 |
 
 - The classifier kept a permission across a compaction only when the compaction summary restated it, so injected context cannot carry one.
-- Without an allow rule, the first `www` asks the owner in Manual mode, and a headless run refuses it, so the gate opens with no brief.
+- Without an allow rule, the first `www` asks the owner in Manual mode, and a headless run refuses it with no end event, so the gate stays shut until the turn ends and then opens with no brief.
 
 ## Rejected alternatives
 
