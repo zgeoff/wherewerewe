@@ -190,8 +190,29 @@ test.each([
   [['doctor'], { kind: 'later-command', command: 'doctor' }],
   [['doctor', 'x'], { kind: 'later-command', command: 'doctor' }],
   [['hook', 'claude'], { kind: 'later-command', command: 'hook' }],
-  [['task', 't-a', 'x', '--colour', 'red'], { kind: 'unknown-flag', flag: '--colour' }],
-  [['task', 't-a', 'x', '-z'], { kind: 'unknown-flag', flag: '-z' }],
+  [
+    ['task', 't-a', 'x', '--colour', 'red'],
+    {
+      kind: 'flag-not-taken',
+      command: 'task',
+      flag: '--colour',
+      taken: ['pr', 'branch', 'path', 'pid', 'note', 'owed', 'blocked-by'],
+      line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
+    },
+  ],
+  [
+    ['task', 't-a', 'x', '-z'],
+    {
+      kind: 'flag-not-taken',
+      command: 'task',
+      flag: '-z',
+      taken: ['pr', 'branch', 'path', 'pid', 'note', 'owed', 'blocked-by'],
+      line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
+    },
+  ],
+  [['taks', '--colour'], { kind: 'unknown-command', command: 'taks' }],
+  [['brief', '--colour'], { kind: 'unknown-command', command: 'brief' }],
+  [['doctor', '--colour'], { kind: 'later-command', command: 'doctor' }],
   [['goal', 'x', '--session'], { kind: 'flag-needs-value', flag: 'session' }],
   [['init', 'tide', '--goal'], { kind: 'flag-needs-value', flag: 'goal' }],
   [['init', 'new-session', '--goal', '--session'], { kind: 'flag-needs-value', flag: 'goal' }],
@@ -249,7 +270,7 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'done',
-      flag: 'why',
+      flag: '--why',
       taken: ['evidence'],
       line: 'done <id> --evidence "<PR, commit or test run>"',
     },
@@ -259,7 +280,7 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'grant',
-      flag: 'quote',
+      flag: '--quote',
       taken: ['may', 'not', 'never', 'scope', 'where', 'reading'],
       line: 'grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"] --where <where> --reading "<what they cover; what the owner kept back>"',
     },
@@ -269,7 +290,7 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'import',
-      flag: 'quote',
+      flag: '--quote',
       taken: ['may', 'not', 'never', 'scope', 'where', 'reading', 'drop'],
       line: 'import <name>',
     },
@@ -279,7 +300,7 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'ok',
-      flag: 'may',
+      flag: '--may',
       taken: ['quote', 'who', 'where', 'scope', 'once', 'note', 'owed'],
       line: 'ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>"',
     },
@@ -289,7 +310,7 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'task',
-      flag: 'who',
+      flag: '--who',
       taken: ['pr', 'branch', 'path', 'pid', 'note', 'owed', 'blocked-by'],
       line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
     },
@@ -299,35 +320,35 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'wait',
-      flag: 'blocked-by',
+      flag: '--blocked-by',
       taken: ['pr', 'branch', 'path', 'pid', 'note', 'owed', 'who'],
       line: 'wait <id> "<what>" --who <who> [<check>]',
     },
   ],
   [
     ['sessions', '--goal', 'x'],
-    { kind: 'flag-not-taken', command: 'sessions', flag: 'goal', taken: [], line: null },
+    { kind: 'flag-not-taken', command: 'sessions', flag: '--goal', taken: [], line: 'sessions' },
   ],
   [
     ['task', 't-a', '--help'],
     {
       kind: 'flag-not-taken',
       command: 'task',
-      flag: 'help',
+      flag: '--help',
       taken: ['pr', 'branch', 'path', 'pid', 'note', 'owed', 'blocked-by'],
       line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
     },
   ],
   [
     ['--pr', 'a/b#1'],
-    { kind: 'flag-not-taken', command: 'brief', flag: 'pr', taken: [], line: null },
+    { kind: 'flag-not-taken', command: 'brief', flag: '--pr', taken: [], line: '' },
   ],
   [
     ['task', 't-a', 'c', '--no-note'],
     {
       kind: 'flag-not-taken',
       command: 'task',
-      flag: 'no-note',
+      flag: '--no-note',
       taken: ['pr', 'branch', 'path', 'pid', 'note', 'owed', 'blocked-by'],
       line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
     },
@@ -337,7 +358,7 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'rule',
-      flag: 'who',
+      flag: '--who',
       taken: ['note', 'owed'],
       line: 'rule <id> "<do it this way, and why>"',
     },
@@ -351,7 +372,7 @@ test.each([
     {
       kind: 'flag-not-taken',
       command: 'recap',
-      flag: 'op',
+      flag: '--op',
       taken: ['since'],
       line: 'recap [--since <t>]',
     },

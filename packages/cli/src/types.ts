@@ -350,7 +350,6 @@ export type RefusalReason =
   | { readonly kind: 'no-store-folder' }
   | { readonly kind: 'unknown-command'; readonly command: string }
   | { readonly kind: 'later-command'; readonly command: string }
-  | { readonly kind: 'unknown-flag'; readonly flag: string }
   | { readonly kind: 'flag-needs-value'; readonly flag: string }
   | {
       readonly kind: 'flag-value-has-dash';
@@ -363,11 +362,13 @@ export type RefusalReason =
   | {
       readonly kind: 'flag-not-taken';
       readonly command: string;
+
+      // the flag as typed, with its dashes, such as --on or -z
       readonly flag: string;
 
-      // the flags the command takes, and its help line after `www`; null for a command with no flags
+      // the flags the command takes, and its help line after `www`, empty for the brief
       readonly taken: readonly string[];
-      readonly line: string | null;
+      readonly line: string;
     }
   | { readonly kind: 'wrong-positionals'; readonly command: string; readonly usage: string }
   | {

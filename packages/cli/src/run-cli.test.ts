@@ -101,7 +101,7 @@ test.each([
   [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www help\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],
-    'www: unknown flag "--bogus".\nRun: www --session sample help\n',
+    'www: task takes no --bogus flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www --session sample task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]\n',
   ],
 ])('it refuses %p with exit 2', async (argv, stderr) => {
   const ctx = setupTest();
@@ -1387,7 +1387,7 @@ test('it exits 2 for a parse error in say before it checks for an owner terminal
   expect(result).toStrictEqual({
     exitCode: 2,
     stdout: '',
-    stderr: 'www: unknown flag "--bogus".\nRun: www help\n',
+    stderr: 'www: say takes no --bogus flag. It takes --on.\nRun: www say "<text>" [--on <id>]\n',
   });
 });
 

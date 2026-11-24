@@ -7,7 +7,6 @@ type ArgvRefusalReason = Extract<
     kind:
       | 'unknown-command'
       | 'later-command'
-      | 'unknown-flag'
       | 'flag-needs-value'
       | 'flag-value-has-dash'
       | 'flag-takes-no-value'
@@ -17,14 +16,14 @@ type ArgvRefusalReason = Extract<
 >;
 
 // The usage refusals for a command line the parser cannot read, each exit code 2. Each points at
-// `www help`, except a value that starts with a dash, whose Run line is the command it fixes.
+// `www help`, except a value that starts with a dash, whose Run line is the command it fixes, and a
+// flag the command does not take, whose Run line is the command's help line.
 export function buildArgvRefusal(reason: ArgvRefusalReason): Refusal {
   return match(reason)
     .with({ kind: 'unknown-command' }, (found) => usage(`www: unknown command "${found.command}".`))
     .with({ kind: 'later-command' }, (found) =>
       usage(`www: "${found.command}" comes in a later version of www.`),
     )
-    .with({ kind: 'unknown-flag' }, (found) => usage(`www: unknown flag "${found.flag}".`))
     .with({ kind: 'flag-needs-value' }, (found) => usage(`www: --${found.flag} needs a value.`))
     .with({ kind: 'flag-value-has-dash' }, (found) =>
       usage(
@@ -44,16 +43,15 @@ function usage(line: string, argv: readonly RunWord[] = ['help']): Refusal {
   return { exitCode: 2, lines: [line], runs: [{ www: argv }] };
 }
 
+// Names the refused flag and each flag the command takes, and prints the command's help line as its
+// Run line, so the agent sees the right flag without reading the whole help.
 function buildFlagNotTaken(found: Extract<ArgvRefusalReason, { kind: 'flag-not-taken' }>): Refusal {
-  if (found.line === null || found.taken.length === 0) {
-    return usage(`www: ${found.command} takes no --${found.flag} flag.`);
-  }
+  const named = found.command === 'brief' ? 'the brief' : found.command;
+  const takes = found.taken.length === 0 ? 'only --session' : joinFlags(found.taken);
 
   return {
     exitCode: 2,
-    lines: [
-      `www: ${found.command} takes no --${found.flag} flag. It takes ${joinFlags(found.taken)}.`,
-    ],
+    lines: [`www: ${named} takes no ${found.flag} flag. It takes ${takes}.`],
     runs: [{ usage: found.line }],
   };
 }

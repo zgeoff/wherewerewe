@@ -2,8 +2,10 @@ import { expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from '../args/help-text.ts';
+import { listCommandShapes, parseCLIArgs } from '../args/parse-cli-args.ts';
 import { runCLI } from '../run-cli.ts';
 import { buildUsageRunArgv } from '../test-utils/build-usage-run-argv.ts';
+import { parseRunLine } from '../test-utils/parse-run-line.ts';
 import { readHelpCommandLine } from '../test-utils/read-help-command-line.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
@@ -269,21 +271,50 @@ test('it keeps --session on the usage Run line of a flag the command does not ta
   });
 });
 
-test('it points a command with no flags at the help, whatever flag it was given', async () => {
+test.each(
+  listCommandShapes().flatMap((shape) =>
+    [
+      '--bogus',
+      ['--goal', '--on', '--why'].find((flag) => !shape.taken.includes(flag.slice(2))),
+    ].map((flag) => ({
+      command: shape.command,
+      taken: shape.taken,
+      flag: flag ?? '',
+      argv: [...(shape.command === 'brief' ? [] : [shape.command]), `${flag ?? ''}=y`],
+      helpLine: shape.command === 'brief' ? '' : readHelpCommandLine(helpText, shape.command),
+    })),
+  ),
+)('it names the flags of $command and its help line in the refusal of $flag', async (row) => {
   const ctx = setupTest();
 
-  const refused = await ctx.run(['sessions', '--goal', 'x']);
+  const refused = await ctx.run(row.argv);
 
-  const runLine = refused.stderr.split('\n').find((text) => text.startsWith('Run: www'));
+  const runLine = refused.stderr.split('\n').find((text) => text.startsWith('Run: www')) ?? '';
 
-  const helped = await ctx.run(buildUsageRunArgv(runLine ?? '', {}));
+  const fills = Object.fromEntries(
+    parseRunLine(runLine)
+      .map((word) => word.replaceAll(/^\[+|\]+$/gu, ''))
+      .filter((word) => /<[^>]*>/u.test(word))
+      .map((word) => [word, 'zz-a']),
+  );
 
-  expect({ refused, helpedExitCode: helped.exitCode }).toStrictEqual({
+  const named = row.command === 'brief' ? 'the brief' : row.command;
+  const flags = row.taken.map((flag) => `--${flag}`);
+
+  const takes =
+    flags.length === 0
+      ? 'only --session'
+      : [flags.slice(0, -1).join(', '), flags.at(-1)].filter((part) => part !== '').join(' and ');
+
+  expect({
+    refused,
+    filled: parseCLIArgs(buildUsageRunArgv(runLine, fills)).kind,
+  }).toStrictEqual({
     refused: {
       exitCode: 2,
       stdout: '',
-      stderr: 'www: sessions takes no --goal flag.\nRun: www help\n',
+      stderr: `www: ${named} takes no ${row.flag} flag. It takes ${takes}.\nRun: ${['www', row.helpLine ?? row.command].filter((part) => part !== '').join(' ')}\n`,
     },
-    helpedExitCode: 0,
+    filled: 'args',
   });
 });

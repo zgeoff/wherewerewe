@@ -25,7 +25,9 @@ function formatRun(run: RunLine, scope: RefusalScope): string {
   }
 
   if ('usage' in run) {
-    return `${formatCommandLine(toPrintedWords([], scope.sessionFlag))} ${run.usage}`;
+    const command = formatCommandLine(toPrintedWords([], scope.sessionFlag));
+
+    return run.usage === '' ? command : `${command} ${run.usage}`;
   }
 
   return formatCommandLine(toPrintedWords(run.www, scope.sessionFlag));

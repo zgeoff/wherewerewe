@@ -1109,8 +1109,9 @@ test.each([
     argv: ['task', 't-a', 'x', '--colour', 'red'],
     env: 'agent',
     exitCode: 2,
-    stderr: 'www: unknown flag "--colour".\nRun: www help\n',
-    fills: [{}],
+    stderr:
+      'www: task takes no --colour flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]\n',
+    fills: [],
   },
   {
     title: 'a flag with no value',
@@ -3380,8 +3381,9 @@ test.each([
     argv: ['goal', 'x', '--xoxb-fakesample'],
     env: 'agent',
     exitCode: 2,
-    stderr: 'www: unknown flag "<where the secret lives>".\nRun: www help\n',
-    fills: [{}],
+    stderr:
+      'www: goal takes no <where the secret lives> flag. It takes only --session.\nRun: www goal "<what done means>"\n',
+    fills: [],
   },
   {
     title: 'a session key that looks like a credential',
