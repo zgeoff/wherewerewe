@@ -6,6 +6,7 @@ import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from '../run-cli.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
+import { buildStubHeldStat } from '../test-utils/build-stub-held-stat.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
@@ -226,6 +227,36 @@ test('it calls no git for a path probe whose stat returns after the deadline', a
     'unchecked',
     'timeout',
     false,
+  ]);
+});
+
+test('it starts no git for a path probe whose stat holds the event loop past the deadline', async () => {
+  const ctx = setupTest();
+  const launches = { count: 0 };
+
+  seedStubCommand(ctx.folder, 'git', 'echo called');
+
+  // each command's env is copied just before it starts, so the getter counts the starts
+  const env = {
+    PATH: ctx.folder,
+    get COUNTED(): string {
+      launches.count += 1;
+
+      return '1';
+    },
+  };
+
+  const run = await runChecks(
+    ['p-a'],
+    [buildMockItem({ id: 'p-a', check: `path:${ctx.folder}` })],
+    [],
+    { deadlineMs: 20, env, now: ctx.now, statPath: buildStubHeldStat(80) },
+  );
+
+  expect([run.results.get('p-a'), run.reason, launches.count]).toStrictEqual([
+    'unchecked',
+    'timeout',
+    0,
   ]);
 });
 
