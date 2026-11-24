@@ -15,6 +15,7 @@ import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedDayNineStore } from '../test-utils/seed-day-nine-store.ts';
 import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
+import { seedItem } from '../test-utils/seed-item.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 
@@ -370,15 +371,53 @@ test('it names gh not logged in in the header when gh fails authentication', asy
     "echo 'To get started with GitHub CLI, please run: gh auth login' >&2\nexit 4",
   );
 
+  const startedAtMs = performance.now();
+
   const brief = await ctx.run([]);
+
+  const elapsedMs = performance.now() - startedAtMs;
 
   expect([
     brief.stdout.split('\n')[0]?.replace(/ in [0-9.]+s/u, ' in <t>s'),
     brief.stdout.includes('  pr-a        First  [unchecked]\n'),
+    elapsedMs < 6000,
   ]).toStrictEqual([
     'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · 1 checks in <t>s · 1 unchecked: gh not logged in',
     true,
+    true,
   ]);
+});
+
+test('it starts the probes with the item in focus, then the newest tasks, not in the order of items.tsv', async () => {
+  const ctx = setupTest();
+  const log = join(ctx.root, 'started');
+  const ids = Array.from({ length: 9 }, (_unused, index) => `pr-${String(index + 1)}`);
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  for (const [index, id] of ids.entries()) {
+    await seedItem(ctx.folder, { id, check: `pr:bosunhq/bosun-api#${String(index + 1)}` });
+  }
+
+  await ctx.run(['now', 'pr-9', 'Watch the last one first']);
+
+  writeFileSync(log, '');
+
+  // eight probes run at once, so the ninth starts only after the first of them returns
+  seedStubCommand(
+    ctx.bin,
+    'gh',
+    `echo "$3" >> "${log}"\n/bin/sleep 0.3\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
+  );
+
+  await ctx.run([]);
+
+  const started = readFileSync(log, 'utf8').split('\n').filter(Boolean);
+
+  expect({ first: started.slice(0, 8).toSorted(), last: started.at(8) }).toStrictEqual({
+    first: ['2', '3', '4', '5', '6', '7', '8', '9'],
+    last: '1',
+  });
 });
 
 test(
