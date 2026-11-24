@@ -53,3 +53,14 @@ test('it leaves out an item with no check and lists each item once', () => {
 
   expect(ordered).toStrictEqual(['t-a', 'w-a']);
 });
+
+test('it starts the waits before the where items, as the brief prints them, whatever items.tsv holds', () => {
+  const items = [
+    buildMockItem({ id: 'wh-tree', kind: 'where', check: 'path:/srv/tide' }),
+    buildMockItem({ id: 'w-keys', kind: 'wait', check: 'pid:4242' }),
+  ];
+
+  expect(
+    orderChecks({ items, notes: [], focus: null, printedTaskIDs: [], pullRequests: [] }),
+  ).toStrictEqual(['w-keys', 'wh-tree']);
+});

@@ -21,6 +21,7 @@ export function readProcessEnvReads(packageDir: string): string[] {
 // Each `process.env` becomes a marker that holds its source line before the transpiler cuts the
 // comments, so the line survives the transpiler's reprint, and no name is inlined as a constant.
 const marker = 'processEnvAtLine';
+const envAccess = /process\s*(?:\.\s*env\b|\[\s*["'`]env["'`]\s*\])/gu;
 
 const markedRead = new RegExp(
   `${marker}(?<line>\\d+)(?:\\.(?<dotName>\\w+)|\\["(?<bracketName>\\w+)"\\])?`,
@@ -30,7 +31,7 @@ const markedRead = new RegExp(
 function collectEnvReadLines(file: string, source: string): string[] {
   const marked = source
     .split('\n')
-    .map((line, index) => line.replaceAll('process.env', `${marker}${String(index + 1)}`))
+    .map((line, index) => line.replaceAll(envAccess, `${marker}${String(index + 1)}`))
     .join('\n');
 
   const lines = [...stripComments(marked).matchAll(markedRead)]

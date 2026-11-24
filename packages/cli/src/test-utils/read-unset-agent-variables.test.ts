@@ -119,3 +119,20 @@ test('it reports each agent variable of an e2e test that runs www with double qu
     'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
   ]);
 });
+
+test('it reports each agent variable that an e2e test names in a string and never sets as a key', () => {
+  const packageDir = createTempDir('unset-agent-variables-string').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    "resolveProgram('www');\nconst label = 'CLAUDE_CODE_SESSION_ID CODEX_SESSION_ID CODEX_THREAD_ID';\n",
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
+    'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
+    'e2e/run.test.ts: CODEX_SESSION_ID',
+    'e2e/run.test.ts: CODEX_THREAD_ID',
+  ]);
+});

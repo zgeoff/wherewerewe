@@ -370,14 +370,23 @@ function pickCapRefusal(input: WriteInput, id: string, isSet: boolean): RefusalR
     return null;
   }
 
-  return pickFullKind(input.store.items, kind);
+  return pickFullKind(input.store.items, input.store.notes, kind);
 }
 
 const caps: Readonly<Record<Kind, number>> = { task: 30, wait: 4, rule: 5, where: 4, ok: 1 };
 
-function pickFullKind(items: readonly Item[], kind: Kind): RefusalReason | null {
+// The refusal offers to close the oldest item that owes no note, because `done` refuses an owed
+// note; when every item owes one, the oldest, whose `done` refusal names the way to clear it.
+function pickFullKind(
+  items: readonly Item[],
+  notes: readonly Note[],
+  kind: Kind,
+): RefusalReason | null {
   const ofKind = items.filter((item) => item.kind === kind);
-  const [oldest] = ofKind;
+
+  const owedIDs = new Set(notes.filter((note) => note.owed).map((note) => note.id));
+
+  const oldest = ofKind.find((item) => !owedIDs.has(item.id)) ?? ofKind[0];
 
   return oldest !== undefined && ofKind.length >= caps[kind]
     ? { kind: 'kind-full', itemKind: kind, oldestID: oldest.id }

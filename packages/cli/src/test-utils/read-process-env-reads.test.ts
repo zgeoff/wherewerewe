@@ -89,3 +89,17 @@ test('it reports each read on its own source line past types, blank lines and co
     'src/render.ts:8',
   ]);
 });
+
+test('it reports a read of process.env written as a bracket access', () => {
+  const packageDir = createTempDir('process-env-bracket').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    "const a = 1;\nconst host = process['env'].X;\nconst mode = process [ \"env\" ] ['MODE'];\n",
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2', 'src/render.ts:3']);
+});

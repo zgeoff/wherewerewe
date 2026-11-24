@@ -32,7 +32,8 @@ export function orderChecks(input: OrderChecksInput): string[] {
   const ordered = [
     ...(input.focus === null ? [] : [input.focus]),
     ...input.printedTaskIDs,
-    ...ofKind(['wait', 'where']),
+    ...ofKind(['wait']),
+    ...ofKind(['where']),
     ...input.pullRequests.map((pullRequest) => pullRequest.ref),
     ...leftOut,
   ];

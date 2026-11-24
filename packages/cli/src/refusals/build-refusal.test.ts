@@ -231,6 +231,22 @@ test.each([
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
+    title: 'a full set of tasks whose oldest owes a note',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-01', 'x', '--note', 'Turn the flag off first', '--owed'],
+      ...buildMockIDs('t-', 30)
+        .slice(1)
+        .map((id) => ['task', id, 'x']),
+    ],
+    files: [],
+    argv: ['task', 't-31', 'x'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: `www: refused: the session holds 30 of 30 tasks. Close one, or replace one with www set.\nRun: www done ${buildMockIDs('t-', 30)[1]} --evidence "<PR, commit or test run>"\n`,
+    fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
+  },
+  {
     title: 'a full set of waits',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
