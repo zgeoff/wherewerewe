@@ -1967,7 +1967,8 @@ test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample, ent
     expect({
       matched: lines.filter((line) => findCredentialMatch(line) !== null),
       leaked: lines.filter((line) => line.includes(tail)),
-    }).toStrictEqual({ matched: [], leaked: [] });
+      storedKeyRedacted: storedKey.stderr.includes('the key <where the secret lives> is not in'),
+    }).toStrictEqual({ matched: [], leaked: [], storedKeyRedacted: true });
   },
 );
 

@@ -215,3 +215,28 @@ test.each([
     }).toStrictEqual({ exitCode: row.exitCode, stderr: row.stderr, retried: 0 });
   },
 );
+
+test('it keeps a mistyped --session name on a Run line, so the line never writes to the bound session', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const refused = await ctx.run([
+    '--session',
+    'Tide_Alerts',
+    'task',
+    't-a',
+    'Write it',
+    '--note',
+    '-keep',
+  ]);
+
+  const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www')) ?? '';
+
+  const retried = await ctx.run(ctx.fill(runLine));
+
+  expect({ runLine, retried: retried.exitCode }).toStrictEqual({
+    runLine: 'Run: www --session Tide_Alerts task t-a "Write it" --note="-keep"',
+    retried: 4,
+  });
+});

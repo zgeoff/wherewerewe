@@ -1,6 +1,5 @@
 import { parseCLIArgs } from '../args/parse-cli-args.ts';
 import { isSinceText } from '../reads/parse-since.ts';
-import { isSessionName } from '../rules/is-session-name.ts';
 import type { ParsedArgs, Placeholder, Refusal, RefusalReason, RunWord } from '../types.ts';
 import { pickGrantPartsRefusal } from '../writes/pick-grant-parts-refusal.ts';
 import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusals.ts';
@@ -12,28 +11,27 @@ import { toPrintedWords } from './to-printed-words.ts';
 export interface SettledRefusal {
   readonly refusal: Refusal;
 
-  // the scope to print it in: without the typed --session when that value can name no session
+  // the scope to print it in: without the typed --session when its value starts with a dash
   readonly scope: RefusalScope;
 }
 
-// Fills each www Run line with samples and checks it as the parser and the store-free checks would.
-// A refused line's refusal prints in its place, up to the 3rd step, whose Run line is `www help`.
-// No Run line carries a --session value that can name no session, such as `--help`.
+// Fills each www Run line with samples and checks it as the parser and the store-free checks would,
+// up to 3 steps, then `www help`. A --session value that starts with a dash leaves every Run line;
+// a mistyped name stays, so a line never reaches the bound session.
 export function settleRefusal(refusal: Refusal, scope: RefusalScope): SettledRefusal {
-  const printScope =
-    scope.sessionFlag === null || isSessionName(scope.sessionFlag) ? scope : { sessionFlag: null };
+  const printScope = scope.sessionFlag?.startsWith('-') === true ? { sessionFlag: null } : scope;
 
-  const named = {
+  const undashed = {
     ...refusal,
-    runs: refusal.runs.map((run) => ('www' in run ? { www: dropUnnamedSession(run.www) } : run)),
+    runs: refusal.runs.map((run) => ('www' in run ? { www: dropDashSession(run.www) } : run)),
   };
 
-  return { refusal: settle(named, printScope, 0), scope: printScope };
+  return { refusal: settle(undashed, printScope, 0), scope: printScope };
 }
 
-// The words without a `--session <value>` or `--session=<value>` before `--` whose value can name
-// no session.
-function dropUnnamedSession(www: readonly RunWord[]): RunWord[] {
+// The words without a `--session <value>` or `--session=<value>` before `--` whose value starts
+// with a dash.
+function dropDashSession(www: readonly RunWord[]): RunWord[] {
   const endOfFlags = www.indexOf('--');
   const flagEnd = endOfFlags === -1 ? www.length : endOfFlags;
 
@@ -41,13 +39,11 @@ function dropUnnamedSession(www: readonly RunWord[]): RunWord[] {
     www.slice(0, flagEnd).flatMap((word, at): number[] => {
       const next = www[at + 1];
 
-      if (word === '--session' && typeof next === 'string' && !isSessionName(next)) {
+      if (word === '--session' && typeof next === 'string' && next.startsWith('-')) {
         return [at, at + 1];
       }
 
-      const isJoined = typeof word === 'string' && word.startsWith('--session=');
-
-      return isJoined && !isSessionName(word.slice('--session='.length)) ? [at] : [];
+      return typeof word === 'string' && word.startsWith('--session=-') ? [at] : [];
     }),
   );
 
