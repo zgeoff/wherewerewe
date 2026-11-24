@@ -11,7 +11,7 @@ interface FlagPlace {
 }
 
 // The Run line of the text problem alone holds the value that replaces the flag's text. Too many
-// bullets or too many words replace every bullet, as that problem's own Run line does.
+// bullets, lines or words replace every bullet, as that problem's own Run line does.
 export function fixGrantText(
   spec: RunSpec,
   reason: RefusalReason,
@@ -38,7 +38,11 @@ export function fixGrantText(
     }))
     .otherwise(() => null);
 
-  if (reason.kind === 'grant-words-too-long' || reason.kind === 'grant-too-many-bullets') {
+  if (
+    reason.kind === 'grant-words-too-long' ||
+    reason.kind === 'grant-too-many-bullets' ||
+    reason.kind === 'grant-too-many-lines'
+  ) {
     return replaceGrantBullets(spec, reason.args.flags);
   }
 

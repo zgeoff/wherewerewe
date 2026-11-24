@@ -41,6 +41,8 @@ export function collectUpgradeProblems(facts: UpgradeFacts): UpgradeProblem[] {
   const textReasons = pickGrantTextRefusals(args);
 
   return [
+    // a standing approval is something the owner allowed, so the grant that replaces it holds at
+    // least one may bullet, or the upgrade would drop a permission the owner gave
     ...(standing.length > 0 && args.values.may === undefined
       ? [
           {

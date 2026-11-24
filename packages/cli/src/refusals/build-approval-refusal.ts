@@ -21,9 +21,12 @@ type ApprovalRefusalReason = Extract<
       | 'grant-reading-no-grant'
       | 'grant-words-too-long'
       | 'grant-too-many-bullets'
+      | 'grant-too-many-lines'
       | 'text-has-mark';
   }
 >;
+
+const bulletFlags = ['may', 'not', 'never'] as const;
 
 const approvalPlaceholders = {
   quote: toPlaceholder('<their exact words>'),
@@ -33,7 +36,7 @@ const approvalPlaceholders = {
 } as const;
 
 // The refusals of www ok and www grant that hold the owner's words: what is missing, a standing
-// approval that belongs in the grant, and a grant over its bullet cap or its 700 characters.
+// approval that belongs in the grant, and a grant over its bullet cap, its line limit or its 700 characters.
 export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
   return match(reason)
     .with({ kind: 'ok-needs-parts' }, (found) => {
@@ -62,8 +65,8 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
       const typed = new Set(found.args.flags.map((flag) => flag.name));
 
       return refuse(
-        "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
-        addGrantFlags(buildRunSpec(found.args), typed).toArgv(),
+        "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+        addGrantFlags(buildRunSpec(found.args), typed, bulletFlags).toArgv(),
       );
     })
     .with({ kind: 'grant-reading-no-grant' }, (found) =>
@@ -84,6 +87,12 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
     .with({ kind: 'grant-too-many-bullets' }, (found) =>
       refuse(
         `www: refused: the grant has ${String(found.count)} bullets, and the limit is ${String(grantLimits.bullets)}. Put two parts that belong together in one bullet.`,
+        replaceGrantBullets(buildRunSpec(found.args), found.args.flags).toArgv(),
+      ),
+    )
+    .with({ kind: 'grant-too-many-lines' }, (found) =>
+      refuse(
+        `www: refused: the grant takes ${String(found.lines)} lines in the brief, and the limit is ${String(grantLimits.lines)}. Join short parts that belong together in one bullet, or put a long part in fewer words.`,
         replaceGrantBullets(buildRunSpec(found.args), found.args.flags).toArgv(),
       ),
     )

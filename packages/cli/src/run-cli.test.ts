@@ -629,7 +629,7 @@ test.each([
     {
       env: {},
       stdout:
-        'grant: 18 of 700 characters in 1 of 12 bullets, reading 13 of 200. Brief: 7 lines.\n',
+        'grant: 18 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 13 of 200. Brief: 7 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],

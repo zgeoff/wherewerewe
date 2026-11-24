@@ -51,3 +51,60 @@ test('it wraps a long bullet under its own text, and starts the next never bulle
     '         • spray the hives',
   ]);
 });
+
+test('it wraps one bullet of 700 characters with no space into 8 lines of at most 100 characters', () => {
+  const lines = renderGrantBullets({ may: ['x'.repeat(700)], not: [], never: [], scope: null });
+
+  expect({
+    count: lines.length,
+    widest: Math.max(...lines.map((line) => line.length)),
+    last: lines.at(-1)?.trim().length,
+  }).toStrictEqual({ count: 8, widest: 100, last: 77 });
+});
+
+test('it prints 12 one-word bullets on 12 lines', () => {
+  expect(
+    renderGrantBullets({
+      may: Array.from({ length: 12 }, () => 'water'),
+      not: [],
+      never: [],
+      scope: null,
+    }),
+  ).toHaveLength(12);
+});
+
+test('it prints 12 never bullets of 10 characters on 2 lines of 6 bullets', () => {
+  const lines = renderGrantBullets({
+    may: [],
+    not: [],
+    never: Array.from({ length: 12 }, () => 'n'.repeat(10)),
+    scope: null,
+  });
+
+  expect({
+    count: lines.length,
+    widest: Math.max(...lines.map((line) => line.length)),
+  }).toStrictEqual({ count: 2, widest: 91 });
+});
+
+test('it prints 12 never bullets of one character on one line of 67 characters', () => {
+  const lines = renderGrantBullets({
+    may: [],
+    not: [],
+    never: Array.from({ length: 12 }, () => 'n'),
+    scope: null,
+  });
+
+  expect(lines.map((line) => line.length)).toStrictEqual([67]);
+});
+
+test('it prints 7 may bullets of 90 characters and 5 not bullets of 6 on 19 lines', () => {
+  expect(
+    renderGrantBullets({
+      may: Array.from({ length: 7 }, () => 'm'.repeat(90)),
+      not: Array.from({ length: 5 }, () => 'x'.repeat(6)),
+      never: [],
+      scope: 's'.repeat(40),
+    }),
+  ).toHaveLength(19);
+});

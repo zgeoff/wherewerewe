@@ -98,6 +98,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'grant-reading-no-grant' },
       { kind: 'grant-words-too-long' },
       { kind: 'grant-too-many-bullets' },
+      { kind: 'grant-too-many-lines' },
       { kind: 'text-has-mark' },
       (found) => buildApprovalRefusal(found),
     )
@@ -328,7 +329,6 @@ function buildTooLong(found: Found<'text-too-long'>): Refusal {
       'quote',
       () => 'Write what is true now, and put the detail in its note with --note.',
     )
-    .with('bullet', () => 'Give each part of the grant its own --may, --not or --never.')
     .with('reading', "grant's scope", () => null)
     .otherwise(() => 'Write what is true now; the story belongs in a PR or a commit.');
 

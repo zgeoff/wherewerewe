@@ -64,7 +64,7 @@ export function buildUpgradeParts(
   const ts = formatTimestamp(options.nowMs);
 
   const grant: Grant | null =
-    flags.may === undefined
+    flags.may === undefined && flags.not === undefined && flags.never === undefined
       ? null
       : {
           ...toGrantWords(args),

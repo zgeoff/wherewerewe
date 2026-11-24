@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { buildSessionLines } from '../test-utils/build-session-lines.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { parseSessionFile } from './parse-session-file.ts';
 
 test('it reads a format 2 session with no grant, an empty value as null', () => {
@@ -111,11 +112,11 @@ test.each([
     { kind: 'broken', reason: 'the line "nonsense" is not key=value' },
   ],
   [
-    'a grant with no grant_may line',
-    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_not=prune the roses\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
+    'a grant_not line with grant_reading empty',
+    'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_not=prune the roses\ngrant_scope=\ngrant_reading=\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n',
     {
       kind: 'broken',
-      reason: 'a grant needs a grant_may line and grant_reading, grant_where and grant_set',
+      reason: 'a grant needs a bullet line and grant_reading, grant_where and grant_set',
     },
   ],
   [
@@ -123,13 +124,13 @@ test.each([
     'format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water the beds\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=\n',
     {
       kind: 'broken',
-      reason: 'a grant needs a grant_may line and grant_reading, grant_where and grant_set',
+      reason: 'a grant needs a bullet line and grant_reading, grant_where and grant_set',
     },
   ],
   [
-    'a bullet over 120 characters',
-    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=water the beds\ngrant_never=${'w'.repeat(121)}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
-    { kind: 'broken', reason: 'a grant bullet is 121 characters, and the limit is 120' },
+    'bullets that take 20 lines in the brief',
+    `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=${buildSpacedText(649, 74)}\n${'grant_may=o\n'.repeat(11)}grant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`,
+    { kind: 'broken', reason: 'the grant takes 20 lines in the brief, and the limit is 19' },
   ],
   [
     '13 bullets',
@@ -251,5 +252,36 @@ test('it reads bullets of one group in file order when other keys sit between th
   expect(parseSessionFile(text)).toMatchObject({
     kind: 'session',
     session: { grant: { may: ['third', 'first'], never: ['x'], scope: null } },
+  });
+});
+
+test.each([
+  { group: 'grant_not', key: 'not' },
+  { group: 'grant_never', key: 'never' },
+])('it reads a grant with only $group lines as a grant with no may bullet', (row) => {
+  const text = `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\n${row.group}=prune the roses\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`;
+
+  expect(parseSessionFile(text)).toMatchObject({
+    kind: 'session',
+    session: { grant: { may: [], [row.key]: ['prune the roses'] } },
+  });
+});
+
+test('it reads a bullet of 162 characters', () => {
+  const bullet = buildSpacedText(162);
+  const text = `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\ngrant_may=${bullet}\ngrant_scope=\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`;
+
+  expect(parseSessionFile(text)).toMatchObject({
+    kind: 'session',
+    session: { grant: { may: [bullet] } },
+  });
+});
+
+test('it reads the widest grant of 7 bullets of 90 and 5 of 6 with a scope of 40, which takes 19 lines', () => {
+  const text = `format=2\nname=a\ngoal=b\nstarted=2026-03-02T08:04:11Z\n${`grant_may=${'m'.repeat(90)}\n`.repeat(7)}${'grant_not=xxxxxx\n'.repeat(5)}grant_scope=${'s'.repeat(40)}\ngrant_reading=r\ngrant_where=chat\ngrant_set=2026-03-03T09:00:00Z\n`;
+
+  expect(parseSessionFile(text)).toMatchObject({
+    kind: 'session',
+    session: { grant: { may: Array.from({ length: 7 }, () => 'm'.repeat(90)) } },
   });
 });

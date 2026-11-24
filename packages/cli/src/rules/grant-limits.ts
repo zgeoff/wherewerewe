@@ -2,8 +2,10 @@
 // owner's words are every bullet and the scope together.
 export const grantLimits = {
   words: 700,
-  bullet: 120,
   bullets: 12,
+
+  // the lines the bullets take in the brief, the line count of the brief design's worst case
+  lines: 19,
   scope: 40,
   reading: 200,
   where: 16,

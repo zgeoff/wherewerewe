@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { toPlaceholder } from '../refusals/to-placeholder.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { getPickedWrite } from '../test-utils/get-picked-write.ts';
 import type { Grant } from '../types.ts';
 import { pickGrantWrite } from './pick-grant-write.ts';
@@ -41,6 +42,7 @@ function setupTest() {
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
         byOwner: options.byOwner ?? false,
       }),
+    ones: (count: number) => Array.from({ length: count }, () => ['--may', 'o']).flat(),
     readRefusal: (picked: ReturnType<typeof pickGrantWrite>) =>
       picked.kind === 'refused' ? picked.refusal : null,
   };
@@ -94,7 +96,8 @@ test('it writes the bullets, the scope, the reading and where, with a journal ro
         },
       ],
     },
-    reply: 'grant: 60 of 700 characters in 3 of 12 bullets, reading 26 of 200. Brief: 9 lines.',
+    reply:
+      'grant: 60 of 700 characters in 3 of 12 bullets on 3 of 19 lines, reading 26 of 200. Brief: 9 lines.',
   });
 });
 
@@ -224,6 +227,129 @@ test('it takes 700 characters across bullets and scope, and refuses 701', () => 
   ]);
 });
 
+test('it writes a grant of only --not, with no may bullet', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick([
+      'grant',
+      '--not',
+      'replant the north beds before the soil report is in',
+      '--where',
+      'chat',
+      '--reading',
+      'covers nothing yet; kept back: replanting the north beds until the soil report is in',
+    ]),
+    9,
+  );
+
+  expect({
+    grant: picked.change.session?.grant,
+    journal: picked.change.journal.map((row) => [row.text, row.why, row.extra]),
+    reply: picked.reply,
+  }).toStrictEqual({
+    grant: {
+      may: [],
+      not: ['replant the north beds before the soil report is in'],
+      never: [],
+      scope: null,
+      reading:
+        'covers nothing yet; kept back: replanting the north beds until the soil report is in',
+      where: 'chat',
+      set: '2026-03-10T11:43:00Z',
+    },
+    journal: [
+      [
+        'not: replant the north beds before the soil report is in',
+        'covers nothing yet; kept back: replanting the north beds until the soil report is in',
+        'where=chat',
+      ],
+    ],
+    reply:
+      'grant: 51 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 84 of 200. Brief: 9 lines.',
+  });
+});
+
+test('it keeps the not bullet of a grant of only --not when --reading comes alone', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick(['grant', '--reading', 'covers nothing yet'], {
+      grant: { ...ctx.grant, may: [], not: ['prune the roses'] },
+    }),
+    9,
+  );
+
+  expect(picked.change.session?.grant).toStrictEqual({
+    ...ctx.grant,
+    may: [],
+    not: ['prune the roses'],
+    reading: 'covers nothing yet',
+  });
+});
+
+test('it writes a bullet of 162 characters and counts its two lines', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick(['grant', '--may', buildSpacedText(162), '--where', 'chat', '--reading', 'r']),
+    9,
+  );
+
+  expect(picked.reply).toBe(
+    'grant: 162 of 700 characters in 1 of 12 bullets on 2 of 19 lines, reading 1 of 200. Brief: 9 lines.',
+  );
+});
+
+test('it writes one bullet of 700 characters with no space, on 8 lines', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick(['grant', '--may', 'x'.repeat(700), '--where', 'chat', '--reading', 'r']),
+    9,
+  );
+
+  expect(picked.reply).toBe(
+    'grant: 700 of 700 characters in 1 of 12 bullets on 8 of 19 lines, reading 1 of 200. Brief: 9 lines.',
+  );
+});
+
+test('it writes the widest grant of 7 bullets of 90 and 5 of 6 with a scope of 40 on 19 of 19 lines', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick([
+      'grant',
+      ...Array.from({ length: 7 }, () => ['--may', 'm'.repeat(90)]).flat(),
+      ...Array.from({ length: 5 }, () => ['--not', 'x'.repeat(6)]).flat(),
+      '--scope',
+      's'.repeat(40),
+      '--where',
+      'chat',
+      '--reading',
+      'r',
+    ]),
+    9,
+  );
+
+  expect(picked.reply).toBe(
+    'grant: 700 of 700 characters in 12 of 12 bullets on 19 of 19 lines, reading 1 of 200. Brief: 9 lines.',
+  );
+});
+
+test('it refuses a grant of 20 lines in the brief, and takes one of 19', () => {
+  const ctx = setupTest();
+  const tail = ['--where', 'chat', '--reading', 'r'];
+  const long = buildSpacedText(649, 74);
+  const over = ctx.pick(['grant', '--may', long, ...ctx.ones(11), ...tail]);
+  const exact = ctx.pick(['grant', '--may', long, ...ctx.ones(10), ...tail]);
+
+  expect([ctx.readRefusal(over)?.lines[0], exact.kind]).toStrictEqual([
+    'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.',
+    'write',
+  ]);
+});
+
 test('it counts code points, so a bullet of 120 astral characters passes', () => {
   const ctx = setupTest();
 
@@ -244,22 +370,22 @@ test.each([
   {
     title: 'no flag',
     argv: ['grant'],
-    line: "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
-  },
-  {
-    title: 'only --not, with no --may',
-    argv: ['grant', '--not', 'prune the roses', '--where', 'chat', '--reading', 'r'],
-    line: "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+    line: "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
   },
   {
     title: 'only --may',
     argv: ['grant', '--may', 'Go.'],
-    line: "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+    line: "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+  },
+  {
+    title: 'only --scope, --where and --reading',
+    argv: ['grant', '--scope', 'in garden-api', '--where', 'chat', '--reading', 'r'],
+    line: "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
   },
   {
     title: 'only --where',
     argv: ['grant', '--where', 'chat'],
-    line: "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+    line: "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
   },
   {
     title: '--reading alone, with no grant to read',
@@ -282,11 +408,6 @@ test.each([
     title: 'a scope of 41 characters',
     argv: ['grant', '--may', 'Go.', '--scope', 's'.repeat(41), '--where', 'chat', '--reading', 'r'],
     line: "www: refused: the grant's scope is 41 characters, and the limit is 40.",
-  },
-  {
-    title: 'a bullet of 121 characters',
-    argv: ['grant', '--may', 'Go.', '--may', 'b'.repeat(121), '--where', 'chat', '--reading', 'r'],
-    line: 'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
   },
   {
     title: 'a reading of 201 characters',
@@ -341,15 +462,15 @@ test('it puts the one placeholder of each typed group at the first bullet of a g
   ]);
 });
 
-test('it replaces only the second --may when it is 121 characters long, in the Run line', () => {
+test('it replaces only the scope when it is 41 characters long, in the Run line', () => {
   const ctx = setupTest();
 
   const picked = ctx.pick([
     'grant',
     '--may',
     'water the beds',
-    '--may',
-    'b'.repeat(121),
+    '--scope',
+    's'.repeat(41),
     '--where',
     'chat',
     '--reading',
@@ -362,8 +483,8 @@ test('it replaces only the second --may when it is 121 characters long, in the R
         'grant',
         '--may',
         'water the beds',
-        '--may',
-        toPlaceholder('<bullet of at most 120 characters>'),
+        '--scope',
+        toPlaceholder("<grant's scope of at most 40 characters>"),
         '--where',
         'chat',
         '--reading',
@@ -440,45 +561,23 @@ test.each([
 
 test.each([
   [
-    'two bullets over 120 characters',
+    'a grant of 20 lines and no --where',
     [
       'grant',
       '--may',
-      'a'.repeat(121),
-      '--may',
-      'b'.repeat(121),
-      '--where',
-      'chat',
+      buildSpacedText(649, 74),
+      ...Array.from({ length: 11 }, () => ['--may', 'o']).flat(),
       '--reading',
       'r',
     ],
     [
-      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
-      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
+      "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.',
     ],
     [
       'grant',
       '--may',
-      toPlaceholder('<bullet of at most 120 characters>'),
-      '--may',
-      toPlaceholder('<bullet of at most 120 characters>'),
-      '--where',
-      'chat',
-      '--reading',
-      'r',
-    ],
-  ],
-  [
-    'a bullet over 120 characters and no --where',
-    ['grant', '--may', 'a'.repeat(121), '--reading', 'r'],
-    [
-      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
-      'www: refused: the bullet is 121 characters, and the limit is 120. Give each part of the grant its own --may, --not or --never.',
-    ],
-    [
-      'grant',
-      '--may',
-      toPlaceholder('<bullet of at most 120 characters>'),
+      toPlaceholder('<what the owner allows, in their words>'),
       '--reading',
       'r',
       '--where',
@@ -500,32 +599,6 @@ test.each([
       toPlaceholder('<where>'),
       '--reading',
       toPlaceholder('<reading of at most 200 characters>'),
-    ],
-  ],
-  [
-    '12 --not bullets and no --may, which the Run line would make 13',
-    [
-      'grant',
-      ...Array.from({ length: 12 }, () => ['--not', 'prune']).flat(),
-      '--where',
-      'chat',
-      '--reading',
-      'r',
-    ],
-    [
-      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
-      'www: refused: the grant has 13 bullets, and the limit is 12. Put two parts that belong together in one bullet.',
-    ],
-    [
-      'grant',
-      '--not',
-      toPlaceholder('<what the owner did not grant, in their words>'),
-      '--where',
-      'chat',
-      '--reading',
-      'r',
-      '--may',
-      toPlaceholder('<what the owner allows, in their words>'),
     ],
   ],
 ])(

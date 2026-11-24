@@ -10,6 +10,7 @@ import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeImportFiles } from '../store/write-import-files.ts';
 import { writeUpgradeFiles } from '../store/write-upgrade-files.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
@@ -1127,7 +1128,7 @@ test('it upgrades a format 1 store with --may, --not, --never and --scope, and w
   });
 });
 
-test('it refuses an upgrade with a second bullet of 121 characters and one Run line that fixes it and drops the extra one-time approvals', async () => {
+test('it refuses an upgrade with a grant of 20 lines and one Run line that fixes it and drops the extra one-time approvals', async () => {
   const ctx = setupTest();
   const nowMs = Date.parse('2026-03-10T11:43:00Z');
   const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
@@ -1145,9 +1146,8 @@ test('it refuses an upgrade with a second bullet of 121 characters and one Run l
       'import',
       'old-notes',
       '--may',
-      'water the beds',
-      '--may',
-      'b'.repeat(121),
+      buildSpacedText(649, 74),
+      ...Array.from({ length: 11 }, () => ['--may', 'o']).flat(),
       '--where',
       'chat',
       '--reading',
@@ -1160,7 +1160,7 @@ test('it refuses an upgrade with a second bullet of 121 characters and one Run l
   const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www'));
 
   const filled = buildFilledRunArgv(runLine ?? '', {
-    '<bullet of at most 120 characters>': 'mow the lawn',
+    '<what the owner allows, in their words>': 'water the beds',
   });
 
   const upgraded = await ctx.run(filled, env, nowMs);
@@ -1173,8 +1173,8 @@ test('it refuses an upgrade with a second bullet of 121 characters and one Run l
   }).toStrictEqual({
     exitCode: 3,
     runLine:
-      'Run: www import old-notes --may "water the beds" --may "<bullet of at most 120 characters>" --where chat --reading "covers watering" --drop ok-wipe',
+      'Run: www import old-notes --may "<what the owner allows, in their words>" --where chat --reading "covers watering" --drop ok-wipe',
     upgradedExit: 0,
-    session: ['grant_may=water the beds', 'grant_may=mow the lawn', 'grant_scope='],
+    session: ['grant_may=water the beds', 'grant_scope=', 'grant_reading=covers watering'],
   });
 });

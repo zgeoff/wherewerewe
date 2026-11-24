@@ -1,10 +1,11 @@
+import { countGrantLines } from '../brief/count-grant-lines.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildGrantRefusal } from '../refusals/build-grant-refusal.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { countGrantWords } from '../rules/count-grant-words.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
-import type { Grant, RefusalReason } from '../types.ts';
+import type { Grant, ParsedArgs, RefusalReason } from '../types.ts';
 import { pickGrantPartsRefusal } from './pick-grant-parts-refusal.ts';
 import { pickGrantTextRefusals } from './pick-grant-text-refusals.ts';
 import { toGrantWords } from './to-grant-words.ts';
@@ -24,7 +25,7 @@ export function pickGrantWrite(input: WriteInput & { readonly byOwner: boolean }
     return { kind: 'refused', refusal: buildGrantRefusal(args, [first, ...rest], buildRefusal) };
   }
 
-  const isReadingOnly = args.values.may === undefined;
+  const isReadingOnly = !hasBulletFlag(args);
   const ts = formatTimestamp(input.nowMs);
   const by = input.byOwner ? 'owner' : 'agent';
   const reading = args.values.reading ?? '';
@@ -46,6 +47,7 @@ export function pickGrantWrite(input: WriteInput & { readonly byOwner: boolean }
     : { ...toGrantWords(args), reading, where: args.values.where ?? '', set: ts };
 
   const bullets = grant.may.length + grant.not.length + grant.never.length;
+  const lines = countGrantLines(grant);
   const readingLength = Array.from(grant.reading, (character) => character).length;
 
   return {
@@ -67,11 +69,11 @@ export function pickGrantWrite(input: WriteInput & { readonly byOwner: boolean }
     reply: (briefLines) =>
       isReadingOnly
         ? `grant reading: ${String(readingLength)} of ${String(grantLimits.reading)}. Brief: ${String(briefLines)} lines.`
-        : `grant: ${String(countGrantWords(grant))} of ${String(grantLimits.words)} characters in ${String(bullets)} of ${String(grantLimits.bullets)} bullets, reading ${String(readingLength)} of ${String(grantLimits.reading)}. Brief: ${String(briefLines)} lines.`,
+        : `grant: ${String(countGrantWords(grant))} of ${String(grantLimits.words)} characters in ${String(bullets)} of ${String(grantLimits.bullets)} bullets on ${String(lines)} of ${String(grantLimits.lines)} lines, reading ${String(readingLength)} of ${String(grantLimits.reading)}. Brief: ${String(briefLines)} lines.`,
   };
 }
 
-// No flag at all, or a flag of the grant's words without --may, --where and --reading.
+// No flag at all, or a flag of the grant's words without a bullet, --where and --reading.
 function pickGrantNeedsPartRefusal(input: WriteInput): RefusalReason | null {
   return input.args.flags.length === 0
     ? { kind: 'grant-needs-part', args: input.args }
@@ -79,7 +81,15 @@ function pickGrantNeedsPartRefusal(input: WriteInput): RefusalReason | null {
 }
 
 function pickReadingNoGrantRefusal(input: WriteInput): RefusalReason | null {
-  return input.args.values.may === undefined && input.store.session.grant === null
+  return !hasBulletFlag(input.args) && input.store.session.grant === null
     ? { kind: 'grant-reading-no-grant', args: input.args, name: input.store.session.name }
     : null;
+}
+
+function hasBulletFlag(args: ParsedArgs): boolean {
+  return (
+    args.values.may !== undefined ||
+    args.values.not !== undefined ||
+    args.values.never !== undefined
+  );
 }

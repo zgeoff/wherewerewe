@@ -36,7 +36,7 @@ export function buildGrantRefusal(
               .addFlagBefore('reading', 'may', grantPlaceholders.may)
               .addFlagBefore('reading', 'where', toPlaceholder('<where>')),
           )
-          .otherwise(() => addGrantFlags(current, typed)),
+          .otherwise(() => addGrantFlags(current, typed, ['may', 'not', 'never'])),
       fixed,
     );
 

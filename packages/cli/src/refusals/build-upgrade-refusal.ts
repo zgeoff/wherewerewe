@@ -63,7 +63,7 @@ function buildProblemLines(
       `www: refused: format 2 keeps the id grant for the grant, and ${name} has an item grant. Drop it, and write it again under a new id after the upgrade.`,
     ])
     .with({ kind: 'grant-needs-part' }, () => [
-      "www: refused: a grant needs at least one --may in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
+      "www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.",
     ])
     .with({ kind: 'grant-text' }, (found) => [...buildReason(found.reason).lines])
     .with({ kind: 'drop-unknown' }, (found) => [
@@ -90,9 +90,14 @@ function addNeededGrantFlags(spec: RunSpec, found: UpgradeRefusalReason): RunSpe
     (problem) => problem.kind === 'needs-grant' || problem.kind === 'grant-needs-part',
   );
 
+  // a standing approval is something the owner allowed, so its grant needs a --may of its own
+  const needsMay = found.problems.some((problem) => problem.kind === 'needs-grant');
+
   const typed = new Set(found.args.flags.map((flag) => flag.name));
 
-  return needsGrant ? addGrantFlags(spec, typed) : spec;
+  const mayFlags = needsMay ? ['may'] : ['may', 'not', 'never'];
+
+  return needsGrant ? addGrantFlags(spec, typed, mayFlags) : spec;
 }
 
 function fixProblem(
