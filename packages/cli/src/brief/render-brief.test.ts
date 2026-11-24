@@ -66,15 +66,13 @@ test('it renders each section of one invented store in order', () => {
       '  t-e2e       Write alerts-e2e against staging  [no check · 3d]',
       'WAITING (1 of 4)',
       '  w-apns      upload the staging push key to the vault  [owner · 2d]',
-      'APPROVED (1 of 3) · act only inside each quote and scope',
+      'APPROVED (1 of 3)',
       '  ok-merge    "merge the alert PRs yourself once CI is green" · standing · bosun-api, bosun-app',
       'RULES (1 of 5)',
       '  r-api-tests Run the API tests from api/',
       'WHERE (1 of 4)',
       '  s-staging   staging secrets live in the vault bosun-staging  [no check · 1h]',
-      'Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.',
-      'Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".',
-      'More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"',
+      'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
       '',
     ].join('\n'),
   );
@@ -184,7 +182,7 @@ test('it puts the item in focus first among the tasks and pads a long id with tw
     'OPEN (2 of 6)',
     '  task-with-a-long-id  Write the parser  [no check · 0m]',
     '  t-first     Write the parser  [no check · 0m]',
-    'Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.',
+    'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
   ]);
 });
 
@@ -252,7 +250,7 @@ test('it renders owner notes, changed rows with their overflow, and pull request
     }),
   );
 
-  expect(brief.split('\n').slice(2, 19)).toStrictEqual([
+  expect(brief.split('\n').slice(2, 16)).toStrictEqual([
     'OWNER SAYS (2) · act on it; only the owner clears it',
     '  o-2  Ask me first.  [2h]',
     '  o-3  Mind the cert.  [on pr-api-77 · 2h]',
@@ -260,16 +258,13 @@ test('it renders owner notes, changed rows with their overflow, and pull request
     '  a-1         was OPEN passing (1h) · now MERGED · run: www done a-1 --evidence "merged, seen by check"',
     '  a-2         was alive (1h) · now gone · run: www drop a-2 --why "process gone, seen by check"',
     '  a-3         was OPEN (1h) · now OPEN failing · run: www set a-3 "<what is true now>"',
-    '  a-4         was OPEN (1h) · now CLOSED · run: www drop a-4 --why "closed unmerged, seen by check"',
-    '  and 1 more; each shows its result in its section below',
+    '  and 2 more; each shows its result in its section below',
     'NOW  none. Run: www now <id> "<next step>"',
     'PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (4)',
     '  acme/tool#1  opened 3h ago  [OPEN pending]',
-    '  acme/tool#2  opened 3h ago  [OPEN pending]',
-    '  acme/tool#3  opened 3h ago  [OPEN pending]',
-    '  and 1 more: www log --op pr',
+    '  and 3 more: www log --op pr',
     '  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>',
-    'Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.',
+    'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
   ]);
 });
 
@@ -293,10 +288,10 @@ test.each([
     false,
   ],
   [
-    'a goal of 4 long words, which wraps to 4 lines',
+    'a goal of 4 long words, which wraps to 3 lines',
     Array.from({ length: 4 }, () => 'g'.repeat(49)),
-    4,
-    true,
+    3,
+    false,
   ],
 ])(
   'it renders the worst case with %s in 52 lines and at most 6,400 characters',
@@ -304,6 +299,14 @@ test.each([
     const result = 'r'.repeat(15);
     const waits = buildMockIDs('wait', 4);
     const tasks = buildMockIDs('task', 6);
+
+    const ids = [
+      ...tasks,
+      ...waits,
+      ...buildMockIDs('appr', 3),
+      ...buildMockIDs('rule', 5),
+      ...buildMockIDs('here', 4),
+    ];
 
     const brief = renderBrief(
       buildMockBriefInput({
@@ -323,7 +326,13 @@ test.each([
           { id: 'o-1', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[1] ?? null },
           { id: 'o-2', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[2] ?? null },
         ],
-        changed: buildMockIDs('chng', 5).map((id) => ({
+        notes: ids.map((id) => ({
+          id,
+          owed: true,
+          written: '2026-03-10T09:00:00Z',
+          note: [...Array.from({ length: 4 }, () => 'n'.repeat(81)), 'n'.repeat(72)].join(' '),
+        })),
+        changed: buildMockIDs('chng', 10).map((id) => ({
           item: buildMockItem({ id, check: 'pid:4', atWrite: result }),
           result: 'gone',
         })),
@@ -368,7 +377,7 @@ test.each([
             }),
           ),
         ],
-        pullRequests: Array.from({ length: 4 }, () => ({
+        pullRequests: Array.from({ length: 10 }, () => ({
           ref: 'p'.repeat(60),
           opened: '2026-03-10T08:43:00Z',
           result,
@@ -390,11 +399,13 @@ test.each([
         .split('\n')
         .filter((line) => line.startsWith('GOAL  ') || line.startsWith('      ')).length,
       hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
+      noteLines: brief.split('\n').filter((line) => /^ {4}n+$/u.test(line)).length,
     }).toStrictEqual({
       lines: 52,
       isWithinLimit: true,
       goalLines,
       hasCutLine: isCut,
+      noteLines: 5,
     });
   },
 );
@@ -433,7 +444,7 @@ test('it cuts item lines from the bottom up when the text passes 6,400 character
     keepsChanged: brief.includes('CHANGED SINCE WRITTEN (1)'),
     keepsNow: brief.includes('NOW  none.'),
     keepsGoal: brief.includes('GOAL  Ship tide alerts'),
-    endsWithFooter: lines.at(-2)?.startsWith('More: www help'),
+    endsWithFooter: lines.at(-2)?.startsWith('Write as you go:'),
     hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
     keepsFirstTask: brief.includes('task-0'),
     keepsLastWhere: brief.includes('wt-4'),

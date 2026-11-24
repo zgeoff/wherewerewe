@@ -27,7 +27,15 @@ function setupTest() {
       };
 
       return pickClose({
-        store: { folder: '/state/tide-alerts', session, items, ownerNotes: [], ownerUnread: null },
+        store: {
+          folder: '/state/tide-alerts',
+          session,
+          items,
+          ownerNotes: [],
+          notes: [],
+          notesUnread: null,
+          ownerUnread: null,
+        },
         journal: { closed, decisions: new Map(), lastDecisionNumber: 0, lastOwnerNoteNumber: 0 },
         args: buildParsedArgs(argv),
         cwd: '/work',
@@ -141,7 +149,7 @@ test.each([
   [
     'a standing approval',
     [buildMockItem({ id: 'ok-wipe', kind: 'ok', extra: { use: 'standing' } })],
-    'www: refused: ok-wipe is standing, so there is nothing to spend. Act inside its quote and scope.',
+    'www: refused: ok-wipe is standing, so there is nothing to spend.',
   ],
   [
     'a task',

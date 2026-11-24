@@ -288,7 +288,7 @@ test.each([
     ['goal', 'Ship the parser'],
     {
       env: {},
-      stdout: 'goal set. Brief: 6 lines.\n',
+      stdout: 'goal set. Brief: 4 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -301,7 +301,7 @@ test.each([
     ['now', 't-a', 'go'],
     {
       env: {},
-      stdout: 'now: t-a. Brief: 9 lines.\n',
+      stdout: 'now: t-a. Brief: 7 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -311,7 +311,7 @@ test.each([
     ['task', 't-a', 'Write it'],
     {
       env: {},
-      stdout: 't-a  task, open, no check. Brief: 8 lines.\n',
+      stdout: 't-a  task, open, no check. Brief: 6 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -321,7 +321,7 @@ test.each([
     ['wait', 'w-a', 'Answer', '--who', 'owner'],
     {
       env: {},
-      stdout: 'w-a  wait, open, no check. Brief: 8 lines.\n',
+      stdout: 'w-a  wait, open, no check. Brief: 6 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -331,7 +331,7 @@ test.each([
     ['rule', 'r-a', 'Run from api/'],
     {
       env: {},
-      stdout: 'r-a  rule, open. Brief: 8 lines.\n',
+      stdout: 'r-a  rule, open. Brief: 6 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -341,7 +341,7 @@ test.each([
     ['where', 'wt-a', 'A worktree', '--path', '/srv/app'],
     {
       env: {},
-      stdout: 'wt-a  where, open, no check run. Brief: 8 lines.\n',
+      stdout: 'wt-a  where, open, no check run. Brief: 6 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -354,7 +354,7 @@ test.each([
     ['set', 't-a', 'Written another way'],
     {
       env: {},
-      stdout: 't-a  task, open, no check. Brief: 8 lines.\n',
+      stdout: 't-a  task, open, no check. Brief: 6 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -367,7 +367,7 @@ test.each([
     ['done', 't-a', '--evidence', 'commit 4c1d2e0'],
     {
       env: {},
-      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 6 lines.\n',
+      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 4 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -380,7 +380,7 @@ test.each([
     ['drop', 't-a', '--why', 'stopped'],
     {
       env: {},
-      stdout: 't-a  dropped. Off the brief, kept in the journal. Brief: 6 lines.\n',
+      stdout: 't-a  dropped. Off the brief, kept in the journal. Brief: 4 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -402,7 +402,7 @@ test.each([
     ],
     {
       env: {},
-      stdout: 'ok-merge  ok, open, no check. Brief: 8 lines.\n',
+      stdout: 'ok-merge  ok, open, no check. Brief: 6 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -427,7 +427,7 @@ test.each([
     ['use', 'ok-merge', '--for', 'merged the alert PR'],
     {
       env: {},
-      stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 6 lines.\n',
+      stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 4 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -440,7 +440,7 @@ test.each([
     ['decide', 'Retry a 503 3 times', '--why', 'The feed flaps', '--on', 't-a'],
     {
       env: {},
-      stdout: 'd-1  decision on t-a. Read it with: www show t-a. Brief: 8 lines.\n',
+      stdout: 'd-1  decision on t-a. Read it with: www show t-a. Brief: 6 lines.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -484,9 +484,7 @@ test.each([
         'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
         'GOAL  Ship it',
         'NOW  none. Run: www now <id> "<next step>"',
-        'Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.',
-        'Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".',
-        'More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"',
+        'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',
       ].join('\n'),
       changed: [],
@@ -609,7 +607,7 @@ test('it names the session on each command when the shell has no agent session i
 
   expect([started.stdout, written.stdout]).toStrictEqual([
     `Started session tide-alerts in ${join(ctx.stateRoot, 'tide-alerts')}. Name it on each command: www --session tide-alerts\n`,
-    't-a  task, open, no check. Brief: 8 lines.\n',
+    't-a  task, open, no check. Brief: 6 lines.\n',
   ]);
 });
 
@@ -625,7 +623,7 @@ test('it finds the session by WHEREWEREWE_SESSION', async () => {
 
   const result = await ctx.run(['task', 't-a', 'Write it'], shellEnv);
 
-  expect(result.stdout).toBe('t-a  task, open, no check. Brief: 8 lines.\n');
+  expect(result.stdout).toBe('t-a  task, open, no check. Brief: 6 lines.\n');
 });
 
 test('it replaces an open item of the same kind in place, keeping its row and replacing its check', async () => {
@@ -642,7 +640,7 @@ test('it replaces an open item of the same kind in place, keeping its row and re
     'OPEN (2 of 6)',
     '  t-a         First claim, written again  [no check · 0m]',
     '  t-b         Second claim  [no check · 0m]',
-    'Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.',
+    'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
   ]);
 });
 
@@ -725,7 +723,7 @@ test('it closes an item with done after an earlier done stopped between its jour
   expect({ result, items: parseItemsFile(itemsText) }).toStrictEqual({
     result: {
       exitCode: 0,
-      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 6 lines.\n',
+      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 4 lines.\n',
       stderr: '',
     },
     items: { kind: 'items', items: [] },
@@ -1020,7 +1018,7 @@ test('it lets say run for an owner with agent variables set to an empty value', 
   expect(result).toStrictEqual({
     exitCode: 0,
     stdout:
-      'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.\n',
+      'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
     stderr: '',
   });
 });

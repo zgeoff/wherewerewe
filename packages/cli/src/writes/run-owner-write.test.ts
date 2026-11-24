@@ -55,7 +55,7 @@ test('it writes a note to owner.tsv and the journal and nothing else', async () 
     result: {
       exitCode: 0,
       stdout:
-        'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.\n',
+        'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
       stderr: '',
     },
     changed: ['tide-alerts/journal.tsv', 'tide-alerts/owner.tsv'],
@@ -82,7 +82,7 @@ test('it writes a note on an item with its id in the extra', async () => {
     result: {
       exitCode: 0,
       stdout:
-        'o-1  owner note on t-timer. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 10 lines.\n',
+        'o-1  owner note on t-timer. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.\n',
       stderr: '',
     },
     owner: 'id\ttext\tsaid\ton\no-1\tUse the recorded readings\t2026-03-10T11:43:02Z\tt-timer\n',
@@ -109,7 +109,7 @@ test('it removes the note on ack and appends the ack row to the journal', async 
   }).toStrictEqual({
     result: {
       exitCode: 0,
-      stdout: 'o-1  cleared. Kept in the journal. Brief: 6 lines.\n',
+      stdout: 'o-1  cleared. Kept in the journal. Brief: 4 lines.\n',
       stderr: '',
     },
     changed: ['tide-alerts/journal.tsv', 'tide-alerts/owner.tsv'],
@@ -212,9 +212,7 @@ OWNER SAYS (1) · act on it; only the owner clears it
 NOW  none. Run: www now <id> "<next step>"
 OPEN (1 of 6)
   t-a         Write it  [no check · 0m]
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
       stderr: '',
     },
@@ -228,9 +226,7 @@ OWNER SAYS (2) · act on it; only the owner clears it
 NOW  none. Run: www now <id> "<next step>"
 OPEN (1 of 6)
   t-a         Write it  [no check · 0m]
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
       stderr: '',
     },
@@ -249,9 +245,7 @@ OWNER SAYS (1) · act on it; only the owner clears it
 NOW  none. Run: www now <id> "<next step>"
 OPEN (1 of 6)
   t-a         Write it  [no check · 0m]
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
       stderr: '',
     },
@@ -262,9 +256,7 @@ GOAL  Ship the glaze timer
 NOW  none. Run: www now <id> "<next step>"
 OPEN (1 of 6)
   t-a         Write it  [no check · 0m]
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
       stderr: '',
     },
@@ -282,7 +274,7 @@ test('it counts the two note lines and the section line in an agent write reply'
 
   expect(result).toStrictEqual({
     exitCode: 0,
-    stdout: 't-a  task, open, no check. Brief: 11 lines.\n',
+    stdout: 't-a  task, open, no check. Brief: 9 lines.\n',
     stderr: '',
   });
 });
@@ -294,7 +286,7 @@ test.each([
     result: {
       exitCode: 0,
       stdout:
-        'o-5  owner note. It tops the brief until you run: www --session tide-alerts ack o-5. Brief: 8 lines.\n',
+        'o-5  owner note. It tops the brief until you run: www --session tide-alerts ack o-5. Brief: 6 lines.\n',
       stderr: '',
     },
     owner: 'id\ttext\tsaid\ton\no-5\tAsk me first\t2026-03-10T11:43:01Z\t-\n',
@@ -344,7 +336,7 @@ test('it never reuses the number of an acknowledged note', async () => {
   expect(next).toStrictEqual({
     exitCode: 0,
     stdout:
-      'o-3  owner note. It tops the brief until you run: www --session tide-alerts ack o-3. Brief: 8 lines.\n',
+      'o-3  owner note. It tops the brief until you run: www --session tide-alerts ack o-3. Brief: 6 lines.\n',
     stderr: '',
   });
 });

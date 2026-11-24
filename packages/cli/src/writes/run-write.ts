@@ -81,6 +81,7 @@ async function writeOnce(input: WriteRequest, store: Store): Promise<RunWriteRes
         ...store,
         session: write.change.session ?? store.session,
         items: write.change.items ?? store.items,
+        notes: write.change.notes ?? store.notes,
       };
 
       const briefLines = renderBrief(buildBriefInput(written, input.nowMs)).split('\n').length - 1;

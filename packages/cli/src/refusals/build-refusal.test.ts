@@ -1573,7 +1573,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: ok-merge is standing, so there is nothing to spend. Act inside its quote and scope.\nRun: www show ok-merge\n',
+      'www: refused: ok-merge is standing, so there is nothing to spend.\nRun: www show ok-merge\n',
     fills: [{}],
   },
   {
@@ -1902,7 +1902,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: d-1 is the owner\'s decision. Ask the owner, and record the answer with --who owner.\nRun: www decide "<the owner\'s answer>" --why "<reason>" --who owner --replaces d-1\n',
+      'www: refused: d-1 is the owner\'s decision, so only a decision recorded with --who owner replaces it.\nRun: www decide "<the owner\'s answer>" --why "<reason>" --who owner --replaces d-1\n',
     fills: [{ "<the owner's answer>": 'Keep the vault', '<reason>': 'The owner decided' }],
   },
   {

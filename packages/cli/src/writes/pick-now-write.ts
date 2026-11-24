@@ -1,5 +1,14 @@
+import { formatAge } from '../brief/format-age.ts';
+import { wrapBlock } from '../brief/wrap-block.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import {
+  buildChangedNotes,
+  buildNoteJournalRows,
+  pickNoteChange,
+  pickNoteTextRefusal,
+  pickNotesUnreadRefusal,
+} from './pick-note-change.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
@@ -10,11 +19,12 @@ export function pickNowWrite(input: WriteInput): WriteResult {
   const id = args.positionals[0] ?? '';
   const next = args.positionals[1] ?? '';
 
-  const reason = pickTextRefusal(
-    args,
-    [{ target: { label: 'next step', place: { positional: 1 } }, text: next, limit: 120 }],
-    false,
-  );
+  const reason =
+    pickTextRefusal(
+      args,
+      [{ target: { label: 'next step', place: { positional: 1 } }, text: next, limit: 120 }],
+      false,
+    ) ?? pickNoteTextRefusal(args);
 
   if (reason !== null) {
     return { kind: 'refused', refusal: buildRefusal(reason) };
@@ -32,14 +42,41 @@ export function pickNowWrite(input: WriteInput): WriteResult {
     };
   }
 
+  const unreadReason = args.values.note === undefined ? null : pickNotesUnreadRefusal(store);
+
+  if (unreadReason !== null) {
+    return { kind: 'refused', refusal: buildRefusal(unreadReason) };
+  }
+
   const ts = formatTimestamp(nowMs);
+  const noteChange = pickNoteChange(args, id, nowMs);
+  const notes = buildChangedNotes(store.notes, id, noteChange);
+  const note = (notes ?? store.notes).find((candidate) => candidate.id === id);
 
   return {
     kind: 'write',
     change: {
       session: { ...store.session, now: id, nowNext: next, nowSet: ts, lastWrite: ts },
-      journal: [{ ts, op: 'now', id, by: 'agent', text: next, why: null, extra: null }],
+      journal: [
+        { ts, op: 'now', id, by: 'agent', text: next, why: null, extra: null },
+        ...buildNoteJournalRows(id, noteChange, ts),
+      ],
+      ...(notes === undefined ? {} : { notes }),
     },
-    reply: (briefLines) => `now: ${id}. Brief: ${String(briefLines)} lines.`,
+    reply: (briefLines) => {
+      const brief = `Brief: ${String(briefLines)} lines.`;
+
+      if (note === undefined) {
+        return `now: ${id}. ${brief}`;
+      }
+
+      const word = note.owed ? 'owed note' : 'note';
+      const age = formatAge(nowMs - Date.parse(note.written));
+
+      return [
+        `now: ${id}, with its ${word} (${age}). ${brief}`,
+        ...wrapBlock(note.note, '    ', '    '),
+      ].join('\n');
+    },
   };
 }

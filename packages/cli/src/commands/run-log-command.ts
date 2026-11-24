@@ -1,9 +1,9 @@
 import { isLogRow } from '../reads/is-log-row.ts';
 import { parseSince } from '../reads/parse-since.ts';
 import { renderLog } from '../reads/render-log.ts';
+import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatRefusal } from '../refusals/format-refusal.ts';
-import { readRefusalScope } from '../refusals/read-refusal-scope.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
 import type { CLIResult, ParsedArgs, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
@@ -21,7 +21,7 @@ export async function runLogCommand(
     return {
       exitCode: 2,
       stdout: '',
-      stderr: formatRefusal(buildRefusal({ kind: 'bad-since' }), readRefusalScope(args)),
+      stderr: formatRefusal(buildRefusal({ kind: 'bad-since' }), buildRefusalScope(args)),
     };
   }
 
@@ -36,6 +36,10 @@ export async function runLogCommand(
   return {
     exitCode: 0,
     stdout: renderLog(rows, store.session.started),
-    stderr: unread === null ? '' : formatUnreadNote(store.session.name, unread, 'This read'),
+    stderr: [unread, store.notesUnread]
+      .flatMap((found) =>
+        found === null ? [] : [formatUnreadNote(store.session.name, found, 'This read')],
+      )
+      .join(''),
   };
 }

@@ -36,6 +36,20 @@ export interface Item {
   readonly extra: Extra;
 }
 
+export interface Note {
+  // an open item's id; at most one row per id
+  readonly id: string;
+
+  // 'owed' or '-' on disk
+  readonly owed: boolean;
+
+  // ISO 8601 UTC to the second, with Z
+  readonly written: string;
+
+  // 1 to 400 characters, one line
+  readonly note: string;
+}
+
 export interface SessionFile {
   readonly format: '1';
   readonly name: string;
@@ -72,7 +86,13 @@ export interface Store {
   readonly folder: string;
   readonly session: SessionFile;
   readonly items: readonly Item[];
+
+  // the notes of open items, in file order
+  readonly notes: readonly Note[];
   readonly ownerNotes: readonly OwnerNote[];
+
+  // null when every row of notes.tsv parses
+  readonly notesUnread: UnreadRows | null;
 
   // null when every row of owner.tsv parses
   readonly ownerUnread: UnreadRows | null;
@@ -122,6 +142,9 @@ export interface UnreadRows {
 export interface StoreChange {
   readonly session?: SessionFile;
   readonly items?: readonly Item[];
+
+  // the whole new notes.tsv, rows in file order, a new row last
+  readonly notes?: readonly Note[];
   readonly journal: readonly JournalRow[];
 }
 
@@ -192,6 +215,9 @@ interface ArgValues {
   readonly once?: boolean | undefined;
   readonly standing?: boolean | undefined;
   readonly 'ruled-out'?: boolean | undefined;
+  readonly note?: string | undefined;
+  readonly owed?: boolean | undefined;
+  readonly 'no-note'?: boolean | undefined;
   readonly help?: boolean | undefined;
 }
 
@@ -220,7 +246,8 @@ type TextLabel =
   | 'quote'
   | 'owner note'
   | 'decision'
-  | '--for text';
+  | '--for text'
+  | 'note';
 
 // Where a text sits in the typed command.
 export interface TextTarget {
@@ -265,6 +292,18 @@ export type RefusalReason =
       readonly kind: 'kind-full';
       readonly itemKind: 'task' | 'wait' | 'rule' | 'where' | 'ok';
       readonly oldestID: string;
+    }
+  | { readonly kind: 'owed-needs-note'; readonly args: ParsedArgs }
+  | { readonly kind: 'note-and-no-note'; readonly args: ParsedArgs }
+  | { readonly kind: 'set-needs-change'; readonly args: ParsedArgs }
+  | { readonly kind: 'set-check-needs-claim'; readonly args: ParsedArgs }
+  | { readonly kind: 'no-note-to-clear'; readonly args: ParsedArgs; readonly id: string }
+  | {
+      readonly kind: 'owed-note';
+      readonly args: ParsedArgs;
+      readonly id: string;
+      readonly age: string;
+      readonly note: string;
     }
   | { readonly kind: 'needs-evidence'; readonly args: ParsedArgs }
   | { readonly kind: 'needs-reason'; readonly args: ParsedArgs }

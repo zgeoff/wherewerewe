@@ -1,6 +1,7 @@
 import { match } from 'ts-pattern';
 import { formatAge } from '../brief/format-age.ts';
 import { getSessionDay } from '../brief/get-session-day.ts';
+import { wrapBlock } from '../brief/wrap-block.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
 import { getKindWord } from '../rules/get-kind-word.ts';
 import type { Item, JournalRow, Store } from '../types.ts';
@@ -67,6 +68,7 @@ function renderOpenItem(input: ShowInput, item: Item): string {
   const lines = [
     head,
     `  ${getClaimWord(item)} (${age}): ${item.claim}`,
+    ...formatNoteLines(input, item),
     ...(item.kind === 'ok' ? [formatApprovalLine(item)] : []),
     ...(item.check === null
       ? []
@@ -98,6 +100,19 @@ function getClaimWord(item: Item): string {
     .with('ok', () => 'quote')
     .with('task', 'rule', 'where', () => 'claim')
     .exhaustive();
+}
+
+function formatNoteLines(input: ShowInput, item: Item): string[] {
+  const note = input.store.notes.find((candidate) => candidate.id === item.id);
+
+  if (note === undefined) {
+    return [];
+  }
+
+  const age = formatAge(input.nowMs - Date.parse(note.written));
+  const label = `  ${note.owed ? 'owed note' : 'note'} (${age}): `;
+
+  return wrapBlock(note.note, label, '    ');
 }
 
 function formatApprovalLine(item: Item): string {

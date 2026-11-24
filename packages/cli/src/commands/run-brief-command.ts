@@ -10,7 +10,7 @@ export function runBriefCommand(store: Store, nowMs: number, unread: UnreadRows 
   return {
     exitCode: 0,
     stdout: renderBrief(buildBriefInput(store, nowMs)),
-    stderr: [unread, store.ownerUnread]
+    stderr: [unread, store.notesUnread, store.ownerUnread]
       .flatMap((rows) =>
         rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'The brief')],
       )

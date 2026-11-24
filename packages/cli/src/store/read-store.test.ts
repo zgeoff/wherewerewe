@@ -41,6 +41,8 @@ test('it reads the session and its items', async () => {
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [expect.objectContaining({ id: 't-a', claim: 'Write it' })],
       ownerNotes: [],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });
@@ -104,6 +106,8 @@ test('it reports a broken items file with its line, and the store as far as it r
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [expect.objectContaining({ id: 't-a' })],
       ownerNotes: [],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });
@@ -128,6 +132,8 @@ test('it reports a missing items file with the session and no items', async () =
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [],
       ownerNotes: [],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });
@@ -158,6 +164,8 @@ test('it reads the owner notes oldest first', async () => {
         { id: 'o-1', text: 'Ask me first', said: '2026-03-10T11:00:00Z', on: null },
         { id: 'o-2', text: 'Use readings', said: '2026-03-10T11:05:00Z', on: 't-a' },
       ],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });
@@ -179,6 +187,8 @@ test('it reads a store with no owner file as holding no notes', async () => {
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [],
       ownerNotes: [],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });
@@ -204,6 +214,8 @@ test('it reads a broken owner file as a store with the notes that parse and the 
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [],
       ownerNotes: [{ id: 'o-1', text: 'Ask me first', said: '2026-03-10T11:00:00Z', on: null }],
+      notes: [],
+      notesUnread: null,
       ownerUnread: {
         file: 'owner.tsv',
         line: 3,
@@ -252,14 +264,12 @@ GOAL  Ship the parser with its tests
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [43m]
 NOW  none. Run: www now <id> "<next step>"
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
       stderr:
         "www: tide-alerts's owner.tsv line 3 does not parse: expected 4 tab-separated columns, found 2. The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 10 lines.\n', stderr: '' },
+    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 8 lines.\n', stderr: '' },
     say: {
       exitCode: 3,
       stdout: '',
@@ -279,7 +289,7 @@ test.each([
     title: 'a credential in the id column',
     ownerText: `id\ttext\tsaid\ton\no-1\tAsk me first\t2026-03-10T11:00:00Z\t-\nAKIA${'Q'.repeat(16)}\tx\t2026-03-10T11:00:00Z\t-\n`,
     section: 'OWNER SAYS (1) · act on it; only the owner clears it\n  o-1  Ask me first  [43m]\n',
-    taskLines: 10,
+    taskLines: 8,
     where: ' line 3',
     reason: 'the id is not o-<n>',
   },
@@ -287,7 +297,7 @@ test.each([
     title: 'a said that is not a time',
     ownerText: 'id\ttext\tsaid\ton\no-1\tAsk me first\tbogus\t-\n',
     section: '',
-    taskLines: 8,
+    taskLines: 6,
     where: ' line 2',
     reason: 'the said time is not an ISO 8601 UTC time to the second, ending in Z',
   },
@@ -300,7 +310,7 @@ test.each([
     ).join('')}`,
     section:
       'OWNER SAYS (2) · act on it; only the owner clears it\n  o-1  Note 1  [43m]\n  o-2  Note 2  [43m]\n',
-    taskLines: 11,
+    taskLines: 9,
     where: ' line 4',
     reason: 'more than 2 notes',
   },
@@ -322,9 +332,7 @@ test.each([
         stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
 ${row.section}NOW  none. Run: www now <id> "<next step>"
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
         stderr: `www: tide-alerts's owner.tsv${row.where} does not parse: ${row.reason}. The brief leaves out what it could not read. Fix the file by hand.\n`,
       },
@@ -354,13 +362,11 @@ test('it prints the brief and still takes an agent write when a folder stands in
       stdout: `tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · no checks
 GOAL  Ship the parser with its tests
 NOW  none. Run: www now <id> "<next step>"
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
       stderr:
         "www: tide-alerts's owner.tsv does not parse: the file cannot be read (EISDIR). The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 8 lines.\n', stderr: '' },
+    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 6 lines.\n', stderr: '' },
   });
 });

@@ -23,7 +23,15 @@ function setupTest() {
   return {
     pick: (argv: readonly string[], items: readonly Item[]) =>
       pickItemWrite({
-        store: { folder: '/state/tide-alerts', session, items, ownerNotes: [], ownerUnread: null },
+        store: {
+          folder: '/state/tide-alerts',
+          session,
+          items,
+          ownerNotes: [],
+          notes: [],
+          notesUnread: null,
+          ownerUnread: null,
+        },
         journal: {
           closed: new Map(),
           decisions: new Map(),

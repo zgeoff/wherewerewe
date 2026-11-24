@@ -27,6 +27,8 @@ function setupTest() {
           session,
           items: [buildMockItem({ id: 't-a' })],
           ownerNotes: [],
+          notes: [],
+          notesUnread: null,
           ownerUnread: null,
         },
         journal: {
@@ -176,7 +178,7 @@ test.each([
     'a --replaces that names the owner decision, with no --who owner',
     ['decide', 'Retry', '--why', 'x', '--replaces', 'd-4'],
     { decisions: new Map([['d-4', { who: 'owner' as const }]]), lastDecisionNumber: 4 },
-    "www: refused: d-4 is the owner's decision. Ask the owner, and record the answer with --who owner.",
+    "www: refused: d-4 is the owner's decision, so only a decision recorded with --who owner replaces it.",
   ],
 ])('it refuses %s', (_title, argv, journal, line) => {
   const ctx = setupTest();

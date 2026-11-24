@@ -30,6 +30,8 @@ function setupTest() {
           session,
           items: [buildMockItem({ id: 't-a' })],
           ownerNotes,
+          notes: [],
+          notesUnread: null,
           ownerUnread: null,
         },
         journal: {

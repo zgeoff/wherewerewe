@@ -1,17 +1,29 @@
 import { match } from 'ts-pattern';
+import { formatAge } from '../brief/format-age.ts';
 import { getSessionDay } from '../brief/get-session-day.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
+import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import { formatCommandLine } from '../refusals/format-command-line.ts';
 import { canBlock } from '../rules/can-block.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { parseCheckFlags } from '../rules/parse-check-flags.ts';
 import type { CheckFlagsResult } from '../rules/parse-check-flags.ts';
-import type { Extra, Item, Kind, ParsedArgs, RefusalReason } from '../types.ts';
+import type { Extra, Item, Kind, Note, ParsedArgs, RefusalReason } from '../types.ts';
+import {
+  buildChangedNotes,
+  buildNoteJournalRows,
+  hasNoteFlag,
+  pickNoClearRefusal,
+  pickNoteChange,
+  pickNoteTextRefusal,
+  pickNotesUnreadRefusal,
+} from './pick-note-change.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
 // task, wait, rule, where and ok write a new item, or replace an open item of the same kind. set
-// replaces the claim of an open item and keeps its kind.
+// replaces the claim of an open item and keeps its kind. A set with no claim changes only the note.
 export function pickItemWrite(input: WriteInput): WriteResult {
   const store = input.store;
   const args = input.args;
@@ -20,16 +32,22 @@ export function pickItemWrite(input: WriteInput): WriteResult {
   const isApproval = args.command === 'ok';
   const claim = isApproval ? (args.values.quote ?? '') : (args.positionals[1] ?? '');
   const isSet = args.command === 'set';
+  const hasClaim = !isSet || args.positionals.length === 2;
   const existing = store.items.find((item) => item.id === id);
+  const existingNote = store.notes.find((note) => note.id === id);
   const checks = parseCheckFlags(args.flags, input.cwd);
 
   const reason =
     pickIDRefusal(args, id, isSet) ??
+    pickSetWithoutClaimRefusal(args, hasClaim) ??
     pickApprovalRefusal(args) ??
-    pickClaimRefusal(args, claim, existing) ??
+    (hasClaim ? pickClaimRefusal(args, claim, existing) : null) ??
+    pickNoteTextRefusal(args) ??
     pickCheckRefusal(args, checks, existing) ??
     pickWhoRefusal(args, existing) ??
     pickStoreRefusal(input, id, isSet) ??
+    (hasNoteFlag(args) ? pickNotesUnreadRefusal(store) : null) ??
+    pickNoClearRefusal(args, id, existingNote) ??
     pickBlockedByRefusal(input) ??
     pickCapRefusal(input, id, isSet);
 
@@ -37,8 +55,27 @@ export function pickItemWrite(input: WriteInput): WriteResult {
     return { kind: 'refused', refusal: buildRefusal(reason) };
   }
 
-  const kind = isSet ? (existing?.kind ?? 'task') : getKind(args.command);
   const ts = formatTimestamp(nowMs);
+  const noteChange = pickNoteChange(args, id, nowMs);
+  const notes = buildChangedNotes(store.notes, id, noteChange);
+  const noteRows = buildNoteJournalRows(id, noteChange, ts);
+  const session = { ...store.session, lastWrite: ts };
+
+  if (!hasClaim) {
+    return {
+      kind: 'write',
+      change: { session, journal: noteRows, ...(notes === undefined ? {} : { notes }) },
+      reply: (briefLines) => {
+        const brief = `Brief: ${String(briefLines)} lines.`;
+
+        return noteChange.kind === 'write'
+          ? `${id}  note, ${formatNotePart(noteChange.note)}. ${brief}`
+          : `${id}  note cleared. ${brief}`;
+      },
+    };
+  }
+
+  const kind = isSet ? (existing?.kind ?? 'task') : getKind(args.command);
   const ref = pickCheckRef(checks);
 
   const item: Item = {
@@ -62,7 +99,7 @@ export function pickItemWrite(input: WriteInput): WriteResult {
     kind: 'write',
     change: {
       items,
-      session: { ...store.session, lastWrite: ts },
+      session,
       journal: [
         {
           ts,
@@ -73,28 +110,52 @@ export function pickItemWrite(input: WriteInput): WriteResult {
           why: null,
           extra: buildJournalExtra(item),
         },
+        ...noteRows,
       ],
+      ...(notes === undefined ? {} : { notes }),
     },
     reply: (briefLines) => {
       const brief = `Brief: ${String(briefLines)} lines.`;
 
-      return match(kind)
-        .with('rule', () => `${id}  rule, open. ${brief}`)
+      const check = match(kind)
+        .with('rule', () => '')
         .with(
           'task',
           'wait',
           'where',
           'ok',
-          () =>
-            `${id}  ${kind}, open, ${item.check === null ? 'no check' : 'no check run'}. ${brief}`,
+          () => `, ${item.check === null ? 'no check' : 'no check run'}`,
         )
         .exhaustive();
+
+      const note = noteChange.kind === 'write' ? `, ${formatNotePart(noteChange.note)}` : '';
+      const first = `${id}  ${kind}, open${check}${note}. ${brief}`;
+
+      return existing !== undefined && existingNote !== undefined && noteChange.kind === 'keep'
+        ? `${first}\n${formatOlderNoteLine(args, id, existingNote, nowMs)}`
+        : first;
     },
   };
 }
 
 function pickIDRefusal(args: ParsedArgs, id: string, isSet: boolean): RefusalReason | null {
   return isSet || isItemID(id) ? null : { kind: 'bad-id', args, id };
+}
+
+const checkFlagNames: ReadonlySet<string> = new Set(['pr', 'branch', 'path', 'pid']);
+
+// set with one positional changes only the note, so it needs --note or --no-note, and a check
+// belongs to a claim.
+function pickSetWithoutClaimRefusal(args: ParsedArgs, hasClaim: boolean): RefusalReason | null {
+  if (hasClaim) {
+    return null;
+  }
+
+  if (args.flags.some((flag) => checkFlagNames.has(flag.name))) {
+    return { kind: 'set-check-needs-claim', args };
+  }
+
+  return hasNoteFlag(args) ? null : { kind: 'set-needs-change', args };
 }
 
 type ApprovalFlag = 'quote' | 'who' | 'where' | 'scope';
@@ -301,6 +362,11 @@ function pickFullKind(items: readonly Item[], kind: Kind): RefusalReason | null 
     : null;
 }
 
+// `<k> of 400`, then `, owed` for an owed note.
+function formatNotePart(note: Note): string {
+  return `${String([...note.note].length)} of 400${note.owed ? ', owed' : ''}`;
+}
+
 function pickCheckRef(checks: CheckFlagsResult): string | null {
   return match(checks)
     .with({ kind: 'check' }, (found) => found.ref)
@@ -343,4 +409,19 @@ function buildJournalExtra(item: Item): string | null {
   ];
 
   return parts.length === 0 ? null : parts.join(';');
+}
+
+function formatOlderNoteLine(args: ParsedArgs, id: string, note: Note, nowMs: number): string {
+  const scope = buildRefusalScope(args);
+  const session = args.sessionFlag === null ? [] : ['--session', args.sessionFlag];
+
+  const replace = formatCommandLine(
+    [...session, 'set', id, '--note', '<detail>'],
+    scope.typedWords,
+  );
+
+  const clear = formatCommandLine([...session, 'set', id, '--no-note'], scope.typedWords);
+  const age = formatAge(nowMs - Date.parse(note.written));
+
+  return `  its note is ${age} older than this claim. Replace it with ${replace}, or clear it with ${clear}`;
 }

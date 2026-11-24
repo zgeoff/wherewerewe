@@ -32,7 +32,7 @@ export function renderLog(unsorted: readonly JournalRow[], started: string): str
     const day = (days[index] ?? '').padEnd(dayWidth);
     const who = whos[index] ?? '';
     const prefix = `${day}  ${row.ts.slice(11, 16)}  ${row.op.padEnd(opWidth)}${row.id.padEnd(idWidth)}${who.padEnd(whoWidth)}`;
-    const text = row.text ?? '';
+    const text = formatText(row);
     const line = text === '' ? prefix.trimEnd() : `${prefix}${text}`;
 
     return row.why === null ? [line] : [line, `${' '.repeat(prefix.length)}why: ${row.why}`];
@@ -50,4 +50,16 @@ function getWho(row: JournalRow): string {
 // a column is as wide as its minimum, or as its longest value plus one space
 function getColumnWidth(minimum: number, values: readonly string[]): number {
   return values.reduce((widest, value) => Math.max(widest, value.length + 1), minimum);
+}
+
+function formatText(row: JournalRow): string {
+  if (row.op !== 'note') {
+    return row.text ?? '';
+  }
+
+  if (findExtraValue(row.extra, 'cleared') === '1') {
+    return 'note cleared';
+  }
+
+  return findExtraValue(row.extra, 'owed') === '1' ? `owed: ${row.text ?? ''}` : (row.text ?? '');
 }

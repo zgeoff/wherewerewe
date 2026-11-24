@@ -130,10 +130,10 @@ test.each([
     journal:
       'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T11:43:00Z\tinit\ttide-alerts\tagent\tShip the glaze timer\t-\t-\n',
     log: 'No journal rows match.\n',
-    next: 'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.\n',
+    next: 'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
     ack: {
       exitCode: 0,
-      stdout: 'o-1  cleared. Kept in the journal. Brief: 6 lines.\n',
+      stdout: 'o-1  cleared. Kept in the journal. Brief: 4 lines.\n',
       stderr: '',
     } satisfies CLIResult,
   },
@@ -142,7 +142,7 @@ test.each([
     journal:
       'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T11:43:00Z\tinit\ttide-alerts\tagent\tShip the glaze timer\t-\t-\n2026-03-10T11:43:30Z\tsay\to-1\towner\tAsk me first\t-\t-\n',
     log: 'day 1  11:43  say       o-1        owner  Ask me first\n',
-    next: 'o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: 8 lines.\n',
+    next: 'o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: 6 lines.\n',
     ack: {
       exitCode: 3,
       stdout: '',
@@ -174,9 +174,7 @@ test.each([
         stdout: `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks
 GOAL  Ship the glaze timer
 NOW  none. Run: www now <id> "<next step>"
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
         stderr: '',
       },
@@ -237,21 +235,19 @@ GOAL  Ship the glaze timer
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
 NOW  none. Run: www now <id> "<next step>"
-Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.
-Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".
-More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
         stderr: '',
       },
       next: {
         exitCode: 0,
         stdout:
-          'o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: 9 lines.\n',
+          'o-2  owner note. It tops the brief until you run: www --session tide-alerts ack o-2. Brief: 7 lines.\n',
         stderr: '',
       },
       ack: {
         exitCode: 0,
-        stdout: 'o-1  cleared. Kept in the journal. Brief: 8 lines.\n',
+        stdout: 'o-1  cleared. Kept in the journal. Brief: 6 lines.\n',
         stderr: '',
       },
       afterAck: {

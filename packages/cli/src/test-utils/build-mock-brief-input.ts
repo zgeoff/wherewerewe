@@ -17,6 +17,7 @@ export function buildMockBriefInput(fields: Partial<BriefInput>): BriefInput {
       importedFrom: null,
     },
     items: [],
+    notes: [],
     ownerNotes: [],
     changed: [],
     pullRequests: [],
