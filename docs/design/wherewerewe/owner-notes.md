@@ -33,7 +33,7 @@ o-2  cleared. Kept in the journal. Brief: <n> lines.
 - No agent command reads `owner.tsv` for writing. Only `say` and `ack` do.
 - Print owner notes in the brief right after the goal and the grant, before every other section. Take the line format from [brief.md](brief.md).
 - The owner corrects the grant's reading with a plain `say`, as in `o-2` above: `--on` takes an item id, and the grant is no item. The agent then rewrites the reading with `www grant --reading`, and the owner clears the note with `ack` once the brief shows the new reading.
-- The owner reads what the session kept with `www --session <name> recap`: the grant, the notes on open items, the decisions and the closes since a time, in at most 54 lines. Take its sections from [commands.md](commands.md).
+- The owner reads what the session kept with `www --session <name> recap`: the grant, the notes on open items, the decisions and the closes since a time, in at most 55 lines, and its last line gives the `say` command, with `--session <name>`, that corrects what it shows. Take its sections from [commands.md](commands.md). `recap` writes nothing, so it runs from any shell, with no terminal test: the owner runs it from a terminal outside any agent, and an agent may run it too.
 - At most 2 notes show; a third `say` is refused until the owner clears one.
 - An agent's `Run:` line in a refusal never suggests `say` or `ack`.
 

@@ -47,6 +47,8 @@ www --help
   `import-backup/`. It upgrades a format 1 store the same way, and keeps the originals in
   `format-1-backup/`.
 - `www show` prints one item or decision with its history, and `log` prints the journal.
+- `www recap` prints one screen for the owner: the grant, the notes on open items, and the decisions
+  and closes since a time.
 
 ## Documentation
 

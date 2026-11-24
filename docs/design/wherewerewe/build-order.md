@@ -127,7 +127,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 **Acceptance.**
 
 - [ ] The `recap` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `recap`, and a green `verify / gate`.
-- [ ] A store with a grant of 12 bullets and 700 characters, 20 open items with 400-character notes, 9 decisions and 9 closes since `<t>`, and a 24-character session name renders a recap of at most 54 lines, each at most 100 characters. Evidence: the recap worst-case test.
+- [ ] A store with the brief's worst-case grant (12 bullets and a 40-character scope holding 700 characters), 20 open items, 19 of them with a 400-character note, 9 decisions and 9 closes since `<t>`, and a 24-character session name renders a recap of at most 55 lines, each at most 100 characters. Evidence: the recap worst-case test.
 - [ ] The recap runs no probe and takes no lock. Evidence: a test with the lock held and a stub `gh` on `PATH` that fails when called.
 - [ ] Each overflow line's command runs and prints the rows the recap left out. Evidence: tests that run the printed commands.
 
