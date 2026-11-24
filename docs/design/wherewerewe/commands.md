@@ -9,24 +9,20 @@
 
 ### www help
 
-`www help` prints this text, as built through slice 3b, decision records 0009, 0011 and 0016 to 0020, and the new kinds' diff, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2d, decision records 0009 and 0011, and the limits' diff, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
 
 Read. Run www first, after every compaction, and whenever you are unsure:
-  www                        the brief: goal, grant, owner notes and words, what changed, now and
-                             its note, open work, waits, promises, the approval, rules, lessons,
-                             decisions, where things are. Runs checks.
+  www                        the brief: goal, grant, owner notes, what changed, now and its note,
+                             open work, waits, the approval, rules, where things are. Runs checks.
   www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
                              its check now, its journal rows. With no id, every open task in full
   www log [--since <t>] [--op <op,...>] [--id <id>]
                              the journal, oldest first. <t> is 24h, 3d or day-7
   www sessions               every session on this machine
-  www list <tasks|waits|approvals|rules|where|lessons|promises|words|notes|decisions|prs>
-                             every row of one kind, whole, as the brief prints it
-  www recap [--since <t>]    one screen for the owner: grant, notes, promises, decisions, closes
-Read commands take --json: one JSON value for a script, in place of the text.
+  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
 
 Write as you go. One id holds one claim and one note; --note replaces the note:
   www now <id> "<next step>" [--note "<detail>" [--owed]]
@@ -34,14 +30,10 @@ Write as you go. One id holds one claim and one note; --note replaces the note:
   www wait <id> "<what>" --who <who> [<check>]
   www ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>"
   www rule <id> "<do it this way, and why>"
-  www lesson <id> "<do this>" --why "<the mistake behind it>"
-  www promise <id> "<what>" --to <who> --by <when>
-  www words <id> "<the owner's exact words>" --where <where>
   www where <id> "<what and where, and how to stop it>" [<check>]
   www set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]
   www decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]
   www goal "<what done means>"
-  www goal --paste           print a /goal text of the grant, for the owner to paste
   www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
             --where <where> --reading "<what they cover; what the owner kept back>"
   www grant --reading "<what they cover; what the owner kept back>"
@@ -50,8 +42,7 @@ Notes: --note "<detail>" and --owed work on now and on every item write. A note 
 need on your next turn to that item. An owed note stops done, drop and use until set clears it.
 Grant: --may, --not and --never repeat, one bullet each, in the owner's words; a grant needs one.
 
-Close. Each leaves the brief and stays in the journal. A lesson or the owner's words close with
-drop only:
+Close. Each leaves the brief and stays in the journal:
   www done <id> --evidence "<PR, commit or test run>"
   www drop <id> --why "<reason>"
   www use <id> --for "<what you did with it>"     spend the one-time approval
@@ -69,13 +60,11 @@ a decision 200 with its --why 200, an owner note 160, and a close --why, --evide
 An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 120, --who 16,
 --where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
-A lesson takes 120 with its --why 200, a promise 120 with --to 16 and --by 24, and the owner's
-words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
-8 where items, 5 lessons, 5 promises, 8 owner's words and 2 owner notes.
+A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 3b, decision records 0009, 0011 and 0016 to 0020, and the new kinds' diff, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff, the limits' diff and the new kinds' diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 2d, decision records 0009 and 0011, and the limits' diff, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff and the limits' diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -211,7 +200,9 @@ The limits' diff adds every limit the code enforces to the help, so an agent can
 +A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
-The brief's limit, the new kinds, the list command, `--json` and the printed goal, decision records 0016 to 0020:
+#### After slice 3b
+
+Slice 3b moves this text into the block above, with the code and the test, in the same pull request. It applies this diff to the block as the limits' diff left it, and it adds the brief's limit, the new kinds, the list command, `--json` and the printed goal, decision records 0016 to 0020:
 
 ```diff
 @@ -3,4 +3,5 @@

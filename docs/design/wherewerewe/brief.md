@@ -223,7 +223,64 @@ Each section that lost rows ends with one line that names the command listing ev
 
 ## The brief on day 9 of an invented session
 
-The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 60 lines and 4,227 bytes, 1,409 estimated tokens.
+The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 48 lines and 3,440 characters.
+
+```text
+tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 2.8s
+GOAL  Ship tide alerts in bosun-api and bosun-app: a push alert 2 hours before low water at a saved
+      harbour, behind the tide_alerts flag. Done when alerts-e2e passes on staging.
+GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
+  may    • merge the alert PRs once CI is green and every review finding is answered
+         • deploy either app to staging whenever you need to
+         • wipe or reseed the staging alerts table as often as you like
+         • open PRs on tidal-org/tidekit from our fork
+  not    • the prod database
+  never  • the prod push certificate  • publishing a tidekit release
+  reading: covers merges in both repos on green CI with findings answered, staging deploys, the
+    staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit
+    releases
+OWNER SAYS (2) · act on it; only the owner clears it
+  o-2  The reading misses tidekit: the grant covers opening PRs there, never merging them.  [2h]
+  o-3  Use the recorded tide fixtures for e2e, not the live feed  [on t-e2e · 2h]
+CHANGED SINCE WRITTEN (3) · these claims are no longer true
+  pr-app-61   was OPEN passing (27h) · now MERGED · run: www done pr-app-61 --evidence "merged, seen by check"
+  pr-api-77   was OPEN pending (1h) · now OPEN failing · run: www set pr-api-77 "<what is true now>"
+  p-sim       was alive (22h) · now gone · run: www drop p-sim --why "process gone, seen by check"
+NOW  pr-api-77 · set 1h ago · note 1h ago
+  next step hidden: pr-api-77 changed after it was set. Run: www now pr-api-77 "<next step>"
+    The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a
+    longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in
+    the retry helper, not on the retry logic.
+OPEN (5, max 30)
+  pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa  [OPEN failing]
+  pr-app-61   Alert settings screen: in review  [MERGED]
+  t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
+  pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
+  t-e2e       Write alerts-e2e against staging  [no check · 3d]
+WAITING (2, max 4)
+  w-apns      upload the staging push key to the vault  [owner · 2d]
+  w-tk        review tidal-org/tidekit#19  [tidekit team · OPEN pending]
+APPROVED ONCE (1, max 1)
+  ok-prod-index  "add the harbour_id index on the prod alerts table, once, after 22:00" · prod alerts table
+RULES (3, max 5)
+  r-api-tests Run the API tests from api/; from the repo root the queue tests are skipped
+  r-tk-fork   tidekit is a fork here: pass -R tidal-org/tidekit to gh, or the PR opens on the fork
+  r-sim-port  Start the app simulator with PORT=8091; 8090 belongs to another session
+WHERE (3, max 4)
+  wt-tz       bosun-api worktree for the time zone fix, branch tz-fix  [clean]
+  p-sim       app simulator, pid 48211; stop it with kill 48211  [gone]
+  s-staging   staging secrets live in the vault bosun-staging; never print a value  [no check · 8d]
+PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
+  bosunhq/bosun-app#64  opened 3h ago  [OPEN pending]
+  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>
+Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
+```
+
+The agent's next commands come from the brief alone: `www done pr-app-61 --evidence "merged, seen by check"`, `www drop p-sim --why "process gone, seen by check"`, then `www show pr-api-77` to read the failing job before it sets a new next step. Under the grant, the agent may merge `pr-api-77` itself once CI is green and the findings are answered.
+
+### After slice 3b
+
+Slice 3b moves this text into the block above, with the code and the test, in the same pull request. It is the same session on the same day, with the new kinds, the decisions section and the higher caps, and every other line slice 3b changes. This output is 60 lines and 4,227 bytes, 1,409 estimated tokens.
 
 ```text
 tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 2.8s
