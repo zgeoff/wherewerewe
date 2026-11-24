@@ -6,7 +6,7 @@ import { wrapBlock } from '../brief/wrap-block.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { getKindWord } from '../rules/get-kind-word.ts';
-import { redactCredentialWords } from '../rules/redact-credential-words.ts';
+import { redactJoinedCredentials } from '../rules/redact-joined-credentials.ts';
 import type { Item, JournalRow, Store } from '../types.ts';
 import { cutRedactedLine } from './cut-redacted-line.ts';
 
@@ -193,16 +193,18 @@ function formatApprovalLine(item: Item): string {
   return `  given by ${who} in ${where} · scope: ${scope}`;
 }
 
-// The names come from outside the store: each is one word to the credential redaction, however
-// many spaces or control characters split it, and only then do those become spaces. The line then
-// passes the redaction and the 100 character cut again.
+// Characters that print as a space or as nothing. The names come from outside the store, so each
+// credential that such a character splits is redacted on the raw name, before the characters
+// become spaces. The line then passes the redaction and the 100 character cut again.
+const outsideSeparator = /[\s\p{Cc}\p{Cf}]/u;
+
 function formatCheckNowLine(input: ShowInput, item: Item): string {
   const now = input.checkNow ?? { result: 'unchecked', failing: [] };
 
   const names = now.failing
     .map((name) =>
-      redactCredentialWords(name.replaceAll(/[\s\p{Cc}]/gu, String.fromCodePoint(0)))
-        .replaceAll(/\p{Cc}/gu, ' ')
+      redactJoinedCredentials(name, outsideSeparator)
+        .replaceAll(/[\s\p{Cc}\p{Cf}]/gu, ' ')
         .trim(),
     )
     .filter((name) => name !== '');

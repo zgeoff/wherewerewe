@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { formatRefusal } from './format-refusal.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
@@ -138,3 +139,39 @@ test('it prints a shell word that the credential test matches as the quoted plac
 
   expect(text).toBe('www: x\nRun: less "<where the secret lives>"\n');
 });
+
+test.each([
+  ['a tab', '\t'],
+  ['a line feed', '\n'],
+  ['a carriage return and a line feed', '\r\n'],
+  ['a vertical tab', '\v'],
+  ['a form feed', '\f'],
+  ['a next-line character', String.fromCodePoint(0x85)],
+  ['a Unicode line separator', String.fromCodePoint(0x20_28)],
+  ['a Unicode paragraph separator', String.fromCodePoint(0x20_29)],
+])(
+  'it prints the placeholder for each credential that %s splits at any offset in a Run word or a shell word',
+  (_title, lineBreak) => {
+    const cases = buildCredentialSamples().flatMap((credential) =>
+      Array.from({ length: credential.sample.length - 1 }, (_unused, index) => ({
+        name: `${credential.name} at ${String(index + 1)}`,
+        split: `${credential.sample.slice(0, index + 1)}${lineBreak}${credential.sample.slice(index + 1)}`,
+      })),
+    );
+
+    const printed = cases.filter(
+      (entry) =>
+        formatRefusal(
+          {
+            exitCode: 3,
+            lines: ['www: x'],
+            runs: [{ www: ['task', 't-a', entry.split] }, { shell: ['less', entry.split] }],
+          },
+          { sessionFlag: null },
+        ) !==
+        'www: x\nRun: www task t-a "<where the secret lives>"\nRun: less "<where the secret lives>"\n',
+    );
+
+    expect(printed.map((entry) => entry.name)).toStrictEqual([]);
+  },
+);

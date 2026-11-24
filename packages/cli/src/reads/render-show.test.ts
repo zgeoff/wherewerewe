@@ -895,25 +895,46 @@ test.each([
   { title: 'a NUL', separator: String.fromCodePoint(0) },
   { title: 'a tab', separator: '\t' },
   { title: 'a line feed', separator: '\n' },
+  { title: 'a carriage return and a line feed', separator: '\r\n' },
+  { title: 'a vertical tab', separator: '\v' },
+  { title: 'a form feed', separator: '\f' },
+  { title: 'an escape character', separator: String.fromCodePoint(27) },
   { title: 'a space', separator: ' ' },
-])('it prints no part of a credential that $title splits in a failing check name', (row) => {
-  const ctx = setupTest();
-  const [credential] = buildCredentialSamples();
-  const sample = credential?.sample ?? '';
-  const split = `${sample.slice(0, 9)}${row.separator}${sample.slice(9)}`;
+  { title: 'a no-break space', separator: String.fromCodePoint(0xa0) },
+  { title: 'a next-line character', separator: String.fromCodePoint(0x85) },
+  { title: 'a Unicode line separator', separator: String.fromCodePoint(0x20_28) },
+  { title: 'a Unicode paragraph separator', separator: String.fromCodePoint(0x20_29) },
+  { title: 'a zero-width space', separator: String.fromCodePoint(0x20_0b) },
+])(
+  'it prints only the placeholder for each credential that $title splits at any offset in a failing check name',
+  (row) => {
+    const ctx = setupTest();
 
-  const text = ctx.show('pr-api-77', [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })], [], {
-    checkNow: { result: 'OPEN failing', failing: [split] },
-  });
+    const cases = buildCredentialSamples().flatMap((credential) =>
+      Array.from({ length: credential.sample.length - 1 }, (_unused, index) => ({
+        name: `${credential.name} at ${String(index + 1)}`,
+        split: `${credential.sample.slice(0, index + 1)}${row.separator}${credential.sample.slice(index + 1)}`,
+      })),
+    );
 
-  expect({
-    leaked: text.includes(sample.slice(9)),
-    line: text.split('\n').find((line) => line.startsWith('  checked now')),
-  }).toStrictEqual({
-    leaked: false,
-    line: `  checked now: OPEN failing (${noSecretPlaceholder}) · at write: not checked yet`,
-  });
-});
+    const shown = cases.filter((entry) => {
+      const text = ctx.show(
+        'pr-api-77',
+        [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })],
+        [],
+        {
+          checkNow: { result: 'OPEN failing', failing: [entry.split] },
+        },
+      );
+
+      return !text.includes(
+        `\n  checked now: OPEN failing (${noSecretPlaceholder}) · at write: not checked yet\n`,
+      );
+    });
+
+    expect(shown.map((entry) => entry.name)).toStrictEqual([]);
+  },
+);
 
 test('it prints a failing check name with a line break, a tab and an escape character on one line, with none of them', () => {
   const ctx = setupTest();

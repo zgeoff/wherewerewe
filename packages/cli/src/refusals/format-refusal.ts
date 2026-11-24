@@ -1,5 +1,7 @@
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
+import { lineBreakPattern } from '../rules/line-break-pattern.ts';
 import { noSecretPlaceholder } from '../rules/redact-credential.ts';
+import { redactJoinedCredentials } from '../rules/redact-joined-credentials.ts';
 import type { Refusal, RunLine } from '../types.ts';
 import { formatCommandLine } from './format-command-line.ts';
 import { quoteShellWord } from './quote-shell-word.ts';
@@ -24,9 +26,13 @@ function formatRun(run: RunLine, scope: RefusalScope): string {
 }
 
 // A word whose quoted form the credential test matches prints as the quoted placeholder, so the
-// output's redaction never splits a quote off it.
+// output's redaction never splits a quote off it. Quoting turns a line break into an escape, so the
+// test also runs on the word before quoting, where a line break cannot split a credential.
 function formatShellWord(word: string): string {
   const quoted = quoteShellWord(word);
 
-  return findCredentialMatch(quoted) === null ? quoted : quoteShellWord(noSecretPlaceholder);
+  return findCredentialMatch(quoted) === null &&
+    redactJoinedCredentials(word, lineBreakPattern) === word
+    ? quoted
+    : quoteShellWord(noSecretPlaceholder);
 }

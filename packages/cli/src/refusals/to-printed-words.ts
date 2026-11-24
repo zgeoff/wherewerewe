@@ -1,6 +1,8 @@
 import { findCredentialMatch } from '../rules/find-credential-match.ts';
+import { lineBreakPattern } from '../rules/line-break-pattern.ts';
 import { normaliseWords } from '../rules/normalise-words.ts';
 import { noSecretPlaceholder } from '../rules/redact-credential.ts';
+import { redactJoinedCredentials } from '../rules/redact-joined-credentials.ts';
 import type { RunWord } from '../types.ts';
 import { formatRunArgument } from './format-command-line.ts';
 import { toPlaceholder } from './to-placeholder.ts';
@@ -22,16 +24,20 @@ export function toPrintedWords(www: readonly RunWord[], sessionFlag: string | nu
   const printedEnd = words.indexOf('--');
 
   return words.flatMap((word, at) =>
-    typeof word === 'string'
-      ? redactWord(normaliseWords(word), printedEnd !== -1 && at > printedEnd)
-      : [word],
+    typeof word === 'string' ? redactWord(word, printedEnd !== -1 && at > printedEnd) : [word],
   );
 }
 
-function redactWord(word: string, isPositional: boolean): RunWord[] {
+// The credential test runs on the typed word before its line breaks become spaces, so a line break
+// inside a credential cannot split it.
+function redactWord(typed: string, isPositional: boolean): RunWord[] {
+  const word = normaliseWords(typed);
   const printed = formatRunArgument(word, isPositional);
 
-  if (findCredentialMatch(word) === null && findCredentialMatch(printed) === null) {
+  if (
+    redactJoinedCredentials(typed, lineBreakPattern) === typed &&
+    findCredentialMatch(printed) === null
+  ) {
     return [word];
   }
 
