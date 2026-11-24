@@ -6,7 +6,7 @@ Three skills in `zgeoff/skills` read a session's state today from a handoff doc,
 
 ## Contracts
 
-A skill knows the session has a store when `www` exits 0. Exit 4 means no store for this agent session, and the skill goes on as it does today.
+A skill knows the session has a store when `www` exits 0. Exit 4 means no store for this agent session, and the skill goes on as it does today. When a skill runs `www` from the main agent's shell, the hook writes `read`, which is right, because the brief is then in context.
 
 | Handoff section         | From the store                                                                                  |
 | ----------------------- | ----------------------------------------------------------------------------------------------- |
@@ -32,7 +32,8 @@ A skill knows the session has a store when `www` exits 0. Exit 4 means no store 
 
 ## Constraints
 
-- Each skill runs `www` with no `--session` flag, so it reads the session bound to the agent running it and never another session on the machine.
+- Each skill runs the text form of a read, never `--json`.
+- Each skill runs `www` with no `--session` flag, so it reads only the session bound to the agent running it.
 - No skill writes to the store except through `www` commands, so every write passes the tool's limits and refusals.
 - No skill text names a session, a repo or a person from a real store, because any repo can install the skills.
 

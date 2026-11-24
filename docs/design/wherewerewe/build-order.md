@@ -2,7 +2,7 @@
 
 - **Status:** agreed
 
-Slice 0 is the repo setup, done before this design, and is not one of the slices this doc builds. After it, the tool is built in ten slices: 0b, 1, 2, 2b, 2c, 2d, and 3 to 6. Each slice is one pull request, or several when it is too large to build and review in one run, and each pull request leaves the tool working. The agent that orchestrates the build keeps its own notes in the tool from the end of slice 1, so slice 1 gives a usable tool with no checks and no hooks, and each later slice adds to it. The `design-docs` skill would put the build order in work items, but it is in this doc because the owner signs it off together with the design, in one pull request, before any slice starts. When a slice starts, cut its work item from this doc and link its section here. Each slice gives what it delivers, what it needs first, and acceptance lines, each with its evidence. From slice 0b on, each slice in this repo also adds a wringer feature, whose journey drives the real `www` through `bun verify`, and its pull request carries the wringer report. Read this doc first, take the next slice whose dependencies are met, read the part docs that slice names, and build it.
+Slice 0 is the repo setup, done before this design, and is not one of the slices this doc builds. After it, the tool is built in eleven slices: 0b, 1, 2, 2b, 2c, 2d, 3, 3b, and 4 to 6. Each slice is one pull request, or several when it is too large to build and review in one run, and each pull request leaves the tool working. The agent that orchestrates the build keeps its own notes in the tool from the end of slice 1, so slice 1 gives a usable tool with no checks and no hooks, and each later slice adds to it. The `design-docs` skill would put the build order in work items, but it is in this doc because the owner signs it off together with the design, in one pull request, before any slice starts. When a slice starts, cut its work item from this doc and link its section here. Each slice gives what it delivers, what it needs first, and acceptance lines, each with its evidence. From slice 0b on, each slice in this repo also adds a wringer feature, whose journey drives the real `www` through `bun verify`, and its pull request carries the wringer report. Read this doc first, take the next slice whose dependencies are met, read the part docs that slice names, and build it.
 
 ## Shape
 
@@ -15,14 +15,15 @@ flowchart LR
   s2b --> s2c[2c grant, format 2]
   s2c --> s2d[2d recap]
   s2d --> s3[3 checks]
-  s3 --> s4[4 hooks]
+  s3 --> s3b[3b limit, cut order, lists, new kinds]
+  s3b --> s4[4 hooks and the gate]
   s4 --> s5[5 first release]
   s5 --> s6[6 skills]
 ```
 
 ## Slice 0: the repo
 
-Done before this design, and not one of its ten slices: the repo-standard skill creates `zgeoff/wherewerewe` as a public Bun workspace with `packages/cli`, CI and release wiring, and nothing published. Every later slice needs it.
+Done before this design, and not one of its eleven slices: the repo-standard skill creates `zgeoff/wherewerewe` as a public Bun workspace with `packages/cli`, CI and release wiring, and nothing published. Every later slice needs it.
 
 ## Slice 0b: wringer
 
@@ -50,7 +51,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Slice 1: store, writes, brief and import
 
-**Delivers.** The store in format 1 ([store.md](store.md)); every command in [commands.md](commands.md) except `say`, `ack`, `install`, `doctor`, `hook`, `grant` and `recap`, with no notes and in format 1; the brief ([brief.md](brief.md)) with no checks run, so each check tag reads `not checked yet`, no `CHANGED` section, and no pull request section; session finding by flag, variable and binding ([sessions-and-hooks.md](sessions-and-hooks.md), "How a command finds its session"); `www import`; the package and its bins ([shipping.md](shipping.md)). Two wringer features: `notes`, whose journey runs `www init`, `task`, `set`, `done` and `www`, and checks the brief and one refusal's `Run:` line; and `import`, whose journey imports a hand-kept fixture and reads its brief.
+**Delivers.** The store in format 1 ([store.md](store.md)); every command in [commands.md](commands.md) except `say`, `ack`, `install`, `doctor`, `hook`, `grant`, `recap` and the commands that slice 3b adds, with no notes and in format 1; the brief ([brief.md](brief.md)) with no checks run, so each check tag reads `not checked yet`, no `CHANGED` section, and no pull request section; session finding by flag, variable and binding ([sessions-and-hooks.md](sessions-and-hooks.md), "How a command finds its session"); `www import`; the package and its bins ([shipping.md](shipping.md)). Two wringer features: `notes`, whose journey runs `www init`, `task`, `set`, `done` and `www`, and checks the brief and one refusal's `Run:` line; and `import`, whose journey imports a hand-kept fixture and reads its brief.
 
 **Depends on.** Slice 0b.
 
@@ -60,11 +61,11 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] Each refusal in commands.md prints its text and its `Run:` line, and the `Run:` line, with its placeholders filled in, passes. Evidence: one test per refusal row.
 - [ ] A store with every cap full and every text at its limit renders within the line and character caps in brief.md. Evidence: the worst-case render test.
 - [ ] Two sessions bound to two agent session ids never read or write each other's store. Evidence: a test with two `CLAUDE_CODE_SESSION_ID` values.
-- [ ] `www import` converts a fixture laid out like the hand-kept store, with invented content, as the table in store.md says, keeps the originals in `import-backup/`, and refuses with one line per bad row when a row breaks a rule. Evidence: import tests for both cases.
+- [ ] `www import` converts a fixture laid out like the hand-kept store, with invented content, following the table in store.md, keeps the originals in `import-backup/`, and refuses with one line per bad row when a row breaks a rule. Evidence: import tests for both cases.
 - [ ] Ten writes started at once all land, and none corrupts a file. Evidence: a concurrency test.
 - [ ] A copy installed from a packed tarball runs as `www` and as `wherewerewe` after the worktree is removed. Evidence: a CI step that packs, installs with `bun add -g`, deletes the source folder, and runs `www help`.
 - [ ] The `notes` and `import` journeys reach their end states. Evidence: the wringer report block in the pull request, with a claim for each, and a green `verify / gate`.
-- [ ] The orchestrating agent's hand-kept store converts. Evidence: after the agent fixes the rows import names, `www import build` exits 0, and `www --session build` prints its brief.
+- [ ] The orchestrating agent's hand-kept store converts. Evidence: after the agent fixes the rows that `www import` refuses, `www import build` exits 0, and `www --session build` prints its brief.
 
 **Pull requests.** Build slice 1 as three pull requests, and start each one after the one before it merges:
 
@@ -113,8 +114,8 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] The `grant` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `grant`, and a green `verify / gate`.
 - [ ] The worst case in brief.md renders in at most 73 lines and 7,200 characters. Evidence: the worst-case render test, which seeds every row of the worst-case table in brief.md.
 - [ ] The grant prints whole after `GOAL`, and a store whose item lines pass the cap keeps the whole grant while cut-to-fit drops item lines. Evidence: brief tests.
-- [ ] A format 1 store with two standing approvals and two one-time approvals makes the upgrade refuse with both problems and one `Run:` line, and leaves every file and the folder listing unchanged. With the `Run:` line's placeholders filled, the upgrade converts it as the table in store.md says, and `format-1-backup/` holds the original files. The test seeds the store by hand, because four approvals pass the cap of 3 that format 1's `ok` enforces, and the upgrade reads the store with no cap of 3. Evidence: import tests that hash the folder before and after.
-- [ ] Every command except `import`, `sessions` and `help` exits 5 on a format 1 store, with the text in commands.md: `detach` keeps the binding, and `init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text. Evidence: one test per command.
+- [ ] A format 1 store with two standing approvals and two one-time approvals makes the upgrade refuse with both problems and one `Run:` line, and leaves every file and the folder listing unchanged. With the `Run:` line's placeholders filled, the upgrade converts it as the table in store.md says, and `format-1-backup/` holds the original files. The test seeds the store by hand, because format 1's `ok` caps approvals at 3 and this store holds 4. The upgrade applies no such cap. Evidence: import tests that hash the folder before and after.
+- [ ] Every command except `import`, `sessions` and `help` exits 5 on a format 1 store, with the text in commands.md: `detach` keeps the binding, and `init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; a bound session's `www` prints the same text. Evidence: one test per command.
 - [ ] The grant prints in bullets under `may`, `not` and `never`, and short `never` bullets share a line. The grant's bullets and scope take 700 characters after each line break becomes a space, in at most 12 bullets of 120 characters, and the limits on the bullets, the scope, the reading and `--where` and the credential test refuse with the texts in commands.md. Evidence: renderer, write and refusal tests.
 - [ ] The build session's store upgrades to format 2, with the owner's words that authorise the build as its grant. Evidence: the output of `www import build` and of `www --session build`, which shows the `GRANT` section.
 
@@ -144,26 +145,72 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] A merged pull request, a gone process and a missing path each show under `CHANGED` with the fix command from brief.md, and that command runs as printed on an item with no owed note. Evidence: brief tests that run the printed commands.
 - [ ] The next step hides when the item in focus changes after `now_set`, and the item's note still prints whole under the `next step hidden` line. Evidence: a brief test.
 - [ ] The day-9 example in brief.md renders as printed, from a store seeded to match it and a stub `gh`. Evidence: a snapshot test.
-- [ ] With `gh` missing, with `gh` failing authentication, and with a probe that never returns, the brief prints within 6 s, tags each probe `unchecked`, and names the reason in the header. Evidence: tests for the three cases.
+- [ ] With `gh` missing, with `gh` failing authentication, and with a probe that never returns, the brief prints within 6 s, tags each probe `unchecked`, and gives the reason in the header. Evidence: tests for the three cases.
 - [ ] A read with the store folder read-only prints the brief and the `results not saved` line. Evidence: a test.
 - [ ] No probe writes: the git repos' index files and refs are unchanged after a read. Evidence: a test that hashes `.git` before and after.
 
+## Slice 3b: the brief's limit, the cut order, the list command and the new kinds
+
+**Delivers.** The per-host limit of [brief.md](brief.md), held in bytes and given in estimated tokens, with the line limit gone; the cut order and the cut lines; the `DECISIONS` section; `www list` ([lists-and-json.md](lists-and-json.md)); the three new kinds, `www lesson`, `www promise` and `www words`, with their files ([store.md](store.md)), brief sections, `show` and `log` rows, replies and refusals; the new caps of waits, rules, where items and owner's words; the `Brief: <t> of <limit> tokens.` replies; `PROMISED` in `www recap`; `--json` on the read commands; `www goal --paste`; and the help text and the day-9 brief, each moved from its `After slice 3b` subsection into the block its test reads, in the same pull request as the code and the tests. The slice also rewrites the brief paragraph of `docs/architecture/overview.md` to the built limit. The wringer feature `new-kinds`, whose journey writes a lesson, a promise and owner's words, reads the brief, runs `www list rules` and `www recap`, keeps the promise with `done`, and drops the lesson.
+
+**Depends on.** Slice 3, which builds the checks and the day-9 snapshot test; slice 3b updates that snapshot for the new blocks.
+
+**Acceptance.**
+
+- [ ] The `new-kinds` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `new-kinds`, and a green `verify / gate`.
+- [ ] The ASCII worst case of brief.md renders within each host's limit, 24,000, 30,000 and 60,000 bytes, and cuts nothing. Evidence: the worst-case render test for each host.
+- [ ] A store whose every stored text is in a 3-byte script renders within each host's limit, drops rows in the cut order of brief.md, and ends each section that lost rows with its cut line, whose `www list <kind>` command prints every row of that kind. Evidence: cut tests that run the printed commands.
+- [ ] The brief's header starts with `<name> · day` and its last line is the footer, for every store. Evidence: a renderer test that the hooks slice reuses.
+- [ ] Each write reply ends `Brief: <t> of <limit> tokens.`, with `<t>` equal to the estimate of the brief a read prints next, and `<limit>` the reader's host's. Evidence: reply tests for each host.
+- [ ] `www list` prints every open row of each kind in commands.md, and exits 2 with its `Run:` line for no kind or an unknown one. Evidence: list tests.
+- [ ] The brief prints the 3 newest decisions in force and a count line with `www list decisions`; a replaced or ruled-out decision never counts. Evidence: brief tests.
+- [ ] `www lesson`, `www promise` and `www words` write only their own file and the journal, refuse at their caps, refuse each text over its limit and each credential, and a refused write changes no file. A store with none of the three files reads with none. Evidence: store and refusal tests.
+- [ ] `done` refuses a lesson and owner's words with a `Run: www drop` line, and `done` and `drop` close a promise. Evidence: refusal and store tests.
+- [ ] A recap with the worst-case grant, 5 promises and the rest of the recap's worst case renders in at most 61 lines, each at most 100 characters. Evidence: the recap worst-case test.
+- [ ] The help test matches the help block in commands.md. Evidence: the help test.
+- [ ] In the same pull request as the code and the tests, slice 3b applies the diff under `#### After slice 3b` in commands.md to the help block and updates the sentences that name the slices the help reflects; replaces the day-9 block in brief.md with the one under `### After slice 3b`, and its count sentence with that one's; and removes both `After slice 3b` subsections. It updates `run-cli.test.ts` and `run-brief-command.test.ts` to match, the 48 lines and 3,440 characters included, and the hard-coded copies in `render-log.test.ts`, the reply test and `render-recap.test.ts`. Evidence: both doc-reading tests green, and `grep -rn "^#* After slice 3b" docs/` prints nothing.
+- [ ] Each read command with `--json` prints one JSON value that parses as its type in commands.md, for the day-9 store and the worst-case store, and exits with the code the text form gives. Evidence: JSON tests, with a schema test that pins each type.
+- [ ] `www goal --paste` prints the `/goal` text of commands.md, at most 4,000 characters for the worst-case grant, and with no grant refuses with a `Run: www grant` line. Evidence: goal tests.
+
 ## Slice 4: hooks
 
-**Delivers.** `www hook claude` and `www hook codex`, `www install`, `www doctor`, the pull request record, binding from the hook, the nudge, and the `SubagentStart` line ([sessions-and-hooks.md](sessions-and-hooks.md)). The wringer feature `hooks`, with a journey that pipes an invented `SessionStart` payload and an invented `PostToolUse` payload into `www hook claude` and `www hook codex`, for a bound and an unbound id, and runs `www install` against settings files under the run's home folder.
+**Delivers.** `www hook claude` and `www hook codex`, `www install`, `www doctor`, the pull request record, binding from the hook, the nudge, and the `SubagentStart` line ([sessions-and-hooks.md](sessions-and-hooks.md)). Also the gate: the `SessionStart` injection and wipe, the `PreToolUse` refusal, the `PostToolUse` whole-read check, the `PostToolUseFailure` entry, the `Stop` block, and the gate file; and the allow rules that `www install` writes and `www doctor` checks. The wringer feature `hooks`, with a journey that pipes an invented `SessionStart` payload and an invented `PostToolUse` payload into `www hook claude` and `www hook codex`, for a bound and an unbound id, and runs `www install` against settings files under the run's home folder. For both harnesses, the journey also pipes an invented `SessionStart` payload, then a `PreToolUse` payload for `ls`, which is refused, then one for `www`, which passes; pipes a `PostToolUse` payload holding a whole brief; then pipes `PreToolUse` for `ls` again, which passes. The journey stays with invented payloads, because the Codex proofs need the owner's trust step.
 
-**Depends on.** Slice 3. The owner's sign-off of this design authorises the build agent to run `www install` and to add the two Codex config lines, as [README.md](README.md) lists. Trusting the hooks in Codex is a step only the owner can do, by hand, after `www install`.
+**Depends on.** Slice 3b. The owner's sign-off of this design authorises the build agent to run `www install` and to add the two Codex config lines, as [README.md](README.md) lists. Trusting the five hook entries in Codex's `/hooks` is a step only the owner can do, by hand, once, after `www install`; the Codex proofs below wait for it, and none uses `--dangerously-bypass-hook-trust`.
 
 **Acceptance.**
 
 - [ ] The `hooks` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `hooks`, and a green `verify / gate`.
 - [ ] For each event and each harness, a recorded stdin payload gives the output in sessions-and-hooks.md, and an unbound session id gives no output. Evidence: hook tests with invented payloads in each agent's documented shape.
-- [ ] An unbound hook returns in under 150 ms, and a bound `PostToolUse` in under 300 ms. Evidence: a timing test of 20 runs, median.
+- [ ] An unbound hook returns in under 150 ms, a bound `PostToolUse` in under 300 ms, a bound or unbound `PreToolUse` and `Stop` in under 150 ms, and a bound `SessionStart` in under 300 ms. Evidence: a timing test of 20 runs, median.
 - [ ] `install` keeps every other hook in both files, and a second run changes nothing. Evidence: install tests on fixture settings files.
-- [ ] After a compaction in a bound Claude Code session, the brief is in the agent's context. Evidence: the orchestrating session's transcript shows the `SessionStart` hook output after `/compact`.
-- [ ] After a compaction in a bound Codex session, the brief is in context whole, with no temp-file preview, for the worst-case store. Evidence: a Codex session started for the test, with its transcript. This settles the open question in brief.md.
+- [ ] After a compaction in a bound Claude Code session, the goal and the grant are in context, the agent's next tool call is refused with the reason of sessions-and-hooks.md, the agent runs `www`, and the call after it passes. Evidence: a `claude -p` session that stream-json input drives through `/compact`, with its transcript and the gate file's states.
+- [ ] The refusal reaches the model, including through code mode, and the model runs `www`; the main agent's whole read writes `read`, and the next call passes. Evidence: the session's rollout and the gate file's states.
+- [ ] `SessionStart` fires with source `startup`, with `resume` on `codex exec resume`, and with `compact` after a compaction forced with `-c model_auto_compact_token_limit`, and its `session_id` equals the shell's `CODEX_THREAD_ID` each time. Evidence: the rollouts and the hook error log's debug lines.
+- [ ] A subagent's tool calls either carry `agent_id` and pass, or carry none and pass on the parent's state; and a subagent's whole read writes the parent's `read` only when its payload has no `agent_id`. Evidence: a session on each host that spawns a subagent which runs `www` after a compaction has set the parent's state to `wiped`, so a wrong write of `read` shows, with the gate file's states. This settles whether Codex sends `agent_id` on tool events, the open question in sessions-and-hooks.md.
+- [ ] When `www` is missing from `PATH` or exits 5, the next call passes with the gate's one line. Evidence: two sessions, one for each case.
+- [ ] After a refusal or the `SessionStart` line, the model calls `www` with `max_output_tokens: 10000`, and the brief arrives whole; after a cut read, the gate refuses once with the cut reason, and refuses no more than that one call however many retries are cut, and a failed retry opens it on the next call. Evidence: the rollouts of 20 gated Codex sessions at the owner's settings with a brief at Codex's limit, which count the `www` calls whose cap × 4 is under the brief's bytes, and two further sessions that force a cut read, then a retry that is cut again in one and a retry that fails in the other, each ending with at most one refusal after the first cut; the count settles the open question in brief.md.
+- [ ] `tool_response` for a shell call holds the output, its exit code, and the truncation marker when Codex cut the output; and `tool_input` carries `max_output_tokens` when the model passed it. Evidence: recorded payloads from the session, stored as hook test fixtures.
+- [ ] With the Codex rule of sessions-and-hooks.md installed, a Codex session runs `www` with no approval prompt, and `codex execpolicy check` returns `allow` for `www` and `www --session <name>`. Evidence: the session's rollout and the check's JSON.
+- [ ] Codex's shell output limit and Claude Code's are still at or above the constants of brief.md on the installed versions. Evidence: a stub that prints a known size, measured on each host.
 - [ ] A Codex subagent's shell either finds the parent's session or gets the refusal with the `--session` hint. Evidence: the same Codex test session; the result settles the open question in sessions-and-hooks.md.
-- [ ] For a bound session with a hand-kept or format 1 store, `SessionStart` prints the exit 5 text and its `Run:` line. Evidence: hook tests for both harnesses.
+- [ ] For a bound session with a hand-kept or format 1 store, `SessionStart` prints only the two lines, `www` exits 5 with its text, and the next call passes with the gate's one line. Evidence: hook tests for both harnesses.
+- [ ] A piped read (`www | tail -1`), a redirected read (`www > brief.txt`), a filtered read (`www --session tide-alerts | grep ^OPEN`), a subagent's read (a payload with `agent_id`), and a read whose output lacks the footer or holds `<persisted-output>` each leave the gate shut; the main agent's whole `www` opens it. Evidence: hook tests with recorded payloads, and a Claude Code session that runs the piped and the subagent read.
+- [ ] A `PreToolUse` or `Stop` payload with `agent_id` passes, and a bound id with no gate file passes. Evidence: hook tests.
+- [ ] `Stop` blocks once while the state is `wiped`, and passes when `stop_hook_active` is true. Evidence: hook tests for both harnesses.
+- [ ] The gate's four invariants in sessions-and-hooks.md hold for every sequence of the state table's events up to length 8, with `SessionStart` at any point, subagent payloads, and brief commands that get no end event among them. Evidence: a hook test that drives the gate through each sequence, with no clock and no sleep, and checks each invariant after each event.
+- [ ] Each ordering listed under the state table gives, on both harnesses, the table's decision for each call as it arrives and the table's state after each event: a call batched with the brief command before and after the read's end, two batched calls then a cut read, a retry that fails, a slow `www`, `www` refused at the permission step, a brief command that runs across a compaction, two hooks at once, and exit 5. The cut and retry orderings run on Codex payloads. Evidence: hook tests that replay each ordering with recorded payloads, and the hook log of a Claude Code session that batches `ls` with `www`.
+- [ ] A `www` refused at Claude Code's permission step leaves the state `reading` until `Stop`, and the next call after it passes with the gate's one line. Evidence: a `claude -p` run in the default mode with no allow rule, with the hook log and the gate file's states.
+- [ ] Two hook processes started at once on one gate file both apply their events: two brief commands give `reads=2`, and two calls refused in `cut` with `spare=1` give one refusal and one pass. Evidence: a hook test that starts the two processes together and waits for both to exit, with no sleep.
+- [ ] A `www` the host kills at its shell timeout ends as a failed call. Evidence: the hook logs that settle the open question in sessions-and-hooks.md.
+- [ ] A `www` command chained to another command with `;`, `&&`, `||` or `&`, or piped to a command outside the filters of sessions-and-hooks.md, is gated like any other call, and a `www` command piped to `tail` or redirected passes. Evidence: hook tests.
+- [ ] After `www attach` binds an agent session id to another store, the first call is gated until the agent reads that store's brief, and a bound id with no gate file still records pull requests and nudges. Evidence: hook tests.
+- [ ] `www install` writes the six Claude Code entries and the five Codex entries of sessions-and-hooks.md, with no matcher on `PreToolUse`, and writes no `onFailure`, `additionalContextLimit` or `bashOutputMaxChars`; a second run changes nothing. Evidence: install tests on fixture settings files.
+- [ ] `www install` prints the Claude Code allow rule before it writes, adds it to `permissions.allow` in `~/.claude/settings.json` once, keeps every other key and rule, and adds no other permission rule; `www doctor` reports the rule when it is missing. Evidence: install and doctor tests on fixture settings files.
+- [ ] `www install` prints the Codex rule before it writes, writes `~/.codex/rules/wherewerewe.rules` once, and leaves every other rules file alone; `www doctor` reports the file or rule missing, and a `codex execpolicy check` decision other than `allow`. Evidence: install and doctor tests on fixture folders, with a stub `codex`.
+- [ ] With the rule installed, a bound session in Manual mode runs `www` with no prompt, and an auto mode session runs it with no classifier line in the debug log. Evidence: a `claude -p` run in each mode.
+- [ ] The worst-case `SessionStart` injection reaches each host's context whole. Evidence: the hook's stdout measured against 10,000 characters, the Claude Code transcript of the compaction line above, and the rollout of a Codex session that starts on the worst-case store and shows the injection whole.
+- [ ] The tool writes no `classifierContext`. Evidence: a test over every hook output.
 - [ ] `www doctor` exits 0 on the owner's machine. Evidence: its output, after the owner steps.
 - [ ] `www install`, `www doctor` and `www hook` never open `owner.tsv` for writing. Evidence: the read-only `owner.tsv` test from slice 2 runs each of the three, and finds the file's inode, mode and bytes unchanged.
 
@@ -188,12 +235,12 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 **Acceptance.**
 
 - [ ] Each skill passes the skill-writing checks of `zgeoff/skills`. Evidence: the pull request's `## Checks` section and green CI.
-- [ ] A handoff doc written from a bound session fills each section from the store as the table in skills.md says, with the grant's words whole and each open item's note. Evidence: a handoff doc from an invented session, attached to the pull request.
+- [ ] A handoff doc written from a bound session fills each section from the store following the table in skills.md, with the grant's words whole and each open item's note. Evidence: a handoff doc from an invented session, attached to the pull request.
 - [ ] A pickup from that handoff doc into a store with no grant records the doc's grant with `www grant`. Evidence: the brief's `GRANT` section in the invented session after the pickup.
 
 ## Constraints
 
-- Each slice from 0b on is one pull request into `main` of its repo, or several that each leave the tool working, with green CI, and leaves every earlier acceptance line true. Slice 2c is the one exception: format 2 replaces format 1 and folds standing approvals into the grant, so from then on the slice 1 lines that name format 1 hold for format 2, and the bound in brief.md replaces the worst-case line of slice 2b.
+- Each slice from 0b on is one pull request into `main` of its repo, or several that each leave the tool working, with green CI, and leaves every earlier acceptance line true. Slice 2c is the first exception: format 2 replaces format 1 and folds standing approvals into the grant, so from then on the slice 1 lines that name format 1 hold for format 2, and the bound in brief.md replaces the worst-case line of slice 2b. Slice 3b is the second: the per-host limit in estimated tokens replaces the per-host line and character caps, so the worst-case lines of slices 2b and 2c give way to slice 3b's, and slice 2d's recap line of 55 lines gives way to slice 3b's 61.
 - Each slice is built with the build-feature workflow, with a Codex review as its only review.
 - From slice 0b on, each pull request in this repo publishes the wringer report with `bun verify publish` after its last push, and every feature whose files it changed has a claim at the current fingerprint.
 - The registry is named `wherewerewe-verify`, never `www` or `wherewerewe`: gunshi reads a command group named like the program as the program itself, so the registry's name and its `www` command group must differ.

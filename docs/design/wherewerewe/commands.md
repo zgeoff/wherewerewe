@@ -1,9 +1,9 @@
 # The commands
 
 - **Status:** agreed
-- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0012](../../decisions/0012-a-capped-heading-names-its-max.md)
+- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0012](../../decisions/0012-a-capped-heading-names-its-max.md), [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md), [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md)
 
-`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note before that line, and a claim write that keeps an older note prints the older-note line before it, so the reply always ends on that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
+`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's estimated tokens, so the agent sees what each write costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note before that line, and a claim write that keeps an older note prints the older-note line before it, so the reply always ends on that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
 
 ## Contracts
 
@@ -200,26 +200,83 @@ The limits' diff adds every limit the code enforces to the help, so an agent can
 +A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
+#### After slice 3b
+
+In slice 3b, move this text into the block above, with the code and the test, in the same pull request. Apply this diff to the block as the limits' diff left it, to add the brief's limit, the new kinds, the list command, `--json` and the printed goal, decision records 0016 to 0020:
+
+```diff
+@@ -3,4 +3,5 @@
+ Read. Run www first, after every compaction, and whenever you are unsure:
+-  www                        the brief: goal, grant, owner notes, what changed, now and its note,
+-                             open work, waits, the approval, rules, where things are. Runs checks.
++  www                        the brief: goal, grant, owner notes and words, what changed, now and
++                             its note, open work, waits, promises, the approval, rules, lessons,
++                             decisions, where things are. Runs checks.
+   www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
+@@ -10,3 +11,6 @@
+   www sessions               every session on this machine
+-  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
++  www list <tasks|waits|approvals|rules|where|lessons|promises|words|notes|decisions|prs>
++                             every row of one kind, whole, as the brief prints it
++  www recap [--since <t>]    one screen for the owner: grant, notes, promises, decisions, closes
++Read commands take --json: one JSON value for a script, in place of the text.
+
+@@ -18,2 +22,5 @@
+   www rule <id> "<do it this way, and why>"
++  www lesson <id> "<do this>" --why "<the mistake behind it>"
++  www promise <id> "<what>" --to <who> --by <when>
++  www words <id> "<the owner's exact words>" --where <where>
+   www where <id> "<what and where, and how to stop it>" [<check>]
+@@ -22,2 +29,3 @@
+   www goal "<what done means>"
++  www goal --paste           print a /goal text of the grant, for the owner to paste
+   www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
+@@ -27,2 +35,3 @@
+-Notes: --note "<detail>" and --owed work on now and on every item write. A note holds what you
+-need on your next turn to that item. An owed note stops done, drop and use until set clears it.
++Notes: --note "<detail>" and --owed work on now and on every task, wait, approval, rule and where
++write, and not on a lesson, a promise or the owner's words. A note holds what you need on your
++next turn to that item. An owed note stops done, drop and use until set clears it.
+@@ -30,3 +39,4 @@
+
+-Close. Each leaves the brief and stays in the journal:
++Close. Each leaves the brief and stays in the journal. A lesson or the owner's words close with
++drop only:
+   www done <id> --evidence "<PR, commit or test run>"
+@@ -48,3 +58,5 @@
+ 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
+-A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
++A lesson takes 120 with its --why 200, a promise 120 with --to 16 and --by 24, and the owner's
++words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
++8 where items, 5 lessons, 5 promises, 8 owner's words and 2 owner notes.
+ Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
+```
+
 ### Signatures
 
 ```ts
 // cli module: each subcommand and the store call it makes
-www();                                            // brief.md
-www.show(id?: ItemID | DecisionID | 'grant');      // no id: every open task
-www.log(opts: { since?: Since; op?: string[]; id?: string });
-www.recap(opts: { since?: Since });               // default 24h
+www(opts?: ReadOpts);                             // brief.md
+www.show(id?: ItemID | DecisionID | 'grant', opts?: ReadOpts); // no id: every open task; an id of any kind, lessons, promises and the owner's words included
+www.log(opts: { since?: Since; op?: string[]; id?: string } & ReadOpts);
+www.list(kind: ListKind, opts?: ReadOpts);        // every row of one kind
+www.recap(opts: { since?: Since } & ReadOpts);    // default 24h
 www.sessions();
 www.init(name: SessionName, opts: { goal: string });
 www.attach(name: SessionName);                    // sessions-and-hooks.md
 www.detach();
 www.import(name: SessionName, opts: Partial<GrantOpts> & { drop?: ItemID[] }); // store.md
 www.goal(goal: string);
+www.goalPaste();                                  // prints the /goal text of the grant
 www.grant(opts: GrantOpts | { reading: string });
 www.now(id: ItemID, next: string, opts: NoteOpts);
 www.task(id: ItemID, claim: string, opts: { check?: CheckRef; blockedBy?: ItemID } & NoteOpts);
 www.wait(id: ItemID, what: string, opts: { who: string; check?: CheckRef } & NoteOpts);
 www.ok(id: ItemID, opts: { quote: string; who: string; where: string; scope: string } & NoteOpts);
 www.rule(id: ItemID, text: string, opts: NoteOpts);
+www.lesson(id: ItemID, text: string, opts: { why: string });
+www.promise(id: ItemID, what: string, opts: { to: string; by: string });
+www.words(id: ItemID, words: string, opts: { where: string });
 www.where(id: ItemID, text: string, opts: { check?: CheckRef } & NoteOpts);
 www.set(id: ItemID, claim: string | null, opts: { check?: CheckRef; noNote?: boolean } & NoteOpts); // keeps the kind; a new check replaces the old
 www.decide(choice: string, opts: { why: string; on?: ItemID; who?: 'owner' | 'agent'; ruledOut?: boolean; replaces?: DecisionID });
@@ -247,6 +304,14 @@ interface NoteOpts {
   owed?: boolean; // only with note
 }
 
+interface ReadOpts {
+  json?: boolean; // one JSON value in place of the text; see --json
+}
+
+type ListKind =
+  | 'tasks' | 'waits' | 'approvals' | 'rules' | 'where'
+  | 'lessons' | 'promises' | 'words' | 'notes' | 'decisions' | 'prs';
+
 type DecisionID = `d-${number}`; // assigned by decide, from d-1, one past the highest in the journal
 type OwnerNoteID = `o-${number}`; // assigned by say, from o-1
 type Since = `${number}h` | `${number}d` | `day-${number}`;
@@ -257,8 +322,10 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - `www grant` with any of `--may`, `--not` and `--never` replaces the whole grant at once: every bullet, the scope, where the words were given and the reading. Each `--may`, `--not` and `--never` holds one bullet in the owner's words, and the brief prints the bullets of each group in the order typed. `--scope` is optional, and a grant needs at least one bullet. `www grant --reading` alone replaces only the reading.
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
 - `ok` accepts `--once` and ignores it, because every approval is one-time. `--standing` gets the refusal below.
+- `www lesson`, `www promise` and `www words` write only their own file and the journal. A write with an id that holds a lesson, a promise or the owner's words of that kind replaces it. `done` refuses a lesson and the owner's words, and `drop` closes any of the three.
+- `www goal --paste` takes no argument, and a goal text beside it is refused ([www goal --paste](lists-and-json.md#www-goal---paste)).
 - `www import` takes the grant's flags and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
-- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install` and `doctor` are in the help, and they and `hook` exit 2 until slice 4 builds them; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
+- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install` and `doctor` are in the help, and they and `hook` exit 2 until slice 4 builds them; a bound session's `www` prints the same text, and the gate opens on the next call ([sessions-and-hooks.md](sessions-and-hooks.md)).
 
 ### Text limits
 
@@ -274,28 +341,36 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 | the grant's words: every bullet and the scope | 700 characters, in at most 12 bullets on at most 19 lines of the brief |
 | the grant's reading (`--reading`)   | 200 characters  |
 | owner note (`say`)                  | 160 characters  |
-| `--why`, `--evidence`, `--for`      | 200 characters  |
+| `--why` (decision, close, lesson), `--evidence`, `--for` | 200 characters |
 | decision (`decide`)                 | 200 characters  |
+| lesson instruction (`lesson`)       | 120 characters  |
+| promise text (`promise`)            | 120 characters  |
+| `--to` (`promise`)                  | 16 characters   |
+| `--by` (`promise`)                  | 24 characters   |
+| the owner's words (`words`)         | 300 characters  |
 | `--who`, `--where`                  | 16 characters   |
 | `--scope`                           | 40 characters   |
 
 ### Write replies
 
-Each write prints the note lines or the older-note line in its row first and its status line last, and exits 0. A status line ends in `Brief: <n> lines.`, except the replies of `init`, `attach`, `detach` and `import`, whose rows give their whole reply. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
+Each write prints the note lines or the older-note line in its row first and its status line last, and exits 0. A status line ends in `Brief: <t> of <limit> tokens.`, except the replies of `init`, `attach`, `detach` and `import`, whose rows give their whole reply. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<t>` is the brief's estimated tokens and `<limit>` the reader's host's limit in estimated tokens ([brief.md](brief.md#the-briefs-limit)). `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `task`, `wait`, `rule`, `where`, `ok`, `set` | `<id>  <kind>, open, <check>[, note <k> of 400[, owed]]. Brief: <n> lines.` (a rule has no `<check>` part; the note part shows when the command wrote a note) |
+| `task`, `wait`, `rule`, `where`, `ok`, `set` | `<id>  <kind>, open, <check>[, note <k> of 400[, owed]]. Brief: <t> of <limit> tokens.` (a rule has no `<check>` part; the note part shows when the command wrote a note) |
 | the same, when the write replaces the claim and keeps a note written before it | `  its note is <age> older than this claim. Replace it with www set <id> --note "<detail>", or clear it with www set <id> --no-note`, then the line above |
-| `set` with only `--note`        | `<id>  note, <k> of 400[, owed]. Brief: <n> lines.`                                               |
-| `set --no-note`                 | `<id>  note cleared. Brief: <n> lines.`                                                           |
-| `now`                           | `now: <id>. Brief: <n> lines.`, or, when the item has a note, `<note lines>`, then `now: <id>, with its note (<age>). Brief: <n> lines.` or `with its owed note (<age>)` |
-| `goal`                          | `goal set. Brief: <n> lines.`                                                                     |
-| `grant` with a bullet           | `grant: <k> of 700 characters in <b> of 12 bullets on <l> of 19 lines, reading <m> of 200. Brief: <n> lines.` |
-| `grant --reading`               | `grant reading: <m> of 200. Brief: <n> lines.`                                                     |
-| `decide`                        | `d-<n>  decision[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`                |
-| `decide --ruled-out`            | `d-<n>  ruled out[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`               |
-| `done`, `drop`, `use`           | `<id>  done.` or `dropped.` or `used.`, then ` Off the brief, kept in the journal. Brief: <n> lines.`, or, when the item had a note, first `<note lines>`, then the same line with ` Off the brief, kept in the journal with its note (<age>). Brief: <n> lines.` |
+| `lesson`                        | `<id>  lesson, open, why <k> of 200. Brief: <t> of <limit> tokens.`                                  |
+| `promise`                       | `<id>  promise to <who>, by <when>. Brief: <t> of <limit> tokens.`                                    |
+| `words`                         | `<id>  owner's words, open, <k> of 300. Brief: <t> of <limit> tokens.`                                |
+| `set` with only `--note`        | `<id>  note, <k> of 400[, owed]. Brief: <t> of <limit> tokens.`                                               |
+| `set --no-note`                 | `<id>  note cleared. Brief: <t> of <limit> tokens.`                                                           |
+| `now`                           | `now: <id>. Brief: <t> of <limit> tokens.`, or, when the item has a note, `<note lines>`, then `now: <id>, with its note (<age>). Brief: <t> of <limit> tokens.` or `with its owed note (<age>)` |
+| `goal`                          | `goal set. Brief: <t> of <limit> tokens.`                                                                     |
+| `grant` with a bullet           | `grant: <k> of 700 characters in <b> of 12 bullets on <l> of 19 lines, reading <m> of 200. Brief: <t> of <limit> tokens.` |
+| `grant --reading`               | `grant reading: <m> of 200. Brief: <t> of <limit> tokens.`                                                     |
+| `decide`                        | `d-<n>  decision[ on <id>]. Read it with: www show <id or d-n>. Brief: <t> of <limit> tokens.`                |
+| `decide --ruled-out`            | `d-<n>  ruled out[ on <id>]. Read it with: www show <id or d-n>. Brief: <t> of <limit> tokens.`               |
+| `done`, `drop`, `use`           | `<id>  done.` or `dropped.` or `used.`, then ` Off the brief, kept in the journal. Brief: <t> of <limit> tokens.`, or, when the item had a note, first `<note lines>`, then the same line with ` Off the brief, kept in the journal with its note (<age>). Brief: <t> of <limit> tokens.` |
 | `init`                          | `Started session <name> in <folder>. Bound to this <harness> session.` or, with no agent id, `Started session <name> in <folder>. Name it on each command: www --session <name>` |
 | `attach`, `detach`              | `Bound this <harness> session to <name>.` or `Unbound this <harness> session from <name>.`        |
 | `import` of a hand-kept store   | `Imported <name>: <n> items, <m> journal rows. Originals in <folder>/import-backup/.`             |
@@ -305,29 +380,38 @@ Examples from the invented session:
 
 ```text
 $ www task t-e2e "Write alerts-e2e against staging"
-t-e2e  task, open, no check. Brief: 48 lines.
+t-e2e  task, open, no check. Brief: 1127 of 8000 tokens.
 
 $ www task t-flag "Turn on the tide_alerts flag in staging config" --blocked-by w-apns --note "Turn the tide_alerts flag back off in staging config before this closes: staging is shared with the harbour team, who demo on Thursday." --owed
-t-flag  task, open, no check, note 135 of 400, owed. Brief: 49 lines.
+t-flag  task, open, no check, note 135 of 400, owed. Brief: 1151 of 8000 tokens.
 
 $ www set pr-api-77 "Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07" --pr bosunhq/bosun-api#77
   its note is 1h older than this claim. Replace it with www set pr-api-77 --note "<detail>", or clear it with www set pr-api-77 --no-note
-pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.
+pr-api-77  task, open, checked now: OPEN pending. Brief: 1104 of 8000 tokens.
 
 $ www decide "Retry a 503 from the tide feed 3 times, 2 s apart" --why "The feed returns 503 for about 4 s during its hourly refresh" --on pr-api-77
-d-23  decision on pr-api-77. Read it with: www show pr-api-77. Brief: 47 lines.
+d-23  decision on pr-api-77. Read it with: www show pr-api-77. Brief: 1104 of 8000 tokens.
 
 $ www done pr-app-61 --evidence "merged as 51aa0e2, seen by check"
-pr-app-61  done. Off the brief, kept in the journal. Brief: 45 lines.
+pr-app-61  done. Off the brief, kept in the journal. Brief: 1057 of 8000 tokens.
 
 $ www now pr-api-77 "fix the failing lint job on 9b41c07, push, then request review"
     The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a
     longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in
     the retry helper, not on the retry logic.
-now: pr-api-77, with its note (1h). Brief: 45 lines.
+now: pr-api-77, with its note (1h). Brief: 1057 of 8000 tokens.
 
 $ www grant --reading "covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases"
-grant reading: 197 of 200. Brief: 45 lines.
+grant reading: 197 of 200. Brief: 1057 of 8000 tokens.
+
+$ www lesson l-seed "Reseed the staging alerts table before alerts-e2e" --why "A stale row made alerts-e2e pass on day 6 while no alert fired"
+l-seed  lesson, open, why 62 of 200. Brief: 1168 of 8000 tokens.
+
+$ www words w-plain "Plain words in every reply; I would rather read three short sentences than one clever one" --where chat
+w-plain  owner's words, open, 89 of 300. Brief: 1190 of 8000 tokens.
+
+$ www promise due-cost "Cost table for the alert fan-out" --to owner --by "day 10, before review"
+due-cost  promise to owner, by day 10, before review. Brief: 1224 of 8000 tokens.
 ```
 
 - A write with a check runs that one probe before it replies and stores the result in `at_write`. An `unchecked` result stores `-`.
@@ -388,7 +472,30 @@ day 9  11:51  done      pr-app-61  agent  Alert settings screen: in review
 - A `note` row with `owed=1` shows `owed: ` before its text, and a row with `cleared=1` shows `note cleared` as its text. A `note` row carried from a hand-kept store shows `import` as who.
 - `www show` with no id prints every open task in the brief's order, each row as the brief prints it and its note whole. It runs no check, so each tag shows the result saved by the last read.
 - `www show <id>` prints the item's note whole, as `note (<age>):` or `owed note (<age>):`, wrapped as the brief wraps a note, with each further line indented 4.
+- `www show <id>` for a lesson, a promise or the owner's words prints the row whole, with its journal days:
+
+```text
+$ www show l-seed
+l-seed  lesson, open since day 6, by agent
+  do this (3d): Reseed the staging alerts table before alerts-e2e
+  why: A stale row made alerts-e2e pass on day 6 while no alert fired
+  journal: day 6 lesson
+
+$ www show due-cost
+due-cost  promise, open since day 8, by agent · to owner · by day 10, before review
+  what (1d): Cost table for the alert fan-out
+  journal: day 8 promise
+
+$ www show w-plain
+w-plain  owner's words, open since day 3, by agent · said in chat
+  words (6d): "Plain words in every reply; I would rather read three short sentences than one clever one"
+  journal: day 3 words
+```
+
+- `www log --op lesson,promise,words` prints the rows of the three new kinds.
 - `www show grant` prints where the owner gave the words and the scope, the bullets as the brief prints them, the reading whole, and the journal days of every `grant` row. With no grant, it prints `grant  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`.
+
+`www list`, `--json` on the read commands and `www goal --paste` are in [lists-and-json.md](lists-and-json.md).
 
 ### www recap
 
@@ -407,6 +514,8 @@ GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
     staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit
     merges and releases
+PROMISED (1, max 5)
+  due-cost    Cost table for the alert fan-out · to owner · by day 10, before review
 NOTES (3 on 13 open items) · owed first, then newest
   t-flag      Turn on the tide_alerts flag in staging config
     owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…
@@ -430,6 +539,7 @@ Correct: www --session tide-alerts say "<text>" [--on <id>]
 | --------- | --------------------------------------------------------------------------------------------- | ------------- |
 | header    | `<name> · day <d> · recap since day <d> <HH:MMZ> (<t>) · <n> writes`                         | 1             |
 | `GRANT`   | the grant, exactly as the brief prints it, or `GRANT  none. Run: www --session <name> show grant` | 23            |
+| `PROMISED` | `PROMISED (<n>, max 5)`, then each promise, oldest first: `  <id>  <what> · to <who> · by <when>`, cut at 100 characters | 6 |
 | `NOTES`   | `NOTES (<m> on <o> open items) · owed first, then newest`, `<m>` the open items with a note and `<o>` the open items; then the open items with a note, owed first, then newest by the note's time, ties in `notes.tsv` order: the item line, with an approval's quote in double quotes, then `    note (<age>): <note>` or `    owed note (<age>): <note>`; at most 6 items, then `  and <n> more with a note: www --session <name> log --op note`, then `  other open items (<n>): <ids>` for the open items with no note, in `items.tsv` order, cut at 100 characters | 15 |
 | `DECIDED SINCE` | `decide` and `ruled-out` rows since `<t>`, oldest first: `  <d-n>  [ruled out: ]<choice> · why: <reason>`; the 5 oldest, then `  and <n> more: www --session <name> log --op decide,ruled-out --since <t>`, which prints every row since `<t>` | 7 |
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; the 5 oldest, then `  and <n> more: www --session <name> log --op done,drop,use --since <t>`, which prints every row since `<t>` | 7 |
@@ -441,9 +551,9 @@ The recap reads from the start of the session when `<t>` falls before it, so the
 
 The owner runs the recap from a terminal that has no binding, so the no-grant line and the three overflow lines always carry `--session <name>`, with `<name>` the name of the session's folder, and each runs as printed. A recap run with `--session` prints it in both footer lines. A recap in a bound session, with no `--session`, prints neither, and the footer's two lines run there as printed.
 
-The recap is at most 55 lines: 1 + 23 + (1 heading + 6 × 2 + 1 overflow + 1 other-items line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 2 = 55. Every line is at most 100 characters, except a `SINCE` overflow line when `<t>` is longer than 7 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer's two lines with a 24-character name are 60 and 72, and each other line that would pass 100 is cut to 99 characters and `…`, after a credential in a stored text becomes `<where the secret lives>`, so the cut counts the placeholder. The grant's lines, the overflow lines and the footer's two lines are never cut, so each command runs as printed, and each overflow line stays within 100 for a `<t>` of at most 7 characters. A longer `<t>`, such as `0000024h`, adds each character past 7 to the two `SINCE` overflow lines, which stay whole so their commands run as typed. So the recap is at most 55 × 100 + 55 = 5,555 characters, plus 2 for each character of `<t>` past 7.
+The recap is at most 61 lines: 1 + 23 + (1 heading + 5 promises) + (1 heading + 6 × 2 + 1 overflow + 1 other-items line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 2 = 61. Every line is at most 100 characters, except a `SINCE` overflow line when `<t>` is longer than 7 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer's two lines with a 24-character name are 60 and 72, and each other line that would pass 100 is cut to 99 characters and `…`, after a credential in a stored text becomes `<where the secret lives>`, so the cut counts the placeholder. The grant's lines, the overflow lines and the footer's two lines are never cut, so each command runs as printed, and each overflow line stays within 100 for a `<t>` of at most 7 characters. A longer `<t>`, such as `0000024h`, adds each character past 7 to the two `SINCE` overflow lines, which stay whole so their commands run as typed. So the recap is at most 61 × 100 + 61 = 6,161 characters, plus 2 for each character of `<t>` past 7.
 
-With counts of at most 4 digits where no cap applies, at most 44 open items and a header of 87 characters, the widest lines sum to at most 4,148 characters, or 4,161 when a header is cut at 100, under the bound of 5,555. In `NOTES`, `<m>` and `<o>` are at most 44, and with 6 items printed the overflow count is at most 38. Each has 2 digits, the heading is at most 53 characters, and the overflow line stays at 79 characters.
+With counts of at most 4 digits where no cap applies, at most 62 open items and a header of 87 characters, the widest lines sum to at most 4,667 characters, or 4,680 when a header is cut at 100, under the bound of 6,161. In `NOTES`, `<m>` and `<o>` are at most 62, and with 6 items printed the overflow count is at most 56. Each has 2 digits, the heading is at most 53 characters, and the overflow line stays at 79 characters.
 
 ## Refusals
 
@@ -454,7 +564,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | A claim, step or other text is over its limit     | `www: refused: the claim is 152 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.` `Run: www task t-e2e "<claim of at most 120 characters>"`      |
 | A note is over its limit                          | `www: refused: the note is 512 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.` `Run: www task t-e2e "Write alerts-e2e against staging" --note "<note of at most 400 characters>"` |
 | A text holds a tab or a line break, a Unicode line or paragraph separator among them, except a line break in a grant bullet or the grant's scope, which `www grant` turns into a space | `www: refused: the text must be one line, with no tab or newline.` `Run: www rule r-sim-port "<one line>"`                                                                                             |
-| A kind is full                                    | `www: refused: the session holds 30 of 30 tasks. Close one, or replace one with www set.` `Run: www done t-e2e --evidence "<PR, commit or test run>"`                                                      |
+| A kind is full                                    | `www: refused: the session holds 30 of 30 tasks. Close one, or replace one with www set.` `Run: www done t-e2e --evidence "<PR, commit or test run>"`. The caps are 30 tasks, 8 waits, 15 rules and 8 where items, and the same text names each. A lesson: `www: refused: the session holds 5 of 5 lessons. Drop one, or replace one with www lesson.` `Run: www drop l-seed --why "<reason>"`. A promise: `www: refused: the session holds 5 of 5 promises. Close one, or replace one with www promise.` `Run: www done due-cost --evidence "<what you delivered>"`. The owner's words: `www: refused: the session holds 8 of 8 owner's words. Drop one, or replace one with www words.` `Run: www drop w-plain --why "<reason>"` |
 | `ok` while the one-time approval is open          | `www: refused: the session holds 1 of 1 one-time approvals. Spend it with www use, or drop it.` `Run: www use ok-prod-index --for "<what you did with it>"`                                              |
 | `ok --standing`                                   | `www: refused: lasting permission lives in the grant, in the owner's words whole.` `Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"` |
 | `done`, `drop` or `use` on an item with an owed note | `www: refused: t-flag has an owed note (2d). Clear it once the work is done, or replace it with a note that is not owed.` then the note, indented 4, then `Run: www set t-flag --no-note` `Run: www set t-flag --note "<detail>"` |
@@ -479,6 +589,14 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | `grant --reading` with no grant                   | `www: refused: tide-alerts has no grant, so there is no reading to replace.` `Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<the reading as typed>"`                   |
 | `wait` has no `--who`                             | `www: refused: a wait names who it waits on.` `Run: www wait w-apns "upload the staging push key" --who "<who>"`                                                                                       |
 | `decide` has no `--why`                           | `www: refused: a decision needs its reason.` `Run: www decide "Retry a 503 3 times" --why "<reason>"`                                                                                                  |
+| `done` on a lesson or the owner's words           | `www: refused: l-seed is a lesson, and a lesson closes with drop.` `Run: www drop l-seed --why "<reason>"`, or `www: refused: w-plain holds the owner's words, and they close with drop.` `Run: www drop w-plain --why "<reason>"` |
+| `lesson` has no `--why`                           | `www: refused: a lesson needs the mistake behind it.` `Run: www lesson l-seed "Reseed the staging alerts table before alerts-e2e" --why "<the mistake behind it>"` |
+| `promise` lacks `--to` or `--by`                  | `www: refused: a promise names who gets it and when.` `Run: www promise due-cost "Cost table for the alert fan-out" --to <who> --by <when>` |
+| `words` has no `--where`                          | `www: refused: the owner's words need where they were said.` `Run: www words w-plain "<the owner's exact words>" --where <where>` |
+| `--to` or `--by` holds `;` or `=`                 | `www: refused: --by cannot hold ; or =, which the journal keeps apart.` `Run: www promise due-cost "Cost table for the alert fan-out" --to owner --by "<when, with no ; or =>"` |
+| `list` with no kind or an unknown one (exit 2)    | `www: list takes tasks, waits, approvals, rules, where, lessons, promises, words, notes, decisions or prs.` `Run: www list tasks` |
+| `goal --paste` beside a goal text (exit 2)        | `www: goal --paste takes no goal text.` `Run: www goal --paste` |
+| `goal --paste` with no grant                      | `www: refused: tide-alerts has no grant to print.` `Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"` |
 | An id names no open item                          | `www: refused: no open item pr-api-78. Open items: pr-api-77, pr-tk-19, t-flag, t-e2e.` `Run: www task pr-api-78 "<claim>"`                                                                            |
 | A new item reuses a closed id                     | `www: refused: pr-app-61 closed on day 9. Pick a new id.` `Run: www task <new id> "<claim>"`                                                                                                           |
 | A new item reuses an open id of another kind      | `www: refused: r-tk-fork is a rule. Change its text with set, or pick a new id.` `Run: www set r-tk-fork "<claim>"`                                                                                    |
@@ -528,16 +646,17 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 
 ## Constraints
 
-- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `www` and `show <id>` probe; `show` with no id, `log` and `recap` never do. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
+- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log`, `list` and `recap` print what they can, even when every check fails. `www` and `show <id>` probe; `show` with no id, `log`, `list` and `recap` never do. A read with `--json` exits with the code its text form gives. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
 - A changed check never makes `set` refuse, so the agent can always fix a stale claim.
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
 - Each printed `Run:` line, with its placeholders filled in, passes every check its command runs before it reads the store, from the same functions the write calls. So a printed `Run:` line is never refused for its own words, such as an empty, over-length or credential-like claim or a bad id: a line that would be is replaced before it prints, as [Refusals](#refusals) says.
-- No reply, refusal or help line tells the agent to hold back, to ask, or to act only inside a limit. The credential refusal's "never its value" is the one exception: it keeps a secret out of the store and the journal. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- Never steer the agent, in a reply, a refusal or a help line, to hold back, to ask, or to act only inside a limit. The credential refusal's "never its value" is the one exception: it keeps a secret out of the store and the journal. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
 ## Decisions
 
 - **`decide` takes no id; the tool numbers decisions.** The hand-kept log already numbers them d-1 upward, and a number the agent picks can clash.
+- **A lesson, a promise and the owner's words are written by their own commands.** Each has a limit and a refusal of its own, and `done` closes only a promise. [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 - **`--blocked-by` stays.** The hand-kept store uses `blocked_by` on 3 of its 4 tasks, and the brief shows the blocker in the task's tag.
 - **A ruled-out approach is its own journal op.** The Ruled out section of the [handoff skill](https://github.com/zgeoff/skills/blob/main/skills/handoff/SKILL.md) gets its rows from `www log --op ruled-out`.
 - **A note is written only through `--note`, and `set` without a claim changes only the note.** One path means one place for the 400 limit, the credential test and the older-note line, and a note change never resets a claim's age or check. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)

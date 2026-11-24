@@ -1,9 +1,9 @@
 # The store
 
 - **Status:** agreed
-- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md)
+- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md), [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 
-Each session keeps its state in one folder of plain UTF-8 text files that a person can read with `less` and an agent can read with `cut` when the tool is missing. `session`, `items.tsv`, `notes.tsv` and `owner.tsv` are rewritten whole and capped, so they stay the same size on day 14 as on day 2: `items.tsv` by the item caps in [brief.md](brief.md), `notes.tsv` by one row of at most 400 characters per open item, and `session` and `owner.tsv` by the limits in [commands.md](commands.md). `prs.tsv` gains one row per pull request the session opens, but a read probes and prints only the rows still open, and the brief shows at most 1. The journal grows, and no read prints it whole unless `www log` runs with no filter. A build agent reads this doc to build the store module, `www import`, the format 2 upgrade and the lock, in the slice [build-order.md](build-order.md) names.
+Each session keeps its state in one folder of plain UTF-8 text files that a person can read with `less` and an agent can read with `cut` when the tool is missing. `session`, `items.tsv`, `notes.tsv`, `owner.tsv`, `lessons.tsv`, `promises.tsv` and `words.tsv` are rewritten whole and capped, so they stay the same size on day 14 as on day 2: `items.tsv` by the item caps in [brief.md](brief.md), `notes.tsv` by one row of at most 400 characters per open item, `lessons.tsv`, `promises.tsv` and `words.tsv` by their caps, and `session` and `owner.tsv` by the limits in [commands.md](commands.md). `prs.tsv` gains one row per pull request the session opens, but a read probes and prints only the rows still open, and the brief shows at most 1. The journal grows, and no read prints it whole unless `www log` runs with no filter. A build agent reads this doc to build the store module, `www import`, the format 2 upgrade and the lock, in the slice [build-order.md](build-order.md) names.
 
 ## Shape
 
@@ -28,12 +28,18 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
   .bindings/
     claude-<agent session id>     one file per bound agent session: name=<session>
     codex-<agent session id>
+  .gate/
+    claude-<agent session id>     one file per gated agent session: state=<state> session=<name> reads=<n> spare=<0|1>; written by the hooks only
+    codex-<agent session id>
   hook-errors.log                 the last 200 hook errors, newest last
   <session>/                      one folder per session, named by www init
     session                       key=value lines, with the grant      rewritten on each write
     items.tsv                     one row per open item                rewritten on each write and each read that saves results; capped
     notes.tsv                     one row per open item with a note    rewritten by each note write and close
     owner.tsv                     the owner's notes still showing      created by init and import; rewritten by say and ack only
+    lessons.tsv                   one row per open lesson              rewritten by each write of its kind and each close; capped
+    promises.tsv                  one row per open promise             rewritten by each write of its kind and each close; capped
+    words.tsv                     one row per open piece of the owner's words   rewritten by each write of its kind and each close; capped
     prs.tsv                       pull requests this session opened    appended by the hook; state set by reads
     journal.tsv                   every write, decision and change     append-only; import and the format 2 upgrade rewrite it once
     lock                          exists while a write, or a read that saves results, runs: pid=<n> ts=<iso>
@@ -96,6 +102,7 @@ interface Item {
 
 // An id is 2–16 of [a-z0-9-], starts with a letter, is not grant, and never matches
 // ^[do]-[0-9]+$, which the tool keeps for decisions (d-<n>) and owner notes (o-<n>).
+// An id is unique across items.tsv, lessons.tsv, promises.tsv and words.tsv.
 type ItemID = string;
 
 interface Extra {
@@ -134,6 +141,64 @@ interface Note {
 }
 ```
 
+### lessons.tsv
+
+```text
+id	text	why	written	by
+l-seed	Reseed the staging alerts table before alerts-e2e	A stale row made alerts-e2e pass on day 6 while no alert fired	2026-03-07T15:20:44Z	agent
+```
+
+```ts
+// store module: one row per open lesson
+interface LessonRow {
+  id: ItemID;
+  text: string; // 1–120 characters, one line: the instruction; the credential test applies
+  why: string; // 1–200 characters, one line: the mistake behind it; the credential test applies
+  written: string;
+  by: 'agent' | 'owner';
+}
+```
+
+### promises.tsv
+
+```text
+id	what	to	by_when	written	by
+due-cost	Cost table for the alert fan-out	owner	day 10, before review	2026-03-09T16:05:10Z	agent
+```
+
+```ts
+// store module: one row per open promise
+interface PromiseRow {
+  id: ItemID;
+  what: string; // 1–120 characters, one line, in the agent's words
+  to: string; // 1–16 characters, never ; or =
+  byWhen: string; // 1–24 characters, never ; or =; text, so the tool marks nothing as late
+  written: string;
+  by: 'agent' | 'owner';
+}
+```
+
+### words.tsv
+
+```text
+id	words	where	written	by
+w-plain	Plain words in every reply; I would rather read three short sentences than one clever one	chat	2026-03-04T09:30:00Z	agent
+```
+
+```ts
+// store module: one row per piece of the owner's words
+interface WordsRow {
+  id: ItemID;
+  words: string; // 1–300 characters, one line: the owner's exact words; the credential test applies
+  where: string; // 1–16 characters, never ; or =: where the owner said them
+  written: string;
+  by: 'agent' | 'owner'; // owner when the terminal test of owner-notes.md passes, as for www grant
+}
+```
+
+- A missing `lessons.tsv`, `promises.tsv` or `words.tsv` reads as no rows, as a missing `notes.tsv` does.
+- A write of one kind rewrites only its file and adds a journal row. A close removes the row and adds its journal row.
+
 ### journal.tsv
 
 ```text
@@ -151,14 +216,15 @@ interface JournalRow {
   op: Op | string; // a row that www import carried over keeps its own op
   id: string; // the item, decision (d-<n>), owner note (o-<n>), pull request ref, grant, or session name
   by: 'agent' | 'owner' | 'hook' | 'import';
-  text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's bullets and scope, or "<old> -> <new>" for changed; '-' when none
-  why: string; // the reason (decide, ruled-out, drop), the evidence (done), what it was used for (use), or the grant's reading (grant); '-' when none
-  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1 or where=chat
+  text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's bullets and scope, a lesson's instruction, a promise's text, the owner's words, or "<old> -> <new>" for changed; '-' when none
+  why: string; // the reason (decide, ruled-out, drop, lesson), the evidence (done), what it was used for (use), or the grant's reading (grant); '-' when none
+  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1, where=chat, or to=<who>;by=<when> for a promise
 }
 
 type Op =
   | 'init' | 'import' | 'bind' | 'goal' | 'grant' | 'now'
   | 'task' | 'wait' | 'ok' | 'rule' | 'where' | 'set' | 'note'
+  | 'lesson' | 'promise' | 'words'
   | 'decide' | 'ruled-out' | 'done' | 'drop' | 'use'
   | 'say' | 'ack' | 'changed' | 'pr';
 ```
@@ -179,6 +245,16 @@ ref	opened	state	seen
 bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 ```
 
+```ts
+// store module: one row of prs.tsv
+interface PrRow {
+  ref: string; // <owner>/<repo>#<n>
+  opened: string;
+  state: 'OPEN' | 'MERGED' | 'CLOSED' | '-'; // '-' before the first read
+  seen: string; // the time of that state
+}
+```
+
 - `owner.tsv`: `id` is `o-<n>`, numbered from 1 for the session; `text` is 1–160 characters; `on` is an item id or `-`.
 - `prs.tsv`: `ref` is `<owner>/<repo>#<n>`; `state` is `OPEN`, `MERGED`, `CLOSED` or `-` before the first read; `seen` is the time of that state.
 
@@ -186,26 +262,26 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 
 - Every file is UTF-8 with LF line endings, and every `.tsv` starts with its header row.
 - A cell or a `session` value never holds a tab or a line break, a Unicode line or paragraph separator among them: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
-- A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where` or `--scope` that holds one.
-- `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row.
+- A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where`, `--scope`, `--to` or `--by` that holds one.
+- `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row. `done` and `drop` remove a promise's row, and `drop` removes the row of a lesson or of a piece of the owner's words. Each removal adds one journal row.
 - `notes.tsv` holds at most one note per open item. A close that stops part way can leave a row whose item is closed, as the next point describes. A missing `notes.tsv` reads as no notes.
 - A write rewrites `items.tsv` before `notes.tsv`. A close that stops between the two leaves a `notes.tsv` row whose id names no open item, and never an open item that lost its note. Every read leaves such a row out with no warning, and the next write that rewrites `notes.tsv` drops it.
 - A `notes.tsv` row that does not parse does not break the store. Each read leaves the row out and names it on stderr, as `www: tide-alerts's notes.tsv line 3 does not parse: the id repeats an earlier row. The brief leaves out what it could not read. Fix the file by hand.` A write with `--note` or `--no-note`, `done`, `drop` and `use` refuse with the text in [commands.md](commands.md), because the row left out may be the item's owed note. Every other write works.
-- An id closed once is never reused in that session: a new item with a closed id is refused.
+- An id closed once is never reused in that session, across `items.tsv` and the three files above: a new item with a closed id is refused.
 - Each write takes `lock` with an exclusive create, appends its journal rows, rewrites each changed file through a temporary file and a rename in the same folder, and removes `lock`. The journal goes first because a write reads it to refuse a closed id, so a write that stops after the append leaves the id closed and its item still open, never an item gone while its id can be reused.
 - A write with a check runs its probe before it takes `lock`, and applies the result only when the item still names that check. A write waits up to 2 s for `lock`, then refuses. A lock whose pid is gone, or that is older than 30 s, is stale: the next write removes it and goes on.
-- A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. [brief.md](brief.md) has what the header shows then.
+- A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. See [brief.md](brief.md) for the header in that case.
 - The journal is never rewritten, with two exceptions: `www import` rewrites a hand-kept journal into the current format once, after it copies the original into `import-backup/`, and the format 2 upgrade writes `journal.tsv` again: every format 1 row unchanged, then the upgrade's own rows. Nothing prints the journal whole, except `www log` with no filter.
 - A session folder is never deleted by the tool.
 
 ## Versions
 
-- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. The other item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks.
+- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. `lessons.tsv`, `promises.tsv` and `words.tsv` belong to format 2 and change no format number: a tool that predates them ignores the files and still reads the store, and a missing file reads as none. The other item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks. The same goes for the caps of 8 waits, 15 rules, 8 where items, 5 lessons, 5 promises and 8 owner's words.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
-- A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
-- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.
-- A store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
-- A store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
+- Every command except `www import`, `www sessions` and `www help` exits 5 on a store with `format=1`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
+- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; a bound session's `www` prints the same text.
+- A command on a store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
+- A command on a store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
 - A read never converts a store. Each later format ships with an upgrade that `www import` runs.
 - A format 2 store whose grant has no `grant_may` line, or a bullet over 120 characters, is refused by the tool of `5fdaa5e`, the task-cap merge before [decision record 0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), and by every older one. Each of its commands that reads the store and fails on it, such as `www`, `www show` or `www task`, exits 3 with `www: <name>'s session does not parse: a grant needs a grant_may line and grant_reading, grant_where and grant_set. Fix the file by hand.`, or `a grant bullet is <n> characters, and the limit is 120` in place of the reason, and `Run: less <path to the store>/session`; `www help` skips the store, and `www sessions` reads the file, prints `<name>  unreadable session file` for it and exits 0. That tool writes nothing to that store, so the format stays 2.
 
@@ -258,10 +334,10 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 | any other journal op, such as `init` or `note`                  | the same row with `by=import`                                                                 |
 | no `prs.tsv`, `owner.tsv` or `notes.tsv`                        | each created with its header row                                                              |
 
-- Import applies every limit a write applies to items and to `session`: lengths, ids, kinds and caps. Journal rows keep their text at any length.
+- Import applies every limit a write applies to items and to `session`: lengths, ids, kinds and caps. Journal rows keep their text at any length, and the brief cuts a decision's choice past 200 characters ([brief.md](brief.md)); `www list decisions` prints it whole.
 - Import never turns an agent-written row into an owner note: an owner note's author is the owner.
 - When a row breaks a rule, import exits 3 with one line per row, with the text in [commands.md](commands.md). The agent fixes those rows in the hand-kept files, for example by shortening a claim or appending a `closed` row for a question it settled, and runs import again.
-- On the hand-kept store as it stands at design time, import refuses: 6 open questions against the cap of 4 waits in [brief.md](brief.md), and claims, questions and `now_next` over their limits. Those are the rows the agent fixes first.
+- On the hand-kept store as it stands at design time, import refuses: claims, questions and `now_next` over their limits, and any open questions past the cap of 8 waits in [brief.md](brief.md). Those are the rows the agent fixes first.
 - A row's `ts` and `written` values are kept as they are.
 - The `drop` rows and the `import` row have `by=agent`. The `grant` row has `by=owner` when the terminal test of [owner-notes.md](owner-notes.md) passes and `by=agent` otherwise.
 
