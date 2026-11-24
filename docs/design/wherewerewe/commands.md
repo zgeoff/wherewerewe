@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2c, and `www --help` and `www -h` do the same. It lists no `recap` until slice 2d applies its diff below. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.

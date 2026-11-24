@@ -40,7 +40,7 @@
 - These printed strings change:
   - The brief's approvals heading, `APPROVED (<n> of 3) · act only inside each quote and scope`, becomes `APPROVED ONCE (<n> of 1)`.
   - The refusal of `use` on a standing approval, which ended "Act inside its quote and scope.", goes with standing approvals.
-  - The refusal of `--replaces` on the owner's decision, "Ask the owner, and record the answer with --who owner.", becomes "only a decision recorded with --who owner replaces it."
+  - The refusal of `--replaces` on the owner's decision, "Ask the owner, and record the answer with --who owner.", becomes "d-4 is the owner's decision, so only a decision recorded with --who owner replaces it."
   - The refusal of `ok` without a part drops "and --once or --standing", and `www help` drops `(--once | --standing)` and "a --once approval".
   - The refusal of `say` and `ack` from an agent shell names the grant among the places the agent records what the owner said.
   - The refusal of a text over its limit, "the story belongs in a PR or a commit", points at the note.

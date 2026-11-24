@@ -90,7 +90,7 @@ interface Item {
   atWrite: string | null; // the check's result when the claim was written; '-' means not checked yet
   last: string | null; // the check's result at the last read that could save it
   written: string; // when the claim was last written; a write that changes only the note keeps it
-  by: 'agent' | 'owner' | 'import'; // who ran the command; import for items www import made from a hand-kept store
+  by: 'agent' | 'owner' | 'import'; // who ran the command; import for an item www import made from an open journal row of a hand-kept store, and a carried item keeps its own by
   extra: Extra; // '-' on disk when empty; otherwise key=value pairs joined by ';'
 }
 
