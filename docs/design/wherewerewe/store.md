@@ -344,7 +344,7 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 ## Decisions
 
 - **Plain TSV and key=value files, with a format line.** The owner reads them with `less`, and an agent with no tool reads them with `cut`. [0001](../../decisions/0001-the-store-is-plain-tsv-files.md)
-- **The grant lives in `session`, like the goal.** There is one per session, every write already rewrites `session`, and the format line changes with it, so an older tool refuses the store instead of dropping the grant. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **The grant lives in `session`, like the goal.** There is one per session, every write already rewrites `session`, and the format line changes with it, so an older tool refuses the store and cannot drop the grant. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Notes live in their own file, which a missing file leaves empty.** Notes ship before format 2, so `notes.tsv` changes no format; each row names an open item, and a close removes it.
 - **The format 2 upgrade takes the grant in the same command.** A store with standing approvals never passes through a state where the brief shows neither them nor a grant, so after any compaction the agent still reads what it may do.
 - **Import and the upgrade convert in place and keep a backup.** The folder is already at the root under the session's name, and the backup is the session's only copy of what came before.

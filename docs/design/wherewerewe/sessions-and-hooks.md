@@ -154,7 +154,7 @@ The gate changes state only on a hook event, and no rule reads a clock. Each eve
 
 The line is the fail-open line, added once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next resume or compaction.` A refusal in `wiped` or `reading` gives the standard reason below. A payload that carries `agent_id` passes and changes nothing in every state, and the table does not apply to it.
 
-These four invariants hold for every order of events, and each follows from the table:
+These invariants hold for every order of events, and each follows from the table:
 
 1. **While the gate is closed and a brief command runs, no other call of the main agent passes.** The gate is closed in `wiped`, `reading` and `cut`. `reads` counts every brief command in flight, whatever the state it started in and across a `SessionStart`, and reaches 0 only after the last end event or on `Stop`, which comes only when no call runs. While `reads` is above 0 the closed state is `wiped` or `reading`, and both refuse every other call: `cut` and `failed` are written only when `reads` reaches 0. A `www` command still passes, so the agent can always run the command a refusal names.
 2. **After a cut or failed read, the agent is refused at most once more before the gate opens.** `failed` refuses nothing. `cut` refuses only while `spare` is 1, and that refusal sets it to 0. Only `SessionStart`, and a hook that reads another session's gate file as a fresh `wiped`, set `spare` to 1, so after a cut read at most one call is refused in `cut`, however many retries follow, and a failed retry opens the gate on the next call. A call refused in `reading` does not count: the agent ran another brief command, and invariant 1 refuses calls while it runs.
@@ -163,7 +163,7 @@ These four invariants hold for every order of events, and each follows from the 
 
 The timeouts in the hooks table bound one run of a hook process, and are not gate state: a hook that times out lets its call run.
 
-The orderings the review raised, each starting from `wiped`:
+Each of these orderings starts from `wiped`:
 
 - **A call batched with the brief command whose `PreToolUse` runs before the read's end:** brief command, `reading`; `ls` refused; whole, `read`; the agent's retried `ls` passes.
 - **The same call when its `PreToolUse` runs after the read's end:** brief command, `reading`; whole, `read`; `ls` passes.
@@ -198,7 +198,7 @@ A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
 
 The brief command is narrower: `www` or `wherewerewe`, bare or as an absolute path ending in that name, alone or with `--session <name>` or `--session=<name>` where `<name>` is the session bound to this id, with no redirect, no pipe and nothing else after it. A leading variable assignment makes a command neither the brief command nor a `www` command. Only the brief command moves the state to `reading`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read.
 
-`PreToolUse` denies with `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"<reason>"}}`, and `Stop` blocks with `{"decision":"block","reason":"<reason>"}`, the shapes both hosts' hook docs give. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`. The [Claude Code hooks docs](https://code.claude.com/docs/en/hooks) list `additionalContext` on `PreToolUse`, added to the context beside the tool result. The [Codex hooks docs](https://learn.chatgpt.com/docs/hooks) give the same shape "to add model-visible context without blocking", added as developer context, and slice 4 proves it on a real Codex session with the other Codex claims. Both give this reason, one line, a line break, and the `Run:` line:
+`PreToolUse` denies with `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"<reason>"}}`, and `Stop` blocks with `{"decision":"block","reason":"<reason>"}`, the shapes both hosts' hook docs give. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`. The [Claude Code hooks docs](https://code.claude.com/docs/en/hooks) list `additionalContext` on `PreToolUse`, added to the context beside the tool result. The [Codex hooks docs](https://learn.chatgpt.com/docs/hooks) give the same shape "to add model-visible context without blocking", added as developer context, and slice 4 proves it on a real Codex session with the other Codex claims. Both hosts give the agent this reason: one line, a line break, and the `Run:` line:
 
 ```text
 wherewerewe: this session started or was compacted, and tide-alerts's brief is not in your context yet.
@@ -318,6 +318,6 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 ## Open questions
 
 - **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** Run a live test in the hooks slice to settle all three. Until then, a Codex subagent passes `--session`.
-- **Does the gate work on Codex?** Slice 4's Codex proofs settle it: the refusal, the whole read, the compaction source, and `tool_response`. Until then, every Codex claim in [The gate](#the-gate) rests on the docs.
-- **Does each host report a `www` it kills at its shell timeout as a failed call?** Invariant 3 assumes it does. Slice 4 records the hook log of a session whose `www` passes the shell timeout, on both hosts.
+- **Does the gate work on Codex?** Prove it in slice 4 on a real Codex session: the refusal, the whole read, the compaction source, and `tool_response`. Until then, every Codex claim in [The gate](#the-gate) rests on the docs.
+- **Does each host report a `www` it kills at its shell timeout as a failed call?** Invariant 3 assumes it does. In slice 4, record the hook log of a session whose `www` passes the shell timeout, on both hosts.
 - **Does a goal's periodic re-injection carry a permission across a compaction?** A `/goal` condition was blocked in 2 of 2 runs after a compaction and allowed in 1 of 1 before one, and those runs did not test the goal's re-injection. Run the scripted auto mode sessions with a pasted `www goal --paste` text, a compaction, and enough turns for the goal to re-inject, and count the classifier's allows and blocks. Until then, the paste carries authority after a compaction only when the agent's summary restates the grant.
