@@ -3,6 +3,7 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from '../run-cli.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildGrantFaultCases, faultCredential } from '../test-utils/build-grant-fault-cases.ts';
+import { buildWriteFaultCases } from '../test-utils/build-write-fault-cases.ts';
 import { parseRunLine } from '../test-utils/parse-run-line.ts';
 import { settleRefusal } from './settle-refusal.ts';
 
@@ -20,12 +21,23 @@ function setupTest() {
         now: () => Date.parse('2026-03-10T11:43:00Z'),
       }),
 
-    // every placeholder filled with one short word, so a filled grant stays within its limits
+    // every placeholder filled with one short word, so a filled grant stays within its limits: an
+    // id or a name takes a new id, and a decision's who takes agent
     fill: (line: string) =>
       buildFilledRunArgv(
         line,
         Object.fromEntries(
-          parseRunLine(line).flatMap((word) => (/<[^<>]+>/u.test(word) ? [[word, 'x']] : [])),
+          parseRunLine(line).flatMap((word) => {
+            if (!/<[^<>]+>/u.test(word)) {
+              return [];
+            }
+
+            if (word === '<owner or agent>') {
+              return [[word, 'agent']];
+            }
+
+            return [[word, /id>$|^<name>$/u.test(word) ? 'n-c' : 'x']];
+          }),
         ),
       ),
   };
@@ -63,6 +75,38 @@ test.each(buildGrantFaultCases().map((entry) => [entry.title, entry.argv] as con
       retries: isWritten ? [] : [0],
       credential: false,
       marked: [],
+    });
+  },
+);
+
+test.each(buildWriteFaultCases().map((entry) => [entry.title, entry] as const))(
+  'it prints Run lines that pass once filled, for %s',
+  async (_title, entry) => {
+    const ctx = setupTest();
+
+    for (const setup of entry.setup) {
+      await ctx.run(setup);
+    }
+
+    const refused = await ctx.run(entry.argv);
+
+    const runLines = refused.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
+    const retries = [];
+
+    for (const line of runLines) {
+      const retried = await ctx.run(ctx.fill(line));
+
+      retries.push(retried.exitCode);
+    }
+
+    expect({
+      isRefused: refused.exitCode !== 0,
+      retries,
+      credential: refused.stderr.includes(faultCredential),
+    }).toStrictEqual({
+      isRefused: true,
+      retries: runLines.map(() => 0),
+      credential: false,
     });
   },
 );
@@ -110,7 +154,7 @@ test.each(
 test('it ends at www help after three refusals in a row', () => {
   const settled = settleRefusal(
     { exitCode: 2, lines: ['www: x'], runs: [{ www: ['goal', 'a', 'b'] }] },
-    { sessionFlag: null },
+    { sessionFlag: null, cwd: '/' },
   );
 
   expect(settled).toStrictEqual({
@@ -119,7 +163,7 @@ test('it ends at www help after three refusals in a row', () => {
       lines: ['www: goal takes "<what done means>".'],
       runs: [{ www: ['help'] }],
     },
-    scope: { sessionFlag: null },
+    scope: { sessionFlag: null, cwd: '/' },
   });
 });
 

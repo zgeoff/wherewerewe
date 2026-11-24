@@ -1,25 +1,31 @@
+import { match } from 'ts-pattern';
 import { parseCLIArgs } from '../args/parse-cli-args.ts';
 import { isSinceText } from '../reads/parse-since.ts';
-import type { ParsedArgs, Placeholder, Refusal, RefusalReason, RunWord } from '../types.ts';
-import { pickGrantPartsRefusal } from '../writes/pick-grant-parts-refusal.ts';
-import { pickGrantTextRefusals } from '../writes/pick-grant-text-refusals.ts';
+import type { Placeholder, PlaceholderShape, Refusal, RunWord } from '../types.ts';
+import { pickArgsRefusals } from '../writes/pick-args-refusals.ts';
 import { buildGrantRefusal } from './build-grant-refusal.ts';
 import { buildRefusal } from './build-refusal.ts';
 import type { RefusalScope } from './format-refusal.ts';
 import { toPrintedWords } from './to-printed-words.ts';
 
+// The scope a Run line prints in, and the folder its relative paths resolve in.
+export interface RunScope extends RefusalScope {
+  readonly cwd: string;
+}
+
 export interface SettledRefusal {
   readonly refusal: Refusal;
 
   // the scope to print it in: without the typed --session when its value starts with a dash
-  readonly scope: RefusalScope;
+  readonly scope: RunScope;
 }
 
 // Fills each www Run line with samples and checks it as the parser and the store-free checks would,
 // up to 3 steps, then `www help`. A --session value that starts with a dash leaves every Run line;
 // a mistyped name stays, so a line never reaches the bound session.
-export function settleRefusal(refusal: Refusal, scope: RefusalScope): SettledRefusal {
-  const printScope = scope.sessionFlag?.startsWith('-') === true ? { sessionFlag: null } : scope;
+export function settleRefusal(refusal: Refusal, scope: RunScope): SettledRefusal {
+  const printScope =
+    scope.sessionFlag?.startsWith('-') === true ? { ...scope, sessionFlag: null } : scope;
 
   const undashed = {
     ...refusal,
@@ -52,10 +58,11 @@ function dropDashSession(www: readonly RunWord[]): RunWord[] {
 
 const maxDepth = 3;
 
-function settle(refusal: Refusal, scope: RefusalScope, depth: number): Refusal {
+function settle(refusal: Refusal, scope: RunScope, depth: number): Refusal {
   const problem = refusal.runs.reduce<Refusal | null>(
     (found, run) =>
-      found ?? ('www' in run ? findRunProblem(toPrintedWords(run.www, scope.sessionFlag)) : null),
+      found ??
+      ('www' in run ? findRunProblem(toPrintedWords(run.www, scope.sessionFlag), scope.cwd) : null),
     null,
   );
 
@@ -69,7 +76,7 @@ function settle(refusal: Refusal, scope: RefusalScope, depth: number): Refusal {
 }
 
 // The refusal the filled line would get, written back with its placeholders, or null.
-function findRunProblem(words: readonly RunWord[]): Refusal | null {
+function findRunProblem(words: readonly RunWord[], cwd: string): Refusal | null {
   const filled = fillPlaceholders(words);
   const parsed = parseCLIArgs(filled.argv);
 
@@ -90,7 +97,7 @@ function findRunProblem(words: readonly RunWord[]): Refusal | null {
     );
   }
 
-  const reasons = pickArgvReasons(parsed.args);
+  const reasons = pickArgsRefusals(parsed.args, cwd);
   const [first, ...rest] = reasons;
 
   return first === undefined
@@ -108,28 +115,22 @@ interface Filled {
   readonly samples: ReadonlyMap<string, Placeholder>;
 }
 
-// Each placeholder becomes a sample: one circled digit or letter that no value of the line holds,
-// the shortest text a check passes. So a sample in the refusal the filled line gets stands for its
-// placeholder, and a value the agent typed, a circled digit too, stays a value.
+// Each placeholder becomes a sample that no value of the line holds and that passes its slot's
+// check: a circled character for text, or a value of its shape. So a sample in the refusal the
+// filled line gets stands for its placeholder, and a value the agent typed stays a value.
 function fillPlaceholders(words: readonly RunWord[]): Filled {
-  const values = words.filter((word) => typeof word === 'string').join('');
+  const values = words.filter((word) => typeof word === 'string').join(' ');
 
   const samples = new Map<string, Placeholder>();
 
-  let next = 0x24_60;
+  const isFree = (sample: string) => !values.includes(sample) && !samples.has(sample);
 
   const argv = words.map((word) => {
     if (typeof word === 'string') {
       return word;
     }
 
-    while (values.includes(String.fromCodePoint(next))) {
-      next += 1;
-    }
-
-    const sample = String.fromCodePoint(next);
-
-    next += 1;
+    const sample = pickSample(word.shape, isFree);
 
     samples.set(sample, word);
 
@@ -137,6 +138,34 @@ function fillPlaceholders(words: readonly RunWord[]): Filled {
   });
 
   return { argv, samples };
+}
+
+function pickSample(
+  shape: PlaceholderShape | undefined,
+  isFree: (sample: string) => boolean,
+): string {
+  for (let at = 0; at < 0x1_00; at += 1) {
+    const sample = toSample(shape, at);
+
+    if (sample !== null && isFree(sample)) {
+      return sample;
+    }
+  }
+
+  // a who whose two values the line already holds takes a text sample, which the check refuses
+  return shape === undefined ? String.fromCodePoint(0x24_60) : pickSample(undefined, isFree);
+}
+
+function toSample(shape: PlaceholderShape | undefined, at: number): string | null {
+  return match(shape)
+    .with(undefined, () => String.fromCodePoint(0x24_60 + at))
+    .with('id', () => `zz-${String(at)}`)
+    .with('path', () => `/zz-${String(at)}`)
+    .with('branch', () => `/zz-${String(at)}@zz`)
+    .with('pr', () => `zz/zz-${String(at)}#1`)
+    .with('pid', () => String(90_000 + at))
+    .with('who', () => ['agent', 'owner'][at] ?? null)
+    .exhaustive();
 }
 
 // Only Run line words hold samples, each one whole.
@@ -150,15 +179,4 @@ function restorePlaceholders(refusal: Refusal, samples: ReadonlyMap<string, Plac
       'www' in run ? { www: run.www.map((word) => restore(word)) } : run,
     ),
   };
-}
-
-// The checks of grant and import that read only the command line.
-function pickArgvReasons(args: ParsedArgs): RefusalReason[] {
-  if (args.command !== 'grant' && args.command !== 'import') {
-    return [];
-  }
-
-  const parts = pickGrantPartsRefusal(args, args.command === 'grant');
-
-  return [...(parts === null ? [] : [parts]), ...pickGrantTextRefusals(args)];
 }

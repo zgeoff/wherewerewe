@@ -14,7 +14,7 @@ export function buildOwnerRefusal(reason: OwnerReason): Refusal {
     .with({ kind: 'owner-only' }, () =>
       refuse(
         'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.',
-        ['rule', toPlaceholder('<id>'), toPlaceholder('<what the owner said, as a rule>')],
+        ['rule', toPlaceholder('<id>', 'id'), toPlaceholder('<what the owner said, as a rule>')],
       ),
     )
     .with({ kind: 'owner-notes-full' }, (found) =>

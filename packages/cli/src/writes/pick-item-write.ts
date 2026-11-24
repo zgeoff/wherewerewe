@@ -38,13 +38,7 @@ export function pickItemWrite(input: WriteInput): WriteResult {
   const checks = parseCheckFlags(args.flags, input.cwd);
 
   const reason =
-    pickIDRefusal(args, id, isSet) ??
-    pickSetWithoutClaimRefusal(args, hasClaim) ??
-    pickApprovalRefusal(args) ??
-    (hasClaim ? pickClaimRefusal(args, claim, existing) : null) ??
-    pickNoteTextRefusal(args) ??
-    pickCheckRefusal(args, checks, existing) ??
-    pickWhoRefusal(args, existing) ??
+    pickItemArgsRefusal(args, input.cwd, existing) ??
     pickStoreRefusal(input, id, isSet) ??
     (hasNoteFlag(args) ? pickNotesUnreadRefusal(store) : null) ??
     pickNoClearRefusal(args, id, existingNote) ??
@@ -136,6 +130,30 @@ export function pickItemWrite(input: WriteInput): WriteResult {
         : first;
     },
   };
+}
+
+// The checks that read the command line and no store, in the order the write runs them. The
+// existing item only sets the credential refusal's wording and whether a set gives a rule a check.
+export function pickItemArgsRefusal(
+  args: ParsedArgs,
+  cwd: string,
+  existing: Item | undefined,
+): RefusalReason | null {
+  const id = args.positionals[0] ?? '';
+  const isApproval = args.command === 'ok';
+  const claim = isApproval ? (args.values.quote ?? '') : (args.positionals[1] ?? '');
+  const isSet = args.command === 'set';
+  const hasClaim = !isSet || args.positionals.length === 2;
+
+  return (
+    pickIDRefusal(args, id, isSet) ??
+    pickSetWithoutClaimRefusal(args, hasClaim) ??
+    pickApprovalRefusal(args) ??
+    (hasClaim ? pickClaimRefusal(args, claim, existing) : null) ??
+    pickNoteTextRefusal(args) ??
+    pickCheckRefusal(args, parseCheckFlags(args.flags, cwd), existing) ??
+    pickWhoRefusal(args, existing)
+  );
 }
 
 function pickIDRefusal(args: ParsedArgs, id: string, isSet: boolean): RefusalReason | null {

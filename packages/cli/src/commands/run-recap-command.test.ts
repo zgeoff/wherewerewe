@@ -26,7 +26,7 @@ async function setupTest() {
         throw new Error(`no store in ${folder}`);
       }
 
-      return runRecapCommand(read.store, buildParsedArgs(argv), nowMs, null);
+      return runRecapCommand(read.store, buildParsedArgs(argv), { nowMs, cwd: '/' }, null);
     },
   };
 }
@@ -139,7 +139,7 @@ test('it prints the folder name of the session in a command, never the name that
   const result = await runRecapCommand(
     { ...read.store, session: { ...read.store.session, name: 'other; echo hi' } },
     buildParsedArgs(['recap']),
-    Date.parse('2026-03-10T11:43:00Z'),
+    { nowMs: Date.parse('2026-03-10T11:43:00Z'), cwd: '/' },
     null,
   );
 

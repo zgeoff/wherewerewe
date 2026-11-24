@@ -8,22 +8,24 @@ import { buildRefusal } from '../refusals/build-refusal.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
 import type { CLIResult, JournalRow, ParsedArgs, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
+import type { ReadAt } from './types.ts';
 
 // Reads the grant, the notes and the journal since --since, and prints them on one screen. It
 // takes no lock, runs no check and writes no file.
 export async function runRecapCommand(
   store: Store,
   args: ParsedArgs,
-  nowMs: number,
+  at: ReadAt,
   unread: UnreadRows | null,
 ): Promise<CLIResult> {
+  const nowMs = at.nowMs;
   const sinceText = args.values.since ?? '24h';
   const parsed = parseSince(sinceText, nowMs, store.session.started);
 
   if (parsed === null) {
     return buildRefusalResult(
       buildRefusal({ kind: 'bad-since', command: 'recap' }),
-      buildRefusalScope(args),
+      buildRefusalScope(args, at.cwd),
     );
   }
 

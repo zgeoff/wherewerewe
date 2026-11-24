@@ -178,7 +178,13 @@ export interface StoreChange {
 // looks like.
 export interface Placeholder {
   readonly placeholder: string;
+
+  // the rule its value meets beyond being one line of text, so a Run line's check fills it with a
+  // sample that passes: an id or session name, a check flag's value, or a decision's who
+  readonly shape?: PlaceholderShape;
 }
+
+export type PlaceholderShape = 'id' | 'path' | 'branch' | 'pr' | 'pid' | 'who';
 
 export type RunWord = string | Placeholder;
 

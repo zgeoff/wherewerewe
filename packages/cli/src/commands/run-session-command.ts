@@ -21,7 +21,7 @@ import { withStoreLock } from '../store/with-store-lock.ts';
 import type { LockResult } from '../store/with-store-lock.ts';
 import { writeStoreFiles } from '../store/write-store-files.ts';
 import type { AgentID, CLIResult, JournalRow, Refusal } from '../types.ts';
-import { pickTextRefusal } from '../writes/pick-text-refusal.ts';
+import { pickInitArgsRefusal } from '../writes/pick-init-args-refusal.ts';
 import { formatSessionLines } from './format-session-lines.ts';
 import type { CommandContext } from './types.ts';
 
@@ -41,23 +41,10 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
   const name = args.positionals[0] ?? '';
   const goal = args.values.goal;
   const agent = findAgentID(context.env);
+  const reason = pickInitArgsRefusal(args);
 
-  if (!isSessionName(name)) {
-    return replyRefusal(buildRefusal({ kind: 'bad-session-name', args, name }), context);
-  }
-
-  if (goal === undefined) {
-    return replyRefusal(buildRefusal({ kind: 'needs-goal', args }), context);
-  }
-
-  const reason = pickTextRefusal(
-    args,
-    [{ target: { label: 'goal', place: { flag: 'goal' } }, text: goal, limit: 200 }],
-    false,
-  );
-
-  if (reason !== null) {
-    return replyRefusal(buildRefusal(reason), context);
+  if (reason !== null || goal === undefined) {
+    return replyRefusal(buildRefusal(reason ?? { kind: 'needs-goal', args }), context);
   }
 
   const ts = formatTimestamp(nowMs);
@@ -135,7 +122,7 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
 }
 
 function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
-  return buildRefusalResult(refusal, buildRefusalScope(context.args));
+  return buildRefusalResult(refusal, buildRefusalScope(context.args, context.cwd));
 }
 
 // The refusal of a format 1 store names its upgrade, which the session-exists refusal's own Run

@@ -6,7 +6,7 @@ import { redactCredential } from '../rules/redact-credential.ts';
 import type { ParsedArgs, Placeholder, Refusal, RefusalReason, RunWord } from '../types.ts';
 import { buildApprovalRefusal } from './build-approval-refusal.ts';
 import { buildArgvRefusal } from './build-argv-refusal.ts';
-import { buildMalformedCheckRefusal } from './build-malformed-check-refusal.ts';
+import { buildCheckValueRefusal } from './build-check-value-refusal.ts';
 import { buildNoteRefusal } from './build-note-refusal.ts';
 import { buildOwnerRefusal } from './build-owner-refusal.ts';
 import { buildRunSpec } from './build-run-spec.ts';
@@ -41,12 +41,6 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       refuse(
         'www: refused: the text must be one line, with no tab or newline.',
         replaceText(found.args, found.target, toPlaceholder('<one line>')),
-      ),
-    )
-    .with({ kind: 'check-not-one-line' }, (found) =>
-      refuse(
-        'www: refused: the text must be one line, with no tab or newline.',
-        buildRunSpec(found.args).replaceFlag(found.flag, toPlaceholder('<one line>')).toArgv(),
       ),
     )
     .with({ kind: 'text-empty' }, (found) =>
@@ -116,7 +110,9 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'bad-decision-who' }, (found) =>
       refuse(
         'www: refused: --who on a decision is owner or agent.',
-        buildRunSpec(found.args).replaceFlag('who', toPlaceholder('<owner or agent>')).toArgv(),
+        buildRunSpec(found.args)
+          .replaceFlag('who', toPlaceholder('<owner or agent>', 'who'))
+          .toArgv(),
       ),
     )
     .with({ kind: 'no-such-decision' }, (found) => {
@@ -202,8 +198,8 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildRunSpec(found.args).keepFirstCheck().toArgv(),
       ),
     )
-    .with({ kind: 'malformed-check' }, (found) =>
-      buildMalformedCheckRefusal(found.args, found.flag),
+    .with({ kind: 'malformed-check' }, { kind: 'check-not-one-line' }, (found) =>
+      buildCheckValueRefusal(found),
     )
     .with({ kind: 'relative-path' }, (found) =>
       refuse(
@@ -418,7 +414,9 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
   const argv = match({ command: found.args.command, closest })
     .with({ command: 'set' }, () => buildTaskForSet(spec, found.args).toArgv())
     .with({ command: 'use', closest: null }, () => ['show', found.id])
-    .otherwise(() => spec.replacePositional(0, closest ?? toPlaceholder('<open id>')).toArgv());
+    .otherwise(() =>
+      spec.replacePositional(0, closest ?? toPlaceholder('<open id>', 'id')).toArgv(),
+    );
 
   return refuse(
     `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,

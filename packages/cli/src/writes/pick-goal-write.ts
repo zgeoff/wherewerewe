@@ -1,5 +1,6 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
@@ -8,12 +9,7 @@ export function pickGoalWrite(input: WriteInput): WriteResult {
   const args = input.args;
   const nowMs = input.nowMs;
   const goal = args.positionals[0] ?? '';
-
-  const reason = pickTextRefusal(
-    args,
-    [{ target: { label: 'goal', place: { positional: 0 } }, text: goal, limit: 200 }],
-    false,
-  );
+  const reason = pickGoalArgsRefusal(args);
 
   if (reason !== null) {
     return { kind: 'refused', refusal: buildRefusal(reason) };
@@ -31,4 +27,19 @@ export function pickGoalWrite(input: WriteInput): WriteResult {
     },
     reply: (briefLines) => `goal set. Brief: ${String(briefLines)} lines.`,
   };
+}
+
+// The check that reads the command line and no store: the goal's text.
+export function pickGoalArgsRefusal(args: ParsedArgs): RefusalReason | null {
+  return pickTextRefusal(
+    args,
+    [
+      {
+        target: { label: 'goal', place: { positional: 0 } },
+        text: args.positionals[0] ?? '',
+        limit: 200,
+      },
+    ],
+    false,
+  );
 }
