@@ -26,14 +26,15 @@ Three reads that slice 3b adds: `www list <kind>`, which prints every row of a k
 
 ```text
 $ www list tasks
-OPEN (4, max 30)
-  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07  [OPEN failing]
+OPEN (5, max 30)
+  pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa  [OPEN failing]
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
     s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
     unused import in the retry helper, not on the retry logic.
+  pr-app-61   Alert settings screen: in review  [MERGED]
   t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
-    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: staging
-    is shared with the harbour team, who demo on Thursday.
+    owed note (43h): Turn the tide_alerts flag back off in staging config before this closes:
+    staging is shared with the harbour team, who demo on Thursday.
   pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
   t-e2e       Write alerts-e2e against staging  [no check · 3d]
 
@@ -75,9 +76,9 @@ WORDS (2, max 8)
 
 $ www list notes
   t-flag      Turn on the tide_alerts flag in staging config
-    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: staging
-    is shared with the harbour team, who demo on Thursday.
-  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07
+    owed note (43h): Turn the tide_alerts flag back off in staging config before this closes:
+    staging is shared with the harbour team, who demo on Thursday.
+  pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
     s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
     unused import in the retry helper, not on the retry logic.
@@ -96,7 +97,7 @@ DECISIONS (6 in force)
 
 $ www list prs
 PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
-  bosunhq/bosun-app#64  opened 3h ago  [OPEN pending]
+  bosunhq/bosun-app#64  opened 3h ago  [OPEN]
 ```
 
 ### --json

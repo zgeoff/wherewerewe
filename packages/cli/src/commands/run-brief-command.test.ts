@@ -136,6 +136,54 @@ test.each([
   });
 });
 
+test('it prints each www list example of lists-and-json.md, character for character, from the day 9 store', async () => {
+  const ctx = setupTest();
+
+  const store = await seedDayNineStore(ctx.root);
+
+  const text = readFileSync(
+    join(
+      import.meta.dir,
+      '..',
+      '..',
+      '..',
+      '..',
+      'docs',
+      'design',
+      'wherewerewe',
+      'lists-and-json.md',
+    ),
+    'utf8',
+  );
+
+  const section = text.slice(text.indexOf('### www list'), text.indexOf('### --json'));
+  const block = /```text\n(?<examples>.*?)```/su.exec(section)?.groups?.['examples'] ?? '';
+
+  const examples = block
+    .split('\n\n')
+    .map((chunk) => chunk.trimEnd().split('\n'))
+    .filter((lines) => lines[0]?.startsWith('$ www list '));
+
+  const env = { ...store.env, CLAUDE_CODE_SESSION_ID: '', WHEREWEREWE_SESSION: 'tide-alerts' };
+  const actual: { command: string; stdout: string }[] = [];
+
+  for (const lines of examples) {
+    const command = (lines[0] ?? '').slice('$ www '.length);
+
+    const argv = await readShellWords(command);
+    const result = await ctx.runClock(env, argv);
+
+    actual.push({ command, stdout: result.stdout });
+  }
+
+  expect(actual).toStrictEqual(
+    examples.map((lines) => ({
+      command: (lines[0] ?? '').slice('$ www '.length),
+      stdout: `${lines.slice(1).join('\n')}\n`,
+    })),
+  );
+});
+
 test("it prints each write reply of commands.md's examples, figures included, from the store the examples start from", async () => {
   const ctx = setupTest();
 

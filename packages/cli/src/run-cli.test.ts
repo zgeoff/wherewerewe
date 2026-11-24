@@ -21,9 +21,14 @@ import { buildCredentialSamples } from './test-utils/build-credential-samples.ts
 import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
 import { buildGrantFaultCases, faultCredential } from './test-utils/build-grant-fault-cases.ts';
 import { buildMockIDs } from './test-utils/build-mock-ids.ts';
-import { buildRedactionPlacements } from './test-utils/build-redaction-placements.ts';
+import {
+  buildCutPlacement,
+  buildRedactionPlacements,
+} from './test-utils/build-redaction-placements.ts';
 import { buildSampleRunArgv } from './test-utils/build-sample-run-argv.ts';
+import { buildShortOpsValue } from './test-utils/build-short-ops-value.ts';
 import { buildSpacedText } from './test-utils/build-spaced-text.ts';
+import { collectBriefSection } from './test-utils/collect-brief-section.ts';
 import { getSteeringWords } from './test-utils/get-steering-words.ts';
 import { readBriefFigure } from './test-utils/read-brief-figure.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
@@ -1854,6 +1859,98 @@ test.each([
   }).toStrictEqual({ exitCode: 0, startsWithHeader: true, probed: false, unchanged: before });
 });
 
+test.each([
+  { kind: 'tasks', heading: 'OPEN (' },
+  { kind: 'waits', heading: 'WAITING (' },
+  { kind: 'approvals', heading: 'APPROVED ONCE (' },
+  { kind: 'rules', heading: 'RULES (' },
+  { kind: 'where', heading: 'WHERE (' },
+  { kind: 'lessons', heading: 'LESSONS (' },
+  { kind: 'promises', heading: 'PROMISED (' },
+  { kind: 'words', heading: 'WORDS (' },
+  { kind: 'notes', heading: '  t-a ' },
+  { kind: 'decisions', heading: 'DECISIONS (' },
+  { kind: 'prs', heading: 'PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (' },
+] as const)(
+  'it runs no probe, takes no lock and writes no file in list $kind, and prints its heading',
+  async (row) => {
+    const ctx = setupTest();
+    const folder = join(ctx.stateRoot, 'tide-alerts');
+    const stubDir = createTempDir('run-cli-gh').path;
+    const marker = join(stubDir, 'ran');
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 't-a', 'Write it', '--pr', 'acme/tool#7', '--note', 'Stop first']);
+    await ctx.run(['wait', 'w-a', 'Hear back', '--who', 'vendor', '--pr', 'acme/tool#8']);
+    await ctx.run(['rule', 'r-a', 'Run from the repo root']);
+    await ctx.run(['where', 'wh-a', 'A worktree']);
+    await ctx.run(['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed']);
+    await ctx.run(['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', 'Friday']);
+    await ctx.run(['words', 'w-b', 'Plain words', '--where', 'chat']);
+    await ctx.run(['decide', 'Use a file', '--why', 'It is simple']);
+
+    seedStubCommand(stubDir, 'gh', `: > "${marker}"\nexit 1`);
+    seedLockFile(folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
+
+    const before = await ctx.readTree();
+    const result = await ctx.run(['list', row.kind], { ...ctx.agentEnv, PATH: stubDir });
+    const after = await ctx.readTree();
+
+    expect({
+      exitCode: result.exitCode,
+      stderr: result.stderr,
+      startsWithHeading: result.stdout.startsWith(row.heading),
+      probed: existsSync(marker),
+      unchanged: after,
+    }).toStrictEqual({
+      exitCode: 0,
+      stderr: '',
+      startsWithHeading: true,
+      probed: false,
+      unchanged: before,
+    });
+  },
+);
+
+test('it reads a store with none of lessons.tsv, promises.tsv and words.tsv as before, and creates none', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+  await ctx.run(['rule', 'r-a', 'Run from the repo root']);
+  await ctx.run(['decide', 'Use a file', '--why', 'It is simple']);
+
+  const before = await ctx.readTree();
+
+  const outputs = [
+    await ctx.run([]),
+    await ctx.run(['show', 't-a']),
+    await ctx.run(['list', 'lessons']),
+    await ctx.run(['list', 'promises']),
+    await ctx.run(['list', 'words']),
+    await ctx.run(['log']),
+    await ctx.run(['recap']),
+  ];
+
+  const after = await ctx.readTree();
+
+  expect({
+    exitCodes: outputs.map((output) => output.exitCode),
+    stderr: outputs.map((output) => output.stderr),
+    sections: outputs[0]?.stdout
+      .split('\n')
+      .filter((line) => /^(?:WORDS|PROMISED|LESSONS) /u.test(line)),
+    lists: outputs.slice(2, 5).map((output) => output.stdout),
+    tree: after,
+  }).toStrictEqual({
+    exitCodes: outputs.map(() => 0),
+    stderr: outputs.map(() => ''),
+    sections: [],
+    lists: ['LESSONS (0, max 5)\n', 'PROMISED (0, max 5)\n', 'WORDS (0, max 8)\n'],
+    tree: before,
+  });
+});
+
 test('it never opens prs.tsv in a recap', async () => {
   const ctx = setupTest();
   const folder = join(ctx.stateRoot, 'tide-alerts');
@@ -2877,9 +2974,10 @@ test('it writes a lesson, a promise and the owner words, reads them in every rea
 });
 
 test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as const))(
-  'it prints a %s credential stored in a lesson, a promise, the owner words and a decision as the placeholder in every read',
+  'it prints a %s credential stored in a lesson, a promise, the owner words and a decision as the placeholder at each print site on its own: the brief sections, list, show, log and recap',
   async (_name, credential) => {
     const ctx = setupTest();
+    const folder = join(ctx.stateRoot, 'tide-alerts');
 
     const placements = buildRedactionPlacements().map((placement) =>
       placement.build(credential.sample),
@@ -2890,7 +2988,7 @@ test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as cons
     await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
 
     seedStoreFile(
-      join(ctx.stateRoot, 'tide-alerts'),
+      folder,
       'lessons.tsv',
       formatLessonsFile(
         placements.map((text, index) => ({
@@ -2904,7 +3002,7 @@ test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as cons
     );
 
     seedStoreFile(
-      join(ctx.stateRoot, 'tide-alerts'),
+      folder,
       'promises.tsv',
       formatPromisesFile(
         placements.map((text, index) => ({
@@ -2919,7 +3017,7 @@ test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as cons
     );
 
     seedStoreFile(
-      join(ctx.stateRoot, 'tide-alerts'),
+      folder,
       'words.tsv',
       formatWordsFile(
         placements.map((text, index) => ({
@@ -2932,44 +3030,158 @@ test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as cons
       ),
     );
 
+    await seedJournalRow(folder, {
+      ts: written,
+      op: 'decide',
+      id: 'd-4',
+      text: buildCutPlacement(credential.sample),
+      why: 'a reason',
+      extra: 'who=agent',
+    });
+
     for (const [index, text] of placements.entries()) {
-      await seedJournalRow(join(ctx.stateRoot, 'tide-alerts'), {
+      const number = String(index + 1);
+
+      await seedJournalRow(folder, {
         ts: written,
         op: 'decide',
-        id: `d-${String(index + 1)}`,
+        id: `d-${number}`,
         text,
         why: text,
         extra: 'who=agent',
       });
+
+      await seedJournalRow(folder, {
+        ts: written,
+        op: 'lesson',
+        id: `l-${number}`,
+        text,
+        why: text,
+      });
+
+      await seedJournalRow(folder, {
+        ts: written,
+        op: 'promise',
+        id: `p-${number}`,
+        text,
+        extra: 'to=owner;by=day 10',
+      });
+
+      await seedJournalRow(folder, {
+        ts: written,
+        op: 'words',
+        id: `w-${number}`,
+        text,
+        extra: 'where=chat',
+      });
     }
 
-    const outputs = [
-      await ctx.run([]),
-      await ctx.run(['list', 'lessons']),
-      await ctx.run(['list', 'promises']),
-      await ctx.run(['list', 'words']),
-      await ctx.run(['list', 'decisions']),
-      await ctx.run(['show', 'l-1']),
-      await ctx.run(['show', 'l-2']),
-      await ctx.run(['show', 'p-3']),
-      await ctx.run(['show', 'w-2']),
-      await ctx.run(['show', 'd-2']),
-      await ctx.run(['log']),
-      await ctx.run(['recap']),
+    const reads = [
+      { site: 'the WORDS rows of the brief', argv: [], heading: 'WORDS (' },
+      { site: 'the PROMISED rows of the brief', argv: [], heading: 'PROMISED (' },
+      { site: 'the LESSONS rows of the brief', argv: [], heading: 'LESSONS (' },
+      { site: 'the DECISIONS rows of the brief', argv: [], heading: 'DECISIONS (' },
+      { site: 'list lessons', argv: ['list', 'lessons'], heading: '' },
+      { site: 'list promises', argv: ['list', 'promises'], heading: '' },
+      { site: 'list words', argv: ['list', 'words'], heading: '' },
+      { site: 'list decisions', argv: ['list', 'decisions'], heading: '' },
+      { site: 'show of a lesson', argv: ['show', 'l-1'], heading: '' },
+      { site: 'show of a lesson across the wrap', argv: ['show', 'l-2'], heading: '' },
+      { site: 'show of a promise', argv: ['show', 'p-3'], heading: '' },
+      { site: 'show of owner words', argv: ['show', 'w-2'], heading: '' },
+      { site: 'show of a decision', argv: ['show', 'd-2'], heading: '' },
+      { site: 'show of a decision across the cut', argv: ['show', 'd-4'], heading: '' },
+      { site: 'log of lesson rows', argv: ['log', '--op', 'lesson'], heading: '' },
+      { site: 'log of promise rows', argv: ['log', '--op', 'promise'], heading: '' },
+      { site: 'log of words rows', argv: ['log', '--op', 'words'], heading: '' },
+      { site: 'log of decide rows', argv: ['log', '--op', 'decide'], heading: '' },
+      { site: 'the PROMISED rows of the recap', argv: ['recap'], heading: 'PROMISED (' },
     ];
 
-    const text = outputs.map((output) => `${output.stdout}${output.stderr}`).join('\n');
+    const fourGrams = Array.from({ length: credential.tail.length - 3 }, (_value, at) =>
+      credential.tail.slice(at, at + 4),
+    );
+
+    const results = [];
+
+    for (const read of reads) {
+      const output = await ctx.run(read.argv);
+
+      const text =
+        read.heading === ''
+          ? `${output.stdout}${output.stderr}`
+          : collectBriefSection(output.stdout, read.heading).join('\n');
+
+      results.push({
+        site: read.site,
+        exitCode: output.exitCode,
+        hasPlaceholder: text.includes('<where the secret lives>'),
+        leaks: fourGrams.filter((gram) => text.includes(gram)),
+      });
+    }
+
+    expect(results).toStrictEqual(
+      reads.map((read) => ({
+        site: read.site,
+        exitCode: 0,
+        hasPlaceholder: true,
+        leaks: [],
+      })),
+    );
+  },
+);
+
+test.each([
+  {
+    title: 'a lesson',
+    argv: [
+      'lesson',
+      'l-seed',
+      `Reseed ${buildShortOpsValue()}`,
+      '--why',
+      `why ${buildShortOpsValue()}`,
+    ],
+    list: ['list', 'lessons'],
+    stdout: `LESSONS (1, max 5)\n  l-seed      Reseed ${buildShortOpsValue()}  [why: why ${buildShortOpsValue()}]\n`,
+  },
+  {
+    title: 'a promise',
+    argv: [
+      'promise',
+      'due-cost',
+      `Cost ${buildShortOpsValue()}`,
+      '--to',
+      buildShortOpsValue(),
+      '--by',
+      `by ${buildShortOpsValue()}`,
+    ],
+    list: ['list', 'promises'],
+    stdout: `PROMISED (1, max 5)\n  due-cost    Cost ${buildShortOpsValue()}  [to ${buildShortOpsValue()} · by by ${buildShortOpsValue()}]\n`,
+  },
+  {
+    title: 'the owner words',
+    argv: ['words', 'w-plain', `Plain ${buildShortOpsValue()}`, '--where', buildShortOpsValue()],
+    list: ['list', 'words'],
+    stdout: `WORDS (1, max 8)\n  w-plain     "Plain ${buildShortOpsValue()}"  [${buildShortOpsValue()} · 0m]\n`,
+  },
+] as const)(
+  'it prints $title whose value ends in ops_ and 5 characters unchanged, with no run that forms a match',
+  async (row) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const written = await ctx.run(row.argv);
+    const listed = await ctx.run(row.list);
 
     expect({
-      exitCodes: outputs.map((output) => output.exitCode),
-      placeholders: text.includes('<where the secret lives>'),
-      leakedHead: text.includes(credential.tail.slice(0, 4)),
-      leakedTail: text.includes(credential.tail.slice(-4)),
+      exitCode: written.exitCode,
+      stdout: listed.stdout,
+      stderr: listed.stderr,
     }).toStrictEqual({
-      exitCodes: outputs.map(() => 0),
-      placeholders: true,
-      leakedHead: false,
-      leakedTail: false,
+      exitCode: 0,
+      stdout: row.stdout,
+      stderr: '',
     });
   },
 );

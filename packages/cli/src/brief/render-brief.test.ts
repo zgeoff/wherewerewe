@@ -1202,6 +1202,21 @@ test('it prints a credential in a stored decision as the placeholder, when the c
   }).toStrictEqual({ hasSample: false, hasPlaceholder: true });
 });
 
+test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample] as const))(
+  'it prints a --session name that is a %s credential as the placeholder in each cut and count line',
+  (_name, sample) => {
+    const ctx = setupTest();
+    const brief = ctx.render({ ...buildThreeByteCutInput('claude'), sessionFlag: sample });
+    const countLines = collectBriefRows(brief, /^ {2}and \d+ more(?: open tasks)?: www /u);
+
+    expect({
+      leaked: brief.includes(sample.slice(0, 8)),
+      hasCountLines: countLines.length > 0,
+      unredacted: countLines.filter((line) => !line.includes('<where the secret lives>')),
+    }).toStrictEqual({ leaked: false, hasCountLines: true, unredacted: [] });
+  },
+);
+
 test('it gives renderBrief a limit in no file but its tests', () => {
   const packageDir = join(import.meta.dir, '..', '..');
 

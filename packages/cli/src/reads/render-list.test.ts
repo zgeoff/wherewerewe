@@ -225,5 +225,7 @@ test('it attaches no note to a lesson whose id an item with a note also holds', 
     ],
   });
 
-  expect(renderList('lessons', input)).not.toContain('note (');
+  expect(renderList('lessons', input)).toBe(
+    'LESSONS (1, max 5)\n  l-seed      Reseed the staging alerts table before alerts-e2e  [why: A stale row made alerts-e2e pass]\n',
+  );
 });

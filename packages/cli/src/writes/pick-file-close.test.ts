@@ -1,25 +1,15 @@
 import { expect, test } from 'bun:test';
 import { buildMockJournalIndex, buildMockStore } from '../test-utils/build-mock-store.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
-import { getPickedWrite } from '../test-utils/get-picked-write.ts';
-import type { JournalIndex } from '../types.ts';
+import type { JournalIndex, Store } from '../types.ts';
 import { pickFileClose } from './pick-file-close.ts';
 
 function setupTest() {
-  const lesson = {
-    id: 'l-seed',
-    text: 'Reseed the staging alerts table before alerts-e2e',
-    why: 'A stale row made alerts-e2e pass on day 6',
-    written: '2026-03-06T09:00:00Z',
-    by: 'agent',
-  } as const;
-
   return {
-    lesson,
-    pickDrop: (journal: Partial<JournalIndex>) => {
-      const picked = pickFileClose(
+    pickDrop: (lessons: Store['lessons'], journal: Partial<JournalIndex>) =>
+      pickFileClose(
         {
-          store: buildMockStore({ lessons: [lesson] }),
+          store: buildMockStore({ lessons }),
           journal: buildMockJournalIndex(journal),
           args: buildParsedArgs(['drop', 'l-seed', '--why', 'the table is gone']),
           cwd: '/work',
@@ -29,58 +19,86 @@ function setupTest() {
         'drop',
         'l-seed',
         'the table is gone',
-      );
-
-      return picked === null ? null : getPickedWrite(picked, 7);
-    },
+      ),
   };
 }
 
-test('it writes the journal row of a lesson whose id an older task closed', () => {
-  const ctx = setupTest();
-
-  const picked = ctx.pickDrop({
-    closed: new Map([['l-seed', '2026-03-02T10:00:00Z']]),
-    closeRows: new Map([
-      ['l-seed', { ts: '2026-03-02T10:00:00Z', op: 'done', text: 'An old task of the same id' }],
-    ]),
-  });
-
-  expect(picked?.change.journal).toStrictEqual([
-    {
-      ts: '2026-03-10T11:43:00Z',
-      op: 'drop',
-      id: 'l-seed',
-      by: 'agent',
-      text: ctx.lesson.text,
-      why: 'the table is gone',
-      extra: null,
+test.each([
+  {
+    title: 'an older task closed the id',
+    journal: {
+      closed: new Map([['l-seed', '2026-03-02T10:00:00Z']]),
+      closeRows: new Map([
+        ['l-seed', { ts: '2026-03-02T10:00:00Z', op: 'done', text: 'An old task of the same id' }],
+      ]),
     },
-  ]);
-});
-
-test('it writes the journal row when the earlier close of the id is of another op', () => {
+  },
+  {
+    title: 'the earlier close of the id is of another op',
+    journal: {
+      closed: new Map([['l-seed', '2026-03-08T10:00:00Z']]),
+      closeRows: new Map([
+        [
+          'l-seed',
+          {
+            ts: '2026-03-08T10:00:00Z',
+            op: 'done',
+            text: 'Reseed the staging alerts table before alerts-e2e',
+          },
+        ],
+      ]),
+    },
+  },
+])('it writes the journal row of a lesson drop when $title', (row) => {
   const ctx = setupTest();
 
-  const picked = ctx.pickDrop({
-    closed: new Map([['l-seed', '2026-03-08T10:00:00Z']]),
-    closeRows: new Map([
-      ['l-seed', { ts: '2026-03-08T10:00:00Z', op: 'done', text: ctx.lesson.text }],
-    ]),
-  });
+  const lesson = {
+    id: 'l-seed',
+    text: 'Reseed the staging alerts table before alerts-e2e',
+    why: 'A stale row made alerts-e2e pass on day 6',
+    written: '2026-03-06T09:00:00Z',
+    by: 'agent',
+  } as const;
 
-  expect(picked?.change.journal).toHaveLength(1);
+  expect(ctx.pickDrop([lesson], row.journal)).toStrictEqual({
+    kind: 'write',
+    change: {
+      lessons: [],
+      journal: [
+        {
+          ts: '2026-03-10T11:43:00Z',
+          op: 'drop',
+          id: 'l-seed',
+          by: 'agent',
+          text: lesson.text,
+          why: 'the table is gone',
+          extra: null,
+        },
+      ],
+    },
+    reply: expect.any(Function),
+  });
 });
 
 test('it adds no second journal row when its own interrupted close left the lesson in its file', () => {
   const ctx = setupTest();
 
-  const picked = ctx.pickDrop({
+  const lesson = {
+    id: 'l-seed',
+    text: 'Reseed the staging alerts table before alerts-e2e',
+    why: 'A stale row made alerts-e2e pass on day 6',
+    written: '2026-03-06T09:00:00Z',
+    by: 'agent',
+  } as const;
+
+  const picked = ctx.pickDrop([lesson], {
     closed: new Map([['l-seed', '2026-03-08T10:00:00Z']]),
-    closeRows: new Map([
-      ['l-seed', { ts: '2026-03-08T10:00:00Z', op: 'drop', text: ctx.lesson.text }],
-    ]),
+    closeRows: new Map([['l-seed', { ts: '2026-03-08T10:00:00Z', op: 'drop', text: lesson.text }]]),
   });
 
-  expect(picked?.change).toStrictEqual({ lessons: [], journal: [] });
+  expect(picked).toStrictEqual({
+    kind: 'write',
+    change: { lessons: [], journal: [] },
+    reply: expect.any(Function),
+  });
 });

@@ -28,7 +28,9 @@ test('it renders the saved store with the header of a brief that ran no check', 
 
   const brief = await ctx.read(ctx.folder);
 
-  expect(brief.split('\n')[0]).toContain('1 checks, not run yet');
+  expect(brief.split('\n')[0]).toBe(
+    'tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write never · 1 checks, not run yet',
+  );
 });
 
 test('it fails for a folder with no store', async () => {

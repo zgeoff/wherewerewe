@@ -211,12 +211,14 @@ export async function seedDayNineRows(
     'tidal-org/tidekit#19',
   ]);
 
-  await run('2026-03-09T11:00:00Z', [
+  await run('2026-03-08T11:00:00Z', [
     'where',
     'wt-tz',
     'bosun-api worktree for the time zone fix, branch tz-fix',
     '--path',
     repo.folder,
+    '--note',
+    'Remove it with git worktree remove once the tz-fix PR merges; the simulator reads its fixtures from there.',
   ]);
 
   await run('2026-03-09T13:00:00Z', [

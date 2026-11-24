@@ -142,6 +142,9 @@ test('it never rewrites owner.tsv in an agent write or a read, or in a refused i
     ],
     ['rule', 'r-a', 'Run the tests from the repo root'],
     ['where', 'wt-a', 'A worktree for the timer'],
+    ['lesson', 'l-a', 'Reseed before the e2e run', '--why', 'A stale row passed it'],
+    ['promise', 'p-a', 'The cost table', '--to', 'owner', '--by', 'Friday'],
+    ['words', 'w-b', 'Plain words in every reply', '--where', 'chat'],
     ['set', 't-a', 'Write it with tests'],
     ['task', 't-b', 'Fire the test tiles', '--note', '<a note>', '--owed'],
     ['now', 't-b', 'Load the kiln', '--note', '<a note>'],
@@ -153,12 +156,21 @@ test('it never rewrites owner.tsv in an agent write or a read, or in a refused i
     ['use', 'ok-a', '--for', 'merged the timer'],
     ['done', 't-a', '--evidence', 'commit 4c1d2e0'],
     ['drop', 'w-a', '--why', 'the vendor answered in chat'],
+    ['drop', 'l-a', '--why', 'the seed script does it now'],
+    ['done', 'p-a', '--evidence', 'cost table shared in chat'],
+    ['drop', 'w-b', '--why', 'moved to AGENTS.md'],
     ['task', 't-p', 'Watch the process', '--pid', String(process.pid)],
     ['detach'],
     ['attach', 'tide-alerts'],
     [],
     ['show'],
     ['show', 'r-a'],
+    ['list', 'rules'],
+    ['list', 'lessons'],
+    ['list', 'promises'],
+    ['list', 'words'],
+    ['list', 'notes'],
+    ['list', 'decisions'],
     ['log'],
     ['recap'],
     ['recap', '--since', '3d'],
@@ -257,10 +269,11 @@ test('it holds no lock while a probe runs, so a second write replies first and b
 test.each(
   (
     [
-      { host: 'claude', prefix: [], sessionFlag: null, limit: 8000 },
-      { host: 'codex', prefix: [], sessionFlag: null, limit: 10_000 },
+      { host: 'claude', readerHost: 'claude', prefix: [], sessionFlag: null, limit: 8000 },
+      { host: 'codex', readerHost: 'codex', prefix: [], sessionFlag: null, limit: 10_000 },
       {
         host: 'none',
+        readerHost: null,
         prefix: ['--session', 'tide-alerts'],
         sessionFlag: 'tide-alerts',
         limit: 20_000,
@@ -359,6 +372,7 @@ test.each(
       ] as const
     ).map((write) => ({
       host: host.host,
+      readerHost: host.readerHost,
       prefix: host.prefix,
       sessionFlag: host.sessionFlag,
       limit: host.limit,
@@ -379,10 +393,7 @@ test.each(
     }
 
     const reply = await ctx.runFixed(row.host, [...row.prefix, ...row.argv]);
-
-    const readerHost = row.host === 'none' ? null : row.host;
-
-    const saved = await ctx.readSavedBrief(readerHost, row.sessionFlag, 'tide-alerts');
+    const saved = await ctx.readSavedBrief(row.readerHost, row.sessionFlag, 'tide-alerts');
 
     expect({ exitCode: reply.exitCode, figure: readBriefFigure(reply.stdout) }).toStrictEqual({
       exitCode: 0,
