@@ -312,12 +312,11 @@ pr-api-77  task, open since day 7, by agent · check: pr:bosunhq/bosun-api#77
   journal: day 7 task · day 8 set · day 9 note · day 9 set · day 9 changed
 
 $ www show
-OPEN (5 of 30)
+OPEN (4 of 30)
   pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07  [OPEN failing]
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
     s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
     unused import in the retry helper, not on the retry logic.
-  pr-app-61   Alert settings screen: in review  [MERGED]
   t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
     owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: staging
     is shared with the harbour team, who demo on Thursday.
