@@ -81,6 +81,7 @@ test('it never rewrites owner.tsv in an agent write or a read, or in a refused i
     ['detach'],
     ['attach', 'tide-alerts'],
     [],
+    ['show'],
     ['show', 'r-a'],
     ['log'],
     ['recap'],

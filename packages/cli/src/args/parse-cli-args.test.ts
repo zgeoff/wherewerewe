@@ -6,6 +6,8 @@ test.each([
   [['--session', 'tide'], 'brief', []],
   [['sessions'], 'sessions', []],
   [['detach'], 'detach', []],
+  [['show'], 'show', []],
+  [['show', 't-a'], 'show', ['t-a']],
   [['init', 'tide', '--goal', 'Ship it'], 'init', ['tide']],
   [['import', 'old-notes'], 'import', ['old-notes']],
   [['--session', 'old-notes', 'import', 'old-notes'], 'import', ['old-notes']],
@@ -254,6 +256,7 @@ test.each([
   [['set'], { kind: 'wrong-positionals', command: 'set', usage: '<id> ["<claim>"]' }],
   [['task', 't-a'], { kind: 'wrong-positionals', command: 'task', usage: '<id> "<claim>"' }],
   [['recap', 'x'], { kind: 'wrong-positionals', command: 'recap', usage: 'no arguments' }],
+  [['show', 'a', 'b'], { kind: 'wrong-positionals', command: 'show', usage: '[<id>]' }],
   [['recap', '--op', 'decide'], { kind: 'flag-not-taken', command: 'recap', flag: 'op' }],
   [
     ['task', 't-a', 'x', 'y'],

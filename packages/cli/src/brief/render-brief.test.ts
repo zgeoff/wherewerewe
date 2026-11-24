@@ -4,8 +4,11 @@ import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
+import { buildOverLimitBriefInput } from '../test-utils/build-over-limit-brief-input.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
-import { renderBrief } from './render-brief.ts';
+import { buildWorstCaseBriefInput } from '../test-utils/build-worst-case-brief-input.ts';
+import { collectBriefSections } from '../test-utils/collect-brief-sections.ts';
+import { pickPrintedTaskIDs, renderBrief } from './render-brief.ts';
 
 test('it renders each section of one invented store in order', () => {
   const brief = renderBrief(
@@ -289,151 +292,102 @@ test('it cuts a pull request ref over 60 characters to 59 and an ellipsis', () =
 });
 
 test.each([
-  [
-    'a goal of 200 characters in short words, which wraps to 3 lines',
-    [...Array.from({ length: 21 }, () => 'goalword'), 'goalwordsss'],
-    3,
-    false,
-  ],
-  [
-    'a goal of 200 characters in words of 49, which wraps to 3 lines',
-    [...Array.from({ length: 3 }, () => 'g'.repeat(49)), 'g'.repeat(50)],
-    3,
-    false,
-  ],
-])(
-  'it renders the worst case with %s in 73 lines and at most 7,200 characters',
-  (_title, words, goalLines, isCut) => {
-    const result = 'r'.repeat(15);
-    const waits = buildMockIDs('wait', 4);
-    const tasks = buildMockIDs('task', 6);
-
-    const ids = [
-      ...tasks,
-      ...waits,
-      ...buildMockIDs('appr', 1),
-      ...buildMockIDs('rule', 5),
-      ...buildMockIDs('here', 4),
-    ];
-
-    const brief = renderBrief(
-      buildMockBriefInput({
-        session: {
-          format: '2',
-          grant: {
-            may: Array.from({ length: 7 }, () => 'm'.repeat(90)),
-            not: Array.from({ length: 5 }, () => 'x'.repeat(6)),
-            never: [],
-            scope: 's'.repeat(40),
-            reading: buildSpacedText(200),
-            where: 'w'.repeat(16),
-            set: '2026-03-03T09:00:00Z',
-          },
-          name: 'n'.repeat(24),
-          goal: words.join(' '),
-          started: '2026-03-02T08:04:11Z',
-          now: tasks[0] ?? '',
-          nowNext: 'n'.repeat(120),
-          nowSet: '2026-03-10T11:40:00Z',
-          lastWrite: '2026-03-10T11:02:00Z',
-          lastNudge: null,
-          importedFrom: null,
-        },
-        ownerNotes: [
-          { id: 'o-1', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[1] ?? null },
-          { id: 'o-2', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[2] ?? null },
-        ],
-        notes: ids.map((id) => ({
-          id,
-          owed: true,
-          written: '2026-03-10T09:00:00Z',
-          note: [...Array.from({ length: 4 }, () => 'n'.repeat(81)), 'n'.repeat(72)].join(' '),
-        })),
-        changed: buildMockIDs('chng', 10).map((id) => ({
-          item: buildMockItem({ id, check: 'pid:4', atWrite: result }),
-          result: 'gone',
-        })),
-        items: [
-          ...tasks.map((id) =>
-            buildMockItem({
-              id,
-              claim: 'c'.repeat(120),
-              check: 'pid:4',
-              last: result,
-              extra: { blocked_by: waits[0] ?? '' },
-            }),
-          ),
-          ...waits.map((id) =>
-            buildMockItem({
-              id,
-              kind: 'wait',
-              claim: 'c'.repeat(120),
-              check: 'pid:4',
-              last: result,
-              extra: { who: 'w'.repeat(16) },
-            }),
-          ),
-          ...buildMockIDs('appr', 1).map((id) =>
-            buildMockItem({
-              id,
-              kind: 'ok',
-              claim: 'q'.repeat(120),
-              extra: { who: 'owner', scope: 's'.repeat(40) },
-            }),
-          ),
-          ...buildMockIDs('rule', 5).map((id) =>
-            buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(120) }),
-          ),
-          ...buildMockIDs('here', 4).map((id) =>
-            buildMockItem({
-              id,
-              kind: 'where',
-              claim: 'c'.repeat(120),
-              check: 'pid:4',
-              last: result,
-            }),
-          ),
-        ],
-        pullRequests: Array.from({ length: 10 }, () => ({
-          ref: 'p'.repeat(60),
-          opened: '2026-03-10T08:43:00Z',
-          result,
-        })),
-        checks: {
-          kind: 'ran',
-          count: 99,
-          seconds: 99.9,
-          unchecked: { count: 99, reason: 'u'.repeat(30) },
-        },
-        resultsNotSaved: 'not-writable',
-      }),
-    );
-
-    expect({
-      goalCharacters: words.join(' ').length,
-      lines: brief.split('\n').length - 1,
-      isWithinLimit: Array.from(brief, (character) => character).length <= 7200,
-      grantLines: brief
-        .split('\n')
-        .filter((line) =>
-          /^(?:GRANT {2}| {2}(?:may|not) +• | {9}• | {11}m| {2}reading: | {4}g)/u.test(line),
-        ).length,
-      goalLines: brief
-        .split('\n')
-        .filter((line) => line.startsWith('GOAL  ') || /^ {6}\S/u.test(line)).length,
-      hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
-      noteLines: brief.split('\n').filter((line) => /^ {4}n+$/u.test(line)).length,
-    }).toStrictEqual({
-      goalCharacters: 200,
-      lines: 73,
-      isWithinLimit: true,
-      grantLines: 23,
-      goalLines,
-      hasCutLine: isCut,
-      noteLines: 5,
-    });
+  {
+    title: 'Codex, 6 tasks, goal of 3 lines',
+    host: 'codex',
+    taskCount: 6,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
   },
-);
+  {
+    title: 'Codex, 6 tasks, goal in long words',
+    host: 'codex',
+    taskCount: 6,
+    goal: 'long',
+    goalLines: 3,
+    taskRows: 6,
+    hasCountLine: false,
+    maxLines: 73,
+    maxCharacters: 7200,
+  },
+  {
+    title: 'Codex, 30 tasks',
+    host: 'codex',
+    taskCount: 30,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 5,
+    hasCountLine: true,
+    maxLines: 73,
+    maxCharacters: 7200,
+  },
+  {
+    title: 'no known host, 30 tasks',
+    host: null,
+    taskCount: 30,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 5,
+    hasCountLine: true,
+    maxLines: 73,
+    maxCharacters: 7200,
+  },
+  {
+    title: 'Claude Code, 15 tasks',
+    host: 'claude',
+    taskCount: 15,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 15,
+    hasCountLine: false,
+    maxLines: 82,
+    maxCharacters: 9000,
+  },
+  {
+    title: 'Claude Code, 30 tasks',
+    host: 'claude',
+    taskCount: 30,
+    goal: 'short',
+    goalLines: 3,
+    taskRows: 14,
+    hasCountLine: true,
+    maxLines: 82,
+    maxCharacters: 9000,
+  },
+] as const)('it renders the worst case for $title within its budget', (row) => {
+  const brief = renderBrief(
+    buildWorstCaseBriefInput({ host: row.host, taskCount: row.taskCount, goal: row.goal }),
+  );
+
+  const lines = brief.split('\n');
+  const characters = Array.from(brief, (character) => character).length;
+
+  expect({
+    goalCharacters: 200,
+    lines: lines.length - 1,
+    isWithinLimit: characters <= row.maxCharacters,
+    goalLines: lines.filter((line) => line.startsWith('GOAL  ') || /^ {6}\S/u.test(line)).length,
+    taskRows: lines.filter((line) => /^ {2}task\d\d/u.test(line)).length,
+    firstTaskRow: lines[lines.findIndex((line) => line.startsWith('OPEN (')) + 1]?.slice(0, 8),
+    countLines: lines.filter((line) => line.includes('more open tasks: www show')).length,
+    hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
+    noteLines: lines.filter((line) => /^ {4}n+$/u.test(line)).length,
+  }).toStrictEqual({
+    goalCharacters: 200,
+    lines: row.maxLines,
+    isWithinLimit: true,
+    goalLines: row.goalLines,
+    taskRows: row.taskRows,
+    firstTaskRow: '  task01',
+    countLines: row.hasCountLine ? 1 : 0,
+    hasCutLine: false,
+    noteLines: 5,
+  });
+});
 
 test('it cuts item lines from the bottom up when the text passes 7,000 characters, and keeps the rest', () => {
   const claim = 'c'.repeat(450);
@@ -637,5 +591,244 @@ test('it prints the grant whole and ends the last kept section with the cut line
     notCharacters: 58,
     cutEndsLastSection: true,
     footerFollowsCut: true,
+  });
+});
+
+test('it orders the tasks as the day-9 example does: focus, changed, blocked and owed, then newest', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({ now: 'pr-api-77' }),
+      items: [
+        buildMockItem({ id: 'pr-tk-19', written: '2026-03-09T09:00:00Z' }),
+        buildMockItem({ id: 't-e2e', written: '2026-03-07T11:43:00Z' }),
+        buildMockItem({
+          id: 't-flag',
+          written: '2026-03-08T11:43:00Z',
+          extra: { blocked_by: 'w-apns' },
+        }),
+        buildMockItem({
+          id: 'pr-app-61',
+          check: 'pid:4',
+          atWrite: 'alive',
+          written: '2026-03-01T11:43:00Z',
+        }),
+        buildMockItem({ id: 'pr-api-77', written: '2026-03-02T11:43:00Z' }),
+        buildMockItem({ id: 'w-apns', kind: 'wait', extra: { who: 'owner' } }),
+      ],
+      notes: [buildMockNote({ id: 't-flag', owed: true })],
+      changed: [
+        {
+          item: buildMockItem({ id: 'pr-app-61', check: 'pid:4', atWrite: 'alive' }),
+          result: 'gone',
+        },
+      ],
+    }),
+  );
+
+  expect(
+    brief
+      .split('\n')
+      .filter((line) => /^ {2}(?:pr-|t-)/u.test(line) && !line.includes(' was '))
+      .map((line) => line.slice(2, 11).trim()),
+  ).toStrictEqual(['pr-api-77', 'pr-app-61', 't-flag', 'pr-tk-19', 't-e2e']);
+});
+
+test('it prints every task and no count line when a brief with room holds 20', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      host: 'claude',
+      items: buildMockIDs('task', 20).map((id) => buildMockItem({ id })),
+    }),
+  );
+
+  expect({
+    heading: brief.includes('OPEN (20 of 30)\n'),
+    rows: brief.split('\n').filter((line) => line.startsWith('  task')).length,
+    hasCountLine: brief.includes('more open tasks'),
+  }).toStrictEqual({ heading: true, rows: 20, hasCountLine: false });
+});
+
+test('it prints 5 rows of the order and a count line for 7 tasks in the worst case', () => {
+  const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 7 });
+  const brief = renderBrief(input);
+
+  expect({
+    printed: pickPrintedTaskIDs(input),
+    rows: brief
+      .split('\n')
+      .filter((line) => /^ {2}task\d\d/u.test(line))
+      .map((line) => line.slice(2, 8)),
+    countLine: brief.split('\n').find((line) => line.includes('more open tasks')),
+  }).toStrictEqual({
+    printed: ['task01', 'task07', 'task06', 'task05', 'task04'].map((id) => id.padEnd(16, 'x')),
+    rows: ['task01', 'task07', 'task06', 'task05', 'task04'],
+    countLine: '  and 2 more open tasks: www show',
+  });
+});
+
+test.each([
+  { sessionFlag: null, expected: '  and 25 more open tasks: www show' },
+  {
+    sessionFlag: 'n'.repeat(24),
+    expected: `  and 25 more open tasks: www --session ${'n'.repeat(24)} show`,
+  },
+])('it prints the count line $expected for a session flag of $sessionFlag', (row) => {
+  const brief = renderBrief(buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 }));
+
+  const withFlag = renderBrief({
+    ...buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 }),
+    sessionFlag: row.sessionFlag,
+  });
+
+  expect(brief).toBeString();
+  expect(withFlag.split('\n').find((line) => line.includes('more open tasks'))).toBe(row.expected);
+});
+
+test('it prints the changed overflow line that names the list of open tasks', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      changed: buildMockIDs('chng', 4).map((id) => ({
+        item: buildMockItem({ id, check: 'pid:4', atWrite: 'alive' }),
+        result: 'gone',
+      })),
+    }),
+  );
+
+  expect(brief).toInclude(
+    '  and 1 more; each shows its result below, or in the list of open tasks\n',
+  );
+});
+
+test('it moves a task left out of the rows up when its saved result differs from the one written', () => {
+  const ids = buildMockIDs('task', 30);
+  const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 });
+
+  const items = input.items.map((item) =>
+    item.id === ids[10] ? { ...item, atWrite: 'alive', last: 'gone' } : item,
+  );
+
+  expect(pickPrintedTaskIDs({ ...input, items }).slice(0, 2)).toStrictEqual(
+    ['task01', 'task11'].map((id) => id.padEnd(16, 'x')),
+  );
+});
+
+test('it keeps a task with a saved result equal to the one written, or unchecked, out of the changed group', () => {
+  const ids = buildMockIDs('task', 30);
+  const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 });
+
+  const items = input.items.map((item) =>
+    item.id === ids[10] ? { ...item, atWrite: 'alive', last: 'unchecked' } : item,
+  );
+
+  expect(pickPrintedTaskIDs({ ...input, items })).not.toContain(ids[10]);
+});
+
+test.each([6, 12])(
+  'it cuts the pull request, where and rule rows before a task row with %p tasks over the limits',
+  (taskCount) => {
+    const brief = renderBrief(buildOverLimitBriefInput({ taskCount, focus: null }));
+
+    expect({
+      sections: collectBriefSections(brief),
+      taskRows: brief.split('\n').filter((line) => line.startsWith('  task')).length,
+    }).toStrictEqual({
+      sections: ['OPEN', 'WAITING', 'APPROVED ONCE', 'RULES'],
+      taskRows: taskCount === 6 ? 6 : 5,
+    });
+  },
+);
+
+test('it stops the fill at 5 rows and a count line for 12 tasks, and the cut then takes rows above the count line', () => {
+  const lines = renderBrief(
+    buildOverLimitBriefInput({ taskCount: 12, focus: null, claimLength: 1500 }),
+  ).split('\n');
+
+  const countAt = lines.findIndex((line) => line.includes('more open tasks'));
+
+  expect({
+    countLine: lines[countAt],
+    cutLine: lines[countAt + 1],
+    rowsAboveCount: lines.slice(0, countAt).filter((line) => line.startsWith('  task')).length,
+    cutLines: lines.filter((line) => line.includes('lines cut to fit')).length,
+  }).toStrictEqual({
+    countLine: '  and 7 more open tasks: www show',
+    cutLine: expect.stringMatching(/^ {2}\(\d+ lines cut to fit; run www show <id>\)$/u),
+    rowsAboveCount: expect.toBeWithin(1, 5),
+    cutLines: 1,
+  });
+});
+
+test('it keeps the focus row and the count line when the cut takes every other task row', () => {
+  const lines = renderBrief(
+    buildOverLimitBriefInput({ taskCount: 12, focus: 'task03xxxxxxxxxx', claimLength: 4000 }),
+  ).split('\n');
+
+  const openAt = lines.findIndex((line) => line.startsWith('OPEN ('));
+
+  expect(lines.slice(openAt, openAt + 3)).toStrictEqual([
+    'OPEN (12 of 30)',
+    expect.stringMatching(/^ {2}task03xxxxxxxxxx {2}c+ {2}\[no check · 1h\]$/u),
+    expect.stringMatching(/^ {2}and 7 more open tasks: www show$/u),
+  ]);
+
+  expect(lines.join('\n')).toInclude('    Keep this note whole\n');
+});
+
+test('it keeps the row of a wait in focus, and the whole note, after every task row is cut', () => {
+  const brief = renderBrief(
+    buildOverLimitBriefInput({ taskCount: 6, focus: 'wait01xxxxxxxxxx', claimLength: 4000 }),
+  );
+
+  expect({
+    sections: collectBriefSections(brief),
+    focusRow: brief.split('\n').filter((line) => line.startsWith('  wait01')).length,
+    note: brief.includes('    Keep this note whole\n'),
+  }).toStrictEqual({ sections: ['WAITING'], focusRow: 1, note: true });
+});
+
+test('it leaves OPEN and its count line out when no task is in focus and every task row is cut', () => {
+  const claim = 'c'.repeat(9000);
+
+  const brief = renderBrief(
+    buildMockBriefInput({
+      items: [
+        buildMockItem({ id: 'rule-a', kind: 'rule', claim }),
+        buildMockItem({ id: 't-a', claim }),
+        buildMockItem({ id: 't-b', claim }),
+      ],
+    }),
+  );
+
+  expect({
+    sections: collectBriefSections(brief),
+    hasCountLine: brief.includes('more open tasks'),
+  }).toStrictEqual({ sections: [], hasCountLine: false });
+});
+
+test('it prints a brief over its budget when only the focus row and the note are left to cut', () => {
+  const claim = 'c'.repeat(9000);
+
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({ now: 't-a' }),
+      notes: [buildMockNote({ id: 't-a', note: 'Keep this note whole' })],
+      items: [
+        buildMockItem({ id: 't-a', claim }),
+        buildMockItem({ id: 'rule-a', kind: 'rule', claim }),
+        buildMockItem({ id: 'rule-b', kind: 'rule', claim }),
+      ],
+    }),
+  );
+
+  const lines = brief.split('\n');
+
+  expect({
+    focusRow: lines.filter((line) => line.startsWith('  t-a')).length,
+    note: brief.includes('    Keep this note whole\n'),
+    cutLine: lines.find((line) => line.includes('lines cut to fit')),
+  }).toStrictEqual({
+    focusRow: 1,
+    note: true,
+    cutLine: '  (2 lines cut to fit; run www show <id>)',
   });
 });

@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, as built through slice 2d, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2d and decision record 0009, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -17,8 +17,8 @@ www (wherewerewe): what is true now in one long agent session, in one short brie
 Read. Run www first, after every compaction, and whenever you are unsure:
   www                        the brief: goal, grant, owner notes, what changed, now and its note,
                              open work, waits, the approval, rules, where things are. Runs checks.
-  www show <id>              one item, decision or the grant (www show grant): its text, its note,
-                             its check now, its journal rows
+  www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
+                             its check now, its journal rows. With no id, every open task in full
   www log [--since <t>] [--op <op,...>] [--id <id>]
                              the journal, oldest first. <t> is 24h, 3d or day-7
   www sessions               every session on this machine
@@ -56,12 +56,12 @@ Setup:   www install [--print]   www doctor
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a grant bullet 120, the grant's
-words 700 in at most 12 bullets, and its reading 200. The brief holds at most 6 tasks, 4 waits,
+words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
 1 approval, 5 rules, 4 where items and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2d, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs below are what those slices changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 2d and decision record 0009, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs and the task limit's diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -145,6 +145,23 @@ Slice 2d, recap:
    www sessions               every session on this machine
 +  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
  
+```
+
+The task limit, decision record 0009:
+
+```diff
+@@ -5,4 +5,4 @@
+                               open work, waits, the approval, rules, where things are. Runs checks.
+-  www show <id>              one item, decision or the grant (www show grant): its text, its note,
+-                             its check now, its journal rows
++  www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
++                             its check now, its journal rows. With no id, every open task in full
+   www log [--since <t>] [--op <op,...>] [--id <id>]
+@@ -44,3 +44,3 @@
+ Limits: a claim is one line of at most 120 characters, a note 400, a grant bullet 120, the grant's
+-words 700 in at most 12 bullets, and its reading 200. The brief holds at most 6 tasks, 4 waits,
++words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
+ 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
 ### Signatures

@@ -4,8 +4,8 @@ export const helpText = `www (wherewerewe): what is true now in one long agent s
 Read. Run www first, after every compaction, and whenever you are unsure:
   www                        the brief: goal, grant, owner notes, what changed, now and its note,
                              open work, waits, the approval, rules, where things are. Runs checks.
-  www show <id>              one item, decision or the grant (www show grant): its text, its note,
-                             its check now, its journal rows
+  www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
+                             its check now, its journal rows. With no id, every open task in full
   www log [--since <t>] [--op <op,...>] [--id <id>]
                              the journal, oldest first. <t> is 24h, 3d or day-7
   www sessions               every session on this machine
@@ -43,7 +43,7 @@ Setup:   www install [--print]   www doctor
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a grant bullet 120, the grant's
-words 700 in at most 12 bullets, and its reading 200. The brief holds at most 6 tasks, 4 waits,
+words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
 1 approval, 5 rules, 4 where items and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 `;
