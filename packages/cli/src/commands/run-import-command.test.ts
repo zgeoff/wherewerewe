@@ -1178,3 +1178,70 @@ test('it refuses an upgrade with a grant of 20 lines and one Run line that fixes
     session: ['grant_may=water the beds', 'grant_scope=', 'grant_reading=covers watering'],
   });
 });
+
+test.each([
+  {
+    title: '12 bullets',
+    bullets: Array.from({ length: 12 }, () => 'hold'),
+  },
+  {
+    title: '700 characters of words',
+    bullets: [...Array.from({ length: 6 }, () => 'h'.repeat(100)), 'h'.repeat(87)],
+  },
+  {
+    title: '19 lines of the brief',
+    bullets: [buildSpacedText(649, 74), ...Array.from({ length: 10 }, () => 'o')],
+  },
+])(
+  'it refuses standing approvals and $title of --not with the needs-grant lines, and a Run line that runs',
+  async (row) => {
+    const ctx = setupTest();
+    const nowMs = Date.parse('2026-03-10T11:43:00Z');
+    const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
+
+    seedFormat1Store(ctx.stateRoot, 'old-notes');
+
+    const refused = await ctx.run(
+      [
+        'import',
+        'old-notes',
+        ...row.bullets.flatMap((bullet) => ['--not', bullet]),
+        '--scope',
+        'in garden-api',
+        '--where',
+        'chat',
+        '--reading',
+        'covers nothing yet',
+      ],
+      env,
+      nowMs,
+    );
+
+    const lines = refused.stderr.split('\n');
+    const runLine = lines.find((line) => line.startsWith('Run: www'));
+
+    const filled = buildFilledRunArgv(runLine ?? '', {
+      '<what the owner allows, in their words>': 'water the beds',
+      '<what the owner did not grant, in their words>': 'replant the north beds',
+    });
+
+    const upgraded = await ctx.run(filled, env, nowMs);
+
+    expect({
+      exitCode: refused.exitCode,
+      problems: lines.filter((line) => line.startsWith('www: refused')),
+      approvalLines: lines.filter((line) => line.startsWith('  ok-')).length,
+      runLine,
+      upgradedExit: upgraded.exitCode,
+    }).toStrictEqual({
+      exitCode: 3,
+      problems: [
+        "www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
+      ],
+      approvalLines: 2,
+      runLine:
+        'Run: www import old-notes --not "<what the owner did not grant, in their words>" --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"',
+      upgradedExit: 0,
+    });
+  },
+);

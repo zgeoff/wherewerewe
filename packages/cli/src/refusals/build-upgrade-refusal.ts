@@ -1,11 +1,16 @@
 import { match } from 'ts-pattern';
+import { countGrantLines } from '../brief/count-grant-lines.ts';
+import { countGrantWords } from '../rules/count-grant-words.ts';
+import { grantLimits } from '../rules/grant-limits.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
-import type { ApprovalLine, Refusal, RefusalReason, UpgradeProblem } from '../types.ts';
+import type { ApprovalLine, ParsedArgs, Refusal, RefusalReason, UpgradeProblem } from '../types.ts';
+import { toGrantWords } from '../writes/to-grant-words.ts';
 import { addGrantFlags } from './add-grant-flags.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
 import { fixGrantText } from './fix-grant-text.ts';
 import { formatList } from './format-list.ts';
+import { replaceGrantBullets } from './replace-grant-bullets.ts';
 import { toRedactedRunWord } from './to-redacted-run-word.ts';
 
 type UpgradeRefusalReason = Extract<RefusalReason, { kind: 'upgrade-refused' }>;
@@ -97,7 +102,26 @@ function addNeededGrantFlags(spec: RunSpec, found: UpgradeRefusalReason): RunSpe
 
   const mayFlags = needsMay ? ['may'] : ['may', 'not', 'never'];
 
-  return needsGrant ? addGrantFlags(spec, typed, mayFlags) : spec;
+  // the may bullet the line adds must not push the typed bullets over a limit, or the pre-print
+  // check would refuse the line for a grant the command never typed
+  const fitted =
+    needsMay && !typed.has('may') && isGrantFullForMayBullet(found.args)
+      ? replaceGrantBullets(spec, found.args.flags)
+      : spec;
+
+  return needsGrant ? addGrantFlags(fitted, typed, mayFlags) : fitted;
+}
+
+// Whether one more one-character bullet breaks a limit of the grant's bullets, words or lines.
+function isGrantFullForMayBullet(args: ParsedArgs): boolean {
+  const typedWords = toGrantWords(args);
+  const withMay = { ...typedWords, may: [...typedWords.may, '\u2460'] };
+
+  return (
+    withMay.may.length + withMay.not.length + withMay.never.length > grantLimits.bullets ||
+    countGrantWords(withMay) > grantLimits.words ||
+    countGrantLines(withMay) > grantLimits.lines
+  );
 }
 
 function fixProblem(
