@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern';
 import type { BriefInput } from '../brief/types.ts';
 import { buildMockBriefInput } from './build-mock-brief-input.ts';
 import { buildMockIDs } from './build-mock-ids.ts';
@@ -10,6 +11,10 @@ export interface WorstCaseOptions {
 
   // 200 characters in words of 8, or in words of 49 that wrap on a line each
   readonly goal?: 'short' | 'long';
+
+  // the grant at 700 characters of words and 19 lines: 7 bullets of 90 and 5 of 6 under a scope of
+  // 40 (the default), one long bullet under a scope of 40, or one long bullet with no scope
+  readonly grant?: 'wide-bullets' | 'long-bullet' | 'long-bullet-no-scope';
 }
 
 // brief.md's worst case: every section at its widest, each task at its widest tag, the item in
@@ -35,10 +40,7 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
     session: {
       format: '2',
       grant: {
-        may: Array.from({ length: 7 }, () => 'm'.repeat(90)),
-        not: Array.from({ length: 5 }, () => 'x'.repeat(6)),
-        never: [],
-        scope: 's'.repeat(40),
+        ...buildGrantWords(options.grant ?? 'wide-bullets'),
         reading: buildSpacedText(200),
         where: 'w'.repeat(16),
         set: '2026-03-03T09:00:00Z',
@@ -115,4 +117,32 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
     },
     resultsNotSaved: 'not-writable',
   });
+}
+
+type WorstCaseGrant = Pick<
+  BriefInput['session']['grant'] & object,
+  'may' | 'not' | 'never' | 'scope'
+>;
+
+function buildGrantWords(layout: NonNullable<WorstCaseOptions['grant']>): WorstCaseGrant {
+  return match(layout)
+    .with('wide-bullets', () => ({
+      may: Array.from({ length: 7 }, () => 'm'.repeat(90)),
+      not: Array.from({ length: 5 }, () => 'x'.repeat(6)),
+      never: [],
+      scope: 's'.repeat(40),
+    }))
+    .with('long-bullet', () => ({
+      may: [buildSpacedText(631, 74), ...Array.from({ length: 9 }, () => 'm')],
+      not: [],
+      never: Array.from({ length: 2 }, () => 'n'.repeat(10)),
+      scope: 's'.repeat(40),
+    }))
+    .with('long-bullet-no-scope', () => ({
+      may: [buildSpacedText(651, 74), ...Array.from({ length: 9 }, () => 'm')],
+      not: [],
+      never: Array.from({ length: 2 }, () => 'n'.repeat(20)),
+      scope: null,
+    }))
+    .exhaustive();
 }

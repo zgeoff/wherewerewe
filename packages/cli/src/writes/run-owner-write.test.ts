@@ -211,7 +211,7 @@ GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --wh
 OWNER SAYS (1) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
 NOW  none. Run: www now <id> "<next step>"
-OPEN (1 of 30)
+OPEN (1, max 30)
   t-a         Write it  [no check · 0m]
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
@@ -226,7 +226,7 @@ OWNER SAYS (2) · act on it; only the owner clears it
   o-1  Ask me first  [0m]
   o-2  Use readings  [on t-a · 0m]
 NOW  none. Run: www now <id> "<next step>"
-OPEN (1 of 30)
+OPEN (1, max 30)
   t-a         Write it  [no check · 0m]
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
@@ -246,7 +246,7 @@ GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --wh
 OWNER SAYS (1) · act on it; only the owner clears it
   o-2  Use readings  [on t-a · 0m]
 NOW  none. Run: www now <id> "<next step>"
-OPEN (1 of 30)
+OPEN (1, max 30)
   t-a         Write it  [no check · 0m]
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,
@@ -258,7 +258,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 GOAL  Ship the glaze timer
 GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"
 NOW  none. Run: www now <id> "<next step>"
-OPEN (1 of 30)
+OPEN (1, max 30)
   t-a         Write it  [no check · 0m]
 Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help
 `,

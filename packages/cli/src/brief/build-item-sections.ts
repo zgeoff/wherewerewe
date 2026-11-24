@@ -1,3 +1,4 @@
+import { itemCaps } from '../rules/item-caps.ts';
 import type { Item } from '../types.ts';
 import { formatAge } from './format-age.ts';
 import { formatItemLine } from './format-item-line.ts';
@@ -28,19 +29,19 @@ export function buildItemSections(
 
   return [
     {
-      heading: `OPEN (${String(orderedTasks.length)} of 30)`,
+      heading: `OPEN (${String(orderedTasks.length)}, max ${String(itemCaps.task)})`,
       lines: orderedTasks
         .slice(0, shownTasks)
         .map((item) => buildRow(item, formatTaskLine(item, items, input.notes, nowMs))),
       tail: leftOut > 0 ? formatCountLine(leftOut, input.sessionFlag) : null,
     },
     {
-      heading: `WAITING (${String(waits.length)} of 4)`,
+      heading: `WAITING (${String(waits.length)}, max ${String(itemCaps.wait)})`,
       lines: waits.map((item) => formatTaggedRow(item, formatWaitTag(item, nowMs), isOwed(item))),
       tail: null,
     },
     {
-      heading: `APPROVED ONCE (${String(approvals.length)} of 1)`,
+      heading: `APPROVED ONCE (${String(approvals.length)}, max ${String(itemCaps.ok)})`,
       lines: approvals.map((item) =>
         buildRow(
           item,
@@ -50,14 +51,14 @@ export function buildItemSections(
       tail: null,
     },
     {
-      heading: `RULES (${String(rules.length)} of 5)`,
+      heading: `RULES (${String(rules.length)}, max ${String(itemCaps.rule)})`,
       lines: rules.map((item) =>
         buildRow(item, `${formatItemLine(item, null)}${isOwed(item) ? '  [owed]' : ''}`),
       ),
       tail: null,
     },
     {
-      heading: `WHERE (${String(whereItems.length)} of 4)`,
+      heading: `WHERE (${String(whereItems.length)}, max ${String(itemCaps.where)})`,
       lines: whereItems.map((item) =>
         formatTaggedRow(item, formatWhereTag(item, nowMs), isOwed(item)),
       ),

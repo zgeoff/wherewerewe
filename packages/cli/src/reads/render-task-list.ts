@@ -3,6 +3,7 @@ import { formatAge } from '../brief/format-age.ts';
 import { formatTaskLine } from '../brief/format-task-line.ts';
 import { orderTasks } from '../brief/order-tasks.ts';
 import { wrapBlock } from '../brief/wrap-block.ts';
+import { itemCaps } from '../rules/item-caps.ts';
 import type { Item, Note } from '../types.ts';
 
 // Every open task in the brief's order, each row as the brief prints it and its note whole. No
@@ -38,5 +39,5 @@ export function renderTaskList(input: TaskListInput): string {
     ];
   });
 
-  return `${[`OPEN (${String(tasks.length)} of 30)`, ...lines].join('\n')}\n`;
+  return `${[`OPEN (${String(tasks.length)}, max ${String(itemCaps.task)})`, ...lines].join('\n')}\n`;
 }

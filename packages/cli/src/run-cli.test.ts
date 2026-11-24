@@ -854,7 +854,7 @@ test('it replaces an open item of the same kind in place, keeping its row and re
   const brief = await ctx.run([]);
 
   expect(brief.stdout.split('\n').slice(4, 8)).toStrictEqual([
-    'OPEN (2 of 30)',
+    'OPEN (2, max 30)',
     '  t-a         First claim, written again  [no check · 0m]',
     '  t-b         Second claim  [no check · 0m]',
     'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
@@ -1514,7 +1514,7 @@ test('it leaves an item open with no note when a task with a note stops after it
         'GOAL  Ship it',
         `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
-        'OPEN (1 of 30)',
+        'OPEN (1, max 30)',
         '  t-a         Write it  [no check · 0m]',
         'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',
@@ -2080,7 +2080,7 @@ test('it lists every open task with www show and a note whole', async () => {
   expect(result).toStrictEqual({
     exitCode: 0,
     stdout: [
-      'OPEN (2 of 30)',
+      'OPEN (2, max 30)',
       '  t-b         Test it  [no check · 0m · owed]',
       '    owed note (0m): Run the suite twice.',
       '  t-a         Write it  [no check · 0m]',
@@ -2119,7 +2119,7 @@ test('it lists the task rows that parse when one item row is broken, and names t
 
   expect(result).toStrictEqual({
     exitCode: 0,
-    stdout: 'OPEN (1 of 30)\n  t-a         Write it  [no check · 0m]\n',
+    stdout: 'OPEN (1, max 30)\n  t-a         Write it  [no check · 0m]\n',
     stderr:
       "www: tide-alerts's items.tsv line 3 does not parse: expected 9 tab-separated columns, found 2. This read leaves out what it could not read. Fix the file by hand.\n",
   });
@@ -2386,5 +2386,199 @@ test('it prints more task rows to a Claude Code session than to a Codex session,
     codexCount: true,
     claudeList: { exitCode: 0, hasEveryID: true },
     codexList: { exitCode: 0, hasEveryID: true },
+  });
+});
+
+test('it writes a grant of only --not and prints it in the brief, show grant and the recap, and keeps it when the reading changes', async () => {
+  const ctx = setupTest();
+  const bullet = 'replant the north beds before the soil report is in';
+
+  const reading =
+    'covers nothing yet; kept back: replanting the north beds until the soil report is in';
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const written = await ctx.run([
+    'grant',
+    '--not',
+    bullet,
+    '--where',
+    'chat',
+    '--reading',
+    reading,
+  ]);
+
+  const brief = await ctx.run([]);
+  const shown = await ctx.run(['show', 'grant']);
+  const recap = await ctx.run(['recap']);
+  const changed = await ctx.run(['grant', '--reading', 'covers nothing yet']);
+  const after = await ctx.run([]);
+
+  expect({
+    written: [written.exitCode, written.stdout.replace(/Brief: \d+ lines\./u, 'Brief: <n> lines.')],
+    briefLines: brief.stdout
+      .split('\n')
+      .filter(
+        (line) => line.startsWith('GRANT') || line.startsWith('  not') || line.startsWith('  may'),
+      ),
+    briefReading: brief.stdout.includes(`  reading: ${reading}\n`),
+    shown: [
+      shown.exitCode,
+      shown.stdout.includes(`  not    • ${bullet}\n`),
+      shown.stdout.includes('grant  from the owner in chat'),
+    ],
+    recap: [recap.exitCode, recap.stdout.includes(`  not    • ${bullet}\n`)],
+    changed: changed.exitCode,
+    afterLines: after.stdout.split('\n').filter((line) => line.startsWith('  not')),
+  }).toStrictEqual({
+    written: [
+      0,
+      'grant: 51 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 84 of 200. Brief: <n> lines.\n',
+    ],
+    briefLines: [
+      expect.stringMatching(/^GRANT {2}from the owner in chat, /u),
+      `  not    • ${bullet}`,
+    ],
+    briefReading: true,
+    shown: [0, true, true],
+    recap: [0, true],
+    changed: 0,
+    afterLines: [`  not    • ${bullet}`],
+  });
+});
+
+test('it refuses a grant of 20 lines with a Run line that runs once filled', async () => {
+  const ctx = setupTest();
+  const words = Array.from({ length: 9 }, () => 'w'.repeat(74)).join(' ');
+  const ones = Array.from({ length: 11 }, () => ['--may', 'o']).flat();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const refused = await ctx.run([
+    'grant',
+    '--may',
+    words,
+    ...ones,
+    '--where',
+    'chat',
+    '--reading',
+    'covers watering',
+  ]);
+
+  const line = refused.stderr.split('\n').find((text) => text.startsWith('Run: www')) ?? '';
+
+  const retried = await ctx.run(
+    buildFilledRunArgv(line, { '<what the owner allows, in their words>': 'water the beds' }),
+  );
+
+  expect({
+    exitCode: refused.exitCode,
+    first: refused.stderr.split('\n')[0],
+    line,
+    retried: retried.exitCode,
+  }).toStrictEqual({
+    exitCode: 3,
+    first:
+      'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.',
+    line: 'Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "covers watering"',
+    retried: 0,
+  });
+});
+
+test('it refuses a grant with no bullet with a Run line that adds --may and runs once filled', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const refused = await ctx.run([
+    'grant',
+    '--scope',
+    'in garden-api',
+    '--where',
+    'chat',
+    '--reading',
+    'covers nothing yet',
+  ]);
+
+  const line = refused.stderr.split('\n').find((text) => text.startsWith('Run: www')) ?? '';
+
+  const retried = await ctx.run(
+    buildFilledRunArgv(line, { '<what the owner allows, in their words>': 'water the beds' }),
+  );
+
+  expect({
+    exitCode: refused.exitCode,
+    stderr: refused.stderr,
+    retried: retried.exitCode,
+  }).toStrictEqual({
+    exitCode: 3,
+    stderr:
+      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"\n',
+    retried: 0,
+  });
+});
+
+test('it prints no part of a credential inside a bullet of 160 characters, and a Run line that keeps the place', async () => {
+  const ctx = setupTest();
+  const credential = buildCredentialSamples().find((entry) => entry.name === 'ghp');
+  const bullet = `${'a'.repeat(60)} ${credential?.sample ?? ''} ${'b'.repeat(60)}`;
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const refused = await ctx.run([
+    'grant',
+    '--may',
+    bullet,
+    '--where',
+    'chat',
+    '--reading',
+    'covers watering',
+  ]);
+
+  expect({
+    exitCode: refused.exitCode,
+    stderr: refused.stderr,
+    stdout: refused.stdout,
+    leaked: `${refused.stdout}${refused.stderr}`.includes(credential?.tail ?? ''),
+  }).toStrictEqual({
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "<where the secret lives>" --where chat --reading "covers watering"\n',
+    stdout: '',
+    leaked: false,
+  });
+});
+
+test('it counts the brief of its own environment in a task write reply, with no host too', async () => {
+  const ctx = setupTest();
+  const base = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+
+  const hosts = [
+    { name: 'tide-none', env: base },
+    { name: 'tide-codex', env: { ...base, CODEX_SESSION_ID: 'c9-test' } },
+    { name: 'tide-claude', env: { ...base, CLAUDE_CODE_SESSION_ID: 'a1b2-test' } },
+  ];
+
+  const counts: { reply: boolean; lines: number }[] = [];
+
+  for (const host of hosts) {
+    await seedWorstCaseStore(ctx.run, ctx.stateRoot, host.name, 29);
+
+    const reply = await ctx.run(['--session', host.name, 'task', 't-w1', 'One more'], host.env);
+    const brief = await ctx.run(['--session', host.name], host.env);
+
+    const lines = countBriefLines(brief.stdout);
+
+    counts.push({ reply: reply.stdout.includes(`Brief: ${String(lines)} lines.`), lines });
+  }
+
+  expect({
+    replies: counts.map((count) => count.reply),
+    noHostEqualsCodex: counts[0]?.lines === counts[1]?.lines,
+    noHostBelowClaude: (counts[0]?.lines ?? 0) < (counts[2]?.lines ?? 0),
+  }).toStrictEqual({
+    replies: [true, true, true],
+    noHostEqualsCodex: true,
+    noHostBelowClaude: true,
   });
 });

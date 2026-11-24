@@ -70,16 +70,16 @@ test('it renders each section of one invented store in order', () => {
       `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
       'NOW  pr-api-77 · set 1h ago',
       '  next: watch CI, then request review',
-      'OPEN (2 of 30)',
+      'OPEN (2, max 30)',
       '  pr-api-77   Alert job retries a 503  [not checked yet]',
       '  t-e2e       Write alerts-e2e against staging  [no check · 3d]',
-      'WAITING (1 of 4)',
+      'WAITING (1, max 4)',
       '  w-apns      upload the staging push key to the vault  [owner · 2d]',
-      'APPROVED ONCE (1 of 1)',
+      'APPROVED ONCE (1, max 1)',
       '  ok-merge    "merge the alert PRs yourself once CI is green" · bosun-api, bosun-app',
-      'RULES (1 of 5)',
+      'RULES (1, max 5)',
       '  r-api-tests Run the API tests from api/',
-      'WHERE (1 of 4)',
+      'WHERE (1, max 4)',
       '  s-staging   staging secrets live in the vault bosun-staging  [no check · 1h]',
       'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
       '',
@@ -191,7 +191,7 @@ test('it puts the item in focus first among the tasks and pads a long id with tw
     `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
     'NOW  task-with-a-long-id · set 3m ago',
     '  next: go',
-    'OPEN (2 of 30)',
+    'OPEN (2, max 30)',
     '  task-with-a-long-id  Write the parser  [no check · 0m]',
     '  t-first     Write the parser  [no check · 0m]',
     'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
@@ -390,6 +390,48 @@ test.each([
   });
 });
 
+test.each(
+  (['wide-bullets', 'long-bullet', 'long-bullet-no-scope'] as const).flatMap((grant) => [
+    { grant, host: 'codex', taskCount: 6, taskRows: 6, maxLines: 73, maxCharacters: 7200 } as const,
+    { grant, host: null, taskCount: 6, taskRows: 6, maxLines: 73, maxCharacters: 7200 } as const,
+    {
+      grant,
+      host: 'claude',
+      taskCount: 15,
+      taskRows: 15,
+      maxLines: 82,
+      maxCharacters: 9000,
+    } as const,
+  ]),
+)(
+  'it renders the worst case with the $grant grant for host $host and $taskCount tasks within its budget',
+  (row) => {
+    const brief = renderBrief(
+      buildWorstCaseBriefInput({
+        host: row.host,
+        taskCount: row.taskCount,
+        goal: 'long',
+        grant: row.grant,
+      }),
+    );
+
+    const lines = brief.split('\n');
+    const characters = Array.from(brief, (character) => character).length;
+
+    expect({
+      lines: lines.length - 1,
+      isWithinLimit: characters <= row.maxCharacters,
+      taskRows: lines.filter((line) => /^ {2}task\d\d/u.test(line)).length,
+      hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
+    }).toStrictEqual({
+      lines: row.maxLines,
+      isWithinLimit: true,
+      taskRows: row.taskRows,
+      hasCutLine: false,
+    });
+  },
+);
+
 test('it cuts item lines from the bottom up when the text passes 7,000 characters, and keeps the rest', () => {
   const claim = 'c'.repeat(450);
   const ids = ['task-0', 'task-1', 'task-2', 'task-3', 'task-4', 'task-5'];
@@ -540,6 +582,56 @@ test('it tags every item with an owed note, the item in focus included, and no i
   ]);
 });
 
+test('it prints a grant of only not bullets under its heading, with no may line', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      host: 'codex',
+      session: buildMockSession({
+        grant: {
+          may: [],
+          not: ['replant the north beds before the soil report is in'],
+          never: [],
+          scope: null,
+          reading: 'covers nothing yet',
+          where: 'chat',
+          set: '2026-03-03T09:00:00Z',
+        },
+      }),
+    }),
+  );
+
+  expect(
+    brief.split('\n').filter((line) => /^(?:GRANT|  (?:may|not|never|reading))/u.test(line)),
+  ).toStrictEqual([
+    'GRANT  from the owner in chat, 7d ago',
+    '  not    • replant the north beds before the soil report is in',
+    '  reading: covers nothing yet',
+  ]);
+});
+
+test('it prints two short never bullets of a grant of only never bullets on one line', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      host: 'codex',
+      session: buildMockSession({
+        grant: {
+          may: [],
+          not: [],
+          never: ['dig up the roses', 'spray the hives'],
+          scope: null,
+          reading: 'covers nothing yet',
+          where: 'chat',
+          set: '2026-03-03T09:00:00Z',
+        },
+      }),
+    }),
+  );
+
+  expect(brief.split('\n').filter((line) => line.startsWith('  never'))).toStrictEqual([
+    '  never  • dig up the roses  • spray the hives',
+  ]);
+});
+
 test('it prints the grant whole and ends the last kept section with the cut line, when 12 tasks and 10 rules pass the limits', () => {
   const mayBullet = buildSpacedText(120).replaceAll('g', 'x');
   const may = Array.from({ length: 5 }, () => mayBullet);
@@ -643,10 +735,25 @@ test('it prints every task and no count line when a brief with room holds 20', (
   );
 
   expect({
-    heading: brief.includes('OPEN (20 of 30)\n'),
+    heading: brief.includes('OPEN (20, max 30)\n'),
     rows: brief.split('\n').filter((line) => line.startsWith('  task')).length,
     hasCountLine: brief.includes('more open tasks'),
   }).toStrictEqual({ heading: true, rows: 20, hasCountLine: false });
+});
+
+test('it prints OPEN (20, max 30) over the rows that fit and a count line for the rest, on a Codex budget', () => {
+  const brief = renderBrief(buildWorstCaseBriefInput({ host: 'codex', taskCount: 20 }));
+  const lines = brief.split('\n');
+
+  expect({
+    hasHeading: lines.includes('OPEN (20, max 30)'),
+    rows: lines.filter((line) => /^ {2}task\d\d/u.test(line)).length,
+    countLine: lines.find((line) => line.includes('more open tasks')),
+  }).toStrictEqual({
+    hasHeading: true,
+    rows: 5,
+    countLine: '  and 15 more open tasks: www show',
+  });
 });
 
 test('it prints 5 rows of the order and a count line for 7 tasks in the worst case', () => {
@@ -778,7 +885,7 @@ test('it keeps the focus row and the count line when the cut takes every other t
   const openAt = lines.findIndex((line) => line.startsWith('OPEN ('));
 
   expect(lines.slice(openAt, openAt + 3)).toStrictEqual([
-    'OPEN (12 of 30)',
+    'OPEN (12, max 30)',
     expect.stringMatching(/^ {2}task03xxxxxxxxxx {2}c+ {2}\[no check · 1h\]$/u),
     expect.stringMatching(/^ {2}and 7 more open tasks: www show$/u),
   ]);

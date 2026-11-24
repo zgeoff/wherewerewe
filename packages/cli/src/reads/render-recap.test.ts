@@ -153,7 +153,7 @@ test('it renders the recap of the design example line for line', () => {
       '  reading: covers merges in both repos on green CI with findings answered, staging deploys, the',
       '    staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit',
       '    merges and releases',
-      'NOTES (3 of 3 notes, on 13 open items) · owed first, then newest',
+      'NOTES (3 on 13 open items) · owed first, then newest',
       '  t-flag      Turn on the tide_alerts flag in staging config',
       '    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…',
       '  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07',
@@ -189,7 +189,7 @@ test('it lists owed notes first, then the rest newest first, ties in notes.tsv o
   });
 
   expect(lines.slice(2, 11)).toStrictEqual([
-    'NOTES (4 of 4 notes, on 4 open items) · owed first, then newest',
+    'NOTES (4 on 4 open items) · owed first, then newest',
     '  t-c         claim t-c',
     '    owed note (25h): c',
     '  t-d         claim t-d',
@@ -213,7 +213,7 @@ test('it prints 6 notes and an overflow line that names the rest, when 7 items h
   });
 
   expect(lines.filter((line) => /^NOTES|^ {2}and /u.test(line))).toStrictEqual([
-    'NOTES (6 of 7 notes, on 7 open items) · owed first, then newest',
+    'NOTES (7 on 7 open items) · owed first, then newest',
     '  and 1 more with a note: www --session tide-alerts log --op note',
   ]);
 });
@@ -227,7 +227,7 @@ test('it prints an approval with its quote in double quotes', () => {
   });
 
   expect(lines.slice(2, 5)).toStrictEqual([
-    'NOTES (1 of 1 notes, on 1 open items) · owed first, then newest',
+    'NOTES (1 on 1 open items) · owed first, then newest',
     '  ok-wipe     "wipe the staging table once"',
     '    note (1h): Spent on day 9.',
   ]);
@@ -247,7 +247,7 @@ test('it names the other open items, a rule and a where item among them, in item
   });
 
   expect(lines.slice(2, 6)).toStrictEqual([
-    'NOTES (1 of 1 notes, on 4 open items) · owed first, then newest',
+    'NOTES (1 on 4 open items) · owed first, then newest',
     '  t-a         Write the parser',
     '    note (1h): The simulator is shared on Fridays',
     '  other open items (3): t-z, r-m, wt-q',
@@ -274,7 +274,7 @@ test('it prints 0 of 0 notes and the other open items when open items have no no
   });
 
   expect(lines.slice(2, 4)).toStrictEqual([
-    'NOTES (0 of 0 notes, on 2 open items) · owed first, then newest',
+    'NOTES (0 on 2 open items) · owed first, then newest',
     '  other open items (2): t-a, t-b',
   ]);
 });
@@ -396,6 +396,30 @@ test('it never cuts an overflow line or a footer line', () => {
     `  and 1 more: www --session ${name} log --op decide,ruled-out --since ${sinceText}`,
     `Whole text: www --session ${name} show <id>`,
     `Correct: www --session ${name} say "<text>" [--on <id>]`,
+  ]);
+});
+
+test('it prints a grant of only a not bullet as the owner said it', () => {
+  const ctx = setupTest();
+
+  const lines = ctx.renderLines({
+    session: buildMockSession({
+      grant: {
+        may: [],
+        not: ['replant the north beds before the soil report is in'],
+        never: [],
+        scope: null,
+        reading: 'covers nothing yet',
+        where: 'chat',
+        set: '2026-03-03T09:00:00Z',
+      },
+    }),
+  });
+
+  expect(lines.slice(1, 4)).toStrictEqual([
+    'GRANT  from the owner in chat, 7d ago',
+    '  not    • replant the north beds before the soil report is in',
+    '  reading: covers nothing yet',
   ]);
 });
 

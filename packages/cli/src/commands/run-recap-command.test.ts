@@ -184,10 +184,7 @@ test('it prints what parses and names the broken row of notes.tsv on stderr', as
     lines: result.stdout.split('\n').slice(2, 4),
     stderr: result.stderr.split('\n')[0]?.startsWith("www: tide-alerts's notes.tsv line"),
   }).toStrictEqual({
-    lines: [
-      'NOTES (0 of 0 notes, on 1 open items) · owed first, then newest',
-      '  other open items (1): t-a',
-    ],
+    lines: ['NOTES (0 on 1 open items) · owed first, then newest', '  other open items (1): t-a'],
     stderr: true,
   });
 });

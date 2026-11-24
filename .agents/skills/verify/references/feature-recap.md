@@ -28,7 +28,7 @@ bun verify www run --line 'www --session trial-recap decide "Poll the feed every
 bun verify www run --line 'www --session trial-recap decide "Draw docks with the map SDK markers" --why "Custom markers drop frames on old phones"' --expect 'd-5  decision.'
 bun verify www run --line 'www --session trial-recap decide "Hide docks closed for repair" --why "A closed dock sends riders to a dead end"' --expect 'd-6  decision.'
 bun verify www run --line 'www --session trial-recap recap' --expect '  may    • merge the dock map PRs once CI is green'
-bun verify www run --line 'www --session trial-recap recap' --expect 'NOTES (2 of 2 notes, on 3 open items) · owed first, then newest'
+bun verify www run --line 'www --session trial-recap recap' --expect 'NOTES (2 on 3 open items) · owed first, then newest'
 bun verify www run --line 'www --session trial-recap recap' --expect $'  t-flag      Turn on the dock_map flag in staging\n    owed note ('
 bun verify www run --line 'www --session trial-recap recap' --expect $'): Turn the dock_map flag off in staging before this closes: QA shares it.\n  t-dock      Draw the docks on the map\n    note ('
 bun verify www run --line 'www --session trial-recap recap' --expect '): The dock feed sends lat and lng swapped for the old stations; swap them back in the …'

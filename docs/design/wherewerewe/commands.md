@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, as built through slice 2d and decision record 0009, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2d and decision records 0009 and 0011, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -34,13 +34,13 @@ Write as you go. One id holds one claim and one note; --note replaces the note:
   www set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]
   www decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]
   www goal "<what done means>"
-  www grant --may "<words>" [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
+  www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
             --where <where> --reading "<what they cover; what the owner kept back>"
   www grant --reading "<what they cover; what the owner kept back>"
 
 Notes: --note "<detail>" and --owed work on now and on every item write. A note holds what you
 need on your next turn to that item. An owed note stops done, drop and use until set clears it.
-Grant: --may, --not and --never repeat, one bullet each, in the owner's words.
+Grant: --may, --not and --never repeat, one bullet each, in the owner's words; a grant needs one.
 
 Close. Each leaves the brief and stays in the journal:
   www done <id> --evidence "<PR, commit or test run>"
@@ -55,13 +55,13 @@ Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www 
 Setup:   www install [--print]   www doctor
 Any command takes --session <name>.
 
-Limits: a claim is one line of at most 120 characters, a note 400, a grant bullet 120, the grant's
-words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
-1 approval, 5 rules, 4 where items and 2 owner notes.
+Limits: a claim is one line of at most 120 characters, a note 400, the grant's words 700 in at most
+12 bullets on at most 19 lines of the brief, and its reading 200. A session holds at most 30 tasks,
+4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2d and decision record 0009, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs and the task limit's diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 2d and decision records 0009 and 0011, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff and the grant's diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -162,6 +162,24 @@ The task limit, decision record 0009:
 -words 700 in at most 12 bullets, and its reading 200. The brief holds at most 6 tasks, 4 waits,
 +words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
  1 approval, 5 rules, 4 where items and 2 owner notes.
+```
+
+The grant's shapes, its lines and the headings, decision record 0011:
+
+```diff
+@@ -23,1 +23,1 @@
+-  www grant --may "<words>" [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
++  www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
+@@ -29,1 +29,1 @@
+-Grant: --may, --not and --never repeat, one bullet each, in the owner's words.
++Grant: --may, --not and --never repeat, one bullet each, in the owner's words; a grant needs one.
+@@ -44,3 +44,3 @@
+-Limits: a claim is one line of at most 120 characters, a note 400, a grant bullet 120, the grant's
+-words 700 in at most 12 bullets, and its reading 200. A session holds at most 30 tasks, 4 waits,
+-1 approval, 5 rules, 4 where items and 2 owner notes.
++Limits: a claim is one line of at most 120 characters, a note 400, the grant's words 700 in at most
++12 bullets on at most 19 lines of the brief, and its reading 200. A session holds at most 30 tasks,
++4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
 ### Signatures
