@@ -266,16 +266,29 @@ test('it leaves NOTES out when no item is open', () => {
   ]);
 });
 
-test('it prints 0 of 0 notes and the other open items when open items have no note', () => {
+test('it prints 0 notes on 9 open items and names the other open items when none has a note', () => {
   const ctx = setupTest();
-
-  const lines = ctx.renderLines({
-    items: [buildMockItem({ id: 't-a' }), buildMockItem({ id: 't-b' })],
-  });
+  const ids = ['t-a', 't-b', 't-c', 't-d', 't-e', 't-f', 't-g', 't-h', 't-i'];
+  const lines = ctx.renderLines({ items: ids.map((id) => buildMockItem({ id })) });
 
   expect(lines.slice(2, 4)).toStrictEqual([
-    'NOTES (0 on 2 open items) · owed first, then newest',
-    '  other open items (2): t-a, t-b',
+    'NOTES (0 on 9 open items) · owed first, then newest',
+    '  other open items (9): t-a, t-b, t-c, t-d, t-e, t-f, t-g, t-h, t-i',
+  ]);
+});
+
+test('it prints 3 notes on 12 open items and names the 9 open items with no note', () => {
+  const ctx = setupTest();
+  const ids = ['t-a', 't-b', 't-c', 't-d', 't-e', 't-f', 't-g', 't-h', 't-i', 't-j', 't-k', 't-l'];
+
+  const lines = ctx.renderLines({
+    items: ids.map((id) => buildMockItem({ id, claim: `claim ${id}` })),
+    notes: ['t-a', 't-b', 't-c'].map((id) => buildMockNote({ id, note: `note ${id}` })),
+  });
+
+  expect(lines.filter((line) => /^NOTES|^ {2}other open items/u.test(line))).toStrictEqual([
+    'NOTES (3 on 12 open items) · owed first, then newest',
+    '  other open items (9): t-d, t-e, t-f, t-g, t-h, t-i, t-j, t-k, t-l',
   ]);
 });
 

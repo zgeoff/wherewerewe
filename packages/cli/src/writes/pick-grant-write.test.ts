@@ -301,6 +301,29 @@ test('it writes a bullet of 162 characters and counts its two lines', () => {
   );
 });
 
+test('it writes a may bullet of 162 characters and a not bullet and counts 3 lines', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick([
+      'grant',
+      '--may',
+      'merge the garden-api pull requests yourself once CI is green, every review finding is answered, and the staging beds have run the new build for a full day',
+      '--not',
+      'replant the north beds before the soil report is in',
+      '--where',
+      'chat',
+      '--reading',
+      'covers garden-api merges after a day on the staging beds; kept back: replanting the north beds',
+    ]),
+    9,
+  );
+
+  expect(picked.reply).toBe(
+    'grant: 205 of 700 characters in 2 of 12 bullets on 3 of 19 lines, reading 94 of 200. Brief: 9 lines.',
+  );
+});
+
 test('it writes one bullet of 700 characters with no space, on 8 lines', () => {
   const ctx = setupTest();
 

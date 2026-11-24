@@ -1,10 +1,9 @@
 import { expect, test } from 'bun:test';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from '../run-cli.ts';
-import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildGrantFaultCases, faultCredential } from '../test-utils/build-grant-fault-cases.ts';
+import { buildSampleRunArgv } from '../test-utils/build-sample-run-argv.ts';
 import { buildWriteFaultCases } from '../test-utils/build-write-fault-cases.ts';
-import { parseRunLine } from '../test-utils/parse-run-line.ts';
 import { settleRefusal } from './settle-refusal.ts';
 
 function setupTest() {
@@ -20,26 +19,6 @@ function setupTest() {
         terminal: { stdin: false, stdout: false },
         now: () => Date.parse('2026-03-10T11:43:00Z'),
       }),
-
-    // every placeholder filled with one short word, so a filled grant stays within its limits: an
-    // id or a name takes a new id, and a decision's who takes agent
-    fill: (line: string) =>
-      buildFilledRunArgv(
-        line,
-        Object.fromEntries(
-          parseRunLine(line).flatMap((word) => {
-            if (!/<[^<>]+>/u.test(word)) {
-              return [];
-            }
-
-            if (word === '<owner or agent>') {
-              return [[word, 'agent']];
-            }
-
-            return [[word, /id>$|^<name>$/u.test(word) ? 'n-c' : 'x']];
-          }),
-        ),
-      ),
   };
 }
 
@@ -56,7 +35,7 @@ test.each(buildGrantFaultCases().map((entry) => [entry.title, entry.argv] as con
 
     const retries = await Promise.all(
       runLines.map(async (line) => {
-        const retried = await ctx.run(ctx.fill(line));
+        const retried = await ctx.run(buildSampleRunArgv(line));
 
         return retried.exitCode;
       }),
@@ -94,7 +73,7 @@ test.each(buildWriteFaultCases().map((entry) => [entry.title, entry] as const))(
     const retries = [];
 
     for (const line of runLines) {
-      const retried = await ctx.run(ctx.fill(line));
+      const retried = await ctx.run(buildSampleRunArgv(line));
 
       retries.push(retried.exitCode);
     }
@@ -137,7 +116,7 @@ test.each(
 
   const retries = await Promise.all(
     runLines.map(async (line) => {
-      const retried = await ctx.run(ctx.fill(line));
+      const retried = await ctx.run(buildSampleRunArgv(line));
 
       return retried.exitCode;
     }),
@@ -284,7 +263,7 @@ test.each([
 
     const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www')) ?? '';
 
-    const retried = await ctx.run(ctx.fill(runLine));
+    const retried = await ctx.run(buildSampleRunArgv(runLine));
 
     expect({
       exitCode: refused.exitCode,
@@ -311,7 +290,7 @@ test('it keeps a mistyped --session name on a Run line, so the line never writes
 
   const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www')) ?? '';
 
-  const retried = await ctx.run(ctx.fill(runLine));
+  const retried = await ctx.run(buildSampleRunArgv(runLine));
 
   expect({ runLine, retried: retried.exitCode }).toStrictEqual({
     runLine: 'Run: www --session Tide_Alerts task t-a "Write it" --note="-keep"',

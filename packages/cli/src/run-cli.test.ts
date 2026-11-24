@@ -14,7 +14,10 @@ import { readStore } from './store/read-store.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
 import { buildCredentialSamples } from './test-utils/build-credential-samples.ts';
 import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
+import { buildGrantFaultCases, faultCredential } from './test-utils/build-grant-fault-cases.ts';
 import { buildMockIDs } from './test-utils/build-mock-ids.ts';
+import { buildSampleRunArgv } from './test-utils/build-sample-run-argv.ts';
+import { buildSpacedText } from './test-utils/build-spaced-text.ts';
 import { countBriefLines } from './test-utils/count-brief-lines.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
@@ -56,6 +59,8 @@ function setupTest() {
         },
       }),
     readTree: () => readTreeHashes(stateRoot),
+    pickGrantLines: (stdout: string) =>
+      stdout.split('\n').filter((line) => /^ {2}(?:may|not|never) /u.test(line)),
     advance: (durationMs: number) => {
       clock.nowMs += durationMs;
     },
@@ -2447,9 +2452,108 @@ test('it writes a grant of only --not and prints it in the brief, show grant and
   });
 });
 
+test.each([
+  {
+    title: 'only --never',
+    bullets: [
+      ['--never', 'skip the gate'],
+      ['--never', 'no night watering'],
+    ],
+    reply:
+      'grant: 30 of 700 characters in 2 of 12 bullets on 1 of 19 lines, reading 18 of 200. Brief: <n> lines.\n',
+    lines: ['  never  • skip the gate  • no night watering'],
+  },
+  {
+    title: '--not with --never',
+    bullets: [
+      ['--not', 'replant the north beds before the soil report is in'],
+      ['--never', 'prune the roses'],
+    ],
+    reply:
+      'grant: 66 of 700 characters in 2 of 12 bullets on 2 of 19 lines, reading 18 of 200. Brief: <n> lines.\n',
+    lines: [
+      '  not    • replant the north beds before the soil report is in',
+      '  never  • prune the roses',
+    ],
+  },
+])(
+  'it writes a grant of $title and prints it in the brief, show grant and the recap',
+  async (row) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const written = await ctx.run([
+      'grant',
+      ...row.bullets.flat(),
+      '--where',
+      'chat',
+      '--reading',
+      'covers nothing yet',
+    ]);
+
+    const brief = await ctx.run([]);
+    const shown = await ctx.run(['show', 'grant']);
+    const recap = await ctx.run(['recap']);
+
+    expect({
+      written: [
+        written.exitCode,
+        written.stdout.replace(/Brief: \d+ lines\./u, 'Brief: <n> lines.'),
+      ],
+      brief: ctx.pickGrantLines(brief.stdout),
+      shown: [shown.exitCode, ctx.pickGrantLines(shown.stdout)],
+      recap: [recap.exitCode, ctx.pickGrantLines(recap.stdout)],
+      hasNone: brief.stdout.includes('GRANT  none'),
+    }).toStrictEqual({
+      written: [0, row.reply],
+      brief: [...row.lines],
+      shown: [0, [...row.lines]],
+      recap: [0, [...row.lines]],
+      hasNone: false,
+    });
+  },
+);
+
+test.each(buildGrantFaultCases().map((entry) => [entry.title, entry.argv] as const))(
+  'it prints Run lines that pass once filled, for the grant faults %s',
+  async (_title, argv) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const refused = await ctx.run(argv);
+
+    const runLines = refused.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
+
+    const retries = await Promise.all(
+      runLines.map(async (line) => {
+        const retried = await ctx.run(buildSampleRunArgv(line));
+
+        return retried.exitCode;
+      }),
+    );
+
+    // a line break alone is no fault in a bullet: the write turns it into a space and passes
+    const isWritten = refused.exitCode === 0;
+
+    expect({
+      runLines: runLines.length,
+      retries,
+      credential: refused.stderr.includes(faultCredential),
+      marked: runLines.filter((line) => line.includes('•')),
+    }).toStrictEqual({
+      runLines: isWritten ? 0 : 1,
+      retries: isWritten ? [] : [0],
+      credential: false,
+      marked: [],
+    });
+  },
+);
+
 test('it refuses a grant of 20 lines with a Run line that runs once filled', async () => {
   const ctx = setupTest();
-  const words = Array.from({ length: 9 }, () => 'w'.repeat(74)).join(' ');
+  const words = buildSpacedText(649, 74);
   const ones = Array.from({ length: 11 }, () => ['--may', 'o']).flat();
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
@@ -2521,7 +2625,9 @@ test('it refuses a grant with no bullet with a Run line that adds --may and runs
 test('it prints no part of a credential inside a bullet of 160 characters, and a Run line that keeps the place', async () => {
   const ctx = setupTest();
   const credential = buildCredentialSamples().find((entry) => entry.name === 'ghp');
-  const bullet = `${'a'.repeat(60)} ${credential?.sample ?? ''} ${'b'.repeat(60)}`;
+  const sample = credential?.sample ?? '';
+  const padding = 160 - sample.length - 2;
+  const bullet = `${'a'.repeat(Math.floor(padding / 2))} ${sample} ${'b'.repeat(Math.ceil(padding / 2))}`;
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
 
