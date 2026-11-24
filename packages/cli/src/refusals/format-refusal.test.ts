@@ -22,6 +22,11 @@ test.each([
     ['--pr', 'x', '--', 'task', '-a'],
     'Run: www --session tide-alerts --pr x -- task -a',
   ],
+  [
+    'a claim of --session after the dash dash',
+    ['--note', '<note>', '--', 'task', 't-a', '--session'],
+    'Run: www --session tide-alerts --note "<note>" -- task t-a --session',
+  ],
 ])('it keeps --session on a Run line for %s', (_title, argv, expected) => {
   const text = formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },

@@ -3,7 +3,9 @@ import { getKindWord } from '../rules/get-kind-word.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { noSecretPlaceholder, redactCredential } from '../rules/redact-credential.ts';
-import type { CheckFlag, ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
+import type { ParsedArgs, Refusal, RefusalReason, TextTarget } from '../types.ts';
+import { buildMalformedCheckRefusal } from './build-malformed-check-refusal.ts';
+import { buildNoteRefusal } from './build-note-refusal.ts';
 import { buildOwnerRefusal } from './build-owner-refusal.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
@@ -63,6 +65,15 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       ),
     )
     .with({ kind: 'kind-full' }, (found) => buildKindFull(found))
+    .with(
+      { kind: 'owed-needs-note' },
+      { kind: 'note-and-no-note' },
+      { kind: 'set-needs-change' },
+      { kind: 'set-check-needs-claim' },
+      { kind: 'no-note-to-clear' },
+      { kind: 'owed-note' },
+      (found) => buildNoteRefusal(found),
+    )
     .with({ kind: 'needs-evidence' }, (found) =>
       refuse(
         'www: refused: done needs evidence a reader can open, such as a PR, a commit or a test run. For work you stopped, use drop.',
@@ -122,7 +133,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     )
     .with({ kind: 'decision-is-owners' }, (found) =>
       refuse(
-        `www: refused: ${found.id} is the owner's decision. Ask the owner, and record the answer with --who owner.`,
+        `www: refused: ${found.id} is the owner's decision, so only a decision recorded with --who owner replaces it.`,
         [
           'decide',
           "<the owner's answer>",
@@ -153,10 +164,10 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       ),
     )
     .with({ kind: 'use-standing' }, (found) =>
-      refuse(
-        `www: refused: ${found.id} is standing, so there is nothing to spend. Act inside its quote and scope.`,
-        ['show', found.id],
-      ),
+      refuse(`www: refused: ${found.id} is standing, so there is nothing to spend.`, [
+        'show',
+        found.id,
+      ]),
     )
     .with({ kind: 'use-not-approval' }, (found) =>
       refuse(
@@ -191,7 +202,9 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildRunSpec(found.args).keepFirstCheck().toArgv(),
       ),
     )
-    .with({ kind: 'malformed-check' }, (found) => buildMalformedCheck(found.args, found.flag))
+    .with({ kind: 'malformed-check' }, (found) =>
+      buildMalformedCheckRefusal(found.args, found.flag),
+    )
     .with({ kind: 'relative-path' }, (found) =>
       refuse(
         `www: refused: --${found.flag} takes an absolute path.`,
@@ -205,7 +218,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
           .renameCommand('where')
           .replacePositional(0, '<new id>')
           .keepFirstCheck()
-          .keepCheckFlags()
+          .keepCheckAndNoteFlags()
           .toArgv(),
       ),
     )
@@ -299,6 +312,13 @@ function usage(exitCode: 2 | 4, line: string, argv: readonly string[] = ['help']
 type Found<Variant extends RefusalReason['kind']> = Extract<RefusalReason, { kind: Variant }>;
 
 function buildTooLong(found: Found<'text-too-long'>): Refusal {
+  if (found.target.label === 'note') {
+    return refuse(
+      `www: refused: the note is ${String(found.length)} characters, and the limit is ${String(found.limit)}. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.`,
+      replaceText(found.args, found.target, '<note of at most 400 characters>'),
+    );
+  }
+
   const placeholder = `<${found.target.label} of at most ${String(found.limit)} characters>`;
 
   return refuse(
@@ -322,10 +342,17 @@ function replaceText(args: ParsedArgs, target: TextTarget, value: string): strin
 const itemWriteCommands: ReadonlySet<string> = new Set(['task', 'wait', 'rule', 'where', 'set']);
 
 function buildCredentialRun(found: Found<'credential'>): string[] {
+  if (found.target.label === 'note') {
+    return replaceText(found.args, found.target, '<where the secret lives>');
+  }
+
   if (itemWriteCommands.has(found.args.command)) {
     const id = found.onOtherKind ? '<new id>' : (found.args.positionals[0] ?? '<new id>');
 
-    return ['where', id, '<where the secret lives>'];
+    return buildRunSpec({ ...found.args, positionals: [id, '<where the secret lives>'] })
+      .renameCommand('where')
+      .keepFlags(['note', 'owed'])
+      .toArgv();
   }
 
   return replaceText(found.args, found.target, noSecretPlaceholder);
@@ -398,7 +425,7 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
 
   // A use with no approval left to spend has no id that fills the line, so it reads the id instead.
   const argv = match({ command: found.args.command, closest })
-    .with({ command: 'set' }, () => spec.renameCommand('task').keepCheckFlags().toArgv())
+    .with({ command: 'set' }, () => buildTaskForSet(spec, found.args).toArgv())
     .with({ command: 'use', closest: null }, () => ['show', found.id])
     .otherwise(() => spec.replacePositional(0, closest ?? '<open id>').toArgv());
 
@@ -408,6 +435,13 @@ function buildNoOpenItem(found: Found<'no-open-item'>): Refusal {
   );
 }
 
+// A set with no claim changes only a note, so the task that makes the missing item takes a claim.
+function buildTaskForSet(spec: RunSpec, args: ParsedArgs): RunSpec {
+  const task = spec.renameCommand('task').keepCheckAndNoteFlags();
+
+  return args.positionals.length === 1 ? task.addPositional('<claim>') : task;
+}
+
 // A rule has no check, so the set that turns the claim into a rule's new text drops the flags.
 function buildOtherKindRun(found: Found<'other-kind'>): string[] {
   const typed = buildRunSpec(found.args);
@@ -415,13 +449,13 @@ function buildOtherKindRun(found: Found<'other-kind'>): string[] {
   // ok takes its words in --quote, so the set that replaces it takes them as the claim
   const spec = (
     found.args.command === 'ok'
-      ? typed.keepFlags([]).addPositional(found.args.values.quote ?? '<claim>')
+      ? typed.keepFlags(['note', 'owed']).addPositional(found.args.values.quote ?? '<claim>')
       : typed
   ).renameCommand('set');
 
   return match(found.itemKind)
-    .with('rule', () => spec.keepFlags([]).toArgv())
-    .with('task', 'wait', 'ok', 'where', () => spec.keepCheckFlags().toArgv())
+    .with('rule', () => spec.keepFlags(['note', 'owed']).toArgv())
+    .with('task', 'wait', 'ok', 'where', () => spec.keepCheckAndNoteFlags().toArgv())
     .exhaustive();
 }
 
@@ -441,37 +475,6 @@ function repairID(
     .replaceAll(/-+$/gu, '');
 
   return isValid(repaired) ? repaired : placeholder;
-}
-
-function buildMalformedCheck(args: ParsedArgs, flag: CheckFlag): Refusal {
-  const spec = buildRunSpec(args);
-
-  return match(flag)
-    .with('pr', () =>
-      refuse(
-        'www: refused: --pr takes <owner>/<repo>#<number>, such as bosunhq/bosun-api#77.',
-        spec.replaceFlag('pr', '<owner>/<repo>#<number>').toArgv(),
-      ),
-    )
-    .with('branch', () =>
-      refuse(
-        'www: refused: --branch takes <absolute repo path>@<branch>, such as /home/sam/src/bosun-api@tz-fix.',
-        spec.replaceFlag('branch', '<absolute repo path>@<branch>').toArgv(),
-      ),
-    )
-    .with('pid', () =>
-      refuse(
-        'www: refused: --pid takes a process id, such as 48211.',
-        spec.replaceFlag('pid', '<process id>').toArgv(),
-      ),
-    )
-    .with('path', () =>
-      refuse(
-        'www: refused: --path takes an absolute path.',
-        spec.replaceFlag('path', '<absolute path>').toArgv(),
-      ),
-    )
-    .exhaustive();
 }
 
 function buildBlockedByUnknown(found: Found<'blocked-by-unknown'>): Refusal {

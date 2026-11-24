@@ -20,6 +20,8 @@ test('it makes a readable store with no items and returns its folder', async () 
       session: expect.objectContaining({ name: 'tide-alerts', format: '1' }),
       items: [],
       ownerNotes: [],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });

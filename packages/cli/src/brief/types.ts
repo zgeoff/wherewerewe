@@ -1,8 +1,9 @@
-import type { Item, SessionFile } from '../types.ts';
+import type { Item, Note, SessionFile } from '../types.ts';
 
 export interface BriefInput {
   readonly session: SessionFile;
   readonly items: readonly Item[];
+  readonly notes: readonly Note[];
   readonly ownerNotes: readonly {
     readonly id: string;
     readonly text: string;

@@ -54,3 +54,22 @@ test('it appends a row by the author it is given', async () => {
     '2026-03-04T08:00:00Z\tsay\to-1\timport\ta claim\ta reason\t-\n',
   );
 });
+
+test('it appends a row with the text and why it is given', async () => {
+  const ctx = setupTest();
+
+  const folder = await seedSessionStore(ctx.root, 'tide-alerts');
+
+  await seedJournalRow(folder, {
+    ts: '2026-03-04T08:00:00Z',
+    op: 'note',
+    id: 't-a',
+    text: 'Stop the simulator first',
+    why: null,
+    extra: 'owed=1',
+  });
+
+  expect(readFileSync(join(folder, 'journal.tsv'), 'utf8')).toEndWith(
+    '2026-03-04T08:00:00Z\tnote\tt-a\tagent\tStop the simulator first\t-\towed=1\n',
+  );
+});

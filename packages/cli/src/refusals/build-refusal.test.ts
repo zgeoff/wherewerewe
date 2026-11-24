@@ -1,7 +1,9 @@
 import { expect, test } from 'bun:test';
+import { cpSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { run } from '@zgeoff/testing/process';
 import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
@@ -12,10 +14,26 @@ import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 function setupTest() {
   const root = createTempDir('refusals').path;
   const clock = { nowMs: Date.parse('2026-03-10T11:43:00Z') };
+  const stateRoot = join(root, 'wherewerewe');
+  const snapshot = join(createTempDir('refusals-snapshot').path, 'wherewerewe');
 
   return {
-    stateRoot: join(root, 'wherewerewe'),
-    agentEnv: { XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
+    stateRoot,
+
+    // Each Run line replays on its own copy of the store as the refused command found it.
+    writeSnapshot: () => {
+      if (existsSync(stateRoot)) {
+        cpSync(stateRoot, snapshot, { recursive: true });
+      }
+    },
+    restoreStore: () => {
+      rmSync(stateRoot, { recursive: true, force: true });
+
+      if (existsSync(snapshot)) {
+        cpSync(snapshot, stateRoot, { recursive: true });
+      }
+    },
+    agentEnv: { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
     run: (
       argv: readonly string[],
       env: Record<string, string | undefined>,
@@ -326,6 +344,33 @@ test.each([
     fills: [{}],
   },
   {
+    title: 'set with a note and --owed on an id that is not open',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'x'],
+    ],
+    files: [],
+    argv: ['set', 't-b', '--note', 'Stop the simulator first', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: no open item t-b. Open items: t-a.\nRun: www task t-b "<claim>" --note "Stop the simulator first" --owed\n',
+    fills: [{ '<claim>': 'Fresh claim' }],
+  },
+  {
+    title: 'set with --no-note on an id that is not open',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'x'],
+    ],
+    files: [],
+    argv: ['set', 't-b', '--no-note'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: no open item t-b. Open items: t-a.\nRun: www task t-b "<claim>"\n',
+    fills: [{ '<claim>': 'Fresh claim' }],
+  },
+  {
     title: 'now on a near miss of an open id',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
@@ -422,6 +467,17 @@ test.each([
     exitCode: 3,
     stderr:
       'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www where s-staging "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'the vault bosun-staging' }],
+  },
+  {
+    title: 'a credential in a claim that carries a note and --owed',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', `token ghp_${'a'.repeat(6)}`, '--note', 'Rotate it Friday.', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www where t-a "<where the secret lives>" --note "Rotate it Friday." --owed\n',
     fills: [{ '<where the secret lives>': 'the vault bosun-staging' }],
   },
   {
@@ -658,6 +714,31 @@ test.each([
     stderr:
       'www: refused: t-a is a task. Change its text with set, or pick a new id.\nRun: www set t-a "new note" --pid 5\n',
     fills: [{}],
+  },
+  {
+    title: 'a task with a note and --owed on an open rule',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['rule', 'r-a', 'x'],
+    ],
+    files: [],
+    argv: ['task', 'r-a', 'New text', '--note', 'Keep the port free.', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: r-a is a rule. Change its text with set, or pick a new id.\nRun: www set r-a "New text" --note "Keep the port free." --owed\n',
+    fills: [{}],
+  },
+  {
+    title: 'a rule with a check, a note and --owed',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['rule', 'r-a', 'x', '--pid', '5', '--note', 'Hold the port.', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a rule has no check. Make the checked thing a where item.\nRun: www where <new id> x --pid 5 --note "Hold the port." --owed\n',
+    fills: [{ '<new id>': 'wt-a' }],
   },
   {
     title: 'a rule with a check',
@@ -1573,7 +1654,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: ok-merge is standing, so there is nothing to spend. Act inside its quote and scope.\nRun: www show ok-merge\n',
+      'www: refused: ok-merge is standing, so there is nothing to spend.\nRun: www show ok-merge\n',
     fills: [{}],
   },
   {
@@ -1902,7 +1983,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: d-1 is the owner\'s decision. Ask the owner, and record the answer with --who owner.\nRun: www decide "<the owner\'s answer>" --why "<reason>" --who owner --replaces d-1\n',
+      'www: refused: d-1 is the owner\'s decision, so only a decision recorded with --who owner replaces it.\nRun: www decide "<the owner\'s answer>" --why "<reason>" --who owner --replaces d-1\n',
     fills: [{ "<the owner's answer>": 'Keep the vault', '<reason>': 'The owner decided' }],
   },
   {
@@ -2180,13 +2261,270 @@ test.each([
       'www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello\n',
     fills: [{}],
   },
+  {
+    title: 'a note over its limit on a task with a new id',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-e2e', 'Write it', '--note', 'n'.repeat(401)],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the note is 401 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.\nRun: www task t-e2e "Write it" --note "<note of at most 400 characters>"\n',
+    fills: [{ '<note of at most 400 characters>': 'A short note' }],
+  },
+  {
+    title: 'a note over its limit on a set',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-a', '--note', 'n'.repeat(401)],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the note is 401 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.\nRun: www set t-a --note "<note of at most 400 characters>"\n',
+    fills: [{ '<note of at most 400 characters>': 'A short note' }],
+  },
+  {
+    title: 'a note with a tab',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', 'Write it', '--note', 'a\tb'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text must be one line, with no tab or newline.\nRun: www task t-a "Write it" --note "<one line>"\n',
+    fills: [{ '<one line>': 'One line' }],
+  },
+  {
+    title: 'an empty note',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', 'Write it', '--note', ''],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: the note is empty.\nRun: www task t-a "Write it" --note "<note>"\n',
+    fills: [{ '<note>': 'A note' }],
+  },
+  {
+    title: 'a note of one dash, which the journal would read as no text',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', 'Write it', '--note', '-'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: the note is empty.\nRun: www task t-a "Write it" --note "<note>"\n',
+    fills: [{ '<note>': 'A note' }],
+  },
+  {
+    title: 'a note with a credential',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', 'Write it', '--note', `AKIA${'Q'.repeat(16)}`],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches AKIA). Write where the secret lives, never its value.\nRun: www task t-a "Write it" --note "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'The key is in the vault' }],
+  },
+  {
+    title: '--owed with no --note on a task with a new id',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 't-a', 'Write it', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --owed marks a note, and this command gives none.\nRun: www task t-a "Write it" --note "<what is owed>" --owed\n',
+    fills: [{ '<what is owed>': 'Stop the simulator' }],
+  },
+  {
+    title: '--owed with no --note on a set',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-flag', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-flag', '--owed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --owed marks a note, and this command gives none.\nRun: www set t-flag --note "<what is owed>" --owed\n',
+    fills: [{ '<what is owed>': 'Stop the simulator' }],
+  },
+  {
+    title: '--note with --no-note on a set with a claim',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-a', 'Claim', '--note', 'detail', '--no-note'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --note replaces the note and --no-note clears it; give one.\nRun: www set t-a Claim --note detail\n',
+    fills: [{}],
+  },
+  {
+    title: '--note with --no-note on a set with no claim',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-a', '--no-note', '--note', 'detail'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --note replaces the note and --no-note clears it; give one.\nRun: www set t-a --note detail\n',
+    fills: [{}],
+  },
+  {
+    title: 'a set with only an id',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-flag', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-flag'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: set needs a claim, --note or --no-note.\nRun: www set t-flag "<claim>"\n',
+    fills: [{ '<claim>': 'Write it better' }],
+  },
+  {
+    title: 'a set with a check and no claim',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-a', '--pid', '5'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a check belongs to a claim, and set with no claim changes only the note.\nRun: www set t-a "<claim>" --pid 5\n',
+    fills: [{ '<claim>': 'Write it better' }],
+  },
+  {
+    title: 'a set with a check, a note and no claim',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-a', '--pid', '5', '--note', 'detail'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a check belongs to a claim, and set with no claim changes only the note.\nRun: www set t-a "<claim>" --pid 5 --note detail\n',
+    fills: [{ '<claim>': 'Write it better' }],
+  },
+  {
+    title: 'a task with a note while a notes.tsv row does not parse',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [{ session: 'tide-alerts', name: 'notes.tsv', text: 'id\towed\twritten\tnote\nt-a\n' }],
+    argv: ['task', 't-b', 'Write it', '--note', 'detail'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      "www: tide-alerts's notes.tsv line 2 does not parse: expected 4 tab-separated columns, found 1. Fix the row by hand.\nRun: less <STATE>/tide-alerts/notes.tsv\n",
+    fills: [],
+  },
+  {
+    title: '--no-note on an item with no note',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-e2e', 'Write it'],
+    ],
+    files: [],
+    argv: ['set', 't-e2e', '--no-note'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: t-e2e has no note to clear.\nRun: www show t-e2e\n',
+    fills: [{}],
+  },
+  {
+    title: 'a done on an item with an owed note',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      [
+        'task',
+        't-flag',
+        'Turn it on',
+        '--note',
+        'Turn the flag back off before this closes.',
+        '--owed',
+      ],
+    ],
+    files: [],
+    argv: ['done', 't-flag', '--evidence', 'commit 4c1d2e0'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: t-flag has an owed note (0m). Clear it once the work is done, or replace it with a note that is not owed.\n    Turn the flag back off before this closes.\nRun: www set t-flag --no-note\nRun: www set t-flag --note "<detail>"\n',
+    fills: [{}, { '<detail>': 'Flag is off again' }],
+  },
+  {
+    title: 'a drop on an item with an owed note',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      [
+        'task',
+        't-flag',
+        'Turn it on',
+        '--note',
+        'Turn the flag back off before this closes.',
+        '--owed',
+      ],
+    ],
+    files: [],
+    argv: ['drop', 't-flag', '--why', 'stopped'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: t-flag has an owed note (0m). Clear it once the work is done, or replace it with a note that is not owed.\n    Turn the flag back off before this closes.\nRun: www set t-flag --no-note\nRun: www set t-flag --note "<detail>"\n',
+    fills: [{}, { '<detail>': 'Flag is off again' }],
+  },
+  {
+    title: 'a use on an approval with an owed note',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      [
+        'ok',
+        'ok-wipe',
+        '--quote',
+        'wipe it',
+        '--who',
+        'owner',
+        '--where',
+        'chat',
+        '--scope',
+        'tide',
+        '--once',
+        '--note',
+        'Check the tmp dir first.',
+        '--owed',
+      ],
+    ],
+    files: [],
+    argv: ['use', 'ok-wipe', '--for', 'wiped it'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: ok-wipe has an owed note (0m). Clear it once the work is done, or replace it with a note that is not owed.\n    Check the tmp dir first.\nRun: www set ok-wipe --no-note\nRun: www set ok-wipe --note "<detail>"\n',
+    fills: [{}, { '<detail>': 'The tmp dir is clean' }],
+  },
 ])('it refuses $title with its text and a Run line that passes', async (row) => {
   const ctx = setupTest();
 
   const envs = {
     agent: ctx.agentEnv,
-    shell: { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
-    owner: { XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
+    shell: { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
+    owner: { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME },
     'other-agent': { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: 'c3d4-other' },
   };
 
@@ -2207,6 +2545,8 @@ test.each([
     seedStoreFile(join(ctx.stateRoot, file.session), file.name, file.text);
   }
 
+  ctx.writeSnapshot();
+
   const before = await ctx.readTree();
   const result = await ctx.run(row.argv, envs[row.env], terminals[row.env]);
   const after = await ctx.readTree();
@@ -2214,19 +2554,33 @@ test.each([
   const replayEnv = envs[row.replayEnv ?? row.env];
   const stderr = row.stderr.replaceAll('<STATE>', ctx.stateRoot);
   const runLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
+  const lessLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: less '));
   const filledExitCodes: number[] = [];
+  const lessExitCodes: number[] = [];
 
   for (const [index, fills] of row.fills.entries()) {
     const argv = buildFilledRunArgv(runLines[index] ?? '', fills);
+
+    ctx.restoreStore();
 
     const filled = await ctx.run(argv, replayEnv, terminals[row.replayEnv ?? row.env]);
 
     filledExitCodes.push(filled.exitCode);
   }
 
+  for (const line of lessLines) {
+    const words = await readShellWords(line.slice('Run: '.length));
+
+    // less prints a file as cat does when its output is no terminal, and CI hosts may lack less
+    const paged = await run(['cat', ...words.slice(1)]);
+
+    lessExitCodes.push(paged.exitCode);
+  }
+
   expect(result).toStrictEqual({ exitCode: row.exitCode, stdout: '', stderr });
   expect(after).toStrictEqual(before);
   expect(filledExitCodes).toStrictEqual(row.fills.map(() => 0));
+  expect(lessExitCodes).toStrictEqual(lessLines.map(() => 0));
 });
 
 test('it refuses a write while another holds the lock for 2 s, names the holder, and the same line passes once it is released', async () => {
@@ -2288,7 +2642,13 @@ test('it prints a claim with a shell redirection as one word that a real shell r
 
 test('it prints the path of a broken file as one word that a real shell reads back', async () => {
   const ctx = setupTest();
-  const env = { ...ctx.agentEnv, XDG_STATE_HOME: join(ctx.agentEnv.XDG_STATE_HOME, 'two words') };
+
+  const env = {
+    ...ctx.agentEnv,
+    HOME: join(ctx.agentEnv.HOME, 'two words'),
+    XDG_STATE_HOME: join(ctx.agentEnv.XDG_STATE_HOME, 'two words'),
+  };
+
   const folder = join(ctx.agentEnv.XDG_STATE_HOME, 'two words', 'wherewerewe', 'tide-alerts');
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], env);

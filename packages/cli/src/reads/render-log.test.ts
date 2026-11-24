@@ -262,3 +262,44 @@ test('it prints a journal of 100000 rows', () => {
 
   expect(renderLog(rows, '2026-03-02T08:04:11Z').split('\n')).toHaveLength(100_001);
 });
+
+test('it shows owed: before an owed note, note cleared for a cleared note and import as who', () => {
+  const rows: JournalRow[] = [
+    {
+      ts: '2026-03-10T10:48:15Z',
+      op: 'note',
+      id: 't-a',
+      by: 'agent',
+      text: 'Stop the simulator',
+      why: null,
+      extra: 'owed=1',
+    },
+    {
+      ts: '2026-03-10T10:49:15Z',
+      op: 'note',
+      id: 't-a',
+      by: 'agent',
+      text: null,
+      why: null,
+      extra: 'cleared=1',
+    },
+    {
+      ts: '2026-03-10T10:50:15Z',
+      op: 'note',
+      id: 't-b',
+      by: 'import',
+      text: 'Kept from the hand-kept store',
+      why: null,
+      extra: null,
+    },
+  ];
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z')).toBe(
+    [
+      'day 9  10:48  note      t-a        agent  owed: Stop the simulator',
+      'day 9  10:49  note      t-a        agent  note cleared',
+      'day 9  10:50  note      t-b        import Kept from the hand-kept store',
+      '',
+    ].join('\n'),
+  );
+});

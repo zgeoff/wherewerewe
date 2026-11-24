@@ -33,7 +33,9 @@ www --help
 - `www help` (the same as `www --help`) and `www sessions` print the commands and the sessions on
   this machine.
 - `www init`, `attach` and `detach` start a session and bind an agent session to it.
-- `www goal`, `now`, `task`, `wait`, `rule`, `where` and `set` write a note.
+- `www goal`, `now`, `task`, `wait`, `rule`, `where` and `set` write a claim.
+- `--note` keeps a note of detail on an item. `--owed` blocks closing the item until
+  `www set <id> --no-note` clears the note.
 - `www ok` records the owner's approval, and `use` spends one that was given once.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
 - `www done` and `drop` close an item and keep it in the journal.

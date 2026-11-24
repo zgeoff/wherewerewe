@@ -1,17 +1,19 @@
 import { match } from 'ts-pattern';
 import { canBlock } from '../rules/can-block.ts';
-import type { Item } from '../types.ts';
+import type { Item, Note } from '../types.ts';
 import { formatAge } from './format-age.ts';
 import { formatGoalLines } from './format-goal-lines.ts';
 import { getSessionDay } from './get-session-day.ts';
 import { pickFixCommand } from './pick-fix-command.ts';
 import type { BriefInput } from './types.ts';
+import { wrapBlock } from './wrap-block.ts';
 
 const maxCharacters = 6400;
 const maxLines = 52;
 
 // Renders every section of the brief in its order. When the text passes 6,400 characters or 52
-// lines, it drops item lines from the bottom up and says so.
+// lines, it drops item lines from the bottom up and says so. The note under NOW is part of its
+// section, so a cut never touches it.
 export function renderBrief(input: BriefInput): string {
   const sections = buildItemSections(input);
   const cutOrder = [5, 4, 3, 2, 1, 0];
@@ -49,6 +51,9 @@ function buildItemSections(input: BriefInput): ItemSection[] {
   const focus = input.session.now;
   const ofKind = (kind: Item['kind']): Item[] => items.filter((item) => item.kind === kind);
 
+  const isOwed = (item: Item): boolean =>
+    input.notes.some((note) => note.id === item.id && note.owed);
+
   const tasks = [
     ...ofKind('task').filter((item) => item.id === focus),
     ...ofKind('task').filter((item) => item.id !== focus),
@@ -62,26 +67,32 @@ function buildItemSections(input: BriefInput): ItemSection[] {
   return [
     {
       heading: `OPEN (${String(tasks.length)} of 6)`,
-      lines: tasks.map((item) => itemLine(item, formatTaskTag(item, items, nowMs))),
+      lines: tasks.map((item) =>
+        itemLine(item, withOwed(formatTaskTag(item, items, nowMs), isOwed(item))),
+      ),
     },
     {
       heading: `WAITING (${String(waits.length)} of 4)`,
-      lines: waits.map((item) => itemLine(item, formatWaitTag(item, nowMs))),
+      lines: waits.map((item) =>
+        itemLine(item, withOwed(formatWaitTag(item, nowMs), isOwed(item))),
+      ),
     },
     {
-      heading: `APPROVED (${String(approvals.length)} of 3) · act only inside each quote and scope`,
+      heading: `APPROVED (${String(approvals.length)} of 3)`,
       lines: approvals.map(
         (item) =>
-          `  ${padID(item.id)}"${item.claim}" · ${item.extra.use ?? 'once'} · ${item.extra.scope ?? ''}`,
+          `  ${padID(item.id)}"${item.claim}" · ${item.extra.use ?? 'once'} · ${item.extra.scope ?? ''}${isOwed(item) ? '  [owed]' : ''}`,
       ),
     },
     {
       heading: `RULES (${String(rules.length)} of 5)`,
-      lines: rules.map((item) => itemLine(item, null)),
+      lines: rules.map((item) => `${itemLine(item, null)}${isOwed(item) ? '  [owed]' : ''}`),
     },
     {
       heading: `WHERE (${String(whereItems.length)} of 4)`,
-      lines: whereItems.map((item) => itemLine(item, formatWhereTag(item, nowMs))),
+      lines: whereItems.map((item) =>
+        itemLine(item, withOwed(formatWhereTag(item, nowMs), isOwed(item))),
+      ),
     },
     renderPullRequests(input),
   ];
@@ -93,6 +104,10 @@ function itemLine(item: Item, tag: string | null): string {
 
 function padID(id: string): string {
   return id.length < 12 ? id.padEnd(12) : `${id}  `;
+}
+
+function withOwed(tag: string, isOwed: boolean): string {
+  return isOwed ? `${tag} · owed` : tag;
 }
 
 function formatTaskTag(item: Item, items: readonly Item[], nowMs: number): string {
@@ -126,7 +141,7 @@ function formatWhereTag(item: Item, nowMs: number): string {
   return item.check === null ? `no check · ${formatItemAge(item, nowMs)}` : formatResult(item);
 }
 
-const maxPullRequestRows = 3;
+const maxPullRequestRows = 1;
 
 function renderPullRequests(input: BriefInput): ItemSection {
   const pullRequests = input.pullRequests;
@@ -158,11 +173,8 @@ function renderPullRequests(input: BriefInput): ItemSection {
   };
 }
 
-const footer = [
-  'Write as you go: one id holds one claim, and www set <id> "<claim>" replaces it.',
-  'Close with www done <id> --evidence "<PR, commit or test run>" or www drop <id> --why "<reason>".',
-  'More: www help · www show <id> · www log --since 24h · www decide "<choice>" --why "<reason>"',
-];
+const footer =
+  'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help';
 
 function joinBrief(
   input: BriefInput,
@@ -195,7 +207,7 @@ function joinBrief(
     ...renderChanged(input),
     ...renderNow(input),
     ...itemLines,
-    ...footer,
+    footer,
   ];
 
   return `${lines.join('\n')}\n`;
@@ -263,7 +275,7 @@ function renderOwnerNotes(input: BriefInput): string[] {
   ];
 }
 
-const maxChangedRows = 4;
+const maxChangedRows = 3;
 
 function renderChanged(input: BriefInput): string[] {
   if (input.changed.length === 0) {
@@ -294,13 +306,24 @@ function renderNow(input: BriefInput): string[] {
     return ['NOW  none. Run: www now <id> "<next step>"'];
   }
 
+  const note = input.notes.find((candidate) => candidate.id === session.now);
+
   const setAge =
     session.nowSet === null ? '' : ` · set ${formatAge(nowMs - Date.parse(session.nowSet))} ago`;
 
   return [
-    `NOW  ${session.now}${setAge}`,
+    `NOW  ${session.now}${setAge}${formatNoteAge(note, nowMs)}`,
     ...(session.nowNext === null ? [] : [`  next: ${session.nowNext}`]),
+    ...(note === undefined ? [] : wrapBlock(note.note, '    ', '    ')),
   ];
+}
+
+function formatNoteAge(note: Note | undefined, nowMs: number): string {
+  if (note === undefined) {
+    return '';
+  }
+
+  return ` · ${note.owed ? 'owed note' : 'note'} ${formatAge(nowMs - Date.parse(note.written))} ago`;
 }
 
 function countCharacters(text: string): number {

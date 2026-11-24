@@ -7,6 +7,7 @@ test('it lays the named fields over an empty brief input', () => {
   expect(input).toStrictEqual({
     session: expect.objectContaining({ name: 'tide-alerts' }),
     items: [],
+    notes: [],
     ownerNotes: [],
     changed: [],
     pullRequests: [],

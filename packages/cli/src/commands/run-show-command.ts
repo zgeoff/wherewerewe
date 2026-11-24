@@ -31,7 +31,7 @@ export async function runShowCommand(
     };
   }
 
-  const notes = [unread, journalUnread].flatMap((found) =>
+  const notes = [unread, store.notesUnread, journalUnread].flatMap((found) =>
     found === null ? [] : [formatUnreadNote(store.session.name, found, 'This read')],
   );
 

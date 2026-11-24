@@ -8,6 +8,7 @@ export function buildBriefInput(store: Store, nowMs: number): BriefInput {
   return {
     session: store.session,
     items: store.items,
+    notes: store.notes,
     ownerNotes: store.ownerNotes,
     changed: [],
     pullRequests: [],

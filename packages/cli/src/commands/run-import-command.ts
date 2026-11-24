@@ -7,9 +7,9 @@ import { parseHandKeptStore } from '../import/parse-hand-kept-store.ts';
 import type { HandKeptFiles } from '../import/parse-hand-kept-store.ts';
 import { pickImport } from '../import/pick-import.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
+import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatRefusal } from '../refusals/format-refusal.ts';
-import { readRefusalScope } from '../refusals/read-refusal-scope.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { findAgentID } from '../sessions/find-agent-id.ts';
 import { readSessionSummaries } from '../sessions/read-session-summaries.ts';
@@ -61,7 +61,7 @@ function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
   return {
     exitCode: refusal.exitCode,
     stdout: '',
-    stderr: formatRefusal(refusal, readRefusalScope(context.args)),
+    stderr: formatRefusal(refusal, buildRefusalScope(context.args)),
   };
 }
 

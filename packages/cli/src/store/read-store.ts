@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
-import type { OwnerNote, SessionFile, Store, UnreadRows } from '../types.ts';
+import type { Note, OwnerNote, SessionFile, Store, UnreadRows } from '../types.ts';
 import { parseItemsFile } from './parse-items-file.ts';
+import { parseNotesFile } from './parse-notes-file.ts';
 import { parseOwnerFile } from './parse-owner-file.ts';
 import { parseSessionFile } from './parse-session-file.ts';
 
@@ -22,9 +23,9 @@ export type StoreRead =
       readonly partial: Store | null;
     };
 
-// Reads `session`, stopping at a hand-kept or newer store, then `items.tsv`, then `owner.tsv`. A
-// broken `owner.tsv` never makes the store broken: its rows that parse come back with the rows that
-// do not named in `ownerUnread`. Never the journal.
+// Reads `session`, stopping at a hand-kept or newer store, then `items.tsv`, `notes.tsv` and
+// `owner.tsv`. A broken `notes.tsv` or `owner.tsv` never makes the store broken: its rows that parse
+// come back, with the one that does not named in `notesUnread` or `ownerUnread`. Never the journal.
 export async function readStore(folder: string): Promise<StoreRead> {
   const sessionText = await readTextOrNull(join(folder, 'session'));
 
@@ -61,6 +62,7 @@ async function readTextOrNull(path: string): Promise<string | null> {
 async function readItems(folder: string, session: SessionFile): Promise<StoreRead> {
   const itemsText = await readTextOrNull(join(folder, 'items.tsv'));
   const owner = await readOwner(folder);
+  const noteRead = await readNotes(folder);
 
   if (itemsText === null) {
     return {
@@ -68,21 +70,33 @@ async function readItems(folder: string, session: SessionFile): Promise<StoreRea
       file: 'items.tsv',
       line: null,
       reason: 'the file is missing',
-      partial: { folder, session, items: [], ...owner },
+      partial: { folder, session, items: [], ...keepOpenNotes(noteRead, []), ...owner },
     };
   }
 
   return match(parseItemsFile(itemsText))
     .with({ kind: 'items' }, (found): StoreRead => ({
       kind: 'store',
-      store: { folder, session, items: found.items, ...owner },
+      store: {
+        folder,
+        session,
+        items: found.items,
+        ...keepOpenNotes(noteRead, found.items),
+        ...owner,
+      },
     }))
     .with({ kind: 'broken' }, (found): StoreRead => ({
       kind: 'broken',
       file: 'items.tsv',
       line: found.line,
       reason: found.reason,
-      partial: { folder, session, items: found.items, ...owner },
+      partial: {
+        folder,
+        session,
+        items: found.items,
+        ...keepOpenNotes(noteRead, found.items),
+        ...owner,
+      },
     }))
     .exhaustive();
 }
@@ -123,4 +137,49 @@ function readOwnerText(ownerText: string): OwnerRead {
       ownerUnread: { file: 'owner.tsv', line: found.line, reason: found.reason },
     }))
     .exhaustive();
+}
+
+interface NotesRead {
+  readonly notes: readonly Note[];
+  readonly notesUnread: UnreadRows | null;
+}
+
+// A missing notes.tsv reads as no notes. A file system error reads as a broken file, as owner.tsv's
+// does.
+async function readNotes(folder: string): Promise<NotesRead> {
+  try {
+    const text = await readTextOrNull(join(folder, 'notes.tsv'));
+
+    return text === null ? { notes: [], notesUnread: null } : readNotesText(text);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+      return {
+        notes: [],
+        notesUnread: {
+          file: 'notes.tsv',
+          line: null,
+          reason: `the file cannot be read (${error.code})`,
+        },
+      };
+    }
+
+    throw error;
+  }
+}
+
+function readNotesText(text: string): NotesRead {
+  return match(parseNotesFile(text))
+    .with({ kind: 'notes' }, (found): NotesRead => ({ notes: found.notes, notesUnread: null }))
+    .with({ kind: 'broken' }, (found): NotesRead => ({
+      notes: found.notes,
+      notesUnread: { file: 'notes.tsv', line: found.line, reason: found.reason },
+    }))
+    .exhaustive();
+}
+
+function keepOpenNotes(read: NotesRead, items: readonly { readonly id: string }[]): NotesRead {
+  return {
+    notes: read.notes.filter((note) => items.some((item) => item.id === note.id)),
+    notesUnread: read.notesUnread,
+  };
 }

@@ -84,7 +84,7 @@ test('it edits positionals and flags without changing the spec it came from', ()
   ]);
 });
 
-test('it keeps only the check flags, only the first check, or drops a flag', () => {
+test('it keeps only the check and note flags, only the first check, or drops a flag', () => {
   const spec = buildRunSpec({
     command: 'task',
     positionals: ['t-a', 'Write it'],
@@ -94,18 +94,53 @@ test('it keeps only the check flags, only the first check, or drops a flag', () 
       { name: 'blocked-by', value: 'w-a' },
       { name: 'pr', value: 'acme/tool#7' },
       { name: 'pid', value: '5' },
+      { name: 'note', value: 'Stop the simulator first' },
+      { name: 'owed', value: null },
     ],
   });
 
   expect([
-    spec.keepCheckFlags().toArgv(),
+    spec.keepCheckAndNoteFlags().toArgv(),
     spec.keepFirstCheck().toArgv(),
     spec.dropFlag('blocked-by').toArgv(),
     spec.keepFlags(['pid']).renameCommand('set').toArgv(),
   ]).toStrictEqual([
-    ['task', 't-a', 'Write it', '--pr', 'acme/tool#7', '--pid', '5'],
-    ['task', 't-a', 'Write it', '--blocked-by', 'w-a', '--pr', 'acme/tool#7'],
-    ['task', 't-a', 'Write it', '--pr', 'acme/tool#7', '--pid', '5'],
+    [
+      'task',
+      't-a',
+      'Write it',
+      '--pr',
+      'acme/tool#7',
+      '--pid',
+      '5',
+      '--note',
+      'Stop the simulator first',
+      '--owed',
+    ],
+    [
+      'task',
+      't-a',
+      'Write it',
+      '--blocked-by',
+      'w-a',
+      '--pr',
+      'acme/tool#7',
+      '--note',
+      'Stop the simulator first',
+      '--owed',
+    ],
+    [
+      'task',
+      't-a',
+      'Write it',
+      '--pr',
+      'acme/tool#7',
+      '--pid',
+      '5',
+      '--note',
+      'Stop the simulator first',
+      '--owed',
+    ],
     ['set', 't-a', 'Write it', '--pid', '5'],
   ]);
 });

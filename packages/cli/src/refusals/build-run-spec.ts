@@ -6,9 +6,10 @@ export interface RunSpec {
   readonly addPositional: (value: string) => RunSpec;
   readonly replaceFlag: (name: string, value: string) => RunSpec;
   readonly addFlag: (name: string, value: string) => RunSpec;
+  readonly addFlagBefore: (beforeName: string, name: string, value: string) => RunSpec;
   readonly addWord: (word: string) => RunSpec;
   readonly keepFlags: (names: readonly string[]) => RunSpec;
-  readonly keepCheckFlags: () => RunSpec;
+  readonly keepCheckAndNoteFlags: () => RunSpec;
   readonly keepFirstCheck: () => RunSpec;
   readonly dropFlag: (name: string) => RunSpec;
   readonly renameCommand: (command: string) => RunSpec;
@@ -30,6 +31,7 @@ export function buildRunSpec(args: ParsedArgs): RunSpec {
 }
 
 const checkFlagNames: ReadonlySet<string> = new Set(['pr', 'branch', 'path', 'pid']);
+const keptFlagNames: ReadonlySet<string> = new Set([...checkFlagNames, 'note', 'owed']);
 
 interface SpecState {
   readonly command: string;
@@ -63,13 +65,24 @@ function makeSpec(state: SpecState): RunSpec {
       });
     },
     addFlag: (name, value) => makeSpec({ ...state, flags: [...state.flags, { name, value }] }),
+    addFlagBefore: (beforeName, name, value) => {
+      const at = state.flags.findIndex((flag) => flag.name === beforeName);
+
+      return makeSpec({
+        ...state,
+        flags:
+          at === -1
+            ? [...state.flags, { name, value }]
+            : [...state.flags.slice(0, at), { name, value }, ...state.flags.slice(at)],
+      });
+    },
     addWord: (word) => makeSpec({ ...state, words: [...state.words, word] }),
     keepFlags: (names) =>
       makeSpec({ ...state, flags: state.flags.filter((flag) => names.includes(flag.name)) }),
-    keepCheckFlags: () =>
+    keepCheckAndNoteFlags: () =>
       makeSpec({
         ...state,
-        flags: state.flags.filter((flag) => checkFlagNames.has(flag.name)),
+        flags: state.flags.filter((flag) => keptFlagNames.has(flag.name)),
       }),
     keepFirstCheck: () => {
       const first = state.flags.find((flag) => checkFlagNames.has(flag.name));

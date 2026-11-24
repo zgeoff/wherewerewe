@@ -67,48 +67,76 @@ const options = {
   once: { type: 'boolean' },
   standing: { type: 'boolean' },
   'ruled-out': { type: 'boolean' },
+  note: { type: 'string' },
+  owed: { type: 'boolean' },
+  'no-note': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
 const checkFlags = ['pr', 'branch', 'path', 'pid'];
+const noteFlags = ['note', 'owed'];
 
 interface CommandShape {
-  readonly count: number;
+  readonly counts: readonly number[];
   readonly usage: string;
   readonly flags: readonly string[];
 }
 
 // A map, so a command named like an inherited object property, such as toString, is unknown.
 const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
-  ['brief', { count: 0, usage: 'no arguments', flags: [] }],
-  ['help', { count: 0, usage: 'no arguments', flags: [] }],
-  ['sessions', { count: 0, usage: 'no arguments', flags: [] }],
-  ['detach', { count: 0, usage: 'no arguments', flags: [] }],
-  ['init', { count: 1, usage: '<name>', flags: ['goal'] }],
-  ['attach', { count: 1, usage: '<name>', flags: [] }],
-  ['import', { count: 1, usage: '<name>', flags: [] }],
-  ['goal', { count: 1, usage: '"<what done means>"', flags: [] }],
-  ['now', { count: 2, usage: '<id> "<next step>"', flags: [] }],
-  ['task', { count: 2, usage: '<id> "<claim>"', flags: [...checkFlags, 'blocked-by'] }],
-  ['wait', { count: 2, usage: '<id> "<what>"', flags: [...checkFlags, 'who'] }],
-  ['rule', { count: 2, usage: '<id> "<do it this way, and why>"', flags: checkFlags }],
-  ['where', { count: 2, usage: '<id> "<what and where, and how to stop it>"', flags: checkFlags }],
-  ['set', { count: 2, usage: '<id> "<claim>"', flags: checkFlags }],
-  ['done', { count: 1, usage: '<id>', flags: ['evidence'] }],
-  ['drop', { count: 1, usage: '<id>', flags: ['why'] }],
+  ['brief', { counts: [0], usage: 'no arguments', flags: [] }],
+  ['help', { counts: [0], usage: 'no arguments', flags: [] }],
+  ['sessions', { counts: [0], usage: 'no arguments', flags: [] }],
+  ['detach', { counts: [0], usage: 'no arguments', flags: [] }],
+  ['init', { counts: [1], usage: '<name>', flags: ['goal'] }],
+  ['attach', { counts: [1], usage: '<name>', flags: [] }],
+  ['import', { counts: [1], usage: '<name>', flags: [] }],
+  ['goal', { counts: [1], usage: '"<what done means>"', flags: [] }],
+  ['now', { counts: [2], usage: '<id> "<next step>"', flags: noteFlags }],
+  [
+    'task',
+    { counts: [2], usage: '<id> "<claim>"', flags: [...checkFlags, ...noteFlags, 'blocked-by'] },
+  ],
+  ['wait', { counts: [2], usage: '<id> "<what>"', flags: [...checkFlags, ...noteFlags, 'who'] }],
+  [
+    'rule',
+    {
+      counts: [2],
+      usage: '<id> "<do it this way, and why>"',
+      flags: [...checkFlags, ...noteFlags],
+    },
+  ],
+  [
+    'where',
+    {
+      counts: [2],
+      usage: '<id> "<what and where, and how to stop it>"',
+      flags: [...checkFlags, ...noteFlags],
+    },
+  ],
+  [
+    'set',
+    { counts: [1, 2], usage: '<id> ["<claim>"]', flags: [...checkFlags, ...noteFlags, 'no-note'] },
+  ],
+  ['done', { counts: [1], usage: '<id>', flags: ['evidence'] }],
+  ['drop', { counts: [1], usage: '<id>', flags: ['why'] }],
   [
     'ok',
-    { count: 1, usage: '<id>', flags: ['quote', 'who', 'where', 'scope', 'once', 'standing'] },
+    {
+      counts: [1],
+      usage: '<id>',
+      flags: ['quote', 'who', 'where', 'scope', 'once', 'standing', ...noteFlags],
+    },
   ],
-  ['use', { count: 1, usage: '<id>', flags: ['for'] }],
+  ['use', { counts: [1], usage: '<id>', flags: ['for'] }],
   [
     'decide',
-    { count: 1, usage: '"<choice>"', flags: ['why', 'on', 'who', 'ruled-out', 'replaces'] },
+    { counts: [1], usage: '"<choice>"', flags: ['why', 'on', 'who', 'ruled-out', 'replaces'] },
   ],
-  ['say', { count: 1, usage: '"<text>"', flags: ['on'] }],
-  ['ack', { count: 1, usage: 'o-<n>', flags: [] }],
-  ['show', { count: 1, usage: '<id>', flags: [] }],
-  ['log', { count: 0, usage: 'no arguments', flags: ['since', 'op', 'id'] }],
+  ['say', { counts: [1], usage: '"<text>"', flags: ['on'] }],
+  ['ack', { counts: [1], usage: 'o-<n>', flags: [] }],
+  ['show', { counts: [1], usage: '<id>', flags: [] }],
+  ['log', { counts: [0], usage: 'no arguments', flags: ['since', 'op', 'id'] }],
 ]);
 
 const laterCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);
@@ -174,7 +202,7 @@ function checkArgs(argv: readonly string[]): ParseResult {
     return refuse({ kind: 'flag-not-taken', command, flag: stray.name });
   }
 
-  if (rest.length !== shape.count) {
+  if (!shape.counts.includes(rest.length)) {
     return refuse({ kind: 'wrong-positionals', command, usage: shape.usage });
   }
 

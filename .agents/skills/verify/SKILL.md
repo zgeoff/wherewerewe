@@ -38,12 +38,13 @@ Read a feature's file before you run its journey.
 
 <!-- wringer:features -->
 
-| Feature     | Summary                                                                                            | File                                                                   |
-| ----------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| help        | Print the help text with `www help`                                                                | [references/feature-help.md](references/feature-help.md)               |
-| notes       | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www`                | [references/feature-notes.md](references/feature-notes.md)             |
-| import      | Convert a hand-kept store with `www import`, and read its brief                                    | [references/feature-import.md](references/feature-import.md)           |
-| owner-notes | Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief | [references/feature-owner-notes.md](references/feature-owner-notes.md) |
+| Feature     | Summary                                                                                                       | File                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| help        | Print the help text with `www help`                                                                           | [references/feature-help.md](references/feature-help.md)               |
+| notes       | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www`                           | [references/feature-notes.md](references/feature-notes.md)             |
+| import      | Convert a hand-kept store with `www import`, and read its brief                                               | [references/feature-import.md](references/feature-import.md)           |
+| owner-notes | Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief            | [references/feature-owner-notes.md](references/feature-owner-notes.md) |
+| item-notes  | Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close | [references/feature-item-notes.md](references/feature-item-notes.md)   |
 
 <!-- /wringer:features -->
 
@@ -135,8 +136,7 @@ for its commands.
 <!-- repo: commands -->
 
 - `bun verify www <command> ...` runs the real `www <command>` with `HOME` and `XDG_STATE_HOME`
-  inside the run's folder, so your own stores and agent settings stay untouched. Each fails with
-  `check-failed` when `www` exits or prints other than its flags expect.
+  inside the run's folder.
 - `bun verify www run --line '<line>' --expect '<text>'` runs that line as `www` and fails unless it
   exits 0 and its stdout holds the text.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
@@ -151,10 +151,9 @@ for its commands.
 
 <!-- repo: registry -->
 
-Declare the target, commands, doctor check and features in the registry,
-[create-verify-registry.ts](../../../scripts/verify/create-verify-registry.ts), with each feature's
-`paths`, the shared globs and the ignore list. CI runs `bun verify lint` and `bun verify gate` in
-the `verify / gate` check.
+Declare the target, commands, doctor check, features and globs in the registry,
+[create-verify-registry.ts](../../../scripts/verify/create-verify-registry.ts). CI runs
+`bun verify lint` and `bun verify gate` in the `verify / gate` check.
 
 <!-- /repo -->
 

@@ -2,9 +2,9 @@ import { join } from 'node:path';
 import { match } from 'ts-pattern';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
+import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatRefusal } from '../refusals/format-refusal.ts';
-import { readRefusalScope } from '../refusals/read-refusal-scope.ts';
 import { isSessionName } from '../rules/is-session-name.ts';
 import { buildBindRow } from '../sessions/build-bind-row.ts';
 import { findAgentID } from '../sessions/find-agent-id.ts';
@@ -129,7 +129,7 @@ function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
   return {
     exitCode: refusal.exitCode,
     stdout: '',
-    stderr: formatRefusal(refusal, readRefusalScope(context.args)),
+    stderr: formatRefusal(refusal, buildRefusalScope(context.args)),
   };
 }
 

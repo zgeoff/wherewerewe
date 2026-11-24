@@ -1,8 +1,13 @@
 import { expect, test } from 'bun:test';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
-import type { Item, JournalRow, SessionFile } from '../types.ts';
+import type { Item, JournalRow, Note, SessionFile } from '../types.ts';
 import { renderShow } from './render-show.ts';
+
+interface ShowOptions {
+  readonly closed?: ReadonlyMap<string, string>;
+  readonly notes?: readonly Note[];
+}
 
 function setupTest() {
   const session: SessionFile = {
@@ -23,13 +28,21 @@ function setupTest() {
       id: string,
       items: readonly Item[],
       rows: readonly JournalRow[],
-      closed: ReadonlyMap<string, string> = new Map(),
+      options: ShowOptions = {},
     ) =>
       renderShow({
         id,
-        store: { folder: '/state/tide-alerts', session, items, ownerNotes: [], ownerUnread: null },
+        store: {
+          folder: '/state/tide-alerts',
+          session,
+          items,
+          ownerNotes: [],
+          notes: options.notes ?? [],
+          notesUnread: null,
+          ownerUnread: null,
+        },
         rows,
-        closed,
+        closed: options.closed ?? new Map(),
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
       }),
   };
@@ -358,7 +371,9 @@ test('it drops the blocked by part when the journal closed the blocker but items
     buildMockItem({ id: 'w-apns', kind: 'wait', extra: { who: 'sam' } }),
   ];
 
-  expect(ctx.show('t-flag', items, [], new Map([['w-apns', '2026-03-10T10:00:00Z']]))).toBe(
+  expect(
+    ctx.show('t-flag', items, [], { closed: new Map([['w-apns', '2026-03-10T10:00:00Z']]) }),
+  ).toBe(
     ['t-flag  task, open since day 9, by agent', '  claim (2h): turn on the flag', ''].join('\n'),
   );
 });
@@ -402,4 +417,66 @@ test('it lists every decision that replaces a decision', () => {
       '',
     ].join('\n'),
   );
+});
+
+test('it prints the note after the claim, wrapped with each further line indented 4', () => {
+  const ctx = setupTest();
+  const note = [...Array.from({ length: 4 }, () => 'w'.repeat(81)), 'v'.repeat(30)].join(' ');
+
+  const text = ctx.show(
+    't-a',
+    [buildMockItem({ id: 't-a', claim: 'Wire it', written: '2026-03-10T11:31:00Z' })],
+    [buildMockJournalRow({ ts: '2026-03-10T10:00:00Z', op: 'task', id: 't-a' })],
+    { notes: [{ id: 't-a', owed: false, written: '2026-03-10T10:43:00Z', note }] },
+  );
+
+  expect(text.split('\n').slice(1, 7)).toStrictEqual([
+    '  claim (12m): Wire it',
+    `  note (1h): ${'w'.repeat(81)}`,
+    `    ${'w'.repeat(81)}`,
+    `    ${'w'.repeat(81)}`,
+    `    ${'w'.repeat(81)}`,
+    `    ${'v'.repeat(30)}`,
+  ]);
+});
+
+test('it labels an owed note and prints a short note on one line', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    't-a',
+    [buildMockItem({ id: 't-a', claim: 'Wire it', written: '2026-03-10T11:31:00Z' })],
+    [
+      buildMockJournalRow({ ts: '2026-03-10T10:00:00Z', op: 'task', id: 't-a' }),
+      buildMockJournalRow({ ts: '2026-03-10T10:43:00Z', op: 'note', id: 't-a' }),
+    ],
+    {
+      notes: [
+        { id: 't-a', owed: true, written: '2026-03-10T10:43:00Z', note: 'Stop the simulator' },
+      ],
+    },
+  );
+
+  expect(text).toBe(
+    [
+      't-a  task, open since day 9, by agent',
+      '  claim (12m): Wire it',
+      '  owed note (1h): Stop the simulator',
+      '  journal: day 9 task · day 9 note',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it prints no note line for an item with no note', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    't-a',
+    [buildMockItem({ id: 't-a', claim: 'Wire it', written: '2026-03-10T11:31:00Z' })],
+    [buildMockJournalRow({ ts: '2026-03-10T10:00:00Z', op: 'task', id: 't-a' })],
+    { notes: [{ id: 't-b', owed: false, written: '2026-03-10T10:43:00Z', note: 'Not this item' }] },
+  );
+
+  expect(text).not.toInclude('note (');
 });

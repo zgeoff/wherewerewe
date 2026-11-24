@@ -69,9 +69,9 @@ test('it writes and clears a note under a terminal with no agent variable', asyn
     say: {
       exitCode: 0,
       output:
-        'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.\n',
+        'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
     },
-    ack: { exitCode: 0, output: 'o-1  cleared. Kept in the journal. Brief: 6 lines.\n' },
+    ack: { exitCode: 0, output: 'o-1  cleared. Kept in the journal. Brief: 4 lines.\n' },
   });
 });
 

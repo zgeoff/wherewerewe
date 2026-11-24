@@ -1,7 +1,10 @@
 import { match } from 'ts-pattern';
+import { formatAge } from '../brief/format-age.ts';
+import { wrapBlock } from '../brief/wrap-block.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import type { Item, RefusalReason } from '../types.ts';
+import { pickNotesUnreadRefusal } from './pick-note-change.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
@@ -95,6 +98,26 @@ export function pickClose(input: WriteInput): WriteResult {
     return { kind: 'refused', refusal: buildRefusal(useRefusal) };
   }
 
+  const unreadReason = pickNotesUnreadRefusal(store);
+  const note = store.notes.find((candidate) => candidate.id === id);
+
+  if (unreadReason !== null) {
+    return { kind: 'refused', refusal: buildRefusal(unreadReason) };
+  }
+
+  if (note?.owed === true) {
+    return {
+      kind: 'refused',
+      refusal: buildRefusal({
+        kind: 'owed-note',
+        args,
+        id,
+        age: formatAge(nowMs - Date.parse(note.written)),
+        note: note.note,
+      }),
+    };
+  }
+
   const ts = formatTimestamp(nowMs);
   const wasInFocus = store.session.now === id;
   const isSpent = input.journal.closed.has(id);
@@ -109,6 +132,9 @@ export function pickClose(input: WriteInput): WriteResult {
     kind: 'write',
     change: {
       items: store.items.filter((candidate) => candidate.id !== id),
+      ...(note === undefined
+        ? {}
+        : { notes: store.notes.filter((candidate) => candidate.id !== id) }),
       session: {
         ...store.session,
         lastWrite: ts,
@@ -118,8 +144,20 @@ export function pickClose(input: WriteInput): WriteResult {
         ? []
         : [{ ts, op: args.command, id, by: 'agent', text: item.claim, why, extra: null }],
     },
-    reply: (briefLines) =>
-      `${id}  ${verb}. Off the brief, kept in the journal. Brief: ${String(briefLines)} lines.`,
+    reply: (briefLines) => {
+      const brief = `Brief: ${String(briefLines)} lines.`;
+
+      if (note === undefined) {
+        return `${id}  ${verb}. Off the brief, kept in the journal. ${brief}`;
+      }
+
+      const age = formatAge(nowMs - Date.parse(note.written));
+
+      return [
+        `${id}  ${verb}. Off the brief, kept in the journal with its note (${age}). ${brief}`,
+        ...wrapBlock(note.note, '    ', '    '),
+      ].join('\n');
+    },
   };
 }
 

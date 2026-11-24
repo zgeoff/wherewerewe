@@ -67,6 +67,8 @@ test('it writes the items and the session, and appends the journal rows', async 
       session: expect.objectContaining({ lastWrite: '2026-03-10T10:31:09Z' }),
       items: [expect.objectContaining({ id: 't-a' })],
       ownerNotes: [],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });
@@ -135,6 +137,8 @@ test('it leaves the items alone when the journal append fails, so a close is nev
       session: expect.objectContaining({ name: 'tide-alerts' }),
       items: [expect.objectContaining({ id: 't-a' })],
       ownerNotes: [],
+      notes: [],
+      notesUnread: null,
       ownerUnread: null,
     },
   });
@@ -182,9 +186,69 @@ test('it appends the journal row before it rewrites the items, so a close that s
         session: expect.objectContaining({ name: 'tide-alerts' }),
         items: [expect.objectContaining({ id: 't-a' })],
         ownerNotes: [],
+        notes: [],
+        notesUnread: null,
         ownerUnread: null,
       },
     },
     last: expect.objectContaining({ op: 'done', id: 't-a' }),
   });
+});
+
+test('it writes notes.tsv when the change has notes, and leaves it as it is when the change has none', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a' });
+
+  await writeStoreFiles(ctx.folder, {
+    journal: [],
+    notes: [{ id: 't-a', owed: true, written: '2026-03-10T11:00:00Z', note: 'Stop it' }],
+  });
+
+  const written = readFileSync(join(ctx.folder, 'notes.tsv'), 'utf8');
+
+  await writeStoreFiles(ctx.folder, { items: [], journal: [] });
+
+  expect({ written, after: readFileSync(join(ctx.folder, 'notes.tsv'), 'utf8') }).toStrictEqual({
+    written: 'id\towed\twritten\tnote\nt-a\towed\t2026-03-10T11:00:00Z\tStop it\n',
+    after: 'id\towed\twritten\tnote\nt-a\towed\t2026-03-10T11:00:00Z\tStop it\n',
+  });
+});
+
+test('it appends the journal before it writes notes.tsv, so a failed notes write keeps the note row', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a' });
+
+  mkdirSync(join(ctx.folder, 'notes.tsv'));
+
+  const writing = writeStoreFiles(ctx.folder, {
+    journal: [
+      {
+        ts: '2026-03-10T11:00:00Z',
+        op: 'note',
+        id: 't-a',
+        by: 'agent',
+        text: 'Stop it',
+        why: null,
+        extra: null,
+      },
+    ],
+    notes: [{ id: 't-a', owed: false, written: '2026-03-10T11:00:00Z', note: 'Stop it' }],
+  });
+
+  const outcome = await writing.then(
+    () => 'written',
+    () => 'failed',
+  );
+
+  expect(outcome).toBe('failed');
+
+  const journalText = readFileSync(join(ctx.folder, 'journal.tsv'), 'utf8');
+
+  expect(parseJournalFile(journalText)).toStrictEqual([
+    expect.objectContaining({ op: 'note', id: 't-a' }),
+  ]);
 });
