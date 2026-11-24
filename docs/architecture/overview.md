@@ -22,13 +22,13 @@ or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the g
 one line per bullet, and the item in focus, `items.tsv` the open items, `notes.tsv` one row for each
 open item that has a note, `owner.tsv` the owner's notes that still show, and `journal.tsv` every
 write. `init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A note write and
-a close rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A session never reuses a
-closed id: a write reads from the journal the ids that `done`, `drop` and `use` closed, the decision
-numbers, who made each decision and, for `say`, the highest note number among its `say` rows, and
-nothing else from the journal. The store is format 2. Every command except `import`, `sessions` and
-`help` exits 5 on a format 1 store, and `www import` upgrades it in place: it keeps the format 1
-files in `format-1-backup/`, writes `session` last, and reads the backup on a rerun. See
-[the store design](../design/wherewerewe/store.md) for the formats.
+the close of an item with a note rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A
+session never reuses a closed id: a write reads from the journal the ids that `done`, `drop` and
+`use` closed, the decision numbers, who made each decision and, for `say`, the highest note number
+among its `say` rows, and nothing else from the journal. The store is format 2. Every command except
+`import`, `sessions` and `help` exits 5 on a format 1 store, and `www import` upgrades it in place:
+it keeps the format 1 files in `format-1-backup/`, writes `session` last, and reads the backup on a
+rerun. See [the store design](../design/wherewerewe/store.md) for the formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv`, `notes.tsv`
 and `session` through a temporary file and a rename, and removes the lock, and a write that changes
@@ -126,12 +126,12 @@ them by time. `recap` prints one screen for the owner: the grant as the brief pr
 on open items, and the decisions and closes since `--since`, which defaults to `24h`. Each section
 has a row limit and an overflow line, whose command prints the rest, and the whole screen is at most
 55 lines. Each line is at most 100 characters, except the two overflow lines that repeat a `--since`
-value longer than 7 characters, which stay whole so their commands run. The three reads read the
-journal in chunks and hold only the rows they need, take no lock, run no check and write nothing.
-Once the session is found and its store is format 2, none is refused for a missing or unreadable
-thing: an unknown id lists the open items, and an unreadable journal prints the item or the recap
-without its history and says so on stderr. Only a `--since` that `log` or `recap` cannot read
-exits 2.
+value longer than 7 characters, which stay whole so their commands run. `show <id>`, `log` and
+`recap` read the journal in chunks and hold only the rows they need, take no lock, run no check and
+write nothing. Once the session is found and its store is format 2, none is refused for a missing or
+unreadable thing: an unknown id lists the open items, and an unreadable journal prints the item or
+the recap without its history and says so on stderr. Only a `--since` that `log` or `recap` cannot
+read exits 2.
 
 ## Importing a hand-kept store
 

@@ -51,11 +51,10 @@ bun verify www run --line 'www --session trial-tasks show' --expect '  t-11     
 ## End state
 
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: the session
-  holds 20 open tasks, which a store capped at 6 refuses from the 7th. The brief prints all 20 rows
-  under `OPEN (20, max 30)`, with the item in focus and the oldest task among them, read once with
-  the Codex host and once with the Claude Code host. `www show` lists every task with the owed note
-  whole. A `bun verify www run` fails with `check-failed` when `www` exits other than 0 or prints
-  other text.
+  holds 20 open tasks. The brief prints all 20 rows under `OPEN (20, max 30)`, with the item in
+  focus and the oldest task among them, read once with the Codex host and once with the Claude Code
+  host. `www show` lists every task with the owed note whole. A `bun verify www run` fails with
+  `check-failed` when `www` exits other than 0 or prints other text.
 - The note's count, 77, is code points.
 - No expected text holds an age or the order of two tasks written in the same second, which depend
   on real time.
