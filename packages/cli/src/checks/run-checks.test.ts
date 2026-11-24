@@ -232,11 +232,12 @@ test('it calls no git for a path probe whose stat returns after the deadline', a
 test('it starts probes in the order given, and a probe the deadline stops before it starts reads unchecked with timeout', async () => {
   const ctx = setupTest();
   const log = join(ctx.folder, 'log');
+  const launches = { count: 0 };
 
   seedStubCommand(
     ctx.folder,
     'gh',
-    `echo "$$ $3" >> "${log}"
+    `echo "$LAUNCH $3" >> "${log}"
 /bin/sleep 5
 printf '%s' '${ctx.passing}'`,
   );
@@ -250,24 +251,32 @@ printf '%s' '${ctx.passing}'`,
 
   const order = items.map((item) => item.id).toReversed();
 
-  const run = await runChecks(order, items, [], { deadlineMs: 800, env: ctx.env, now: ctx.now });
+  // each command's env is copied just before it starts, so the getter numbers the launches in order
+  const env = {
+    PATH: ctx.folder,
+    get LAUNCH(): string {
+      launches.count += 1;
+
+      return String(launches.count);
+    },
+  };
+
+  const run = await runChecks(order, items, [], { deadlineMs: 800, env, now: ctx.now });
   const logText = await Bun.file(log).text();
 
-  // the system gives each process a higher pid than the one forked before it, so the pids give
-  // the order the probes were started in, whatever order the stubs then log in
   const started = logText
     .split('\n')
     .filter(Boolean)
     .map((line) => {
-      const [pid, number] = line.split(' ');
+      const [launch, number] = line.split(' ');
 
-      return { pid: Number(pid), number: number ?? '' };
+      return { launch: Number(launch), number: number ?? '' };
     })
-    .toSorted((first, second) => first.pid - second.pid)
-    .map((probe) => probe.number);
+    .toSorted((first, second) => first.launch - second.launch)
+    .map((probe) => `${String(probe.launch)} ${probe.number}`);
 
   expect([started, run.ran, run.unchecked, run.reason]).toStrictEqual([
-    ['30', '29', '28', '27', '26', '25', '24', '23'],
+    ['1 30', '2 29', '3 28', '4 27', '5 26', '6 25', '7 24', '8 23'],
     30,
     30,
     'timeout',
