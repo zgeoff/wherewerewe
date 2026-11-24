@@ -78,8 +78,10 @@ with it. `ok --standing` is refused, because lasting permission lives in the gra
 an optional `--scope`, `--where` for where the owner gave them and `--reading` for the agent's
 reading of what they cover. `--reading` alone replaces the reading. Any shell can run it, and its
 journal row has `by=owner` when the terminal test of the owner notes passes and `by=agent`
-otherwise. A bullet takes 120 characters once each line break becomes a space, the scope 40, and the
-bullets and scope together 700 in at most 12 bullets; the reading takes 200 and `--where` 16.
+otherwise. A grant needs at least one bullet in any group. A bullet has no limit of its own once
+each line break becomes a space: the bullets and scope together take 700 characters in at most 12
+bullets, and the bullets take at most 19 lines of the brief. The scope takes 40, the reading 200 and
+`--where` 16.
 
 `decide` writes a decision, or with `--ruled-out` an approach that lost, as a journal row and no
 item. The tool numbers it `d-<n>`, one past the highest decision in the journal. A decision made by

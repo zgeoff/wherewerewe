@@ -47,7 +47,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
 format=2                         # the store's format version; see "Versions"
 name=tide-alerts                 # 2–24 of [a-z0-9-], starts with a letter; equals the folder name
 goal=Ship tide alerts in bosun-api and bosun-app: a push alert 2 hours before low water at a saved harbour, behind the tide_alerts flag. Done when alerts-e2e passes on staging.   # 1–200 characters
-grant_may=merge the alert PRs once CI is green and every review finding is answered   # one line per bullet of what the owner allows, 1–120 characters each; at least one in a grant
+grant_may=merge the alert PRs once CI is green and every review finding is answered   # one line per bullet of what the owner allows; none or more
 grant_may=deploy either app to staging whenever you need to
 grant_may=wipe or reseed the staging alerts table as often as you like
 grant_may=open PRs on tidal-org/tidekit from our fork
@@ -67,7 +67,7 @@ last_nudge=2026-03-10T10:40:00Z  # written by the hook; empty until the first nu
 imported_from=0-by-hand          # only in a store that www import converted from a hand-kept store
 ```
 
-A store with a grant has at least one `grant_may` line and sets `grant_reading`, `grant_where` and `grant_set`. A store with no grant has no `grant_may`, `grant_not` or `grant_never` line, and writes `grant_scope`, `grant_reading`, `grant_where` and `grant_set` empty. The bullet lines keep the order the owner gave them in. A grant holds at most 12 bullets, and its bullets and scope together hold at most 700 characters of the owner's words. Every key but the three bullet keys appears once. A `session` whose grant keys hold a value `www grant` would refuse, such as a tab, a lone `-`, a `•` in any of them, a `;` in `grant_where`, a value that looks like a credential, a value or a grant over its limit, or a `grant_set` or `started` that is no UTC time, does not parse. Every command that reads the store then refuses with the text in [commands.md](commands.md), and names the problem without quoting the value.
+A store with a grant has at least one `grant_may`, `grant_not` or `grant_never` line and sets `grant_reading`, `grant_where` and `grant_set`. A store with no grant has no `grant_may`, `grant_not` or `grant_never` line, and writes `grant_scope`, `grant_reading`, `grant_where` and `grant_set` empty. The bullet lines keep the order the owner gave them in. A grant holds at most 12 bullets, which take at most 19 lines of the brief, and its bullets and scope together hold at most 700 characters of the owner's words. Every key but the three bullet keys appears once. A `session` whose grant keys hold a value `www grant` would refuse, such as a tab, a lone `-`, a `•` in any of them, a `;` in `grant_where`, a value that looks like a credential, a value or a grant over its limit, or a `grant_set` or `started` that is no UTC time, does not parse. Every command that reads the store then refuses with the text in [commands.md](commands.md), and names the problem without quoting the value.
 
 ### items.tsv
 
@@ -207,6 +207,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - A store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
 - A store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
 - A read never converts a store. Each later format ships with an upgrade that `www import` runs.
+- A format 2 store whose grant has no `grant_may` line, or a bullet over 120 characters, is refused by a tool older than [decision record 0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md). Every command on it exits 3 with `www: <name>'s session does not parse: a grant needs a grant_may line and grant_reading, grant_where and grant_set. Fix the file by hand.`, or `a grant bullet is <n> characters, and the limit is 120` in place of the reason, and `Run: less <path to the store>/session`. The older tool writes nothing to that store, so the format stays 2.
 
 ## The format 2 upgrade
 
@@ -224,10 +225,10 @@ Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approv
 | an `ok` item with `use=once`                           | the same row without `use`, unless `--drop` names it                                           |
 | an item that `--drop` names                            | removed, with its note; a `drop` row with `why` `dropped by the format 2 upgrade`              |
 | every other item, note, owner note and pull request row | the same row                                                                                   |
-| the journal                                            | the same rows, then the `drop` rows above, a `grant` row when `--may` is given, and an `import` row with `text` `format 1 -> 2` |
+| the journal                                            | the same rows, then the `drop` rows above, a `grant` row when a bullet flag is given, and an `import` row with `text` `format 1 -> 2` |
 | `now` naming an item the upgrade removes               | empty `now`, `now_next` and `now_set`, as a close of the item in focus leaves them              |
 
-- When the store holds a standing approval and the command has no `--may`, the upgrade refuses. The refusal prints each standing approval's words and scope, and a `Run:` line with `--may`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so every brief shows the approvals or the grant.
+- When the store holds a standing approval and the command has no `--may`, the upgrade refuses. A standing approval is something the owner allowed, so the grant that replaces it holds at least one `may` bullet, or the upgrade would drop a permission the owner gave. The refusal prints each standing approval's words and scope, and a `Run:` line with `--may`, `--where` and `--reading`. The agent writes the grant in the same command that removes the standing approvals, so every brief shows the approvals or the grant.
 - When the store holds more than one one-time approval, the upgrade refuses, names each with its age, and prints a `Run:` line whose `--drop` names every one except the newest.
 - When the store holds an item with the id `grant`, the upgrade refuses, and its `Run:` line adds `grant` to `--drop`.
 - The upgrade prints each note it removes in its reply, after the first line, so an owed note on a standing approval reaches the agent.
