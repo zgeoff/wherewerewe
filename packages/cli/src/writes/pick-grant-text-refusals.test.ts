@@ -123,3 +123,38 @@ test('it gives credential for a credential that a line feed splits in the scope'
     { kind: 'credential' },
   ]);
 });
+
+test.each([
+  {
+    title: 'a bullet that also holds the bullet mark',
+    argv: ['--not', `${['ops', '_', 'a'.repeat(10), '\n', 'b'.repeat(10)].join('')} •`],
+  },
+  {
+    title: 'a continuation line indented with spaces',
+    argv: ['--not', ['ops', '_', 'a'.repeat(10), ' \n  ', 'b'.repeat(10)].join('')],
+  },
+  {
+    title: 'a scope that a later --scope replaces',
+    argv: [
+      '--not',
+      'tend the beds',
+      '--scope',
+      ['ops', '_', 'a'.repeat(10), '\n', 'b'.repeat(10)].join(''),
+      '--scope',
+      'garden',
+    ],
+  },
+])('it gives credential alone for a split credential in $title', (row) => {
+  const ctx = setupTest();
+
+  expect(ctx.pick(row.argv)).toStrictEqual([{ kind: 'credential' }]);
+});
+
+test('it gives one credential for two typed scopes that each hold a split credential', () => {
+  const ctx = setupTest();
+  const split = ['ops', '_', 'a'.repeat(10), '\n', 'b'.repeat(10)].join('');
+
+  expect(ctx.pick(['--not', 'tend', '--scope', split, '--scope', split])).toStrictEqual([
+    { kind: 'credential' },
+  ]);
+});
