@@ -107,6 +107,7 @@ function scanString(cursor: Cursor, quote: string): void {
 
     if (char === '\\') {
       value += cursor.source.charAt(cursor.at + 1);
+      cursor.line += cursor.source.charAt(cursor.at + 1) === '\n' ? 1 : 0;
       cursor.at += 2;
     } else {
       value += char;
@@ -210,7 +211,30 @@ function isRegexStart(cursor: Cursor): boolean {
     beforePrevious.value === previous.value &&
     cursor.tokens.at(-3)?.value !== previous.value;
 
-  return previous.kind === 'punct' && !isStep && !')]'.includes(previous.value);
+  return (
+    previous.kind === 'punct' &&
+    !isStep &&
+    !isNonNullAssertion(cursor, previous, beforePrevious) &&
+    !')]'.includes(previous.value)
+  );
+}
+
+// A `!` straight after an operand, a name, a `)` or a `]`, ends that operand, so a slash after it
+// divides. After a keyword or punctuation, a `!` is a not, and a slash after it starts a regex.
+function isNonNullAssertion(
+  cursor: Cursor,
+  previous: SourceToken,
+  beforePrevious: SourceToken | undefined,
+): boolean {
+  if (previous.value !== '!' || beforePrevious === undefined) {
+    return false;
+  }
+
+  if (beforePrevious.kind === 'word') {
+    return !regexPrecedingWords.has(beforePrevious.value);
+  }
+
+  return beforePrevious !== cursor.headEnd && ')]'.includes(beforePrevious.value);
 }
 
 function scanRegex(cursor: Cursor): void {

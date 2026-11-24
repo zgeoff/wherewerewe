@@ -19,8 +19,9 @@ export function readProcessEnvReads(packageDir: string): string[] {
     .flatMap((file) => collectEnvReadLines(file, readFileSync(join(packageDir, file), 'utf8')));
 }
 
-// A read is `process` followed by `.env`, `?.env` or `["env"]`, in any spacing and over any lines,
-// and it reports the line of `process`. A name in a comment or a string reads nothing.
+// A read is `process` followed by `.env`, `?.env`, `["env"]` or `?.["env"]`, in any spacing and
+// over any lines, and it reports the line of `process`. A name in a comment or a string reads
+// nothing.
 function collectEnvReadLines(file: string, source: string): string[] {
   const tokens = parseSourceTokens(source);
 
@@ -50,17 +51,19 @@ function findEnvAccess(tokens: readonly SourceToken[], from: number): EnvAccess 
     tokens.at(afterDot)?.kind === 'word' &&
     tokens.at(afterDot)?.value === 'env';
 
+  const open = isOptional ? from + 2 : from;
+
   const isBracketed =
-    first?.value === '[' &&
-    tokens.at(from + 1)?.kind === 'string' &&
-    tokens.at(from + 1)?.value === 'env' &&
-    tokens.at(from + 2)?.value === ']';
+    tokens.at(open)?.value === '[' &&
+    tokens.at(open + 1)?.kind === 'string' &&
+    tokens.at(open + 1)?.value === 'env' &&
+    tokens.at(open + 2)?.value === ']';
 
   if (!isDotted && !isBracketed) {
     return null;
   }
 
-  const rest = isDotted ? afterDot + 1 : from + 3;
+  const rest = isDotted ? afterDot + 1 : open + 3;
   const named = tokens.at(rest);
 
   return {

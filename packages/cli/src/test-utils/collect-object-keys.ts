@@ -33,7 +33,16 @@ export function collectObjectKeys(source: string): Set<string> {
       const frame: Frame = isPattern ? 'pattern' : 'object';
 
       stack.push(frame);
-    } else if (token.kind === 'punct' && '(['.includes(token.value)) {
+    } else if (token.kind === 'punct' && token.value === '[') {
+      // an array pattern inside a parameter or a pattern is a pattern, and so is each { in it
+      const isPattern =
+        (stack.at(-1) === 'params' || stack.at(-1) === 'pattern') &&
+        tokens.at(at - 1)?.value !== '=';
+
+      const frame: Frame = isPattern ? 'pattern' : 'other';
+
+      stack.push(frame);
+    } else if (token.kind === 'punct' && token.value === '(') {
       const frame: Frame = paramOpens.has(at) ? 'params' : 'other';
 
       stack.push(frame);

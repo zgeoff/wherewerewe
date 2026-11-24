@@ -163,6 +163,11 @@ test('it reports a read inside a template substitution, on its own line', () => 
 test.each([
   { title: 'a division after a postfix step', line: 'let n = 0; n++ / process.env.X;' },
   { title: 'a division after a grouped value', line: 'const r = (a + b) / process.env.X;' },
+  { title: 'an optional bracket access', line: 'const host = process?.["env"].HOME;' },
+  {
+    title: 'a division after a non-null assertion',
+    line: 'const r = numerator / divisor! / Number(process.env.HOME);',
+  },
   {
     title: 'a computed key that starts with PATH',
     line: 'const p = process.env["PATH" + suffix];',

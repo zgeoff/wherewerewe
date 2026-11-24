@@ -206,6 +206,10 @@ test.each([
     title: 'a function parameter',
     line: 'function pick({ CLAUDE_CODE_SESSION_ID, CODEX_SESSION_ID, CODEX_THREAD_ID }) { return 1; }',
   },
+  {
+    title: 'a pattern inside an array pattern of a parameter',
+    line: 'function pick([{ CLAUDE_CODE_SESSION_ID, CODEX_SESSION_ID, CODEX_THREAD_ID }]) {}',
+  },
 ])('it reports each agent variable that $title names and sets nothing', (row) => {
   const packageDir = createTempDir('unset-agent-variables-parameter').path;
 
