@@ -1,7 +1,7 @@
 # The brief
 
 - **Status:** agreed
-- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)
+- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0010](../../decisions/0010-the-brief-budget-follows-its-host.md)
 
 `www` with no subcommand prints the brief: the session's state within its host's budget on any day, the limits of [The brief's budget per host](#the-briefs-budget-per-host). It prints every section whole except `OPEN`, which prints the tasks that fit and a line that counts the rest. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that repeats the write commands. The hooks put the same text in context after a compaction. To build the brief renderer and its size test, read this doc and your slice of [build-order.md](build-order.md).
 
@@ -92,7 +92,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 
 | Kind               | Cap | Why this number                                                                 |
 | ------------------ | --- | ------------------------------------------------------------------------------- |
-| task               | 30  | a long session's work: the owner expects up to 20 tasks; the brief prints the rows that fit and counts the rest ([0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)) |
+| task               | 30  | a long session's work: the owner expects up to 20 tasks; the brief prints the rows that fit and counts the rest ([0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)) |
 | wait               | 4   | each wait is a question someone else must answer                                |
 | one-time approval  | 1   | it is spent soon, and lasting permission lives in the grant                     |
 | rule               | 5   | rules beyond 5 belong in the repo's AGENTS.md                                   |
@@ -227,8 +227,9 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 - **The grant prints whole, directly after `GOAL`, and cut-to-fit never touches it.** After a compaction, the agent reads what it may do in the owner's own words before any claim. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **The grant prints as bullets under `may`, `not` and `never`, one permission a bullet.** The owner reads a wrapped quote of 700 characters as a wall; a bullet per permission reads at a glance. The bullets cost up to 10 lines more than a quote, and the line cap rises to pay for them, because the limit that matters is Codex's token count, and the worst case stays 4.3% under it. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Only the note of the item in focus prints.** The brief stays the same size however many items carry a note. An owed note shows as a tag on its item, and `now`, each close and `www show` print a note whole. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
-- **Row limits pay for the grant and the note, and the caps stay.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The wait, rule and where caps stay, so no store that fits them today is refused, and the task cap is 30 ([0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)); the format 2 upgrade in [store.md](store.md) handles the approvals.
-- **The brief prints the tasks that fit, in the order an agent needs them, and counts the rest.** The agent reads first the item in focus, then a claim that is no longer true, then work that waits on something or owes a note, then the newest. The count line names `www show`, which lists every open task in full. [0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)
+- **Row limits pay for the grant and the note, and the caps stay.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The wait, rule and where caps stay, so no store that fits them today is refused, and the task cap is 30 ([0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)); the format 2 upgrade in [store.md](store.md) handles the approvals.
+- **The brief prints the tasks that fit, in the order an agent needs them, and counts the rest.** The agent reads first the item in focus, then a claim that is no longer true, then work that waits on something or owes a note, then the newest. The count line names `www show`, which lists every open task in full. [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
+- **The brief's budget follows the host that reads it.** Claude Code gets 82 lines and 9,000 characters, 10% under its 10,000-character cap on hook output; Codex and a reader with no known host get 73 lines and 7,200 characters. The host comes from the reader's environment, because one session can be bound to both hosts. [0010](../../decisions/0010-the-brief-budget-follows-its-host.md)
 - **A claim is at most 120 characters.** At 160, the worst case passes 7,700 characters, over Codex's limit at 3 characters per token.
 - **Caps count items, not characters.** The section heading shows the count (`4 of 30`), and every field's own limit bounds the characters.
 - **The brief prints no journal rows.** `www log`, `www show` and `www recap` read the journal; the brief stays the same size however long the session runs.

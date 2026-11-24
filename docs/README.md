@@ -18,3 +18,6 @@
 - [0005: owner notes need a terminal outside any agent](./decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md)
 - [0006: ship TypeScript source run by Bun](./decisions/0006-ship-typescript-source-run-by-bun.md)
 - [0007: hooks do not build on agent-hooks](./decisions/0007-hooks-do-not-build-on-agent-hooks.md)
+- [0008: notes, the grant, and no caution steering](./decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- [0009: 30 open tasks and a count of the rest](./decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
+- [0010: the brief's budget follows its host](./decisions/0010-the-brief-budget-follows-its-host.md)

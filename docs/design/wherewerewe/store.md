@@ -1,7 +1,7 @@
 # The store
 
 - **Status:** agreed
-- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
 
 Each session keeps its state in one folder of plain UTF-8 text files that a person can read with `less` and an agent can read with `cut` when the tool is missing. `session`, `items.tsv`, `notes.tsv` and `owner.tsv` are rewritten whole and capped, so they stay the same size on day 14 as on day 2: `items.tsv` by the item caps in [brief.md](brief.md), `notes.tsv` by one row of at most 400 characters per open item, and `session` and `owner.tsv` by the limits in [commands.md](commands.md). `prs.tsv` gains one row per pull request the session opens, but a read probes and prints only the rows still open, and the brief shows at most 1. The journal grows, and no read prints it whole unless `www log` runs with no filter. A build agent reads this doc to build the store module, `www import`, the format 2 upgrade and the lock, in the slice [build-order.md](build-order.md) names.
 

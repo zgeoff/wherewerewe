@@ -1,7 +1,7 @@
 # The commands
 
 - **Status:** agreed
-- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
 
 `www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note below that line, and a claim write that keeps an older note adds the older-note line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
 
