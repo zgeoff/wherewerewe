@@ -98,6 +98,9 @@ export function pickUpgrade(files: Format1Files, options: UpgradeOptions): Upgra
   }
 
   const parts = buildUpgradeParts(items, args.values, options);
+
+  const keptIDs = new Set(parts.items.map((item) => item.id));
+
   const ts = formatTimestamp(options.nowMs);
 
   return {
@@ -112,7 +115,7 @@ export function pickUpgrade(files: Format1Files, options: UpgradeOptions): Upgra
         : {}),
     },
     items: parts.items,
-    notes: notes.filter((note) => !parts.removedIDs.has(note.id)),
+    notes: notes.filter((note) => keptIDs.has(note.id)),
     removedNotes: items.flatMap((item) =>
       parts.removedIDs.has(item.id) ? notes.filter((note) => note.id === item.id) : [],
     ),

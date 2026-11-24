@@ -310,3 +310,14 @@ test('it applies no cap of 3 to the items it reads, so a store with four approva
 
   expect(picked.folded).toBe(3);
 });
+
+test('it leaves out a note whose id names no item, as every read of format 1 does', () => {
+  const ctx = setupTest();
+  const notes = `${ctx.files.notes ?? ''}grant\towed\t2026-03-06T09:00:00Z\tCheck the relay.\nt-gone\t-\t2026-03-06T09:00:00Z\tAn item closed under it.\n`;
+  const picked = ctx.pickUpgraded(ctx.grantFlags, { files: { notes } });
+
+  expect([picked.notes, picked.removedNotes.map((note) => note.id)]).toStrictEqual([
+    [],
+    ['ok-merge'],
+  ]);
+});
