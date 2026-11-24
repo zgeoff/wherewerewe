@@ -211,6 +211,16 @@ test.each([
     },
   ],
   [['taks', '--colour'], { kind: 'unknown-command', command: 'taks' }],
+  [
+    ['goal', 'x', '--colour2=red'],
+    {
+      kind: 'flag-not-taken',
+      command: 'goal',
+      flag: '--colour2',
+      taken: [],
+      line: 'goal "<what done means>"',
+    },
+  ],
   [['brief', '--colour'], { kind: 'unknown-command', command: 'brief' }],
   [['doctor', '--colour'], { kind: 'later-command', command: 'doctor' }],
   [['goal', 'x', '--session'], { kind: 'flag-needs-value', flag: 'session' }],

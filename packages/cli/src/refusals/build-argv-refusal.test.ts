@@ -4,6 +4,7 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from '../args/help-text.ts';
 import { listCommandShapes, parseCLIArgs } from '../args/parse-cli-args.ts';
 import { runCLI } from '../run-cli.ts';
+import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildUsageRunArgv } from '../test-utils/build-usage-run-argv.ts';
 import { parseRunLine } from '../test-utils/parse-run-line.ts';
 import { readHelpCommandLine } from '../test-utils/read-help-command-line.ts';
@@ -318,3 +319,19 @@ test.each(
     filled: 'args',
   });
 });
+
+test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample, entry.tail] as const))(
+  'it prints a %s sample typed as a flag as the placeholder, with none of its tail',
+  async (_name, sample, tail) => {
+    const ctx = setupTest();
+
+    const refused = await ctx.run(['goal', 'x', `--${sample}`]);
+
+    const [first] = refused.stderr.split('\n');
+
+    expect({ first, leaked: refused.stderr.includes(tail) }).toStrictEqual({
+      first: 'www: goal takes no <where the secret lives> flag. It takes only --session.',
+      leaked: false,
+    });
+  },
+);

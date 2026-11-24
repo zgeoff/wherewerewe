@@ -329,7 +329,10 @@ function toParseRefusal(error: unknown, argv: readonly string[]): RefusalReason 
     throw error;
   }
 
+  // the option as the parser quotes it, whole, so the output's redaction sees every character of a
+  // flag that holds a credential
   const flag =
+    /^Unknown option '(?<option>-[^']*)'/u.exec(error.message)?.groups?.['option'] ??
     /--[A-Za-z][A-Za-z-]*/u.exec(error.message)?.[0] ??
     /-[A-Za-z]\b/u.exec(error.message)?.[0] ??
     '';
