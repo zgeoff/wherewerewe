@@ -11,22 +11,43 @@ const exemptFiles: ReadonlySet<string> = new Set([
 
 // Every `file:line` under src and e2e that reads process.env, except the program's one entry, a
 // copy of PATH into an explicit env object, and the lock folder an e2e parent hands its child.
-// A comment reads nothing, and a PATH copy exempts only its own expression, not its line.
+// A comment reads nothing, and a PATH copy exempts only its own read, not its line.
 export function readProcessEnvReads(packageDir: string): string[] {
   return listTypeScriptFiles(packageDir, ['src', 'e2e'])
     .filter((file) => !exemptFiles.has(file))
-    .flatMap((file) =>
-      stripComments(readFileSync(join(packageDir, file), 'utf8'))
-        .split('\n')
-        .flatMap((line, index) => (isEnvRead(file, line) ? [`${file}:${String(index + 1)}`] : [])),
-    );
+    .flatMap((file) => collectEnvReadLines(file, readFileSync(join(packageDir, file), 'utf8')));
 }
 
-const pathCopy = /process\.env\[['"]PATH['"]\](?:\s*\?\?\s*(?:''|""))?/gu;
+// Each `process.env` becomes a marker that holds its source line before the transpiler cuts the
+// comments, so the line survives the transpiler's reprint, and no name is inlined as a constant.
+const marker = 'processEnvAtLine';
 
-function isEnvRead(file: string, line: string): boolean {
-  const isLockFolder =
-    file === 'e2e/cli-stale-lock-takeover.test.ts' && line.includes('process.env.LOCK_FOLDER');
+const markedRead = new RegExp(
+  `${marker}(?<line>\\d+)(?:\\.(?<dotName>\\w+)|\\["(?<bracketName>\\w+)"\\])?`,
+  'gu',
+);
 
-  return line.replaceAll(pathCopy, '').includes('process.env') && !isLockFolder;
+function collectEnvReadLines(file: string, source: string): string[] {
+  const marked = source
+    .split('\n')
+    .map((line, index) => line.replaceAll('process.env', `${marker}${String(index + 1)}`))
+    .join('\n');
+
+  const lines = [...stripComments(marked).matchAll(markedRead)]
+    .map((match) => match.groups ?? {})
+    .filter((read) => !isExemptRead(file, read['dotName'], read['bracketName']))
+    .map((read) => `${file}:${String(read['line'])}`);
+
+  return [...new Set(lines)];
+}
+
+function isExemptRead(
+  file: string,
+  dotName: string | undefined,
+  bracketName: string | undefined,
+): boolean {
+  const isPathCopy = bracketName === 'PATH';
+  const isLockFolder = file === 'e2e/cli-stale-lock-takeover.test.ts' && dotName === 'LOCK_FOLDER';
+
+  return isPathCopy || isLockFolder;
 }

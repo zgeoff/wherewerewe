@@ -1,10 +1,12 @@
-const COMMENT_OR_STRING =
-  /(?<string>"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`)|\/\*[\s\S]*?\*\/|\/\/.*$/gmu;
+const transpiler = new Bun.Transpiler({
+  loader: 'ts',
+  deadCodeElimination: false,
+  trimUnusedImports: false,
+});
 
-// The source text with each block comment and each line comment cut out, so a name in a comment
-// counts as no use. A `//` or `/*` inside a string literal stays, so a URL in a string stays.
+// The code with every comment and type cut out by Bun's tokenizer, so a name in a comment is no use.
+// The reprint moves lines, double-quotes strings and inlines `process.env.NODE_ENV`: a check that
+// needs source lines or `process.env` reads marks them before it calls this.
 export function stripComments(source: string): string {
-  return source.replaceAll(COMMENT_OR_STRING, (match, string: string | undefined) =>
-    string === undefined ? '' : match,
-  );
+  return transpiler.transformSync(source);
 }

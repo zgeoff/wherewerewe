@@ -57,3 +57,35 @@ test('it reports no read in a comment that names process.env', () => {
 
   expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
 });
+
+test('it reports no read in a comment that follows a regex that holds a quote', () => {
+  const packageDir = createTempDir('process-env-regex-quote').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    "const possessive = /it's/u; // the agent's process.env.HOME\nconst slashes = /[//]+/gu; // process.env.X\n",
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
+});
+
+test('it reports each read on its own source line past types, blank lines and comments', () => {
+  const packageDir = createTempDir('process-env-lines').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    `import type { Host } from './types.ts';\n\n/* a block\n   comment */\ntype Pair = { a: Host };\nconst host = process.env.X; const label = \`\${\`//\`}\`;\nconst mode = process.env.NODE_ENV;\nconst run = process.env.BUN_ENV ?? process.env['NODE_ENV'];\n`,
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual([
+    'src/render.ts:6',
+    'src/render.ts:7',
+    'src/render.ts:8',
+  ]);
+});

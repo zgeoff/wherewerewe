@@ -44,3 +44,78 @@ test('it reports each agent variable that an e2e test only names in a comment', 
     'e2e/run.test.ts: CODEX_THREAD_ID',
   ]);
 });
+
+test('it reports each agent variable named only in a comment after a regex that holds a quote', () => {
+  const packageDir = createTempDir('unset-agent-variables-regex-quote').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    "resolveProgram('www');\nconst possessive = /it's/u; // the agent's CLAUDE_CODE_SESSION_ID, CODEX_SESSION_ID and CODEX_THREAD_ID\n",
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
+    'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
+    'e2e/run.test.ts: CODEX_SESSION_ID',
+    'e2e/run.test.ts: CODEX_THREAD_ID',
+  ]);
+});
+
+test('it reports each agent variable named only in a block comment that holds a quote', () => {
+  const packageDir = createTempDir('unset-agent-variables-block-quote').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    "resolveProgram('www');\n/* the agent's CLAUDE_CODE_SESSION_ID,\n   CODEX_SESSION_ID and CODEX_THREAD_ID */\nconst label = 'a';\n",
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
+    'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
+    'e2e/run.test.ts: CODEX_SESSION_ID',
+    'e2e/run.test.ts: CODEX_THREAD_ID',
+  ]);
+});
+
+test('it finds each agent variable set after a template literal that nests a comment marker', () => {
+  const packageDir = createTempDir('unset-agent-variables-template').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    `resolveProgram('www');\nconst label = \`\${\`//\`}\`; const env = { CLAUDE_CODE_SESSION_ID: '', CODEX_SESSION_ID: '', CODEX_THREAD_ID: '' };\n`,
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([]);
+});
+
+test('it finds each agent variable set after a regex with a slash in a character class', () => {
+  const packageDir = createTempDir('unset-agent-variables-regex-class').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    "resolveProgram('www');\nconst slashes = /[//]+/gu; const env = { CLAUDE_CODE_SESSION_ID: '', CODEX_SESSION_ID: '', CODEX_THREAD_ID: '' };\n",
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([]);
+});
+
+test('it reports each agent variable of an e2e test that runs www with double quotes', () => {
+  const packageDir = createTempDir('unset-agent-variables-double-quotes').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    'resolveProgram("www");\nconst env = { CODEX_SESSION_ID: "", CODEX_THREAD_ID: "" };\n',
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
+    'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
+  ]);
+});
