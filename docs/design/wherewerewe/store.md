@@ -207,7 +207,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - A store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
 - A store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
 - A read never converts a store. Each later format ships with an upgrade that `www import` runs.
-- A format 2 store whose grant has no `grant_may` line, or a bullet over 120 characters, is refused by a tool older than [decision record 0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md). Every command on it exits 3 with `www: <name>'s session does not parse: a grant needs a grant_may line and grant_reading, grant_where and grant_set. Fix the file by hand.`, or `a grant bullet is <n> characters, and the limit is 120` in place of the reason, and `Run: less <path to the store>/session`. The older tool writes nothing to that store, so the format stays 2.
+- A format 2 store whose grant has no `grant_may` line, or a bullet over 120 characters, is refused by a tool older than [decision record 0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md). Each command that reads that store, such as `www`, `www show` or `www task`, exits 3 with `www: <name>'s session does not parse: a grant needs a grant_may line and grant_reading, grant_where and grant_set. Fix the file by hand.`, or `a grant bullet is <n> characters, and the limit is 120` in place of the reason, and `Run: less <path to the store>/session`; `www help` skips the store. The older tool writes nothing to that store, so the format stays 2.
 
 ## The format 2 upgrade
 

@@ -35,4 +35,4 @@ A grant holds at least one bullet in any of `may`, `not` and `never`. It holds a
 - This record replaces the heading text that [0009](0009-30-open-tasks-and-a-count-of-the-rest.md) records, `OPEN (<n> of 30)`: the heading is `OPEN (<n>, max 30)`, and each capped section takes the same form.
 - These printed strings change: the text of the refusal for a grant with no bullet; the refusal for a grant over 19 lines, beside the 12-bullet refusal, and the over-120 refusal gone; the grant reply's `on <l> of 19 lines`; the help's `www grant [--may …]`, `Grant:` and `Limits:` lines; the headings `OPEN`, `WAITING`, `APPROVED ONCE`, `RULES`, `WHERE` and the recap's `NOTES`.
 - The 120-character bullet of [0008](0008-notes-the-grant-and-no-caution-steering.md) no longer holds.
-- The `www` of the commit before this record, and older, refuses a store whose grant has no `may` bullet or has a bullet over 120 characters. The store stays format 2.
+- The `www` of `5fdaa5e`, the task-cap merge before this change, and every older one refuse a store whose grant has no `may` bullet or has a bullet over 120 characters. The store stays format 2.
