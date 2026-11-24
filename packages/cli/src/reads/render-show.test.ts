@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { noSecretPlaceholder } from '../rules/redact-credential.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
@@ -933,6 +934,44 @@ test.each([
     });
 
     expect(shown.map((entry) => entry.name)).toStrictEqual([]);
+  },
+);
+
+test.each([
+  { title: 'a NUL', separator: String.fromCodePoint(0) },
+  { title: 'an escape character', separator: String.fromCodePoint(27) },
+  { title: 'a zero-width space', separator: String.fromCodePoint(0x20_0b) },
+  { title: 'a soft hyphen', separator: String.fromCodePoint(0xad) },
+])(
+  'it prints only the placeholder for a failing check name that the matcher reads as a credential only with $title in it',
+  (row) => {
+    const ctx = setupTest();
+
+    const cases = buildCredentialSamples()
+      .flatMap((credential) =>
+        Array.from({ length: credential.sample.length }, (_unused, index) => ({
+          name: `${credential.name} cut to ${String(index + 1)}`,
+          text: `${credential.sample.slice(0, index + 1)}${row.separator}`,
+        })),
+      )
+      .filter((entry) => findCredentialMatch(entry.text) !== null);
+
+    const shown = cases.filter((entry) => {
+      const text = ctx.show(
+        'pr-api-77',
+        [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })],
+        [],
+        {
+          checkNow: { result: 'OPEN failing', failing: [entry.text] },
+        },
+      );
+
+      return !text.includes(
+        `\n  checked now: OPEN failing (${noSecretPlaceholder}) · at write: not checked yet\n`,
+      );
+    });
+
+    expect([cases.length > 0, shown.map((entry) => entry.name)]).toStrictEqual([true, []]);
   },
 );
 
