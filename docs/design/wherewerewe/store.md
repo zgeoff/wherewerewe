@@ -213,7 +213,7 @@ ts	op	id	by	text	why	extra
 // store module
 interface JournalRow {
   ts: string;
-  op: Op | string; // a row that www import carried over keeps its own op
+  op: Op | string; // a row that www import carried over keeps its own op, unless the import table below converts it
   id: string; // the item, decision (d-<n>), owner note (o-<n>), pull request ref, grant, or session name
   by: 'agent' | 'owner' | 'hook' | 'import';
   text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's bullets and scope, a lesson's instruction, a promise's text, the owner's words, or "<old> -> <new>" for changed; '-' when none
