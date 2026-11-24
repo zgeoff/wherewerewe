@@ -891,6 +891,25 @@ test('it prints the placeholder and no part of a credential in a failing check n
   });
 });
 
+test('it prints no part of a credential that a control character splits in a failing check name', () => {
+  const ctx = setupTest();
+  const [credential] = buildCredentialSamples();
+  const sample = credential?.sample ?? '';
+  const split = `${sample.slice(0, 9)}${String.fromCodePoint(0)}${sample.slice(9)}`;
+
+  const text = ctx.show('pr-api-77', [buildMockItem({ id: 'pr-api-77', check: 'pr:a/b#1' })], [], {
+    checkNow: { result: 'OPEN failing', failing: [split] },
+  });
+
+  expect({
+    leaked: text.includes(sample.slice(9)),
+    line: text.split('\n').find((row) => row.startsWith('  checked now')),
+  }).toStrictEqual({
+    leaked: false,
+    line: `  checked now: OPEN failing (${noSecretPlaceholder}) · at write: not checked yet`,
+  });
+});
+
 test('it prints a failing check name with a line break, a tab and an escape character on one line, with none of them', () => {
   const ctx = setupTest();
 

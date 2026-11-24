@@ -49,7 +49,13 @@ export function runCommand(
 
   return new Promise<CommandResult>((resolve) => {
     const child = spawn(path, args, {
-      env: { ...options.env, GH_PROMPT_DISABLED: '1', GIT_TERMINAL_PROMPT: '0' },
+      env: {
+        ...options.env,
+        GH_PROMPT_DISABLED: '1',
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_NO_LAZY_FETCH: '1',
+        LC_ALL: 'C',
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: true,
     });
@@ -86,7 +92,13 @@ export function runCommand(
     };
 
     const timer = setTimeout(kill, options.timeoutMs);
-    const forget = options.kills.add(kill);
+    const forgetKill = options.kills.add(kill);
+    const forgetLive = trackLive(kill);
+
+    const forget = (): void => {
+      forgetKill();
+      forgetLive();
+    };
 
     child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
     child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk));
@@ -101,4 +113,43 @@ export function runCommand(
       });
     });
   });
+}
+
+// Every command still running in this process. An interrupt or an exit of the process kills each
+// one's group, so no probe outlives the CLI. The handlers exist only while a command runs.
+const live = new Set<() => void>();
+
+function trackLive(kill: () => void): () => void {
+  if (live.size === 0) {
+    process.on('SIGINT', raiseInterrupt);
+    process.on('SIGTERM', raiseInterrupt);
+    process.on('exit', killLive);
+  }
+
+  live.add(kill);
+
+  return () => {
+    live.delete(kill);
+
+    if (live.size === 0) {
+      process.off('SIGINT', raiseInterrupt);
+      process.off('SIGTERM', raiseInterrupt);
+      process.off('exit', killLive);
+    }
+  };
+}
+
+function raiseInterrupt(signal: NodeJS.Signals): void {
+  killLive();
+
+  process.off('SIGINT', raiseInterrupt);
+  process.off('SIGTERM', raiseInterrupt);
+  process.off('exit', killLive);
+  process.kill(process.pid, signal);
+}
+
+function killLive(): void {
+  for (const kill of live) {
+    kill();
+  }
 }

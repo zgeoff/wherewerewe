@@ -145,3 +145,43 @@ esac`,
     failing: [],
   });
 });
+
+test('it compares the branch, not a tag of the same name', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  await runGit(repo.folder, repo.env, [
+    'checkout',
+    '--quiet',
+    '-b',
+    'dock-map',
+    '--track',
+    'origin/main',
+  ]);
+
+  await ctx.commit(repo, 'one.txt');
+
+  await runGit(repo.folder, repo.env, ['tag', 'dock-map', 'main']);
+
+  const probe = await ctx.probe(repo.folder, 'dock-map');
+
+  expect(probe.result).toStrictEqual({ kind: 'result', result: 'ahead 1' });
+});
+
+test('it reads unchecked, not no upstream, when the comparison fails for another reason', async () => {
+  const ctx = setupTest();
+
+  seedStubCommand(
+    ctx.bin,
+    'git',
+    `case "$3" in
+  rev-parse) exit 0 ;;
+  rev-list) echo 'fatal: bad object' >&2; exit 128 ;;
+esac`,
+  );
+
+  const probe = await ctx.probe(ctx.root, 'main');
+
+  expect(probe.result).toStrictEqual({ kind: 'unchecked', reason: 'git missing' });
+});

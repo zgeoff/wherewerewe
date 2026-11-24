@@ -19,8 +19,8 @@ export interface CheckSave {
   readonly journal: readonly JournalRow[];
 }
 
-// What a read saves of its results. An item takes a result only when its id, check and written
-// time still match what was probed, so a write that ran since wins. A first result adds no changed
+// What a read saves of its results. An item takes a result only when it still equals the item that
+// was probed, so a write that ran since wins, even a rewrite within the same second. A first result adds no changed
 // row, and an unchecked result changes nothing.
 export function pickCheckSave(input: CheckSaveInput): CheckSave {
   const journal: JournalRow[] = [];
@@ -34,8 +34,8 @@ export function pickCheckSave(input: CheckSaveInput): CheckSave {
       result === undefined ||
       result === 'unchecked' ||
       item.check === null ||
-      probed?.check !== item.check ||
-      probed.written !== item.written
+      probed === undefined ||
+      !isSameItem(probed, item)
     ) {
       return item;
     }
@@ -85,6 +85,23 @@ export function pickCheckSave(input: CheckSaveInput): CheckSave {
     prs: isPrsChanged ? prs : null,
     journal,
   };
+}
+
+// A write stamps its time to the second, so the time alone cannot tell a rewrite of the same check
+// from the item that was probed.
+function isSameItem(probed: Item, item: Item): boolean {
+  return (
+    probed.id === item.id &&
+    probed.kind === item.kind &&
+    probed.claim === item.claim &&
+    probed.check === item.check &&
+    probed.atWrite === item.atWrite &&
+    probed.last === item.last &&
+    probed.written === item.written &&
+    probed.by === item.by &&
+    JSON.stringify(Object.entries(probed.extra).toSorted()) ===
+      JSON.stringify(Object.entries(item.extra).toSorted())
+  );
 }
 
 function pickState(result: string | undefined): PullRequestRow['state'] {

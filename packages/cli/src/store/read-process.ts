@@ -2,9 +2,16 @@ import { readFileSync } from 'node:fs';
 import { isErrorCode } from './is-error-code.ts';
 import type { ProcessState } from './types.ts';
 
+// A pid outside the OS's range names no process, and a signal to 0 or past it would reach another.
+const maxPID = 2 ** 31 - 1;
+
 // The start time in /proc/<pid>/stat tells a process from a later one that got its pid. Where the
 // stat file cannot be read, a signal 0 still tells whether any process has the pid.
 export function readProcess(pid: number): ProcessState {
+  if (!Number.isInteger(pid) || pid < 1 || pid > maxPID) {
+    return { kind: 'gone' };
+  }
+
   const stat = readStatFile(pid);
 
   if (stat === null) {

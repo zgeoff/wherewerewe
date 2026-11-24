@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
@@ -30,6 +30,7 @@ import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedLockFile } from './test-utils/seed-lock-file.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
+import { seedStubCommand } from './test-utils/seed-stub-command.ts';
 import { seedTasks } from './test-utils/seed-tasks.ts';
 import { seedWorstCaseStore } from './test-utils/seed-worst-case-store.ts';
 import type { CLIResult } from './types.ts';
@@ -249,15 +250,25 @@ test.each([
   { command: 'ack', argv: ['ack', 'o-1', '--session', 'sample'], isOwner: true },
 ])('it exits 5 on a format 1 store for $command', async (row) => {
   const ctx = setupTest();
+  const folder = seedFormat1Store(ctx.stateRoot, 'sample');
 
-  seedFormat1Store(ctx.stateRoot, 'sample');
   seedStoreFile(join(ctx.stateRoot, '.bindings'), 'claude-a1b2-test', 'name=sample\n');
 
   const stubDir = createTempDir('run-cli-format1-gh').path;
   const marker = join(stubDir, 'ran');
 
-  writeFileSync(join(stubDir, 'gh'), `#!/bin/sh\ntouch ${marker}\nexit 1\n`);
-  chmodSync(join(stubDir, 'gh'), 0o755);
+  seedStubCommand(stubDir, 'gh', `: > "${marker}"\nexit 1`);
+
+  const itemsText = readFileSync(join(folder, 'items.tsv'), 'utf8');
+
+  seedStoreFile(
+    folder,
+    'items.tsv',
+    itemsText.replace(
+      'Wire the valve relay test\t-\t',
+      'Wire the valve relay test\tpr:garden-co/valves#12\t',
+    ),
+  );
 
   const before = await ctx.readTree();
 
@@ -1812,8 +1823,7 @@ test.each([
   await ctx.run(['task', 't-b', 'Draw it']);
   await ctx.run(['done', 't-b', '--evidence', 'merged']);
 
-  writeFileSync(join(stubDir, 'gh'), `#!/bin/sh\ntouch ${marker}\nexit 1\n`);
-  chmodSync(join(stubDir, 'gh'), 0o755);
+  seedStubCommand(stubDir, 'gh', `: > "${marker}"\nexit 1`);
   seedLockFile(folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
 
   const before = await ctx.readTree();
@@ -1835,6 +1845,27 @@ test.each([
     probed: existsSync(marker),
     unchanged: after,
   }).toStrictEqual({ exitCode: 0, startsWithHeader: true, probed: false, unchanged: before });
+});
+
+test('it never opens prs.tsv in a recap', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  // Opening a pipe for reading waits for a writer, so a recap that opened prs.tsv would hang
+  const prsPath = join(folder, 'prs.tsv');
+
+  rmSync(prsPath, { force: true });
+
+  Bun.spawnSync(['mkfifo', prsPath]);
+
+  const result = await ctx.run(['--session', 'tide-alerts', 'recap']);
+
+  expect([result.exitCode, result.stdout.startsWith('tide-alerts · day 1 · recap')]).toStrictEqual([
+    0,
+    true,
+  ]);
 });
 
 test('it runs the command of each overflow line, and each prints the rows the recap left out', async () => {

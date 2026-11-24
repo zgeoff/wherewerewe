@@ -131,7 +131,10 @@ const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'reca
 
 async function runNamedSession(context: CommandContext, name: string): Promise<CLIResult> {
   const folder = join(context.root, name);
-  const read = isSessionName(name) ? await readStore(folder) : { kind: 'missing' as const };
+
+  const read = isSessionName(name)
+    ? await readStore(folder, { isPrsRead: context.args.command !== 'recap' })
+    : { kind: 'missing' as const };
 
   return match(read)
     .with({ kind: 'store' }, (found) => runStoreCommand(context, found.store))

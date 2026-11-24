@@ -13,7 +13,7 @@ import { readJournalRows } from '../store/read-journal-rows.ts';
 import { readStore } from '../store/read-store.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeCheckFiles } from '../store/write-check-files.ts';
-import type { CLIResult, Store, UnreadRows } from '../types.ts';
+import type { CLIResult, JournalRow, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
 import type { CommandContext } from './types.ts';
 
@@ -91,10 +91,10 @@ async function readHiddenStep(
     try {
       const rows = await readJournalRows(
         store.folder,
-        (row) => row.op === 'changed' && row.id === focus && row.ts > nowSet,
+        (row) => (row.op === 'changed' || row.op === 'now') && row.id === focus,
       );
 
-      isChangedInJournal = rows.length > 0;
+      isChangedInJournal = pickRowsAfterNow(rows, nowSet).some((row) => row.op === 'changed');
     } catch (error) {
       unread = {
         file: 'journal.tsv',
@@ -112,6 +112,15 @@ async function readHiddenStep(
     step: result !== null && hiddenResults.has(result) ? { kind: 'reads', result } : null,
     unread,
   };
+}
+
+// The rows after the last `now` row of the item, in journal order, because a time to the second
+// cannot order a change and a `now` that land in the same second. A journal with no `now` row for
+// the item, as in an imported store, falls back to the rows from `now_set` on.
+function pickRowsAfterNow(rows: readonly JournalRow[], nowSet: string): readonly JournalRow[] {
+  const lastNow = rows.findLastIndex((row) => row.op === 'now');
+
+  return lastNow === -1 ? rows.filter((row) => row.ts >= nowSet) : rows.slice(lastNow + 1);
 }
 
 // The lock is taken without waiting. Inside it, the files are read again, and a result applies

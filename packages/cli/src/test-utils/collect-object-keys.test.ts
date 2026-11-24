@@ -59,3 +59,11 @@ test('it gives no key for an array pattern parameter that a return type follows'
 
   expect([...collectObjectKeys(source)]).toStrictEqual([]);
 });
+
+test('it finds the key of a call in a ternary branch that an arrow function follows', () => {
+  const keys = collectObjectKeys(
+    'const f = flag ? make({ CODEX_SESSION_ID: supplied }) : () => null;',
+  );
+
+  expect([...keys]).toStrictEqual(['CODEX_SESSION_ID']);
+});

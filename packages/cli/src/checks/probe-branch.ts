@@ -8,7 +8,8 @@ interface BranchTarget {
 }
 
 // git -C <repo> rev-parse, then rev-list against the upstream. Both are read-only, and the two
-// share one timeout.
+// share one timeout. The left side of the comparison is the full ref, so a tag of the same name
+// never stands in for the branch.
 export async function probeBranch(target: BranchTarget, run: RunProbeCommand): Promise<CheckProbe> {
   const startMs = performance.now();
 
@@ -40,7 +41,7 @@ export async function probeBranch(target: BranchTarget, run: RunProbeCommand): P
       'rev-list',
       '--left-right',
       '--count',
-      `${target.name}...${target.name}@{upstream}`,
+      `refs/heads/${target.name}...${target.name}@{upstream}`,
     ],
     remainingMs,
   );
@@ -70,9 +71,13 @@ function unchecked(reason: 'git missing' | 'timeout'): CheckProbe {
   return { result: { kind: 'unchecked', reason }, failing: [] };
 }
 
+// What git says, in the C locale, when the branch has no upstream or its upstream is not stored.
+const noUpstreamPattern =
+  /no upstream configured|upstream branch .* not stored as a remote-tracking/u;
+
 function readCounts(exit: Extract<CommandResult, { kind: 'exit' }>): CheckProbe {
   if (exit.code !== 0) {
-    return result('no upstream');
+    return noUpstreamPattern.test(exit.stderr) ? result('no upstream') : unchecked('git missing');
   }
 
   const counts = /^(?<ahead>[0-9]+)\s+(?<behind>[0-9]+)\s*$/u.exec(exit.stdout)?.groups;

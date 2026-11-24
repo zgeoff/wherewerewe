@@ -1,8 +1,9 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { runGit } from '@zgeoff/testing/git';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { probePath } from './probe-path.ts';
 import { createKillSet, runCommand } from './run-command.ts';
@@ -108,4 +109,52 @@ test('it reads exists when no git is on the PATH', async () => {
   const probe = await ctx.probe(repo.folder, ctx.emptyBin);
 
   expect(probe.result).toStrictEqual({ kind: 'result', result: 'exists' });
+});
+
+test('it reads a file whose name holds glob characters by that name alone', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  writeFileSync(join(repo.folder, 'a[1].txt'), 'clean\n');
+  writeFileSync(join(repo.folder, 'a1.txt'), 'dirty\n');
+
+  await runGit(repo.folder, repo.env, ['add', 'a[1].txt', 'a1.txt']);
+  await runGit(repo.folder, repo.env, ['commit', '--quiet', '-m', 'add two files']);
+
+  writeFileSync(join(repo.folder, 'a1.txt'), 'changed\n');
+
+  const probe = await ctx.probe(join(repo.folder, 'a[1].txt'));
+
+  expect(probe.result).toStrictEqual({ kind: 'result', result: 'clean' });
+});
+
+test('it never starts the fsmonitor helper that the repo config names', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  const marker = join(ctx.root, 'helper-ran');
+  const helper = join(ctx.root, 'helper.sh');
+
+  writeFileSync(helper, `#!/bin/sh\necho ran > "${marker}"\n`);
+  chmodSync(helper, 0o755);
+
+  await runGit(repo.folder, repo.env, ['config', 'core.fsmonitor', helper]);
+
+  await ctx.probe(repo.folder);
+
+  expect(existsSync(marker)).toBe(false);
+});
+
+test('it reads unchecked with timeout when the stat of the path never returns', async () => {
+  const ctx = setupTest();
+
+  const probe = await probePath(
+    { path: join(ctx.root, 'stalled') },
+    () => Promise.reject(new Error('the probe ran a command')),
+    () => new Promise(() => {}),
+  );
+
+  expect(probe.result).toStrictEqual({ kind: 'unchecked', reason: 'timeout' });
 });

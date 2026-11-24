@@ -17,6 +17,9 @@ test.each([
   expect(parseCheckTarget(ref)).toStrictEqual(target);
 });
 
-test.each([['bogus:1'], ['pr:nohash'], ['branch:nopath']])('it reads %s as no target', (ref) => {
-  expect(parseCheckTarget(ref)).toBeNull();
-});
+test.each([['bogus:1'], ['pr:nohash'], ['branch:nopath'], ['pid:1e3'], ['pid: 12'], ['pid:']])(
+  'it reads %s as no target',
+  (ref) => {
+    expect(parseCheckTarget(ref)).toBeNull();
+  },
+);

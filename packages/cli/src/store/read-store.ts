@@ -8,6 +8,13 @@ import { parseOwnerFile } from './parse-owner-file.ts';
 import { parsePrsFile } from './parse-prs-file.ts';
 import { parseSessionFile } from './parse-session-file.ts';
 
+export interface ReadStoreOptions {
+  // false leaves prs.tsv unopened and the store with no rows of it
+  readonly isPrsRead: boolean;
+}
+
+const readsPrs: ReadStoreOptions = { isPrsRead: true };
+
 export type StoreRead =
   | { readonly kind: 'store'; readonly store: Store }
   | { readonly kind: 'missing' }
@@ -28,7 +35,10 @@ export type StoreRead =
 // Reads `session`, stopping at a hand-kept, format 1 or newer store, then `items.tsv`, `notes.tsv` and
 // `owner.tsv`. A broken `notes.tsv` or `owner.tsv` never makes the store broken: its rows that parse
 // come back, with the one that does not named in `notesUnread` or `ownerUnread`. Never the journal.
-export async function readStore(folder: string): Promise<StoreRead> {
+export async function readStore(
+  folder: string,
+  options: ReadStoreOptions = readsPrs,
+): Promise<StoreRead> {
   const sessionText = await readTextOrNull(join(folder, 'session'));
 
   if (sessionText === null) {
@@ -46,7 +56,7 @@ export async function readStore(folder: string): Promise<StoreRead> {
       reason: found.reason,
       partial: null,
     }))
-    .with({ kind: 'session' }, (found) => readItems(folder, found.session))
+    .with({ kind: 'session' }, (found) => readItems(folder, found.session, options))
     .exhaustive();
 }
 
@@ -62,10 +72,17 @@ async function readTextOrNull(path: string): Promise<string | null> {
   }
 }
 
-async function readItems(folder: string, session: SessionFile): Promise<StoreRead> {
+async function readItems(
+  folder: string,
+  session: SessionFile,
+  options: ReadStoreOptions,
+): Promise<StoreRead> {
   const itemsText = await readTextOrNull(join(folder, 'items.tsv'));
 
-  const owner = { ...(await readOwner(folder)), ...(await readPrs(folder)) };
+  const owner = {
+    ...(await readOwner(folder)),
+    ...(options.isPrsRead ? await readPrs(folder) : { prs: [], prsUnread: null }),
+  };
 
   const noteRead = await readNotes(folder);
 

@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { chmodSync, existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from '../run-cli.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
@@ -144,4 +145,44 @@ test('it runs the probe of a write with a check before it takes the lock', async
     probed: existsSync(marker),
     tasks: readFileSync(join(folder, 'items.tsv'), 'utf8').includes('t-a'),
   }).toStrictEqual({ exitCode: 3, probed: true, tasks: false });
+});
+
+test('it holds no lock while a probe runs, so a second write replies first and both land', async () => {
+  const ctx = setupTest();
+  const bin = join(ctx.root, 'bin');
+  const started = join(ctx.root, 'probe-started');
+  const folder = join(ctx.root, 'wherewerewe', 'tide-alerts');
+
+  await ctx.runAsAgent(['init', 'tide-alerts', '--goal', 'Ship the glaze timer']);
+
+  seedStubCommand(
+    bin,
+    'gh',
+    `echo started > "${started}"\n/bin/sleep 1\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
+  );
+
+  const replies: string[] = [];
+
+  const runTracked = async (name: string, argv: readonly string[]) => {
+    const result = await ctx.runAsAgentWithPath(argv, bin);
+
+    replies.push(name);
+
+    return result;
+  };
+
+  const slow = runTracked('slow', ['task', 't-a', 'Write it', '--pr', 'bosunhq/bosun-api#1']);
+
+  await waitFor(() => expect(existsSync(started)).toBe(true));
+
+  const quick = await runTracked('quick', ['task', 't-b', 'Draw it']);
+  const first = await slow;
+
+  const written = readFileSync(join(folder, 'items.tsv'), 'utf8');
+
+  expect({
+    exitCodes: [quick.exitCode, first.exitCode],
+    replies,
+    both: [written.includes('t-a\ttask'), written.includes('t-b\ttask')],
+  }).toStrictEqual({ exitCodes: [0, 0], replies: ['quick', 'slow'], both: [true, true] });
 });

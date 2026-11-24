@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern';
+import { ownerNoteCap } from '../rules/item-caps.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
 import type { Refusal, RefusalReason, RunWord } from '../types.ts';
 import { formatList } from './format-list.ts';
@@ -18,12 +19,10 @@ export function buildOwnerRefusal(reason: OwnerReason): Refusal {
       ),
     )
     .with({ kind: 'owner-notes-full' }, (found) =>
-      refuse('www: refused: 2 owner notes already show. Clear one that is done.', [
-        '--session',
-        found.name,
-        'ack',
-        found.oldestID,
-      ]),
+      refuse(
+        `www: refused: ${String(ownerNoteCap)} owner notes already show. Clear one that is done.`,
+        ['--session', found.name, 'ack', found.oldestID],
+      ),
     )
     .with({ kind: 'owner-note-numbers-used-up' }, (found) =>
       refuse(`www: refused: owner note numbers are used up after o-${String(found.lastNumber)}.`, [

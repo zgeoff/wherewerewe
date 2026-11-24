@@ -29,7 +29,7 @@ export function parseCheckTarget(ref: CheckRef): CheckTarget | null {
   }
 
   if (kind === 'pid') {
-    return { kind: 'pid', pid: Number(value) };
+    return /^[0-9]+$/u.test(value) ? { kind: 'pid', pid: Number(value) } : null;
   }
 
   return null;

@@ -65,7 +65,7 @@ export function createVerifyRegistry(): Wringer {
       data: wwwRunSchema,
       run: async (args, ctx) => {
         const stateRoot = readStateRoot(ctx.endpoints);
-        const line = fillRunFolder(args.line, stateRoot);
+        const line = args.line;
         const expected = fillRunFolder(args.expect, stateRoot);
 
         const output = await runWWWLine(ctx.exec, stateRoot, line, args.host);

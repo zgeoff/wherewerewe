@@ -6,6 +6,7 @@ import { wrapBlock } from '../brief/wrap-block.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { getKindWord } from '../rules/get-kind-word.ts';
+import { redactCredentialWords } from '../rules/redact-credential-words.ts';
 import type { Item, JournalRow, Store } from '../types.ts';
 import { cutRedactedLine } from './cut-redacted-line.ts';
 
@@ -192,13 +193,18 @@ function formatApprovalLine(item: Item): string {
   return `  given by ${who} in ${where} · scope: ${scope}`;
 }
 
-// The names come from outside the store: control characters become spaces, and the line passes the
-// credential redaction and the 100 character cut.
+// The names come from outside the store: each passes the credential redaction before its control
+// characters become spaces, so a credential that a control character splits is still one word to
+// the redaction. The line then passes the redaction and the 100 character cut again.
 function formatCheckNowLine(input: ShowInput, item: Item): string {
   const now = input.checkNow ?? { result: 'unchecked', failing: [] };
 
   const names = now.failing
-    .map((name) => name.replaceAll(/\p{Cc}/gu, ' ').trim())
+    .map((name) =>
+      redactCredentialWords(name)
+        .replaceAll(/\p{Cc}/gu, ' ')
+        .trim(),
+    )
     .filter((name) => name !== '');
 
   const failing = now.result === 'OPEN failing' && names.length > 0 ? ` (${names.join(', ')})` : '';

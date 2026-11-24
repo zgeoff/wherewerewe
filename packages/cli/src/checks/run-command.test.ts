@@ -1,6 +1,9 @@
-import { expect, test } from 'bun:test';
+import { expect, onTestFinished, test } from 'bun:test';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { readProcess } from '../store/read-process.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { createKillSet, runCommand } from './run-command.ts';
 
@@ -44,13 +47,13 @@ test('it reads a command as missing when the env holds no PATH', async () => {
   expect(result).toStrictEqual({ kind: 'missing' });
 });
 
-test('it never prompts: the command runs with stdin closed and both prompt variables set', async () => {
+test('it never prompts: the command runs with stdin closed and both prompt variables set and no lazy fetch', async () => {
   const ctx = setupTest();
 
   seedStubCommand(
     ctx.folder,
     'git',
-    'read line; echo "stdin:[$line] $GH_PROMPT_DISABLED $GIT_TERMINAL_PROMPT"',
+    'read line; echo "stdin:[$line] $GH_PROMPT_DISABLED $GIT_TERMINAL_PROMPT $GIT_NO_LAZY_FETCH"',
   );
 
   const result = await ctx.run('git', 1000);
@@ -58,7 +61,7 @@ test('it never prompts: the command runs with stdin closed and both prompt varia
   expect(result).toStrictEqual({
     kind: 'exit',
     code: 0,
-    stdout: 'stdin:[] 1 0\n',
+    stdout: 'stdin:[] 1 0 1\n',
     stderr: '',
   });
 });
@@ -74,4 +77,42 @@ test('it kills a command that runs past its timeout, and the child it started', 
   const children = Bun.spawnSync(['pgrep', '-f', marker]);
 
   expect([result, children.exitCode]).toStrictEqual([{ kind: 'timeout' }, 1]);
+});
+
+test('it kills a running command and its child when the process is interrupted', async () => {
+  const ctx = setupTest();
+  const pidFile = join(ctx.folder, 'stub-pid');
+  const childPidFile = join(ctx.folder, 'child-pid');
+
+  seedStubCommand(
+    ctx.folder,
+    'gh',
+    `echo $$ > "${pidFile}"\n/bin/sleep 30 &\necho $! > "${childPidFile}"\nwait`,
+  );
+
+  const program = `import { createKillSet, runCommand } from ${JSON.stringify(join(import.meta.dir, 'run-command.ts'))};
+await runCommand(['gh'], { env: { PATH: ${JSON.stringify(ctx.folder)} }, timeoutMs: 60000, kills: createKillSet() });`;
+
+  const cli = Bun.spawn([process.execPath, '-e', program], {
+    env: { PATH: ctx.folder },
+    stdout: 'ignore',
+    stderr: 'ignore',
+  });
+
+  onTestFinished(() => {
+    cli.kill('SIGKILL');
+  });
+
+  await waitFor(() => expect(existsSync(childPidFile)).toBe(true));
+  await waitFor(() => expect(readFileSync(childPidFile, 'utf8')).toEndWith('\n'));
+
+  const pids = [pidFile, childPidFile].map((file) => Number(readFileSync(file, 'utf8')));
+
+  cli.kill('SIGTERM');
+
+  await cli.exited;
+
+  await waitFor(() => {
+    expect(pids.map((pid) => readProcess(pid).kind)).toStrictEqual(['gone', 'gone']);
+  });
 });

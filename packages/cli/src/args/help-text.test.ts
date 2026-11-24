@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { grantLimits } from '../rules/grant-limits.ts';
-import { itemCaps } from '../rules/item-caps.ts';
+import { itemCaps, ownerNoteCap } from '../rules/item-caps.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import { helpText } from './help-text.ts';
 
@@ -37,7 +37,7 @@ function setupTest() {
     reading: `a reading of ${String(grantLimits.reading)}`,
   };
 
-  const capPhrase = `at most ${String(itemCaps.task)} tasks, ${String(itemCaps.wait)} waits, ${String(itemCaps.ok)} approval, ${String(itemCaps.rule)} rules, ${String(itemCaps.where)} where items`;
+  const capPhrase = `at most ${String(itemCaps.task)} tasks, ${String(itemCaps.wait)} waits, ${String(itemCaps.ok)} approval, ${String(itemCaps.rule)} rules, ${String(itemCaps.where)} where items and ${String(ownerNoteCap)} owner notes`;
 
   return { text, textPhrases, grantPhrases, capPhrase };
 }

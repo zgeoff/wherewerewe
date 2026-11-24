@@ -37,3 +37,12 @@ test('it reads gone when the start time stored with the claim differs from the o
     { kind: 'result', result: 'gone' },
   ]);
 });
+
+test.each([[4_294_967_296], [2_147_483_648], [0], [-1], [1.5], [Number.NaN]])(
+  'it reads gone for the pid %d, which names no process',
+  (pid) => {
+    const probe = probeProcess({ pid }, {});
+
+    expect(probe.result).toStrictEqual({ kind: 'result', result: 'gone' });
+  },
+);

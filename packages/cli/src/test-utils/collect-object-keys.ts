@@ -106,7 +106,11 @@ function findParameterOpens(tokens: readonly SourceToken[]): Set<number> {
       const isHead = before?.kind === 'word' && headWords.has(before.value);
 
       const hasBody =
-        after?.value === '{' || (after?.value === ':' && isBodyAfterType(tokens, at + 2));
+        after?.value === '{' ||
+        (after?.value === ':' &&
+          open !== undefined &&
+          !isTernaryBranch(tokens, open) &&
+          isBodyAfterType(tokens, at + 2));
 
       if (open !== undefined && !isHead && (isArrow || hasBody)) {
         params.add(open);
@@ -115,6 +119,47 @@ function findParameterOpens(tokens: readonly SourceToken[]): Set<number> {
   }
 
   return params;
+}
+
+// Whether the `(` at the index sits in the middle branch of a ternary that is still open at its own
+// depth, so the `:` after its `)` starts the other branch and no return type. An optional `?.`, a
+// `??` and the `?` of an optional parameter are no ternary.
+function isTernaryBranch(tokens: readonly SourceToken[], open: number): boolean {
+  let depth = 0;
+  let colons = 0;
+
+  for (let at = open - 1; at >= 0; at -= 1) {
+    const token = tokens.at(at);
+    const value = token?.kind === 'punct' ? token.value : '';
+
+    if (')]}'.includes(value || ' ')) {
+      depth += 1;
+    } else if ('([{'.includes(value || ' ')) {
+      depth -= 1;
+    } else if (depth === 0 && (value === ';' || value === '=')) {
+      return false;
+    } else if (depth === 0 && value === ':') {
+      colons += 1;
+    } else if (depth === 0 && value === '?' && isTernaryMark(tokens, at)) {
+      if (colons === 0) {
+        return true;
+      }
+
+      colons -= 1;
+    }
+
+    if (depth < 0) {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+function isTernaryMark(tokens: readonly SourceToken[], at: number): boolean {
+  const after = tokens.at(at + 1)?.value;
+
+  return after !== '.' && after !== '?' && after !== ':' && tokens.at(at - 1)?.value !== '?';
 }
 
 // Whether the type that starts at the index is followed by a function body or an arrow: a `{` or an

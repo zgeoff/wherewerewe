@@ -124,6 +124,24 @@ test('it leaves an item alone whose check or written time changed since the prob
   ]);
 });
 
+test('it leaves an item alone that a write of the same check rewrote within the same second', () => {
+  const ctx = setupTest();
+
+  const probed = [
+    buildMockItem({ id: 't-a', claim: 'old claim', check: 'pid:5', atWrite: 'alive' }),
+  ];
+
+  const save = ctx.pickSave(
+    probed,
+    { 't-a': 'gone' },
+    {
+      items: [buildMockItem({ id: 't-a', claim: 'new claim', check: 'pid:5', atWrite: 'alive' })],
+    },
+  );
+
+  expect(save).toStrictEqual({ items: null, prs: null, journal: [] });
+});
+
 test.each([
   ['OPEN passing', 'OPEN'],
   ['OPEN failing', 'OPEN'],

@@ -601,3 +601,19 @@ test('it leaves a row of prs.tsv that does not parse out, and names it, and the 
     "www: tide-alerts's prs.tsv line 3 does not parse: expected 4 tab-separated columns, found 1. The brief leaves out what it could not read. Fix the file by hand.\n",
   ]);
 });
+
+test('it leaves prs.tsv unopened when the options say so, and reads no rows of it', async () => {
+  const ctx = setupTest();
+
+  const folder = await seedSessionStore(join(ctx.root, 'wherewerewe'), 'tide-alerts');
+
+  seedStoreFile(
+    folder,
+    'prs.tsv',
+    'ref\topened\tstate\tseen\nbosunhq/bosun-app#64\t2026-03-10T08:41:30Z\tOPEN\t-\nbroken row\n',
+  );
+
+  const read = await readStore(folder, { isPrsRead: false });
+
+  expect(read.kind === 'store' && [read.store.prs, read.store.prsUnread]).toStrictEqual([[], null]);
+});

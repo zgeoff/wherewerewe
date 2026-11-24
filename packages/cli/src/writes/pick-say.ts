@@ -1,13 +1,12 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { isItemID } from '../rules/is-item-id.ts';
+import { ownerNoteCap } from '../rules/item-caps.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { OwnerWriteResult, WriteInput } from './types.ts';
-
-const noteCap = 2;
 
 export function pickSay(input: WriteInput): OwnerWriteResult {
   const store = input.store;
@@ -22,7 +21,7 @@ export function pickSay(input: WriteInput): OwnerWriteResult {
 
   const [oldest] = store.ownerNotes;
 
-  if (store.ownerNotes.length >= noteCap && oldest !== undefined) {
+  if (store.ownerNotes.length >= ownerNoteCap && oldest !== undefined) {
     return {
       kind: 'refused',
       refusal: buildRefusal({

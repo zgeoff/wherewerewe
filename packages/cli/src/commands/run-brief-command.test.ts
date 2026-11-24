@@ -55,6 +55,14 @@ function setupTest() {
           return clock.nowMs - 1000;
         },
       }),
+    runFrozen: (argv: readonly string[]) =>
+      runCLI({
+        argv,
+        env: agentEnv,
+        cwd: '/work',
+        terminal: { stdin: false, stdout: false },
+        now: () => clock.nowMs,
+      }),
     readDayNine: () => {
       const text = readFileSync(
         join(import.meta.dir, '..', '..', '..', '..', 'docs', 'design', 'wherewerewe', 'brief.md'),
@@ -182,6 +190,7 @@ test('it hides the next step when the item in focus changed after now_set, and p
     (lines[start] ?? '').slice((lines[start] ?? '').indexOf('Run: www ') + 'Run: www '.length),
   );
 
+  const again = await ctx.run([]);
   const fixed = await ctx.run(words.map((word) => (word === '<next step>' ? 'go on' : word)));
   const shown = await ctx.run([]);
 
@@ -192,6 +201,7 @@ test('it hides the next step when the item in focus changed after now_set, and p
     noteWhole: noteLines.map((line) => line.trim()).join(' '),
     noteLineCount: noteLines.length,
     after: lines[start + 6]?.startsWith('    ') ?? false,
+    hiddenAgain: again.stdout.includes(`${lines[start] ?? ''}\n`),
     fix: [fixed.exitCode, shown.stdout.includes('  next: go on\n')],
   }).toStrictEqual({
     hiddenLine:
@@ -200,8 +210,36 @@ test('it hides the next step when the item in focus changed after now_set, and p
     noteWhole: note,
     noteLineCount: 5,
     after: false,
+    hiddenAgain: true,
     fix: [0, true],
   });
+});
+
+test('it keeps the next step hidden on each read, and shows it after the fix, when now and the change land in the same second', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  await ctx.runFrozen(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.runFrozen(['where', 'wt-dock', 'dock map worktree', '--path', repo.folder]);
+  await ctx.runFrozen(['now', 'wt-dock', 'watch the tree']);
+
+  writeFileSync(join(repo.folder, 'scratch.txt'), 'dirty\n');
+
+  const detecting = await ctx.runFrozen([]);
+  const second = await ctx.runFrozen([]);
+  const fixed = await ctx.runFrozen(['now', 'wt-dock', 'go on']);
+  const shown = await ctx.runFrozen([]);
+
+  const hiddenLine =
+    '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"\n';
+
+  expect([
+    detecting.stdout.includes(hiddenLine),
+    second.stdout.includes(hiddenLine),
+    fixed.exitCode,
+    shown.stdout.includes('  next: go on\n'),
+  ]).toStrictEqual([true, true, 0, true]);
 });
 
 test('it hides the next step of an item whose check reads MERGED, and names that reading', async () => {

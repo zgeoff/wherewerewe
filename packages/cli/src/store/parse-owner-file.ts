@@ -1,10 +1,9 @@
 import { findTextProblem } from '../rules/find-text-problem.ts';
 import { isItemID } from '../rules/is-item-id.ts';
 import { isUTCTime } from '../rules/is-utc-time.ts';
+import { ownerNoteCap } from '../rules/item-caps.ts';
 import type { OwnerNote } from '../types.ts';
 import { ownerHeader } from './constants.ts';
-
-const noteCap = 2;
 
 export type OwnerParse =
   | { readonly kind: 'notes'; readonly notes: readonly OwnerNote[] }
@@ -40,8 +39,8 @@ export function parseOwnerFile(text: string): OwnerParse {
       firstBroken ??= { line: index + 2, reason: parsed };
     } else if (notes.some((note) => note.id === parsed.id)) {
       firstBroken ??= { line: index + 2, reason: 'the id repeats an earlier row' };
-    } else if (notes.length >= noteCap) {
-      firstBroken ??= { line: index + 2, reason: `more than ${String(noteCap)} notes` };
+    } else if (notes.length >= ownerNoteCap) {
+      firstBroken ??= { line: index + 2, reason: `more than ${String(ownerNoteCap)} notes` };
     } else {
       notes.push(parsed);
     }

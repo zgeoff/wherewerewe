@@ -1,5 +1,13 @@
 import { expect, test } from 'bun:test';
-import { appendFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
@@ -102,4 +110,58 @@ test('it writes nothing when the save holds nothing', async () => {
   const after = await readTreeHashes(ctx.folder);
 
   expect(after).toStrictEqual(before);
+});
+
+test('it appends the journal before it rewrites items.tsv, and rewrites items.tsv before prs.tsv', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a', check: 'pid:5', atWrite: 'alive' });
+
+  const save = {
+    journal: [ctx.changedRow],
+    items: [buildMockItem({ id: 't-a', check: 'pid:5', atWrite: 'alive', last: 'gone' })],
+    prs: [
+      {
+        ref: 'bosunhq/bosun-app#64',
+        opened: '2026-03-10T08:41:30Z',
+        state: 'OPEN',
+        seen: '2026-03-10T11:43:00Z',
+      },
+    ],
+  } as const;
+
+  // a folder in the place of a file makes that file's rewrite fail, so what was written before it
+  // shows the order
+  const itemsPath = join(ctx.folder, 'items.tsv');
+  const itemsText = readFileSync(itemsPath, 'utf8');
+  const prsBefore = readFileSync(join(ctx.folder, 'prs.tsv'), 'utf8');
+
+  rmSync(itemsPath);
+  mkdirSync(join(itemsPath, 'inside'), { recursive: true });
+
+  await expect(writeCheckFiles(ctx.folder, save)).rejects.toThrow();
+
+  const afterItemsFailed = {
+    journal: readFileSync(join(ctx.folder, 'journal.tsv'), 'utf8').includes('alive -> gone'),
+    prs: readFileSync(join(ctx.folder, 'prs.tsv'), 'utf8') !== prsBefore,
+  };
+
+  rmSync(itemsPath, { recursive: true });
+  writeFileSync(itemsPath, itemsText);
+  rmSync(join(ctx.folder, 'journal.tsv'), { force: true });
+  rmSync(join(ctx.folder, 'prs.tsv'));
+  mkdirSync(join(ctx.folder, 'prs.tsv', 'inside'), { recursive: true });
+
+  await expect(writeCheckFiles(ctx.folder, save)).rejects.toThrow();
+
+  const afterPrsFailed = {
+    journal: existsSync(join(ctx.folder, 'journal.tsv')),
+    items: readFileSync(itemsPath, 'utf8').includes('\tgone\t'),
+  };
+
+  expect([afterItemsFailed, afterPrsFailed]).toStrictEqual([
+    { journal: true, prs: false },
+    { journal: true, items: true },
+  ]);
 });
