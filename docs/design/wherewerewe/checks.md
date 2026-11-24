@@ -48,7 +48,7 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 
 ## Constraints
 
-- All probes of one read run in parallel, at most 8 at once, and the read stops waiting at 5 s. A probe still running then reads `unchecked`, and its process is killed. The read starts them in the order the brief prints rows: the item in focus, the task rows that fit, the waits, the where items and the pull request rows, then the tasks the brief leaves out. A probe the deadline stops before it starts reads `unchecked`, as one still running does. After the deadline no probe starts a command, even a `path` probe whose stat returns late.
+- All probes of one read run in parallel, at most 8 at once, and the read stops waiting at 5 s. A probe still running then reads `unchecked`, and its process is killed. The read starts them in the order the brief prints rows: the item in focus, then the rows the cut order of [brief.md](brief.md#the-cut-order) keeps within the reader's limit, in the brief's order, then the rows it cuts. A probe the deadline stops before it starts reads `unchecked`, as one still running does. After the deadline no probe starts a command, even a `path` probe whose stat returns late.
 - Each probe runs with `GH_PROMPT_DISABLED=1`, `GIT_TERMINAL_PROMPT=0` and stdin closed, so it can never wait for input.
 - A probe never writes: no `git fetch`, no lazy fetch (`GIT_ALLOW_PROTOCOL=none`), no index refresh (`--no-optional-locks`), no fsmonitor helper (`core.fsmonitor=false`), no `gh` call other than `pr view`, and no write to a repo or to GitHub.
 - A `branch` probe reads `no upstream` only when git says the branch has none. Any other failure of the comparison reads `unchecked`.
