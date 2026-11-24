@@ -12,7 +12,7 @@
 ## Why
 
 - The agent reads what the brief puts in front of it and skips what it has to remember to look for. On the first day of real use, it rewrote a 120-character next step twice and lost the reason behind the step, which is what it needed after the compaction.
-- The owner's failure case is an agent that, after a compaction, forgets what it was allowed, and stops to ask or loops waiting. A separate permission check already polices what the agent does, and it remembers the owner's messages better than the agent does. So the tool's job is to keep what the agent may do fresh in what it reads.
+- The owner's failure case is an agent that, after a compaction, forgets what it was allowed, and stops to ask or loops waiting. A separate permission check already polices what the agent does ([README](../design/wherewerewe/README.md)), and it remembers the owner's messages better than the agent does. So the tool's job is to keep what the agent may do fresh in what it reads.
 - The owner's real grant for the build session is 645 characters with about ten parts. Three approvals of 120 characters, each with a 40-character scope, under a heading that said "act only inside each quote and scope", cut it into fragments, and a fresh agent asked to do a task that no fragment named found no line that allowed it.
 - The owner reads 700 characters wrapped into one quote as a wall of text, and approved one bullet per permission under `may`, `not` and `never`. The bullets cost up to 10 lines more than a quote; Codex's token count is the limit that matters, and the worst case stays under it.
 - The owner cannot correct a note the owner cannot see. `www recap` puts the grant, the reading and every note in one screen, and `www say` puts the correction at the top of the next brief.
@@ -34,8 +34,8 @@
 
 ## Consequences
 
-- The brief's bound is 73 lines and 7,200 characters, 2,400 tokens at 3 characters per token, 4% under Codex's 2,500. Changed rows drop from 4 to 3, pull request rows from 3 to 1, and the footer from 3 lines to 1, to pay for the grant and the note.
-- A format 1 store exits 5 until `www import` upgrades it. The upgrade takes the grant in the same command when the store holds standing approvals, so every brief shows the approvals or the grant.
+- The brief's bound is 73 lines and 7,200 characters, 2,400 tokens at 3 characters per token, 4% under Codex's 2,500 ([brief.md](../design/wherewerewe/brief.md)). Changed rows drop from 4 to 3, pull request rows from 3 to 1, and the footer from 3 lines to 1, to pay for the grant and the note.
+- A format 1 store exits 5 until `www import` upgrades it ([store.md](../design/wherewerewe/store.md)). The upgrade takes the grant in the same command when the store holds standing approvals, so every brief shows the approvals or the grant.
 - The owner catches a wrong reading or a stale note by reading `www recap`. An owner who never runs it sees only what the brief shows.
 - These printed strings change:
   - The brief's approvals heading, `APPROVED (<n> of 3) · act only inside each quote and scope`, becomes `APPROVED ONCE (<n> of 1)`.

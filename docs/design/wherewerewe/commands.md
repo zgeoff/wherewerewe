@@ -439,7 +439,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 
 ## Constraints
 
-- Once a session is found and its store is in format 2, a read is never refused: `www`, `show`, `log` and `recap` print what they can, even when every check fails. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
+- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
 - A changed check never makes `set` refuse, so the agent can always fix a stale claim.
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
