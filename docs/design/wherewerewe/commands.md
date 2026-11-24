@@ -300,8 +300,8 @@ grant  from the owner in chat · in bosun-api, bosun-app and tidekit
          • deploy either app to staging whenever you need to
          • wipe or reseed the staging alerts table as often as you like
          • open PRs on tidal-org/tidekit from our fork
-  not    • publishing a tidekit release
-  never  • the prod push certificate  • the prod database
+  not    • the prod database
+  never  • the prod push certificate  • publishing a tidekit release
   reading (12m), set on day 9: covers merges in both repos on green CI with findings answered,
     staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod
     database, tidekit merges and releases
@@ -332,8 +332,8 @@ GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
          • deploy either app to staging whenever you need to
          • wipe or reseed the staging alerts table as often as you like
          • open PRs on tidal-org/tidekit from our fork
-  not    • publishing a tidekit release
-  never  • the prod push certificate  • the prod database
+  not    • the prod database
+  never  • the prod push certificate  • publishing a tidekit release
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
     staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit
     merges and releases

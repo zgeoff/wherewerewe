@@ -11,6 +11,9 @@ your own stores. `seed-hand-kept` copies the invented store into the run as the 
 
 Run `bun verify up --restart` first, so `trial-import` does not exist yet, then run `doctor`.
 
+Give the `refuse` line's `--run` the `Run:` line as `www` prints it, and leave its two placeholders
+as they are: `www refuse` compares the `Run:` line that `www` prints with it.
+
 ```bash
 bun verify use --feature import
 bun verify www seed-hand-kept

@@ -13,7 +13,7 @@ session `trial-grant`.
 Run `bun verify up --restart` first, so `trial-grant` does not exist yet, then `doctor`.
 
 Give the `refuse` line's `--run` the `Run:` line as `www` prints it, and leave its two placeholders
-as they are.
+as they are: `www refuse` compares the `Run:` line that `www` prints with it.
 
 ```bash
 bun verify use --feature grant

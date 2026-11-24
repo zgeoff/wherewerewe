@@ -51,9 +51,9 @@ grant_may=merge the alert PRs once CI is green and every review finding is answe
 grant_may=deploy either app to staging whenever you need to
 grant_may=wipe or reseed the staging alerts table as often as you like
 grant_may=open PRs on tidal-org/tidekit from our fork
-grant_not=publishing a tidekit release   # one line per bullet of what the owner did not grant; none or more
+grant_not=the prod database      # one line per bullet of what the owner did not grant; none or more
 grant_never=the prod push certificate    # one line per bullet of what the owner ruled out; none or more
-grant_never=the prod database
+grant_never=publishing a tidekit release
 grant_scope=in bosun-api, bosun-app and tidekit   # where the grant applies, in the owner's words; 1–40 characters, or empty
 grant_reading=covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases   # 1–200 characters; empty with no grant
 grant_where=chat                 # where the owner gave the words; 1–16 characters; empty with no grant
@@ -138,7 +138,7 @@ interface Note {
 
 ```text
 ts	op	id	by	text	why	extra
-2026-03-03T09:12:40Z	grant	grant	agent	may: merge the alert PRs once CI is green and every review finding is answered • deploy either app to staging whenever you need to • wipe or reseed the staging alerts table as often as you like • open PRs on tidal-org/tidekit from our fork · not: publishing a tidekit release · never: the prod push certificate • the prod database · scope: in bosun-api, bosun-app and tidekit	covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases	where=chat
+2026-03-03T09:12:40Z	grant	grant	agent	may: merge the alert PRs once CI is green and every review finding is answered • deploy either app to staging whenever you need to • wipe or reseed the staging alerts table as often as you like • open PRs on tidal-org/tidekit from our fork · not: the prod database · never: the prod push certificate • publishing a tidekit release · scope: in bosun-api, bosun-app and tidekit	covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit releases	where=chat
 2026-03-10T10:42:18Z	note	pr-api-77	agent	The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in the retry helper, not on the retry logic.	-	-
 2026-03-10T10:48:15Z	decide	d-23	agent	Retry a 503 from the tide feed 3 times, 2 s apart	The feed returns 503 for about 4 s during its hourly refresh	on=pr-api-77;who=agent
 2026-03-10T11:43:05Z	changed	pr-app-61	agent	OPEN passing -> MERGED	-	-
@@ -213,7 +213,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 `www import <session>` on a format 1 store upgrades it to format 2 in place. It takes the store lock, checks the store first, and writes nothing when a check fails.
 
 ```text
-$ www import tide-alerts --may "merge the alert PRs once CI is green and every review finding is answered" --may … --not "publishing a tidekit release" --never "the prod push certificate" --never "the prod database" --scope "in bosun-api, bosun-app and tidekit" --where chat --reading "covers merges in both repos on green CI …; kept back: …"
+$ www import tide-alerts --may "merge the alert PRs once CI is green and every review finding is answered" --may … --not "the prod database" --never "the prod push certificate" --never "publishing a tidekit release" --scope "in bosun-api, bosun-app and tidekit" --where chat --reading "covers merges in both repos on green CI …; kept back: …"
 Upgraded tide-alerts to format 2: grant 330 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in /home/sam/.local/state/wherewerewe/tide-alerts/format-1-backup/.
 ```
 
