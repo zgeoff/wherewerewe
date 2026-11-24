@@ -6,7 +6,7 @@ import { formatAge } from './format-age.ts';
 import { formatCheckResult } from './format-check-result.ts';
 import { formatItemLine } from './format-item-line.ts';
 import { formatListCommand } from './format-list-command.ts';
-import { formatPullRequestRow } from './format-pull-request-row.ts';
+import { briefRefCharacters, formatPullRequestRow } from './format-pull-request-row.ts';
 import { formatTaskLine } from './format-task-line.ts';
 import { padID } from './pad-id.ts';
 import type { BriefInput, CutKind, ItemLine, ItemSection } from './types.ts';
@@ -218,7 +218,7 @@ function buildPullRequests(input: BriefInput): ItemSection {
   const pullRequests = input.pullRequests;
 
   const rows = pullRequests.slice(0, maxPullRequestRows).map((pullRequest): ItemLine => ({
-    text: formatPullRequestRow(pullRequest, input.nowMs),
+    text: formatPullRequestRow(pullRequest, input.nowMs, briefRefCharacters),
     id: null,
     rank: 'pull-requests',
   }));

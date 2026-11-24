@@ -1160,3 +1160,31 @@ test('it lists the ids of all four files when the id is open nowhere', () => {
     'zz-a: no item, decision or journal row has this id. Open items: t-a, l-seed.\n',
   );
 });
+
+test('it prints both rows of an id that a task and a lesson hold, the task first', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    'l-seed',
+    [buildMockItem({ id: 'l-seed', claim: 'Reuse of the id by the older tool' })],
+    [buildMockJournalRow({ ts: '2026-03-08T10:00:00Z', op: 'task', id: 'l-seed' })],
+    {
+      store: {
+        lessons: [
+          {
+            id: 'l-seed',
+            text: 'Reseed the staging alerts table before alerts-e2e',
+            why: 'A stale row made alerts-e2e pass',
+            written: '2026-03-06T09:00:00Z',
+            by: 'agent',
+          },
+        ],
+      },
+    },
+  );
+
+  expect(text.split('\n').filter((line) => line.startsWith('l-seed  '))).toStrictEqual([
+    'l-seed  task, open since day 7, by agent',
+    'l-seed  lesson, open since day 7, by agent',
+  ]);
+});

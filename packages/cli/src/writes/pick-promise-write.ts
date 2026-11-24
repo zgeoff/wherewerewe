@@ -4,11 +4,13 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { promiseCap } from '../rules/item-caps.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, PromiseRow, RefusalReason } from '../types.ts';
+import { findOldestRow } from './find-oldest-row.ts';
 import { formatBriefLine } from './format-brief-line.ts';
 import { pickBrokenFileRefusal } from './pick-broken-file-refusal.ts';
 import { pickDuplicateIDRefusal } from './pick-duplicate-id-refusal.ts';
 import { pickKindIDRefusal } from './pick-kind-id-refusal.ts';
-import { pickTextRefusal } from './pick-text-refusal.ts';
+import { pickCredentialRefusal, pickTextRefusal } from './pick-text-refusal.ts';
+import type { TextCheck } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
 // promise writes promises.tsv and the journal and no other file. An id that holds a promise
@@ -59,15 +61,22 @@ export function pickPromiseWrite(input: WriteInput): WriteResult {
   };
 }
 
-// The checks that read the command line and no store: the id, that the promise names who and
-// when, the separators the journal keeps apart, then the three texts.
+// The checks that read the command line and no store: the id, a credential in any text, that the
+// promise names who and when, the separators the journal keeps apart, then the three texts.
 export function pickPromiseArgsRefusal(args: ParsedArgs): RefusalReason | null {
   const id = args.positionals[0] ?? '';
   const to = args.values.to;
   const by = args.values.by;
+  const checks = buildPromiseChecks(args);
 
   if (!isItemID(id)) {
     return { kind: 'bad-id', args, id };
+  }
+
+  const credential = pickCredentialRefusal(args, checks, false);
+
+  if (credential !== null) {
+    return credential;
   }
 
   const missing = [
@@ -87,27 +96,27 @@ export function pickPromiseArgsRefusal(args: ParsedArgs): RefusalReason | null {
     }
   }
 
-  return pickTextRefusal(
-    args,
-    [
-      {
-        target: { label: 'promise', place: { positional: 1 } },
-        text: args.positionals[1] ?? '',
-        limit: textLimits.promise,
-      },
-      {
-        target: { label: '--to', place: { flag: 'to' } },
-        text: to ?? '',
-        limit: textLimits.promiseTo,
-      },
-      {
-        target: { label: '--by', place: { flag: 'by' } },
-        text: by ?? '',
-        limit: textLimits.promiseBy,
-      },
-    ],
-    false,
-  );
+  return pickTextRefusal(args, checks, false);
+}
+
+function buildPromiseChecks(args: ParsedArgs): TextCheck[] {
+  return [
+    {
+      target: { label: 'promise', place: { positional: 1 } },
+      text: args.positionals[1] ?? '',
+      limit: textLimits.promise,
+    },
+    {
+      target: { label: '--to', place: { flag: 'to' } },
+      text: args.values.to ?? '',
+      limit: textLimits.promiseTo,
+    },
+    {
+      target: { label: '--by', place: { flag: 'by' } },
+      text: args.values.by ?? '',
+      limit: textLimits.promiseBy,
+    },
+  ];
 }
 
 // The cap, for a new promise only. The refusal offers to close the oldest.
@@ -115,7 +124,7 @@ function pickFullPromisesRefusal(
   input: WriteInput,
   existing: PromiseRow | undefined,
 ): RefusalReason | null {
-  const [oldest] = input.store.promises;
+  const oldest = findOldestRow(input.store.promises);
 
   return existing === undefined && oldest !== undefined && input.store.promises.length >= promiseCap
     ? { kind: 'kind-full', itemKind: 'promise', oldestID: oldest.id }

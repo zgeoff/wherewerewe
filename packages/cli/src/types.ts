@@ -213,6 +213,12 @@ export interface JournalIndex {
   // id -> ts of its done, drop or use row
   readonly closed: ReadonlyMap<string, string>;
 
+  // id -> the latest done, drop or use row of the id, with its ts, op and text
+  readonly closeRows: ReadonlyMap<
+    string,
+    { readonly ts: string; readonly op: string; readonly text: string | null }
+  >;
+
   // d-<n> -> its who=, from the extra of its decide or ruled-out row
   readonly decisions: ReadonlyMap<string, { readonly who: 'owner' | 'agent' | null }>;
 

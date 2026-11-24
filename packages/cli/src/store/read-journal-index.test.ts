@@ -32,6 +32,32 @@ test('it finds each id that a done, drop or use row closed, with the ts of that 
   );
 });
 
+test('it keeps the latest close row of an id, with its op and text', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-04T08:00:00Z',
+    op: 'done',
+    id: 'l-seed',
+    text: 'An old task',
+  });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-08T08:00:00Z',
+    op: 'drop',
+    id: 'l-seed',
+    text: null,
+  });
+
+  const index = await readJournalIndex(ctx.folder);
+
+  expect(index.closeRows).toStrictEqual(
+    new Map([['l-seed', { ts: '2026-03-08T08:00:00Z', op: 'drop', text: null }]]),
+  );
+});
+
 test('it finds each decision with who made it, and the highest decision number', async () => {
   const ctx = setupTest();
 

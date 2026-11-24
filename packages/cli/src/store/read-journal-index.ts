@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { collectDecisionsInForce } from '../brief/collect-decisions-in-force.ts';
+import { collectReplacedIDs } from '../brief/collect-replaced-ids.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
 import type { JournalIndex, JournalRow } from '../types.ts';
 import { parseJournalLine } from './parse-journal-line.ts';
@@ -11,6 +12,7 @@ const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
 
 export async function readJournalIndex(folder: string): Promise<JournalIndex> {
   const closed = new Map<string, string>();
+  const closeRows = new Map<string, { ts: string; op: string; text: string | null }>();
   const decisions = new Map<string, { readonly who: 'owner' | 'agent' | null }>();
 
   const decideRows: JournalRow[] = [];
@@ -30,6 +32,7 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
 
       if (closingOps.has(op)) {
         closed.set(id, ts);
+        closeRows.set(id, { ts, op, text: readCell(line.split('\t')[4]) });
       }
 
       if (op === 'say') {
@@ -60,18 +63,17 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
 
   return {
     closed,
+    closeRows,
     decisions,
-    replaced: new Set(
-      decideRows.flatMap((row) => {
-        const id = findExtraValue(row.extra, 'replaces');
-
-        return id === null ? [] : [id];
-      }),
-    ),
+    replaced: collectReplacedIDs(decideRows),
     inForce: collectDecisionsInForce(decideRows),
     lastDecisionNumber,
     lastOwnerNoteNumber,
   };
+}
+
+function readCell(cell: string | undefined): string | null {
+  return cell === undefined || cell === '-' ? null : cell;
 }
 
 function readNumber(id: string, prefix: 'd' | 'o'): number | null {

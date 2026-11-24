@@ -19,11 +19,11 @@ function setupTest() {
         probed: null,
         byOwner,
       }),
-    words: (id: string): WordsRow => ({
+    words: (id: string, written = '2026-03-04T09:00:00Z'): WordsRow => ({
       id,
       words: 'Old',
       where: 'chat',
-      written: '2026-03-04T09:00:00Z',
+      written,
       by: 'owner',
     }),
   };
@@ -92,15 +92,19 @@ test('it refuses a --where with a separator, as --who and --where of an approval
   ]);
 });
 
-test('it refuses a 9th piece of the owner words, naming the oldest to drop', () => {
+test('it refuses a 9th piece of the owner words, naming the oldest by time to drop', () => {
   const ctx = setupTest();
-  const words = buildMockIDs('word', 8).map((id) => ctx.words(id));
+
+  const words = buildMockIDs('word', 8).map((id, at) =>
+    ctx.words(id, `2026-03-0${String(9 - at)}T09:00:00Z`),
+  );
+
   const picked = ctx.pick(ctx.argv, false, { words });
 
   expect(picked.kind === 'refused' && [picked.refusal.lines, picked.refusal.runs]).toStrictEqual([
     [
       "www: refused: the session holds 8 of 8 owner's words. Drop one, or replace one with www words.",
     ],
-    [{ www: ['drop', 'word01xxxxxxxxxx', '--why', { placeholder: '<reason>' }] }],
+    [{ www: ['drop', 'word08xxxxxxxxxx', '--why', { placeholder: '<reason>' }] }],
   ]);
 });

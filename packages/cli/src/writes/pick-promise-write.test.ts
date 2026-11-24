@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildMockJournalIndex, buildMockStore } from '../test-utils/build-mock-store.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
@@ -26,12 +27,12 @@ function setupTest() {
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
         probed: null,
       }),
-    promise: (id: string): PromiseRow => ({
+    promise: (id: string, written = '2026-03-04T09:00:00Z'): PromiseRow => ({
       id,
       what: 'Old',
       to: 'owner',
       byWhen: 'Friday',
-      written: '2026-03-04T09:00:00Z',
+      written,
       by: 'agent',
     }),
   };
@@ -123,9 +124,13 @@ test.each([
   ]);
 });
 
-test('it refuses a 6th promise with a done Run line for the oldest', () => {
+test('it refuses a 6th promise with a done Run line for the oldest by time, not the first row', () => {
   const ctx = setupTest();
-  const promises = buildMockIDs('prom', 5).map((id) => ctx.promise(id));
+
+  const promises = buildMockIDs('prom', 5).map((id, at) =>
+    ctx.promise(id, `2026-03-0${String(9 - at)}T09:00:00Z`),
+  );
+
   const picked = ctx.pick(ctx.argv, { promises });
 
   expect(picked.kind === 'refused' && [picked.refusal.lines, picked.refusal.runs]).toStrictEqual([
@@ -134,13 +139,30 @@ test('it refuses a 6th promise with a done Run line for the oldest', () => {
     ],
     [
       {
-        www: [
-          'done',
-          'prom01xxxxxxxxxx',
-          '--evidence',
-          { placeholder: '<PR, commit or test run>' },
-        ],
+        www: ['done', 'prom05xxxxxxxxxx', '--evidence', { placeholder: '<what you delivered>' }],
       },
     ],
   ]);
 });
+
+test.each(
+  (['to', 'by'] as const).flatMap((flag) =>
+    buildCredentialSamples().map((entry) => [flag, entry.name, entry.sample] as const),
+  ),
+)(
+  'it refuses a credential in --%s, a %s sample, as a credential before any limit',
+  (flag, name, sample) => {
+    const ctx = setupTest();
+
+    const argv =
+      flag === 'to'
+        ? ['promise', 'due-cost', 'Cost table', `--to=${sample}`, '--by', 'Friday']
+        : ['promise', 'due-cost', 'Cost table', '--to', 'owner', `--by=${sample}`];
+
+    const picked = ctx.pick(argv);
+
+    expect(picked.kind === 'refused' && picked.refusal.lines).toStrictEqual([
+      `www: refused: the text looks like a credential (it matches the ${name} pattern). Write where the secret lives, never its value.`,
+    ]);
+  },
+);

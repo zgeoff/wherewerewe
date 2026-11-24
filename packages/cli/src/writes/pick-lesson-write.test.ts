@@ -29,11 +29,11 @@ function setupTest() {
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
         probed: null,
       }),
-    lesson: (id: string): LessonRow => ({
+    lesson: (id: string, written = '2026-03-04T09:00:00Z'): LessonRow => ({
       id,
       text: 'Old text',
       why: 'Old why',
-      written: '2026-03-04T09:00:00Z',
+      written,
       by: 'agent',
     }),
   };
@@ -148,14 +148,18 @@ test.each([
   ]);
 });
 
-test('it refuses a 6th lesson, naming the oldest to drop', () => {
+test('it refuses a 6th lesson, naming the oldest by time to drop', () => {
   const ctx = setupTest();
-  const lessons = buildMockIDs('less', 5).map((id) => ctx.lesson(id));
+
+  const lessons = buildMockIDs('less', 5).map((id, at) =>
+    ctx.lesson(id, `2026-03-0${String(9 - at)}T09:00:00Z`),
+  );
+
   const picked = ctx.pick(ctx.argv, { lessons });
 
   expect(picked.kind === 'refused' && [picked.refusal.lines, picked.refusal.runs]).toStrictEqual([
     ['www: refused: the session holds 5 of 5 lessons. Drop one, or replace one with www lesson.'],
-    [{ www: ['drop', 'less01xxxxxxxxxx', '--why', { placeholder: '<reason>' }] }],
+    [{ www: ['drop', 'less05xxxxxxxxxx', '--why', { placeholder: '<reason>' }] }],
   ]);
 });
 

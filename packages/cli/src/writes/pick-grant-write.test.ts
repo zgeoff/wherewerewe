@@ -41,6 +41,7 @@ function setupTest() {
         },
         journal: {
           closed: new Map(),
+          closeRows: new Map(),
           decisions: new Map(),
           lastDecisionNumber: 0,
           replaced: new Set(),

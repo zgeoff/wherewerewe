@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { formatRefusal } from '../refusals/format-refusal.ts';
 import type { Store } from '../types.ts';
 import { collectIDHolders, collectOpenIDs, formatIDHolder } from '../writes/collect-id-holders.ts';
 
@@ -14,7 +15,16 @@ export function formatDuplicateNotes(store: Store): string {
       return first === undefined || second === undefined
         ? []
         : [
-            `www: ${store.session.name} holds ${id} twice, as ${formatIDHolder(first)} and as ${formatIDHolder(second)}. Rename one of them by hand; the journal keeps both.\nRun: less ${join(store.folder, second.file)}\n`,
+            formatRefusal(
+              {
+                exitCode: 3,
+                lines: [
+                  `www: ${store.session.name} holds ${id} twice, as ${formatIDHolder(first)} and as ${formatIDHolder(second)}. Rename one of them by hand; the journal keeps both.`,
+                ],
+                runs: [{ shell: ['less', join(store.folder, second.file)] }],
+              },
+              { sessionFlag: null },
+            ),
           ];
     })
     .join('');

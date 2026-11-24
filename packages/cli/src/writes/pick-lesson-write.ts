@@ -4,11 +4,13 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { lessonCap } from '../rules/item-caps.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { LessonRow, ParsedArgs, RefusalReason } from '../types.ts';
+import { findOldestRow } from './find-oldest-row.ts';
 import { formatBriefLine } from './format-brief-line.ts';
 import { pickBrokenFileRefusal } from './pick-broken-file-refusal.ts';
 import { pickDuplicateIDRefusal } from './pick-duplicate-id-refusal.ts';
 import { pickKindIDRefusal } from './pick-kind-id-refusal.ts';
-import { pickTextRefusal } from './pick-text-refusal.ts';
+import { pickCredentialRefusal, pickTextRefusal } from './pick-text-refusal.ts';
+import type { TextCheck } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
 // lesson writes lessons.tsv and the journal and no other file. An id that holds a lesson replaces
@@ -49,32 +51,43 @@ export function pickLessonWrite(input: WriteInput): WriteResult {
   };
 }
 
-// The checks that read the command line and no store: the id, that the lesson has its why, then
-// the two texts.
+// The checks that read the command line and no store: the id, a credential in either text, that
+// the lesson has its why, then the two texts.
 export function pickLessonArgsRefusal(args: ParsedArgs): RefusalReason | null {
   const id = args.positionals[0] ?? '';
   const why = args.values.why;
+  const checks = buildLessonChecks(args);
 
   if (!isItemID(id)) {
     return { kind: 'bad-id', args, id };
+  }
+
+  const credential = pickCredentialRefusal(args, checks, false);
+
+  if (credential !== null) {
+    return credential;
   }
 
   if (why === undefined) {
     return { kind: 'lesson-needs-why', args };
   }
 
-  return pickTextRefusal(
-    args,
-    [
-      {
-        target: { label: 'lesson', place: { positional: 1 } },
-        text: args.positionals[1] ?? '',
-        limit: textLimits.lesson,
-      },
-      { target: { label: 'why', place: { flag: 'why' } }, text: why, limit: textLimits.lessonWhy },
-    ],
-    false,
-  );
+  return pickTextRefusal(args, checks, false);
+}
+
+function buildLessonChecks(args: ParsedArgs): TextCheck[] {
+  return [
+    {
+      target: { label: 'lesson', place: { positional: 1 } },
+      text: args.positionals[1] ?? '',
+      limit: textLimits.lesson,
+    },
+    {
+      target: { label: 'why', place: { flag: 'why' } },
+      text: args.values.why ?? '',
+      limit: textLimits.lessonWhy,
+    },
+  ];
 }
 
 // The cap, for a new lesson only. The refusal offers to drop the oldest.
@@ -82,7 +95,7 @@ function pickFullLessonsRefusal(
   input: WriteInput,
   existing: LessonRow | undefined,
 ): RefusalReason | null {
-  const [oldest] = input.store.lessons;
+  const oldest = findOldestRow(input.store.lessons);
 
   return existing === undefined && oldest !== undefined && input.store.lessons.length >= lessonCap
     ? { kind: 'kind-full', itemKind: 'lesson', oldestID: oldest.id }

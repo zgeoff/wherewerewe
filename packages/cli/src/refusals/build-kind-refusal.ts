@@ -97,11 +97,17 @@ function buildKindFull(found: Found<'kind-full'>): Refusal {
       '--why',
       runPlaceholders.reason,
     ])
-    .with('task', 'wait', 'where', 'promise', (): RunWord[] => [
+    .with('task', 'wait', 'where', (): RunWord[] => [
       'done',
       found.oldestID,
       '--evidence',
       runPlaceholders.evidence,
+    ])
+    .with('promise', (): RunWord[] => [
+      'done',
+      found.oldestID,
+      '--evidence',
+      runPlaceholders.delivered,
     ])
     .exhaustive();
 

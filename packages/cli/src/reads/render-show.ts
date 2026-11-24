@@ -40,14 +40,14 @@ export function renderShow(input: ShowInput): string {
 
   const item = input.store.items.find((candidate) => candidate.id === input.id);
 
-  if (item !== undefined) {
-    return renderOpenItem(input, item);
-  }
+  // A store the older tool wrote can hold one id in two files: each row prints, so none hides.
+  const open = [
+    ...(item === undefined ? [] : [renderOpenItem(input, item)]),
+    ...collectFileRows(input.store, input.id).map((found) => renderFileRow(input, found)),
+  ];
 
-  const fileRow = findFileRow(input.store, input.id);
-
-  if (fileRow !== null) {
-    return renderFileRow(input, fileRow);
+  if (open.length > 0) {
+    return open.join('\n');
   }
 
   const closing = input.rows.findLast(
@@ -69,9 +69,9 @@ export function renderShow(input: ShowInput): string {
   }
 
   const openIDs = collectOpenIDs(input.store);
-  const open = openIDs.length === 0 ? 'none' : openIDs.join(', ');
+  const openList = openIDs.length === 0 ? 'none' : openIDs.join(', ');
 
-  return `${input.id}: no item, decision or journal row has this id. Open items: ${open}.\n`;
+  return `${input.id}: no item, decision or journal row has this id. Open items: ${openList}.\n`;
 }
 
 const noGrantLine =
@@ -267,20 +267,16 @@ type FileRow =
   | { readonly kind: 'promise'; readonly row: PromiseRow }
   | { readonly kind: 'words'; readonly row: WordsRow };
 
-function findFileRow(store: Store, id: string): FileRow | null {
-  const lesson = store.lessons.find((row) => row.id === id);
-  const promise = store.promises.find((row) => row.id === id);
-  const words = store.words.find((row) => row.id === id);
-
-  if (lesson !== undefined) {
-    return { kind: 'lesson', row: lesson };
-  }
-
-  if (promise !== undefined) {
-    return { kind: 'promise', row: promise };
-  }
-
-  return words === undefined ? null : { kind: 'words', row: words };
+function collectFileRows(store: Store, id: string): FileRow[] {
+  return [
+    ...store.lessons
+      .filter((row) => row.id === id)
+      .map((row): FileRow => ({ kind: 'lesson', row })),
+    ...store.promises
+      .filter((row) => row.id === id)
+      .map((row): FileRow => ({ kind: 'promise', row })),
+    ...store.words.filter((row) => row.id === id).map((row): FileRow => ({ kind: 'words', row })),
+  ];
 }
 
 // A lesson, a promise or the owner's words, whole, each stored text redacted and none wrapped.

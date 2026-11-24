@@ -166,12 +166,17 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildRunSpec(found.args).addFlag('for', runPlaceholders.what).toArgv(),
       ),
     )
-    .with({ kind: 'use-not-approval' }, (found) =>
-      refuse(
+    .with({ kind: 'use-not-approval' }, (found) => {
+      const closes: RunWord[] =
+        found.itemKind === 'lesson' || found.itemKind === 'words'
+          ? ['drop', found.id, '--why', runPlaceholders.reason]
+          : ['done', found.id, '--evidence', runPlaceholders.evidence];
+
+      return refuse(
         `www: refused: ${found.id} is a ${getKindWord(found.itemKind)}, and use spends the one-time approval.`,
-        ['done', found.id, '--evidence', runPlaceholders.evidence],
-      ),
-    )
+        closes,
+      );
+    })
     .with({ kind: 'no-open-item' }, (found) => buildNoOpenItem(found))
     .with({ kind: 'closed-id' }, (found) =>
       refuse(

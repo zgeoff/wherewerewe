@@ -28,7 +28,7 @@ export function pickFileClose(
   }
 
   const ts = formatTimestamp(input.nowMs);
-  const isSpent = input.journal.closed.has(id);
+  const isRetry = isRetryOfClose(input, command, id, row);
   const verb = command === 'done' ? 'done' : 'dropped';
 
   return {
@@ -41,7 +41,7 @@ export function pickFileClose(
         ? { promises: store.promises.filter((promise) => promise.id !== id) }
         : {}),
       ...(row.kind === 'words' ? { words: store.words.filter((words) => words.id !== id) } : {}),
-      journal: isSpent
+      journal: isRetry
         ? []
         : [{ ts, op: command, id, by: 'agent', text: row.text, why, extra: null }],
     },
@@ -53,6 +53,7 @@ export function pickFileClose(
 interface FileRow {
   readonly kind: FileKind;
   readonly text: string;
+  readonly written: string;
 }
 
 function findFileRow(store: Store, id: string): FileRow | null {
@@ -61,14 +62,14 @@ function findFileRow(store: Store, id: string): FileRow | null {
   const words = store.words.find((row) => row.id === id);
 
   if (lesson !== undefined) {
-    return { kind: 'lesson', text: lesson.text };
+    return { kind: 'lesson', text: lesson.text, written: lesson.written };
   }
 
   if (promise !== undefined) {
-    return { kind: 'promise', text: promise.what };
+    return { kind: 'promise', text: promise.what, written: promise.written };
   }
 
-  return words === undefined ? null : { kind: 'words', text: words.words };
+  return words === undefined ? null : { kind: 'words', text: words.words, written: words.written };
 }
 
 // An id open in no file may be the row a broken file left out, so a store with a broken file of
@@ -97,4 +98,23 @@ function pickFileCloseRefusal(
   }
 
   return pickBrokenFileRefusal(store, kind);
+}
+
+// An interrupted close wrote its journal row and left the row in its file, so the retry adds no
+// second journal row. Only a close of the same op, with the row's text, after the row was written,
+// counts: an earlier close of another row under the same id, such as a task's, is not this row's.
+function isRetryOfClose(
+  input: WriteInput,
+  command: 'done' | 'drop' | 'use',
+  id: string,
+  row: FileRow,
+): boolean {
+  const earlier = input.journal.closeRows.get(id);
+
+  return (
+    earlier !== undefined &&
+    earlier.op === command &&
+    earlier.text === row.text &&
+    Date.parse(earlier.ts) >= Date.parse(row.written)
+  );
 }

@@ -209,3 +209,21 @@ test('it lists every task of a store of 30, whole, with the ids in order', () =>
 
   expect(text.split('\n').length).toBe(32);
 });
+
+test('it attaches no note to a lesson whose id an item with a note also holds', () => {
+  const input = buildMockBriefInput({
+    items: [buildMockItem({ id: 'l-seed', claim: 'A task of the same id' })],
+    notes: [buildMockNote({ id: 'l-seed', note: 'The task keeps this note' })],
+    lessons: [
+      {
+        id: 'l-seed',
+        text: 'Reseed the staging alerts table before alerts-e2e',
+        why: 'A stale row made alerts-e2e pass',
+        written: '2026-03-04T09:00:00Z',
+        by: 'agent',
+      },
+    ],
+  });
+
+  expect(renderList('lessons', input)).not.toContain('note (');
+});

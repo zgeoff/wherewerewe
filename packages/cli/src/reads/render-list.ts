@@ -42,7 +42,9 @@ function match(kind: ListKind, input: BriefInput): string[] {
   if (kind === 'prs') {
     return [
       `PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (${String(input.pullRequests.length)})`,
-      ...input.pullRequests.map((row) => formatPullRequestRow(row, input.nowMs)),
+      ...input.pullRequests.map((row) =>
+        formatPullRequestRow(row, input.nowMs, Number.POSITIVE_INFINITY),
+      ),
     ];
   }
 
@@ -87,7 +89,9 @@ function collectSectionLines(
   const lines = [section.heading];
 
   for (const line of section.lines) {
-    const note = input.notes.find((candidate) => candidate.id === line.id);
+    const note = isItemKind(kind)
+      ? input.notes.find((candidate) => candidate.id === line.id)
+      : undefined;
 
     lines.push(line.text);
 
@@ -97,4 +101,10 @@ function collectSectionLines(
   }
 
   return lines;
+}
+
+// A note attaches to an item, never to a lesson, a promise or the owner's words, whose id an item
+// may also hold in a store the older tool wrote.
+function isItemKind(kind: ListKind): boolean {
+  return kind === 'waits' || kind === 'approvals' || kind === 'rules' || kind === 'where';
 }
