@@ -47,12 +47,12 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 
 ## Constraints
 
-- All probes of one read run in parallel, at most 8 at once, and the read stops waiting at 5 s. A probe still running then reads `unchecked`, and its process is killed.
+- All probes of one read run in parallel, at most 8 at once, and the read stops waiting at 5 s. A probe still running then reads `unchecked`, and its process is killed. The read starts them in the order the brief prints rows: the item in focus, the task rows that fit, the waits, the where items and the pull request rows, then the tasks the brief leaves out. A probe the deadline stops before it starts reads `unchecked`, as one still running does.
 - Each probe runs with `GH_PROMPT_DISABLED=1`, `GIT_TERMINAL_PROMPT=0` and stdin closed, so it can never wait for input.
 - A probe never writes: no `git fetch`, no index refresh (`--no-optional-locks`), no `gh` call other than `pr view`, and no write to a repo or to GitHub.
 - A probe never runs a command stored in the store. The reference is parsed into its parts, and each part is passed as one argument, never through a shell.
 - A check never changes an item's claim, kind or state. It sets `last`, adds a `changed` journal row when `last` changes, and sets `state` and `seen` in `prs.tsv`.
-- `unchecked` never counts as changed and never overwrites `last`.
+- `unchecked` never counts as changed and never overwrites `last`. An item whose saved `last` differs from `at_write` counts as changed on every read until its claim is rewritten, whether or not this read probed it.
 - A pid whose start time differs from `pid_start` reads `gone`: the number now belongs to another process. Where `/proc` is missing, the probe checks only that the pid is alive.
 - When `gh` is not on `PATH`, every `pr` probe reads `unchecked`, and the header names `gh missing`. When `gh` exits with an authentication error, the header names `gh not logged in`. When a network error is seen, the header names `offline`.
 - A `prs.tsv` row whose `state` is `MERGED` or `CLOSED` is never probed again.

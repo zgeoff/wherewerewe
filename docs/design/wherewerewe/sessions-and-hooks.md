@@ -35,6 +35,8 @@ The first rule that gives a name wins:
 3. `CLAUDE_CODE_SESSION_ID`, looked up as `.bindings/claude-<id>`.
 4. `CODEX_SESSION_ID`, or `CODEX_THREAD_ID` when that is unset, looked up as `.bindings/codex-<id>`.
 
+The agent variable that gives the session also gives the brief's budget, and a command with no agent variable takes the Codex budget ([brief.md](brief.md#the-briefs-budget-per-host)).
+
 With no name, the command exits 4 with the no-session text in [commands.md](commands.md). The tool never falls back to a default or to the only session on the machine.
 
 A binding file holds one line, `name=<session>`, and its file name is `<harness>-<agent session id>`, with the id restricted to `[A-Za-z0-9-]`. One agent session binds to one wherewerewe session, and one wherewerewe session can have many bindings.
@@ -56,6 +58,7 @@ Each bind and detach adds a `bind` journal row with the harness and id in `extra
 | Session id on hook stdin                                             | `session_id`                                  | `session_id`                                  |
 | A subagent's shell sees the parent's id                              | yes: a subagent of this design's own session saw the parent's `CLAUDE_CODE_SESSION_ID` | the docs say subagents report the parent's id; not tested |
 | The id changes                                                       | on `/clear` (docs); resume and fork not documented | not documented                           |
+| Hook output put into context                                         | 10,000 characters of plain stdout; past that, a 2,000-character preview ([hooks](https://code.claude.com/docs/en/hooks)) | about 2,500 tokens ([brief.md](brief.md#the-briefs-budget-per-host)) |
 
 The design works whichever way the unknowns fall:
 
@@ -69,7 +72,7 @@ One command handles every event, so the hook entries never change between versio
 
 | Event           | Claude Code entry                          | Codex entry                                | What a bound session gets                                                                                       |
 | --------------- | ------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `SessionStart`  | no matcher, timeout 10                     | no matcher, timeout 10                     | the brief on plain stdout, which both agents add to context; on every source: startup, resume, clear, compact, fork |
+| `SessionStart`  | no matcher, timeout 10                     | no matcher, timeout 10                     | the brief on plain stdout, which both agents add to context, within the budget of the harness the hook's command names (`hook claude` or `hook codex`), never one read from the hook's environment; on every source: startup, resume, clear, compact, fork |
 | `PostToolUse`   | matcher `Bash`, timeout 5                  | matcher `Bash`, timeout 5                  | a pull request record, a binding, or one nudge line, as below                                                   |
 | `SubagentStart` | no matcher, timeout 5                      | no matcher, timeout 5                      | the one line naming the session, as `additionalContext`                                                          |
 

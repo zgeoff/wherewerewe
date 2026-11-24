@@ -188,7 +188,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 - A cell or a `session` value never holds a tab or a line break, a Unicode line or paragraph separator among them: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
 - A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where` or `--scope` that holds one.
 - `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row.
-- `notes.tsv` holds only notes on open items, at most one per item, and at most 22 rows in format 1 and 20 in format 2. The format 2 upgrade keeps at most one approval, so the notes it keeps fit 20. A missing `notes.tsv` reads as no notes.
+- `notes.tsv` holds only notes on open items, at most one per item, and at most 22 rows in format 1 and 44 in format 2. The format 2 upgrade keeps at most 22 notes, which fit 44. A missing `notes.tsv` reads as no notes.
 - A write rewrites `items.tsv` before `notes.tsv`. A close that stops between the two leaves a `notes.tsv` row whose id names no open item, and never an open item that lost its note. Every read leaves such a row out with no warning, and the next write that rewrites `notes.tsv` drops it.
 - A `notes.tsv` row that does not parse never makes the store broken. Each read leaves the row out and names it on stderr, as `www: tide-alerts's notes.tsv line 3 does not parse: the id repeats an earlier row. The brief leaves out what it could not read. Fix the file by hand.` A write with `--note` or `--no-note`, `done`, `drop` and `use` refuse with the text in [commands.md](commands.md), because the row left out may be the item's owed note. Every other write works.
 - An id closed once is never reused in that session: a new item with a closed id is refused.
@@ -200,7 +200,7 @@ bosunhq/bosun-app#64	2026-03-10T08:41:30Z	OPEN	2026-03-10T11:43:04Z
 
 ## Versions
 
-- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike.
+- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. The item caps are no part of the format: no read counts the rows of `items.tsv` or `notes.tsv`, so a store holds up to 30 tasks in format 2.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
 - A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; `SessionStart` in [sessions-and-hooks.md](sessions-and-hooks.md) prints the same text for a bound session.

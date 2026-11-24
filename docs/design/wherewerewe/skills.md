@@ -11,7 +11,7 @@ A skill knows the session has a store when `www` exits 0. Exit 4 means no store 
 | Handoff section         | From the store                                                                                  |
 | ----------------------- | ----------------------------------------------------------------------------------------------- |
 | Goal                    | the brief's `GOAL`                                                                              |
-| Where it stands         | done: `www log --op done`, with each row's evidence; in progress and not started: the tasks under `OPEN`, which the agent splits between the two lists, each with its note from `www show <id>`, and each owed note marked as owed |
+| Where it stands         | done: `www log --op done`, with each row's evidence; in progress and not started: the open tasks from `www show`, which the agent splits between the two lists, each with its note, and each owed note marked as owed |
 | Decided                 | `www log --op decide`, with who decided from `who=` in each row                                 |
 | Approvals               | `GRANT`, with the owner's words copied whole and the reading beside them, then `APPROVED ONCE`; the second list, what still needs the owner's approval, is what the reading says the owner kept back, and each wait on `owner` |
 | Waiting                 | `WAITING`                                                                                       |

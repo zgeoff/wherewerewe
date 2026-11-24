@@ -1,9 +1,9 @@
 # The brief
 
 - **Status:** agreed
-- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)
 
-`www` with no subcommand prints the brief: the whole state of the session in at most 73 lines and 7,200 characters on any day. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that repeats the write commands. The hooks put the same text in context after a compaction. To build the brief renderer and its size test, read this doc and your slice of [build-order.md](build-order.md).
+`www` with no subcommand prints the brief: the session's state within its host's budget on any day, the limits of [The brief's budget per host](#the-briefs-budget-per-host). It prints every section whole except `OPEN`, which prints the tasks that fit and a line that counts the rest. It opens with the goal, the owner's grant, the owner's notes and the claims whose check results have changed, so the agent reads what it may do and which claims are stale before it acts. It ends with one line that repeats the write commands. The hooks put the same text in context after a compaction. To build the brief renderer and its size test, read this doc and your slice of [build-order.md](build-order.md).
 
 ## Shape
 
@@ -29,13 +29,15 @@ flowchart TD
 | `OWNER SAYS`                 | each owner note, oldest first                                                                      | left out    |
 | `CHANGED SINCE WRITTEN`      | each item whose check result differs from `at_write`, at most 3 rows, with the command that fixes it | left out  |
 | `NOW`                        | the item in focus, its next step or why the step is hidden, then the item's note                   | `NOW  none. Run: www now <id> "<next step>"` |
-| `OPEN`                       | tasks; the item in focus first, then oldest first                                                  | left out    |
+| `OPEN`                       | tasks, in the order the next paragraph gives, as many rows as fit in the host's budget with the item in focus always among them, then `  and <m> more open tasks: www show`, with `--session <name>` when the brief ran with it | left out    |
 | `WAITING`                    | waits, oldest first                                                                                | left out    |
 | `APPROVED ONCE`              | the one-time approval                                                                              | left out    |
 | `RULES`                      | rules, oldest first                                                                                | left out    |
 | `WHERE`                      | where items, oldest first                                                                          | left out    |
 | `PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES` | open pull requests in `prs.tsv` ([store.md](store.md)) that no item's check names, at most 1 row | left out |
 | footer                       | one fixed line with the write commands                                                             | always      |
+
+The `OPEN` rows run in this order: the item in focus; then each task whose saved check result differs from its `at_write`; then each task that is blocked or has an owed note; then the rest. Within each group the newest `written` comes first, and on a tie the later row of `items.tsv`, because a new item is appended to it. `www show` with no id lists every open task in that order.
 
 ### Line templates and their widths
 
@@ -53,7 +55,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | grant reading            | `  reading: <reading>`, wrapped, each further line indented 4                                 | 3 lines, 219 |
 | owner note               | `  o-<n>  <text>  [<age>]`, or `[on <id> · <age>]` when it has `--on`                         | 198    |
 | changed row              | `  <id>  was <at_write> (<age>) · now <result> · run: <fix command>`                          | 131    |
-| changed overflow         | `  and <n> more; each shows its result in its section below`                                   | 57     |
+| changed overflow         | `  and <n> more; each shows its result below, or in the list of open tasks`                    | 72     |
 | now                      | `NOW  <id> · set <age> ago`, then ` · note <age> ago` or ` · owed note <age> ago` when the item has a note | 57 |
 | next step                | `  next: <next step>`, or `  next step hidden: <id> changed after it was set. Run: www now <id> "<next step>"` | 128 |
 | note                     | `    <note>`, wrapped, every line indented 4                                                  | 5 lines, 420 |
@@ -62,6 +64,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | approval                 | `  <id>  "<quote>" · <scope>`, then `  [owed]` when it has an owed note                       | 193    |
 | rule                     | `  <id>  <claim>`, then `  [owed]` when it has an owed note                                   | 148    |
 | where                    | `  <id>  <claim>  [<result or no check · age>[ · owed]]`                                      | 166    |
+| open count line          | `  and <m> more open tasks: www show`, or `  and <m> more open tasks: www --session <name> show`; `<m>` is at most 25 | 69 |
 | pull request             | `  <ref>  opened <age> ago  [<result>]`; a ref over 60 characters is cut to 59 and `…`        | 98     |
 | pull request overflow    | `  and <n> more: www log --op pr`                                                             | 30     |
 | pull request hint        | `  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>`                     | 71     |
@@ -89,7 +92,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 
 | Kind               | Cap | Why this number                                                                 |
 | ------------------ | --- | ------------------------------------------------------------------------------- |
-| task               | 6   | the work a session can hold in mind at once                                     |
+| task               | 30  | a long session's work: the owner expects up to 20 tasks; the brief prints the rows that fit and counts the rest ([0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)) |
 | wait               | 4   | each wait is a question someone else must answer                                |
 | one-time approval  | 1   | it is spent soon, and lasting permission lives in the grant                     |
 | rule               | 5   | rules beyond 5 belong in the repo's AGENTS.md                                   |
@@ -99,7 +102,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 | grant              | 1, of at most 700 characters across its bullets and scope | the owner's words in one place |
 | grant bullet       | 12, of at most 120 characters each | one permission each; the owner's real grant has about ten parts |
 
-The worst case fills every cap with every text at its limit: every item has its widest tag and an owed note, the grant has 12 bullets and a 40-character scope holding 700 characters of the owner's words, and a 200-character reading, the item in focus has a 400-character note, 3 changed rows and 1 pull request row each have an overflow line, those two headings each carry a two-digit count, and the header runs to two lines on a day of at most 999. The widths come from the line templates above.
+The worst case fills every cap with every text at its limit: every item has its widest tag and an owed note, the grant has 12 bullets and a 40-character scope holding 700 characters of the owner's words, and a 200-character reading, the item in focus has a 400-character note, 3 changed rows and 1 pull request row each have an overflow line, those two headings each carry a two-digit count, and the header runs to two lines on a day of at most 999. The widths come from the line templates above. The worst case holds 6 tasks under the Codex budget, because 7 or more print 5 rows and the count line, which is 126 characters shorter.
 
 A wrapped line holds at least 85 characters, so a line that carries a prefix of `p` characters carries at least `85 − p` characters of text. That gives each wrapped block its line count:
 
@@ -116,9 +119,9 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | goal              | 3      | 200 + 3 × 6 = 218                             |
 | grant             | 23     | 94 + (660 + 19 × 11) + (200 + 11 + 2 × 4) = 1,182 |
 | owner notes       | 3      | 52 + 2 × 198 = 448                            |
-| changed           | 5      | 60 + 3 × 131 + 57 = 510                       |
+| changed           | 5      | 60 + 3 × 131 + 72 = 525                       |
 | now and its note  | 7      | 57 + 128 + (400 + 5 × 4) = 605               |
-| open (6 tasks)    | 7      | 13 + 6 × 196 = 1,189                          |
+| open (6 tasks)    | 7      | 14 + 6 × 196 = 1,190                          |
 | waiting (4)       | 5      | 16 + 4 × 185 = 756                            |
 | approved once (1) | 2      | 22 + 193 = 215                                |
 | rules (5)         | 6      | 14 + 5 × 148 = 754                            |
@@ -126,14 +129,32 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | pull requests     | 4      | 57 + 98 + 30 + 71 = 256                       |
 | footer            | 1      | 95                                            |
 | newlines          |        | 73                                            |
-| **Total**         | **73** | **7,163**                                     |
+| **Total**         | **73** | **7,179**                                     |
 
-Codex puts at most about 2,500 tokens of hook output into context. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. At the pessimistic rate, 7,163 characters is about 2,388 tokens, 4.5% under Codex's limit, and the 7,200-character cap is 2,400 tokens, 4% under it. The cap is 28% under Claude Code's limit of 10,000 characters. The line cap of 73 is the line count of this worst case; Codex and Claude Code limit characters and tokens.
+### The brief's budget per host
+
+The size limit follows the host that reads the brief, because each host puts a different amount of hook output into context.
+
+- **Codex:** at most about 2,500 tokens. Ids, paths and hashes tokenize at about 3 characters per token, and plain English at about 4. The budget is 73 lines and 7,200 characters. The worst case above is 7,179 characters, about 2,393 tokens at 3 characters a token, 4.3% under Codex's limit. The line cap of 73 is the line count of this worst case.
+- **Claude Code:** [10,000 characters of plain stdout](https://code.claude.com/docs/en/hooks); past that, Claude Code saves the output to a file and puts only the path and a 2,000-character preview into context. The budget is 82 lines and 9,000 characters, which keeps 1,000 characters under the cap for a character that Claude Code may count as 2 and the brief counts as 1. The worst case, below, is 8,953 characters, 10.5% under the cap. The line cap of 82 is the line count of this worst case.
+- **No known host:** the Codex budget, which fits both hosts. A brief printed in a plain terminal and then pasted into either agent is never cut to a preview.
+
+The host comes from the reader's environment, never from the store: `CLAUDE_CODE_SESSION_ID` gives Claude Code, `CODEX_SESSION_ID` or `CODEX_THREAD_ID` gives Codex, and with both families set, Claude Code wins, as in [sessions-and-hooks.md](sessions-and-hooks.md). A `--session` flag changes none of this. The hook passes the host its own command line names.
+
+The Claude Code worst case is the same store under the larger budget. Every block but `OPEN` takes 66 lines and 5,916 characters.
+
+| `OPEN`                                              | Lines in all  | Characters in all                                  |
+| --------------------------------------------------- | ------------- | -------------------------------------------------- |
+| 15 tasks: `OPEN (15 of 30)` and 15 rows, no count line | 66 + 16 = 82 | 5,916 + 15 + 15 × 196 + 82 newlines = 8,953        |
+| 16 to 30 tasks: `OPEN (30 of 30)`, 14 rows, count line | 66 + 16 = 82 | 5,916 + 15 + 14 × 196 + 69 + 82 = 8,826            |
+| 30 tasks, 15 rows and the count line (does not fit)  | 83            | 9,023                                              |
+
+With 16 or more tasks, the 15th row pays for the count line. Under either budget the brief prints all the rows when they fit, and otherwise the most that fit, never fewer than the budget's worst case keeps.
 
 ## Constraints
 
-- The brief is at most 7,200 characters and 73 lines. Write a test that renders the worst case above and checks both numbers.
-- When a bug makes the brief longer than 7,200 characters or 73 lines, the renderer drops item lines from the bottom up, starting with pull request rows, then where, rules, the one-time approval, waits and tasks, and ends the last kept section with `  (<n> lines cut to fit; run www show <id>)`. It never drops or clips the header, goal, grant, owner notes, changed rows, now, the note, or footer.
+- The brief is within its host's budget. Write a test that renders the worst case above and checks both numbers for each budget.
+- When a bug makes the brief longer than its host's budget, the renderer drops item lines from the bottom up, starting with pull request rows, then where, rules, the one-time approval, waits and tasks, except the row of the item in focus, and ends the last kept section with `  (<n> lines cut to fit; run www show <id>)`. It never drops or clips the header, goal, grant, owner notes, changed rows, now, the row of the item in focus, the note, or footer. The count line of `OPEN` is never cut: the cut drops task rows above it, and the cut line follows it when `OPEN` is the last kept section.
 - The grant prints whole on every brief, directly after `GOAL`.
 - A changed item is one whose check result differs from its `at_write`. A result of `unchecked` never counts as changed, and an `at_write` of `-` takes the first result without counting it as changed.
 - When the item in focus changed after `now_set`, or its check reads `MERGED`, `CLOSED`, `gone` or `missing`, the brief hides the next step and prints the `next step hidden` line. The step stays in the journal, and the note still prints.
@@ -147,7 +168,7 @@ Codex puts at most about 2,500 tokens of hook output into context. Ids, paths an
 
 ## The brief on day 9 of an invented session
 
-The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 47 lines and 3,332 characters.
+The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 47 lines and 3,333 characters.
 
 ```text
 tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 2.8s
@@ -174,11 +195,11 @@ NOW  pr-api-77 · set 1h ago · note 1h ago
     The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a
     longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in
     the retry helper, not on the retry logic.
-OPEN (5 of 6)
+OPEN (5 of 30)
   pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa  [OPEN failing]
   pr-app-61   Alert settings screen: in review  [MERGED]
-  pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
   t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
+  pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
   t-e2e       Write alerts-e2e against staging  [no check · 3d]
 WAITING (2 of 4)
   w-apns      upload the staging push key to the vault  [owner · 2d]
@@ -204,11 +225,12 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 ## Decisions
 
 - **The grant prints whole, directly after `GOAL`, and cut-to-fit never touches it.** After a compaction, the agent reads what it may do in the owner's own words before any claim. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
-- **The grant prints as bullets under `may`, `not` and `never`, one permission a bullet.** The owner reads a wrapped quote of 700 characters as a wall; a bullet per permission reads at a glance. The bullets cost up to 10 lines more than a quote, and the line cap rises to pay for them, because the limit that matters is Codex's token count, and the worst case stays 4.5% under it. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- **The grant prints as bullets under `may`, `not` and `never`, one permission a bullet.** The owner reads a wrapped quote of 700 characters as a wall; a bullet per permission reads at a glance. The bullets cost up to 10 lines more than a quote, and the line cap rises to pay for them, because the limit that matters is Codex's token count, and the worst case stays 4.3% under it. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Only the note of the item in focus prints.** The brief stays the same size however many items carry a note. An owed note shows as a tag on its item, and `now`, each close and `www show` print a note whole. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
-- **Row limits pay for the grant and the note, and the caps stay.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The task, wait, rule and where caps stay, so no store that fits them today is refused; the format 2 upgrade in [store.md](store.md) handles the approvals.
+- **Row limits pay for the grant and the note, and the caps stay.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The wait, rule and where caps stay, so no store that fits them today is refused, and the task cap is 30 ([0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)); the format 2 upgrade in [store.md](store.md) handles the approvals.
+- **The brief prints the tasks that fit, in the order an agent needs them, and counts the rest.** The agent reads first the item in focus, then a claim that is no longer true, then work that waits on something or owes a note, then the newest. The count line names `www show`, which lists every open task in full. [0009](../../decisions/0009-30-tasks-and-a-brief-budget-per-host.md)
 - **A claim is at most 120 characters.** At 160, the worst case passes 7,700 characters, over Codex's limit at 3 characters per token.
-- **Caps count items, not characters.** The section heading shows the count (`4 of 6`), and every field's own limit bounds the characters.
+- **Caps count items, not characters.** The section heading shows the count (`4 of 30`), and every field's own limit bounds the characters.
 - **The brief prints no journal rows.** `www log`, `www show` and `www recap` read the journal; the brief stays the same size however long the session runs.
 
 ## Builder decides
