@@ -123,15 +123,16 @@ See [the commands design](../design/wherewerewe/commands.md) for the filters and
 last 10 journal rows. `show` with no id lists every open task in full and reads no journal. `log`
 prints the journal oldest first, kept to the rows that `--since`, `--op` and `--id` name, and sorts
 them by time. `recap` prints one screen for the owner: the grant as the brief prints it, the notes
-on open items, and the decisions and closes since `--since`, which defaults to `24h`. Each section
-has a row limit and an overflow line, whose command prints the rest, and the whole screen is at most
-55 lines. Each line is at most 100 characters, except the two overflow lines that repeat a `--since`
-value longer than 7 characters, which stay whole so their commands run. `show <id>`, `log` and
-`recap` read the journal in chunks and hold only the rows they need, take no lock, run no check and
-write nothing. Once the session is found and its store is format 2, none is refused for a missing or
-unreadable thing: an unknown id lists the open items, and an unreadable journal prints the item or
-the recap without its history and says so on stderr. Only a `--since` that `log` or `recap` cannot
-read exits 2.
+on open items, and the decisions and closes since `--since`, which defaults to `24h`. The `writes`
+count of `recap` leaves out `changed` rows, which a read writes. Each section has a row limit and an
+overflow line, whose command prints the rest, and the whole screen is at most 55 lines. Each line is
+at most 100 characters, except the two overflow lines that repeat a `--since` value longer than 7
+characters, which stay whole so their commands run. `show <id>`, `log` and `recap` read the journal
+in chunks and hold only the rows they need and take no lock. `show` probes its one item, `log` and
+`recap` probe nothing, and none writes. Once the session is found and its store is format 2, none is
+refused for a missing or unreadable thing: an unknown id lists the open items, and an unreadable
+journal prints the item or the recap without its history and says so on stderr. Only a `--since`
+that `log` or `recap` cannot read exits 2.
 
 ## Importing a hand-kept store
 
@@ -194,9 +195,23 @@ bullets share a line. Only the note of the item in focus prints, and every item 
 tagged `owed`. The goal, each grant bullet, the reading and the note wrap at 100 columns by the rule
 in the brief design, at most 3 changed rows and 1 pull request row show, and the footer is one line.
 
-The brief runs no check: an item with a check shows the last result saved in `items.tsv`, or
-`not checked yet` when none is saved. A task or where item with no check reads `no check · <age>`,
-and a wait with no check reads `<who> · <age>`. A blocked task reads `blocked by <id>` while that id
-is open, followed by ` · <result>` when it has a check. When a row of `items.tsv` does not parse,
-`www` still prints the rows that do, and names the broken row on stderr. See
+Each read probes each check, and each open pull request in `prs.tsv` that no item names, at most 8
+at once, and stops waiting at the deadline that [the check design](../design/wherewerewe/checks.md)
+sets. After the deadline, no probe starts a command. The read marks each claim whose result differs
+from its `at_write`, prints the command that fixes it, and saves `last`, `changed` rows and
+`prs.tsv` states only when it takes the lock at once. A probe that gets no answer, or that the
+deadline stops, reads `unchecked`, and the item's tag shows `unchecked`. A write's reply probes
+nothing, so its brief's tags show each item's saved result, or `not checked yet` when none is saved.
+A task or where item with no check reads `no check · <age>`, and a wait with no check reads
+`<who> · <age>`. A blocked task reads `blocked by <id>` while that id is open, followed by
+` · <result>` when it has a check. When a row of `items.tsv` does not parse, `www` still prints the
+rows that do, and names the broken row on stderr. See
 [the brief design](../design/wherewerewe/brief.md) for the layout.
+
+## Checks
+
+A check is one of four probes: `pr`, `branch`, `path` and `pid`. Each runs a fixed command with an
+argv and never through a shell, finds `gh` and `git` through the `PATH` the command got, and never
+writes to a repo or to GitHub. A write probes its check before it takes the lock, and applies the
+result only when the item still names that check. `show` probes its one item and saves nothing. See
+[the check design](../design/wherewerewe/checks.md) for the commands, the results and the limits.

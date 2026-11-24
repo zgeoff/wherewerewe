@@ -1,4 +1,5 @@
 import { buildTerminalWWWArgv } from './build-terminal-www-argv.ts';
+import { makeProbeBin } from './make-probe-bin.ts';
 
 interface OwnerProgram {
   readonly argv: readonly string[];
@@ -22,6 +23,8 @@ const programs: Readonly<Record<string, OwnerProgram>> = {
 // The programs of the terminal driver for the owner-notes journey: each runs the real www in the
 // run's session trial-owner, as an owner terminal, except the one that plays an agent.
 export function buildOwnerPrograms(stateRoot: string): Record<string, { command: string[] }> {
+  makeProbeBin(stateRoot);
+
   return Object.fromEntries(
     Object.entries(programs).map(([name, program]) => [
       name,

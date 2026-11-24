@@ -107,6 +107,21 @@ export interface JournalRow {
   readonly extra: string | null;
 }
 
+// A pull request the session opened, as prs.tsv holds it.
+export interface PullRequestRow {
+  // <owner>/<repo>#<n>
+  readonly ref: string;
+
+  // ISO 8601 UTC to the second, with Z
+  readonly opened: string;
+
+  // '-' on disk before the first read
+  readonly state: 'OPEN' | 'MERGED' | 'CLOSED' | null;
+
+  // the time of that state; '-' on disk before the first read
+  readonly seen: string | null;
+}
+
 export interface Store {
   // absolute path of the session folder
   readonly folder: string;
@@ -117,11 +132,17 @@ export interface Store {
   readonly notes: readonly Note[];
   readonly ownerNotes: readonly OwnerNote[];
 
+  // the rows of prs.tsv that parse, in file order
+  readonly prs: readonly PullRequestRow[];
+
   // null when every row of notes.tsv parses
   readonly notesUnread: UnreadRows | null;
 
   // null when every row of owner.tsv parses
   readonly ownerUnread: UnreadRows | null;
+
+  // null when every row of prs.tsv parses
+  readonly prsUnread: UnreadRows | null;
 }
 
 export interface OwnerNote {

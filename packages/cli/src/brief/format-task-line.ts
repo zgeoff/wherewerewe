@@ -1,27 +1,30 @@
 import type { Item, Note } from '../types.ts';
 import { formatAge } from './format-age.ts';
+import { formatCheckResult } from './format-check-result.ts';
 import { formatItemLine } from './format-item-line.ts';
 import { isBlockedTask } from './is-blocked-task.ts';
 import { withOwed } from './with-owed.ts';
 
-// A task's row as the brief prints it: `  <id>  <claim>  [<tag>]`, with the tag of brief.md.
-export function formatTaskLine(
-  item: Item,
-  items: readonly Item[],
-  notes: readonly Note[],
-  nowMs: number,
-): string {
-  const isOwed = notes.some((note) => note.id === item.id && note.owed);
-
-  return formatItemLine(item, withOwed(formatTaskTag(item, items, nowMs), isOwed));
+export interface TaskLineContext {
+  readonly items: readonly Item[];
+  readonly notes: readonly Note[];
+  readonly nowMs: number;
+  readonly results: ReadonlyMap<string, string>;
 }
 
-function formatTaskTag(item: Item, items: readonly Item[], nowMs: number): string {
-  if (isBlockedTask(item, items)) {
-    return `blocked by ${item.extra.blocked_by ?? ''}${item.check === null ? '' : ` · ${item.last ?? 'not checked yet'}`}`;
+// A task's row as the brief prints it: `  <id>  <claim>  [<tag>]`, with the tag of brief.md.
+export function formatTaskLine(item: Item, context: TaskLineContext): string {
+  const isOwed = context.notes.some((note) => note.id === item.id && note.owed);
+
+  return formatItemLine(item, withOwed(formatTaskTag(item, context), isOwed));
+}
+
+function formatTaskTag(item: Item, context: TaskLineContext): string {
+  if (isBlockedTask(item, context.items)) {
+    return `blocked by ${item.extra.blocked_by ?? ''}${item.check === null ? '' : ` · ${formatCheckResult(item, context.results)}`}`;
   }
 
   return item.check === null
-    ? `no check · ${formatAge(nowMs - Date.parse(item.written))}`
-    : (item.last ?? 'not checked yet');
+    ? `no check · ${formatAge(context.nowMs - Date.parse(item.written))}`
+    : formatCheckResult(item, context.results);
 }

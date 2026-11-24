@@ -70,6 +70,8 @@ test('it writes the items and the session, and appends the journal rows', async 
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });
@@ -140,6 +142,8 @@ test('it leaves the items alone when the journal append fails, so a close is nev
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });
@@ -189,6 +193,8 @@ test('it appends the journal row before it rewrites the items, so a close that s
         ownerNotes: [],
         notes: [],
         notesUnread: null,
+        prs: [],
+        prsUnread: null,
         ownerUnread: null,
       },
     },

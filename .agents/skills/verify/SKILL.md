@@ -48,6 +48,7 @@ Read a feature's file before you run its journey.
 | grant       | Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant      | [references/feature-grant.md](references/feature-grant.md)             |
 | recap       | Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines     | [references/feature-recap.md](references/feature-recap.md)             |
 | tasks       | Open 20 tasks, read them in the brief under each host, and list every open task with `www show`               | [references/feature-tasks.md](references/feature-tasks.md)             |
+| checks      | Write an item with a --path check, remove the path, read the CHANGED row, and run the fix command it prints   | [references/feature-checks.md](references/feature-checks.md)           |
 
 <!-- /wringer:features -->
 
@@ -142,6 +143,9 @@ for its commands.
   inside the run's folder.
 - `bun verify www run --line '<line>' --expect '<text>'` runs that line as `www` and fails unless it
   exits 0 and its stdout holds the text.
+- In `www run`, each `{run}` in `--line` and `--expect` is the run's folder.
+- `bun verify www make-path --name <name>` makes the folder `<run>/paths/<name>` for a `--path`
+  check, and `bun verify www remove-path --name <name>` removes it.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, and its stderr holds the text and `Run: <run line>`.
 - `bun verify terminal ...` drives `www` in a terminal: see

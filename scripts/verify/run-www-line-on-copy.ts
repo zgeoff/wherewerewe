@@ -17,6 +17,7 @@ export async function runWWWLineOnCopy(
   try {
     await cp(stateRoot, copyRoot, {
       recursive: true,
+      verbatimSymlinks: true,
       filter: async (source) => {
         const stats = await lstat(source);
 

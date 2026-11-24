@@ -50,7 +50,7 @@ function renderHeader(input: RecapInput): string {
   const writes =
     input.rows === null
       ? 'journal unreadable'
-      : `${String(input.rows.filter((row) => row.by === 'agent' || row.by === 'owner').length)} writes`;
+      : `${String(input.rows.filter((row) => row.op !== 'changed' && (row.by === 'agent' || row.by === 'owner')).length)} writes`;
 
   return cutRedactedLine(
     [

@@ -47,3 +47,23 @@ test.each([
 ])('it collects the key of an object in $title', (row) => {
   expect([...collectObjectKeys(row.source)]).toStrictEqual(['A']);
 });
+
+test('it gives the key of an object in an array literal in a parameter default', () => {
+  const source = 'function f(x = flag ? [{ CODEX_SESSION_ID: value }] : []) {}';
+
+  expect([...collectObjectKeys(source)]).toStrictEqual(['CODEX_SESSION_ID']);
+});
+
+test('it gives no key for an array pattern parameter that a return type follows', () => {
+  const source = 'function f([{ CODEX_SESSION_ID }]: any): void {}';
+
+  expect([...collectObjectKeys(source)]).toStrictEqual([]);
+});
+
+test('it finds the key of a call in a ternary branch that an arrow function follows', () => {
+  const keys = collectObjectKeys(
+    'const f = flag ? make({ CODEX_SESSION_ID: supplied }) : () => null;',
+  );
+
+  expect([...keys]).toStrictEqual(['CODEX_SESSION_ID']);
+});

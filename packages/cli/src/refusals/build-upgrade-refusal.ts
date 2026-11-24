@@ -102,26 +102,31 @@ function addNeededGrantFlags(spec: RunSpec, found: UpgradeRefusalReason): RunSpe
 
   const mayFlags = needsMay ? ['may'] : ['may', 'not', 'never'];
 
-  // the may bullet the line adds holds the standing approvals' words, so it must fit beside the
-  // typed bullets, or the filled line would be refused for a grant the command never typed
-  const standingWords = found.problems
+  // a standing approval is one permission, so the line adds one may bullet for each, and they must
+  // fit beside the typed bullets, or the filled line would be refused for a grant never typed
+  const standingQuotes = found.problems
     .flatMap((problem) => (problem.kind === 'needs-grant' ? problem.approvals : []))
-    .map((approval) => approval.quote)
-    .join('; ');
+    .map((approval) => approval.quote);
 
   const fitted =
-    needsMay && !typed.has('may') && isGrantFullForMayBullet(found.args, standingWords)
+    needsMay && !typed.has('may') && isGrantFullForMayBullets(found.args, standingQuotes)
       ? replaceGrantBullets(spec, found.args.flags)
       : spec;
 
-  return needsGrant ? addGrantFlags(fitted, typed, mayFlags) : fitted;
+  return needsGrant
+    ? addGrantFlags(fitted, typed, mayFlags, Math.max(standingQuotes.length, 1))
+    : fitted;
 }
 
-// Whether one more bullet of the words, at least one character, breaks a limit of the grant's
-// bullets, words or lines.
-function isGrantFullForMayBullet(args: ParsedArgs, words: string): boolean {
+// Whether one more may bullet for each quote, at least one bullet of one character, breaks a limit
+// of the grant's bullets, words or lines.
+function isGrantFullForMayBullets(args: ParsedArgs, quotes: readonly string[]): boolean {
   const typedWords = toGrantWords(args);
-  const withMay = { ...typedWords, may: [...typedWords.may, words === '' ? '\u2460' : words] };
+
+  const withMay = {
+    ...typedWords,
+    may: [...typedWords.may, ...(quotes.length === 0 ? ['\u2460'] : quotes)],
+  };
 
   return (
     withMay.may.length + withMay.not.length + withMay.never.length > grantLimits.bullets ||

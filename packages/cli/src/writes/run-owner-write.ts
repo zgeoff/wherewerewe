@@ -1,5 +1,5 @@
 import { match } from 'ts-pattern';
-import { buildBriefInput } from '../brief/build-brief-input.ts';
+import { buildReplyBriefInput } from '../brief/build-reply-brief-input.ts';
 import { renderBrief } from '../brief/render-brief.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
@@ -90,6 +90,7 @@ async function writeOnce(input: OwnerWriteRequest, store: Store): Promise<RunWri
     args: input.args,
     cwd: input.cwd,
     nowMs: input.nowMs,
+    probed: null,
   });
 
   return match(picked)
@@ -101,7 +102,11 @@ async function writeOnce(input: OwnerWriteRequest, store: Store): Promise<RunWri
 
       const briefLines =
         renderBrief(
-          buildBriefInput(written, input.nowMs, input.args.sessionFlag, input.host),
+          buildReplyBriefInput(written, {
+            nowMs: input.nowMs,
+            sessionFlag: input.args.sessionFlag,
+            host: input.host,
+          }),
         ).split('\n').length - 1;
 
       return { kind: 'replied', reply: write.reply(briefLines) };

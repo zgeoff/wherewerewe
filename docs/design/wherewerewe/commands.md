@@ -3,13 +3,13 @@
 - **Status:** agreed
 - **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0012](../../decisions/0012-a-capped-heading-names-its-max.md)
 
-`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note below that line, and a claim write that keeps an older note adds the older-note line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
+`www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's length, so the agent sees what each line costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note before that line, and a claim write that keeps an older note prints the older-note line before it, so the reply always ends on that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
 
 ## Contracts
 
 ### www help
 
-`www help` prints this text, as built through slice 2d and decision records 0009 and 0011, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 2d, decision records 0009 and 0011, and the limits' diff, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -55,13 +55,16 @@ Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www 
 Setup:   www install [--print]   www doctor
 Any command takes --session <name>.
 
-Limits: a claim is one line of at most 120 characters, a note 400, the grant's words 700 in at most
-12 bullets on at most 19 lines of the brief, and its reading 200. A session holds at most 30 tasks,
-4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
+Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
+a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or --for 200.
+An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 120, --who 16,
+--where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
+12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
+A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2d and decision records 0009 and 0011, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff and the grant's diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 2d, decision records 0009 and 0011, and the limits' diff, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff and the limits' diff below are what each changed. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -182,6 +185,21 @@ The grant's shapes and its lines, decision record 0011:
 +4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
+The limits' diff adds every limit the code enforces to the help, so an agent can read each one before a write refuses it:
+
+```diff
+@@ -44,3 +44,6 @@
+-Limits: a claim is one line of at most 120 characters, a note 400, the grant's words 700 in at most
+-12 bullets on at most 19 lines of the brief, and its reading 200. A session holds at most 30 tasks,
+-4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
++Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
++a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or --for 200.
++An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 120, --who 16,
++--where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
++12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
++A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
+```
+
 ### Signatures
 
 ```ts
@@ -263,21 +281,21 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 
 ### Write replies
 
-Each write prints its reply line on stdout, then the note lines or the older-note line in its row, and exits 0. `<check>` is `no check`, `no check run` before the checks slice, or `checked now: <result>`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
+Each write prints the note lines or the older-note line in its row first and its status line last, and exits 0. A status line ends in `Brief: <n> lines.`, except the replies of `init`, `attach`, `detach` and `import`, whose rows give their whole reply. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<n>` is the brief's line count. `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `task`, `wait`, `rule`, `where`, `ok`, `set` | `<id>  <kind>, open, <check>[, note <k> of 400[, owed]]. Brief: <n> lines.` (a rule has no `<check>` part; the note part shows when the command wrote a note) |
-| the same, when the write replaces the claim and keeps a note written before it | the line above, then `  its note is <age> older than this claim. Replace it with www set <id> --note "<detail>", or clear it with www set <id> --no-note` |
+| the same, when the write replaces the claim and keeps a note written before it | `  its note is <age> older than this claim. Replace it with www set <id> --note "<detail>", or clear it with www set <id> --no-note`, then the line above |
 | `set` with only `--note`        | `<id>  note, <k> of 400[, owed]. Brief: <n> lines.`                                               |
 | `set --no-note`                 | `<id>  note cleared. Brief: <n> lines.`                                                           |
-| `now`                           | `now: <id>. Brief: <n> lines.`, or, when the item has a note, `now: <id>, with its note (<age>). Brief: <n> lines.` or `with its owed note (<age>)`, then `<note lines>` |
+| `now`                           | `now: <id>. Brief: <n> lines.`, or, when the item has a note, `<note lines>`, then `now: <id>, with its note (<age>). Brief: <n> lines.` or `with its owed note (<age>)` |
 | `goal`                          | `goal set. Brief: <n> lines.`                                                                     |
 | `grant` with a bullet           | `grant: <k> of 700 characters in <b> of 12 bullets on <l> of 19 lines, reading <m> of 200. Brief: <n> lines.` |
 | `grant --reading`               | `grant reading: <m> of 200. Brief: <n> lines.`                                                     |
 | `decide`                        | `d-<n>  decision[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`                |
 | `decide --ruled-out`            | `d-<n>  ruled out[ on <id>]. Read it with: www show <id or d-n>. Brief: <n> lines.`               |
-| `done`, `drop`, `use`           | `<id>  done.` or `dropped.` or `used.`, then ` Off the brief, kept in the journal. Brief: <n> lines.`, or, when the item had a note, ` Off the brief, kept in the journal with its note (<age>). Brief: <n> lines.`, then `<note lines>` |
+| `done`, `drop`, `use`           | `<id>  done.` or `dropped.` or `used.`, then ` Off the brief, kept in the journal. Brief: <n> lines.`, or, when the item had a note, first `<note lines>`, then the same line with ` Off the brief, kept in the journal with its note (<age>). Brief: <n> lines.` |
 | `init`                          | `Started session <name> in <folder>. Bound to this <harness> session.` or, with no agent id, `Started session <name> in <folder>. Name it on each command: www --session <name>` |
 | `attach`, `detach`              | `Bound this <harness> session to <name>.` or `Unbound this <harness> session from <name>.`        |
 | `import` of a hand-kept store   | `Imported <name>: <n> items, <m> journal rows. Originals in <folder>/import-backup/.`             |
@@ -293,8 +311,8 @@ $ www task t-flag "Turn on the tide_alerts flag in staging config" --blocked-by 
 t-flag  task, open, no check, note 135 of 400, owed. Brief: 49 lines.
 
 $ www set pr-api-77 "Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07" --pr bosunhq/bosun-api#77
-pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.
   its note is 1h older than this claim. Replace it with www set pr-api-77 --note "<detail>", or clear it with www set pr-api-77 --no-note
+pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.
 
 $ www decide "Retry a 503 from the tide feed 3 times, 2 s apart" --why "The feed returns 503 for about 4 s during its hourly refresh" --on pr-api-77
 d-23  decision on pr-api-77. Read it with: www show pr-api-77. Brief: 47 lines.
@@ -303,21 +321,23 @@ $ www done pr-app-61 --evidence "merged as 51aa0e2, seen by check"
 pr-app-61  done. Off the brief, kept in the journal. Brief: 45 lines.
 
 $ www now pr-api-77 "fix the failing lint job on 9b41c07, push, then request review"
-now: pr-api-77, with its note (1h). Brief: 45 lines.
     The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2 s apart: a
     longer backoff makes the alert miss its 2-hour window. The lint job fails on an unused import in
     the retry helper, not on the retry logic.
+now: pr-api-77, with its note (1h). Brief: 45 lines.
 
 $ www grant --reading "covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases"
 grant reading: 197 of 200. Brief: 45 lines.
 ```
 
-- A write with a check runs that one probe before it replies and stores the result in `at_write`. Before the checks slice, the reply says `no check run` and `at_write` is `-`.
+- A write with a check runs that one probe before it replies and stores the result in `at_write`. An `unchecked` result stores `-`.
 - `www decide --ruled-out` writes a `ruled-out` row in place of `decide`: the choice is the approach, and `--why` is why it lost.
 - `www decide --who owner` records a decision the owner made; the default is `agent`.
 - A `now` or a close prints the note whole, every time, so the agent meets it when it turns to the item and when it leaves it.
 
 ### www show and www log
+
+`show <id>` runs the item's probe and saves nothing. After `OPEN failing` it names the failing checks in parentheses, as the example's `checked now: OPEN failing (oxlint)` does.
 
 ```text
 $ www show pr-api-77
@@ -328,7 +348,7 @@ pr-api-77  task, open since day 7, by agent · check: pr:bosunhq/bosun-api#77
     import in the retry helper, not on the retry logic.
   checked now: OPEN failing (oxlint) · at write: OPEN pending
   decisions: d-19 queue the alert in the job, not the request (day 7) · d-23 retry a 503 3 times (day 9)
-  journal: day 7 task · day 8 set · day 9 note · day 9 set · day 9 changed
+  journal: day 7 task · day 8 set · day 9 set · day 9 note · day 9 changed · day 9 set
 
 $ www show
 OPEN (4, max 30)
@@ -415,7 +435,7 @@ Correct: www --session tide-alerts say "<text>" [--on <id>]
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; the 5 oldest, then `  and <n> more: www --session <name> log --op done,drop,use --since <t>`, which prints every row since `<t>` | 7 |
 | footer    | `Whole text: www [--session <name>] show <id>` and `Correct: www [--session <name>] say "<text>" [--on <id>]`, with `--session <name>` as the next paragraph says | 2             |
 
-`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 on <o> open items) · owed first, then newest` and the `other open items` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
+`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 on <o> open items) · owed first, then newest` and the `other open items` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`, except `changed` rows, which a read writes.
 
 The recap reads from the start of the session when `<t>` falls before it, so the header and the two `SINCE` headings print `day 1` and the start's time, and the commands keep `<t>` as typed. When `journal.tsv` cannot be read, the header shows `journal unreadable` in place of `<n> writes`, `DECIDED SINCE` and `CLOSED SINCE` are left out, and stderr names the reason, as `show` does.
 
@@ -508,7 +528,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 
 ## Constraints
 
-- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
+- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log` and `recap` print what they can, even when every check fails. `www` and `show <id>` probe; `show` with no id, `log` and `recap` never do. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
 - A changed check never makes `set` refuse, so the agent can always fix a stale claim.
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.

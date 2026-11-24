@@ -30,6 +30,8 @@ test('it adds items in order with the defaults the test leaves out', async () =>
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });

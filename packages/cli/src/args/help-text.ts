@@ -42,8 +42,11 @@ Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www 
 Setup:   www install [--print]   www doctor
 Any command takes --session <name>.
 
-Limits: a claim is one line of at most 120 characters, a note 400, the grant's words 700 in at most
-12 bullets on at most 19 lines of the brief, and its reading 200. A session holds at most 30 tasks,
-4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
+Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
+a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or --for 200.
+An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 120, --who 16,
+--where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
+12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
+A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 `;

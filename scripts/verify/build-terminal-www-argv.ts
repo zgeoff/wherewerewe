@@ -26,7 +26,8 @@ export function buildTerminalWWWArgv(
     ...Object.entries(set).map(([name, value]) => `${name}=${value}`),
     `HOME=${join(stateRoot, 'home')}`,
     `XDG_STATE_HOME=${join(stateRoot, 'state')}`,
-    'bun',
+    `PATH=${join(stateRoot, 'bin')}`,
+    process.execPath,
     cliPath,
     ...argv,
   ];

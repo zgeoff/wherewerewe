@@ -26,6 +26,15 @@ export interface BriefInput {
         readonly unchecked: { readonly count: number; readonly reason: string } | null;
       };
   readonly resultsNotSaved: 'not-writable' | 'lock-held' | null;
+
+  // this read's result for each item and pull request ref; empty when no probe ran
+  readonly results: ReadonlyMap<string, string>;
+
+  // why the item in focus shows no next step
+  readonly nowHidden:
+    | { readonly kind: 'changed' }
+    | { readonly kind: 'reads'; readonly result: string }
+    | null;
   readonly nowMs: number;
 
   // the `--session` name as typed, for the command the count line prints

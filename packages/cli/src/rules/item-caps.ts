@@ -8,3 +8,6 @@ export const itemCaps: Readonly<Record<Kind, number>> = {
   where: 4,
   ok: 1,
 };
+
+// The most owner notes a session holds, which a say checks, the owner file allows and the help lists.
+export const ownerNoteCap = 2;

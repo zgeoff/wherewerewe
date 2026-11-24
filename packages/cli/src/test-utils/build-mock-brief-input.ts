@@ -24,6 +24,8 @@ export function buildMockBriefInput(fields: Partial<BriefInput>): BriefInput {
     pullRequests: [],
     checks: { kind: 'none' },
     resultsNotSaved: null,
+    results: new Map(),
+    nowHidden: null,
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
     sessionFlag: null,
     host: null,

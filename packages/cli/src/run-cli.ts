@@ -98,6 +98,7 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
     env: input.env,
     cwd: input.cwd,
     nowMs,
+    now: input.now,
     root,
     byOwner: isOwnerTerminal(input),
   };
@@ -130,7 +131,10 @@ const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'reca
 
 async function runNamedSession(context: CommandContext, name: string): Promise<CLIResult> {
   const folder = join(context.root, name);
-  const read = isSessionName(name) ? await readStore(folder) : { kind: 'missing' as const };
+
+  const read = isSessionName(name)
+    ? await readStore(folder, { isPrsRead: context.args.command !== 'recap' })
+    : { kind: 'missing' as const };
 
   return match(read)
     .with({ kind: 'store' }, (found) => runStoreCommand(context, found.store))
@@ -189,6 +193,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
     name: store.session.name,
     args,
     cwd: context.cwd,
+    env: context.env,
     nowMs: context.nowMs,
     host: findHost(context),
     pick,
@@ -210,11 +215,11 @@ function runReadCommand(
 
       return id === undefined
         ? Promise.resolve(runTaskListCommand(store, context.nowMs, unread))
-        : runShowCommand(store, id, context.nowMs, unread);
+        : runShowCommand(store, id, context, unread);
     })
     .with('log', () => runLogCommand(store, args, context, unread))
     .with('recap', () => runRecapCommand(store, args, context, unread))
-    .otherwise(() => Promise.resolve(runBriefCommand(store, context, unread)));
+    .otherwise(() => runBriefCommand(store, context, unread, findHost(context)));
 }
 
 function findHost(context: CommandContext): 'claude' | 'codex' | null {

@@ -1,32 +1,169 @@
-import { buildBriefInput } from '../brief/build-brief-input.ts';
+import { buildReadBriefInput } from '../brief/build-read-brief-input.ts';
+import { buildReplyBriefInput } from '../brief/build-reply-brief-input.ts';
+import { orderChecks } from '../brief/order-checks.ts';
+import { pickPrintedTaskIDs } from '../brief/pick-printed-task-ids.ts';
 import { renderBrief } from '../brief/render-brief.ts';
-import { findAgentID } from '../sessions/find-agent-id.ts';
-import type { CLIResult, Store, UnreadRows } from '../types.ts';
+import type { BriefInput } from '../brief/types.ts';
+import { checkLimits } from '../checks/check-limits.ts';
+import { pickCheckSave } from '../checks/pick-check-save.ts';
+import { runChecks } from '../checks/run-checks.ts';
+import type { CheckRun } from '../checks/types.ts';
+import { formatTimestamp } from '../format-timestamp.ts';
+import { readJournalRows } from '../store/read-journal-rows.ts';
+import { readStore } from '../store/read-store.ts';
+import { withStoreLock } from '../store/with-store-lock.ts';
+import { writeCheckFiles } from '../store/write-check-files.ts';
+import type { CLIResult, JournalRow, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
 import type { CommandContext } from './types.ts';
 
-// Prints the brief. This slice runs no check and saves nothing, so it takes no lock. A file that
-// does not parse is never a refusal for a read: the brief prints what it can and says on stderr
-// what it left out.
-export function runBriefCommand(
+// Prints the brief: probes every check and open pull request within the deadline, saves the
+// results when the lock is free, and renders. A partial store probes the items that parsed and
+// saves nothing; a file that does not parse is named on stderr.
+export async function runBriefCommand(
   store: Store,
   context: CommandContext,
   unread: UnreadRows | null,
-): CLIResult {
+  host: 'claude' | 'codex' | null,
+): Promise<CLIResult> {
+  const briefContext = { nowMs: context.nowMs, sessionFlag: context.args.sessionFlag, host };
+  const reply = buildReplyBriefInput(store, briefContext);
+
+  const order = orderChecks({
+    items: store.items,
+    notes: store.notes,
+    focus: store.session.now,
+    printedTaskIDs: pickPrintedTaskIDs(reply),
+    pullRequests: reply.pullRequests,
+  });
+
+  const run = await runChecks(order, store.items, store.prs, {
+    deadlineMs: checkLimits.deadlineMs,
+    env: context.env,
+    now: context.now,
+  });
+
+  const hidden = await readHiddenStep(store, run);
+
+  const saved = unread === null ? await writeCheckResults(store, run, context.nowMs) : null;
+
   return {
     exitCode: 0,
     stdout: renderBrief(
-      buildBriefInput(
-        store,
-        context.nowMs,
-        context.args.sessionFlag,
-        findAgentID(context.env)?.harness ?? null,
-      ),
+      buildReadBriefInput(store, { run, hidden: hidden.step, saved }, briefContext),
     ),
-    stderr: [unread, store.notesUnread, store.ownerUnread]
+    stderr: [unread, store.notesUnread, store.ownerUnread, store.prsUnread, hidden.unread]
       .flatMap((rows) =>
         rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'The brief')],
       )
       .join(''),
   };
+}
+
+const hiddenResults: ReadonlySet<string> = new Set(['MERGED', 'CLOSED', 'gone', 'missing']);
+
+// The item in focus changed after `now` was set when the journal holds a changed row for it since,
+// or this read finds a result that differs from the old value. Otherwise its step hides when its
+// check reads one of four results.
+async function readHiddenStep(
+  store: Store,
+  run: CheckRun,
+): Promise<{ readonly step: BriefInput['nowHidden']; readonly unread: UnreadRows | null }> {
+  const focus = store.session.now;
+  const item = store.items.find((candidate) => candidate.id === focus);
+
+  if (focus === null || item === undefined) {
+    return { step: null, unread: null };
+  }
+
+  const found = run.results.get(item.id);
+  const result = found === undefined || found === 'unchecked' ? item.last : found;
+  const old = item.last ?? item.atWrite;
+  const nowSet = store.session.nowSet;
+
+  const isChangedByRead =
+    found !== undefined && found !== 'unchecked' && old !== null && found !== old;
+
+  let isChangedInJournal = false;
+  let unread: UnreadRows | null = null;
+
+  if (nowSet !== null && !isChangedByRead) {
+    try {
+      const rows = await readJournalRows(
+        store.folder,
+        (row) => (row.op === 'changed' || row.op === 'now') && row.id === focus,
+      );
+
+      isChangedInJournal = pickRowsAfterNow(rows, nowSet).some((row) => row.op === 'changed');
+    } catch (error) {
+      unread = {
+        file: 'journal.tsv',
+        line: null,
+        reason: error instanceof Error && 'code' in error ? String(error.code) : 'read failed',
+      };
+    }
+  }
+
+  if (isChangedByRead || isChangedInJournal) {
+    return { step: { kind: 'changed' }, unread };
+  }
+
+  return {
+    step: result !== null && hiddenResults.has(result) ? { kind: 'reads', result } : null,
+    unread,
+  };
+}
+
+// The rows after the last `now` row of the item, in journal order, because a time to the second
+// cannot order a change and a `now` that land in the same second. A journal with no `now` row for
+// the item, as in an imported store, falls back to the rows from `now_set` on.
+function pickRowsAfterNow(rows: readonly JournalRow[], nowSet: string): readonly JournalRow[] {
+  const lastNow = rows.findLastIndex((row) => row.op === 'now');
+
+  return lastNow === -1 ? rows.filter((row) => row.ts >= nowSet) : rows.slice(lastNow + 1);
+}
+
+// The lock is taken without waiting. Inside it, the files are read again, and a result applies
+// only to an item that is still what the read probed, so a write that ran in between wins.
+async function writeCheckResults(
+  store: Store,
+  run: CheckRun,
+  nowMs: number,
+): Promise<BriefInput['resultsNotSaved']> {
+  if (run.ran === 0) {
+    return null;
+  }
+
+  try {
+    const locked = await withStoreLock(
+      store.folder,
+      async () => {
+        const read = await readStore(store.folder);
+
+        if (read.kind !== 'store') {
+          return;
+        }
+
+        await writeCheckFiles(
+          store.folder,
+          pickCheckSave({
+            probed: store.items,
+            items: read.store.items,
+            prs: read.store.prsUnread === null ? read.store.prs : [],
+            run,
+            ts: formatTimestamp(nowMs),
+          }),
+        );
+      },
+      { waitMs: 0 },
+    );
+
+    return locked.kind === 'busy' ? 'lock-held' : null;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+      return 'not-writable';
+    }
+
+    throw error;
+  }
 }

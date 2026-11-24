@@ -3,6 +3,7 @@ import { formatAge } from '../brief/format-age.ts';
 import { wrapBlock } from '../brief/wrap-block.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { Item, ParsedArgs, RefusalReason } from '../types.ts';
 import { pickNotesUnreadRefusal } from './pick-note-change.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
@@ -113,8 +114,8 @@ export function pickClose(input: WriteInput): WriteResult {
       const age = formatAge(nowMs - Date.parse(note.written));
 
       return [
-        `${id}  ${verb}. Off the brief, kept in the journal with its note (${age}). ${brief}`,
         ...wrapBlock(note.note, '    ', '    '),
+        `${id}  ${verb}. Off the brief, kept in the journal with its note (${age}). ${brief}`,
       ].join('\n');
     },
   };
@@ -141,7 +142,7 @@ export function pickCloseArgsRefusal(args: ParsedArgs): RefusalReason | null {
   if (why !== undefined) {
     return pickTextRefusal(
       args,
-      [{ target: { label, place: { flag } }, text: why, limit: 200 }],
+      [{ target: { label, place: { flag } }, text: why, limit: textLimits.closeText }],
       false,
     );
   }

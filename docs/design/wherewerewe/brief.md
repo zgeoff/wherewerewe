@@ -47,7 +47,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 
 | Line                     | Template                                                                                     | Widest |
 | ------------------------ | -------------------------------------------------------------------------------------------- | ------ |
-| header                   | `<name> · day <d> · <Ddd YYYY-MM-DD HH:MMZ> · last write <age> ago · <n> checks in <t>s[ · <n> unchecked: <reason>]`, or `no checks` in place of the check count when nothing has a check | 133 |
+| header                   | `<name> · day <d> · <Ddd YYYY-MM-DD HH:MMZ> · last write <age> ago · <n> checks in <t>s[ · <n> unchecked: <reason>]`, or `no checks` in place of the check count when no probe runs | 133 |
 | header, second line      | `  results not saved: <the store is not writable here \| another write held the lock>`        | 51     |
 | goal                     | `GOAL  <goal>`, wrapped, each further line indented 6                                         | 3 lines, 218 |
 | grant heading            | `GRANT  from the owner in <where>, <age> ago`, then ` · <scope>` when the owner gave one; the age is that of the words | 94     |
@@ -57,7 +57,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | changed row              | `  <id>  was <at_write> (<age>) · now <result> · run: <fix command>`                          | 131    |
 | changed overflow         | `  and <n> more; each shows its result below, or in the list of open tasks`                    | 72     |
 | now                      | `NOW  <id> · set <age> ago`, then ` · note <age> ago` or ` · owed note <age> ago` when the item has a note | 57 |
-| next step                | `  next: <next step>`, or `  next step hidden: <id> changed after it was set. Run: www now <id> "<next step>"` | 128 |
+| next step                | `  next: <next step>`, or `  next step hidden: <id> changed after it was set. Run: www now <id> "<next step>"`, or `  next step hidden: <id> reads <result>. Run: www now <id> "<next step>"` (103 characters with a 16-character id and a 15-character result) | 128 |
 | note                     | `    <note>`, wrapped, every line indented 4                                                  | 5 lines, 420 |
 | task                     | `  <id>  <claim>  [<tag>]`; tag is the result, `no check · <age>`, `not checked yet`, or `blocked by <id>` with ` · <result>` when it has a check; then ` · owed` when the item has an owed note | 196 |
 | wait                     | `  <id>  <claim>  [<who> · <result or age>[ · owed]]`                                         | 185    |
@@ -157,18 +157,19 @@ With 16 or more tasks, the 15th row pays for the count line. Under either budget
 - When a bug makes the brief longer than its host's budget, the renderer drops item lines from the bottom up, starting with pull request rows, then where, rules, the one-time approval, waits and tasks, except the row of the item in focus, and ends the last kept section with `  (<n> lines cut to fit; run www show <id>)`. It never drops or clips the header, goal, grant, owner notes, changed rows, now, the row of the item in focus, the note, or footer. The count line of `OPEN` is never cut: the cut drops task rows above it, and the cut line follows it when `OPEN` is the last kept section. The count line counts the task rows the fill left out, and the cut line counts the lines the cut dropped.
 - The grant prints whole on every brief, directly after `GOAL`.
 - A changed item is one whose check result differs from its `at_write`. A result of `unchecked` never counts as changed, and an `at_write` of `-` takes the first result without counting it as changed.
-- When the item in focus changed after `now_set`, or its check reads `MERGED`, `CLOSED`, `gone` or `missing`, the brief hides the next step and prints the `next step hidden` line. The step stays in the journal, and the note still prints.
+- The brief hides the next step of the item in focus when a `changed` journal row of that item comes after its last `now` row in the journal, or when this read's result for it differs from its `last`, or from its `at_write` when `last` is empty. The line reads `changed after it was set` in the first case and `reads <result>` in the second. The line prints only when a step is set. The step stays in the journal, and the note still prints.
+- `CHANGED SINCE WRITTEN` rows go in `items.tsv` order. A row's tag shows this read's result, `unchecked` included, while `last` keeps the last result that was not `unchecked`.
 - Only the note of the item in focus prints. Every item with an owed note shows ` · owed` in its tag, or `  [owed]` when its kind has no tag, the item in focus included.
 - A changed row's fix command stays the same when the item has an owed note. Running it gets the owed-note refusal in [commands.md](commands.md), which prints the note whole.
 - A tag shows `blocked by <id>` only while that id is open. Closing the blocker clears the tag on the next read.
 - An item of a kind that takes a check, a task, a wait or a where item, shows its age since `written` when it has no check, so the reader sees which lines nobody verified. A rule and an approval take no check and show no age.
 - Never use a heading, label, footer or tag to tell the agent to hold back, to ask, or to act only inside a limit. Make each heading say what the section holds. A section of a capped kind that the agent fills prints `(<n>, max <cap>)`, `<n>` the open items of that kind; a section that prints fewer rows than `<n>` ends with a line that counts the rest, except when the cut of a brief over its budget drops rows. Two headings keep their own form, `OWNER SAYS (<n>) · act on it; only the owner clears it`, whose cap of 2 only the owner meets, and `CHANGED SINCE WRITTEN (<n>) · these claims are no longer true`, because 0008 keeps each for stating or preventing a fact. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - Once a session is found and its store is in format 2, the brief always exits 0 and prints, whatever the checks, the lock or the network do. Exits 4 and 5 are defined in [commands.md](commands.md).
-- A write reply's first line ends with the brief's line count, except the `init`, `attach`, `detach` and `import` replies; the reply table in [commands.md](commands.md) is the authority. Take the count from the same renderer, with check results from `last`, and run no checks.
+- A write reply's last line ends with the brief's line count, except the `init`, `attach`, `detach` and `import` replies; the reply table in [commands.md](commands.md) is the authority. Take the count from the same renderer, with check results from `last`, and run no checks.
 
 ## The brief on day 9 of an invented session
 
-The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 47 lines and 3,343 characters.
+The session `tide-alerts` adds low-water push alerts to a sailing app across `bosunhq/bosun-api`, `bosunhq/bosun-app` and an upstream library, `tidal-org/tidekit`. Day 1 was Monday 2026-03-02. This output is 48 lines and 3,440 characters.
 
 ```text
 tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 2.8s
@@ -184,7 +185,8 @@ GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
     staging alerts table, tidekit PRs; kept back: prod push certificate, prod database, tidekit
     releases
-OWNER SAYS (1) · act on it; only the owner clears it
+OWNER SAYS (2) · act on it; only the owner clears it
+  o-2  The reading misses tidekit: the grant covers opening PRs there, never merging them.  [2h]
   o-3  Use the recorded tide fixtures for e2e, not the live feed  [on t-e2e · 2h]
 CHANGED SINCE WRITTEN (3) · these claims are no longer true
   pr-app-61   was OPEN passing (27h) · now MERGED · run: www done pr-app-61 --evidence "merged, seen by check"

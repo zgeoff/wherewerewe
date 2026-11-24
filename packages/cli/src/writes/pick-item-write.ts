@@ -10,7 +10,8 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { itemCaps } from '../rules/item-caps.ts';
 import { parseCheckFlags } from '../rules/parse-check-flags.ts';
 import type { CheckFlagsResult } from '../rules/parse-check-flags.ts';
-import type { Extra, Item, Kind, Note, ParsedArgs, RefusalReason } from '../types.ts';
+import { textLimits } from '../rules/text-limits.ts';
+import type { Extra, Item, Kind, Note, ParsedArgs, RefusalReason, Store } from '../types.ts';
 import {
   buildChangedNotes,
   buildNoteJournalRows,
@@ -36,7 +37,6 @@ export function pickItemWrite(input: WriteInput): WriteResult {
   const hasClaim = !isSet || args.positionals.length === 2;
   const existing = store.items.find((item) => item.id === id);
   const existingNote = store.notes.find((note) => note.id === id);
-  const checks = parseCheckFlags(args.flags, input.cwd);
 
   const reason =
     pickItemArgsRefusal(args, input.cwd, existing) ??
@@ -71,18 +71,24 @@ export function pickItemWrite(input: WriteInput): WriteResult {
   }
 
   const kind = isSet ? (existing?.kind ?? 'task') : getKind(args.command);
-  const ref = pickCheckRef(checks);
+  const checkRef = pickWriteCheck(args, store, input.cwd);
+  const probed = input.probed !== null && input.probed.ref === checkRef ? input.probed : null;
+  const baseExtra = isSet ? (existing?.extra ?? {}) : buildExtra(args);
+  const { pid_start: _oldStart, ...keptExtra } = baseExtra;
 
   const item: Item = {
     id,
     kind,
     claim,
-    check: isSet ? (ref ?? existing?.check ?? null) : ref,
-    atWrite: null,
+    check: checkRef,
+    atWrite: probed === null || probed.result === 'unchecked' ? null : probed.result,
     last: null,
     written: ts,
     by: 'agent',
-    extra: isSet ? (existing?.extra ?? {}) : buildExtra(args),
+    extra:
+      probed === null || probed.pidStart === null
+        ? keptExtra
+        : { ...keptExtra, pid_start: probed.pidStart },
   };
 
   const items =
@@ -119,19 +125,39 @@ export function pickItemWrite(input: WriteInput): WriteResult {
           'wait',
           'where',
           'ok',
-          () => `, ${item.check === null ? 'no check' : 'no check run'}`,
+          () =>
+            `, ${item.check === null ? 'no check' : `checked now: ${probed?.result ?? 'unchecked'}`}`,
         )
         .exhaustive();
 
       const note = noteChange.kind === 'write' ? `, note ${formatNotePart(noteChange.note)}` : '';
-      const first = `${id}  ${kind}, open${check}${note}. ${brief}`;
+      const status = `${id}  ${kind}, open${check}${note}. ${brief}`;
 
       return existing !== undefined && existingNote !== undefined && noteChange.kind === 'keep'
-        ? `${first}\n${formatOlderNoteLine(args, id, existingNote, nowMs)}`
-        : first;
+        ? `${formatOlderNoteLine(args, id, existingNote, nowMs)}\n${status}`
+        : status;
     },
   };
 }
+
+// The check a write will store, which the write probes before it takes the lock: the check flag,
+// or for a set with a claim and no check flag, the item's own. Null for a write with no claim or
+// no check.
+export function pickWriteCheck(args: ParsedArgs, store: Store, cwd: string): string | null {
+  const isSet = args.command === 'set';
+
+  if (!writeCheckCommands.has(args.command) || (isSet && args.positionals.length !== 2)) {
+    return null;
+  }
+
+  const ref = pickCheckRef(parseCheckFlags(args.flags, cwd));
+
+  return isSet
+    ? (ref ?? store.items.find((item) => item.id === args.positionals[0])?.check ?? null)
+    : ref;
+}
+
+const writeCheckCommands: ReadonlySet<string> = new Set(['task', 'wait', 'where', 'ok', 'set']);
 
 // The checks that read the command line and no store, in the order the write runs them. The
 // existing item only sets the credential refusal's wording and whether a set gives a rule a check.
@@ -186,10 +212,10 @@ interface ApprovalText {
 }
 
 const approvalFlags: readonly ApprovalText[] = [
-  { flag: 'quote', limit: 120 },
-  { flag: 'who', limit: 16 },
-  { flag: 'where', limit: 16 },
-  { flag: 'scope', limit: 40 },
+  { flag: 'quote', limit: textLimits.quote },
+  { flag: 'who', limit: textLimits.approvalWho },
+  { flag: 'where', limit: textLimits.approvalWhere },
+  { flag: 'scope', limit: textLimits.approvalScope },
 ];
 
 function pickApprovalRefusal(args: ParsedArgs): RefusalReason | null {
@@ -245,7 +271,13 @@ function pickClaimRefusal(
     ? null
     : pickTextRefusal(
         args,
-        [{ target: { label: 'claim', place: { positional: 1 } }, text: claim, limit: 120 }],
+        [
+          {
+            target: { label: 'claim', place: { positional: 1 } },
+            text: claim,
+            limit: textLimits.claim,
+          },
+        ],
         existing !== undefined && existing.kind !== 'where',
       );
 }
@@ -299,7 +331,7 @@ function pickWhoRefusal(args: ParsedArgs, existing: Item | undefined): RefusalRe
 
   const reason = pickTextRefusal(
     args,
-    [{ target: { label: 'who', place: { flag: 'who' } }, text: who, limit: 16 }],
+    [{ target: { label: 'who', place: { flag: 'who' } }, text: who, limit: textLimits.waitWho }],
     existing !== undefined && existing.kind !== 'where',
   );
 
@@ -392,9 +424,9 @@ function pickFullKind(
     : null;
 }
 
-// `<k> of 400`, then `, owed` for an owed note.
+// `<k> of <note limit>`, then `, owed` for an owed note.
 function formatNotePart(note: Note): string {
-  return `${String(Array.from(note.note, (character) => character).length)} of 400${note.owed ? ', owed' : ''}`;
+  return `${String(Array.from(note.note, (character) => character).length)} of ${String(textLimits.note)}${note.owed ? ', owed' : ''}`;
 }
 
 function pickCheckRef(checks: CheckFlagsResult): string | null {

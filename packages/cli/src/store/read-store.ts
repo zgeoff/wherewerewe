@@ -1,11 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
-import type { Note, OwnerNote, SessionFile, Store, UnreadRows } from '../types.ts';
+import type { Note, OwnerNote, PullRequestRow, SessionFile, Store, UnreadRows } from '../types.ts';
 import { parseItemsFile } from './parse-items-file.ts';
 import { parseNotesFile } from './parse-notes-file.ts';
 import { parseOwnerFile } from './parse-owner-file.ts';
+import { parsePrsFile } from './parse-prs-file.ts';
 import { parseSessionFile } from './parse-session-file.ts';
+
+export interface ReadStoreOptions {
+  // false leaves prs.tsv unopened and the store with no rows of it
+  readonly isPrsRead: boolean;
+}
+
+const readsPrs: ReadStoreOptions = { isPrsRead: true };
 
 export type StoreRead =
   | { readonly kind: 'store'; readonly store: Store }
@@ -27,7 +35,10 @@ export type StoreRead =
 // Reads `session`, stopping at a hand-kept, format 1 or newer store, then `items.tsv`, `notes.tsv` and
 // `owner.tsv`. A broken `notes.tsv` or `owner.tsv` never makes the store broken: its rows that parse
 // come back, with the one that does not named in `notesUnread` or `ownerUnread`. Never the journal.
-export async function readStore(folder: string): Promise<StoreRead> {
+export async function readStore(
+  folder: string,
+  options: ReadStoreOptions = readsPrs,
+): Promise<StoreRead> {
   const sessionText = await readTextOrNull(join(folder, 'session'));
 
   if (sessionText === null) {
@@ -45,7 +56,7 @@ export async function readStore(folder: string): Promise<StoreRead> {
       reason: found.reason,
       partial: null,
     }))
-    .with({ kind: 'session' }, (found) => readItems(folder, found.session))
+    .with({ kind: 'session' }, (found) => readItems(folder, found.session, options))
     .exhaustive();
 }
 
@@ -61,9 +72,18 @@ async function readTextOrNull(path: string): Promise<string | null> {
   }
 }
 
-async function readItems(folder: string, session: SessionFile): Promise<StoreRead> {
+async function readItems(
+  folder: string,
+  session: SessionFile,
+  options: ReadStoreOptions,
+): Promise<StoreRead> {
   const itemsText = await readTextOrNull(join(folder, 'items.tsv'));
-  const owner = await readOwner(folder);
+
+  const owner = {
+    ...(await readOwner(folder)),
+    ...(options.isPrsRead ? await readPrs(folder) : { prs: [], prsUnread: null }),
+  };
+
   const noteRead = await readNotes(folder);
 
   if (itemsText === null) {
@@ -137,6 +157,44 @@ function readOwnerText(ownerText: string): OwnerRead {
     .with({ kind: 'broken' }, (found): OwnerRead => ({
       ownerNotes: found.notes,
       ownerUnread: { file: 'owner.tsv', line: found.line, reason: found.reason },
+    }))
+    .exhaustive();
+}
+
+interface PrsRead {
+  readonly prs: readonly PullRequestRow[];
+  readonly prsUnread: UnreadRows | null;
+}
+
+// A missing prs.tsv reads as no rows. A file system error reads as a broken file, as owner.tsv's
+// does.
+async function readPrs(folder: string): Promise<PrsRead> {
+  try {
+    const text = await readTextOrNull(join(folder, 'prs.tsv'));
+
+    return text === null ? { prs: [], prsUnread: null } : readPrsText(text);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+      return {
+        prs: [],
+        prsUnread: {
+          file: 'prs.tsv',
+          line: null,
+          reason: `the file cannot be read (${error.code})`,
+        },
+      };
+    }
+
+    throw error;
+  }
+}
+
+function readPrsText(text: string): PrsRead {
+  return match(parsePrsFile(text))
+    .with({ kind: 'prs' }, (found): PrsRead => ({ prs: found.prs, prsUnread: null }))
+    .with({ kind: 'broken' }, (found): PrsRead => ({
+      prs: found.prs,
+      prsUnread: { file: 'prs.tsv', line: found.line, reason: found.reason },
     }))
     .exhaustive();
 }

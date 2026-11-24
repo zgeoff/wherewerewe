@@ -12,13 +12,13 @@ stores. `seed-format-1` copies an invented format 1 store into the run as the se
 
 Run `bun verify up --restart` first, so `trial-grant` does not exist yet, then `doctor`.
 
-Give the `refuse` line's `--run` the `Run:` line as `www` prints it, and leave its two placeholders
-as they are: `www refuse` compares the `Run:` line that `www` prints with it.
+Give the `refuse` line's `--run` the `Run:` line as `www` prints it, and leave its placeholders as
+they are: `www refuse` compares the `Run:` line that `www` prints with it.
 
 ```bash
 bun verify use --feature grant
 bun verify www seed-format-1
-bun verify www refuse --line 'www import trial-grant' --expect 'www: refused: trial-grant holds 2 standing approvals' --run "www import trial-grant --may \"<what the owner allows, in their words>\" --where chat --reading \"<what they cover; what the owner kept back>\""
+bun verify www refuse --line 'www import trial-grant' --expect 'www: refused: trial-grant holds 2 standing approvals' --run "www import trial-grant --may \"<what the owner allows, in their words>\" --may \"<what the owner allows, in their words>\" --where chat --reading \"<what they cover; what the owner kept back>\""
 bun verify www run --line 'www import trial-grant --may "merge the garden-api pull requests once CI is green and every review finding is answered" --may "deploy to the staging beds whenever you need to" --may "wipe or reseed the staging sensor table" --not "anything in the production sensor table" --never "touch the production beds" --never "publish a garden-api release" --scope "in garden-api and the staging beds" --where chat --reading "covers garden-api merges on green CI with findings answered, and staging deploys and reseeds; kept back: production beds, production sensor table, releases"' --expect 'Upgraded trial-grant to format 2: grant 300 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in '
 bun verify www run --host codex --line 'www --session trial-grant' --expect '  never  • touch the production beds  • publish a garden-api release'
 bun verify www run --line 'www --session trial-grant grant --reading "covers garden-api merges and staging deploys only; kept back: everything in production and every release"' --expect 'grant reading: 104 of 200. Brief: '

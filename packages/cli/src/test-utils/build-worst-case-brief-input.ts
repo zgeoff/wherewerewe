@@ -15,6 +15,12 @@ export interface WorstCaseOptions {
   // the grant at 700 characters of words and 19 lines: 7 bullets of 90 and 5 of 6 under a scope of
   // 40 (the default), one long bullet under a scope of 40, or one long bullet with no scope
   readonly grant?: 'wide-bullets' | 'long-bullet' | 'long-bullet-no-scope';
+
+  // why the next step of the item in focus hides; the step prints when it is left out
+  readonly nowHidden?: BriefInput['nowHidden'];
+
+  // `unchecked` gives each item and pull request a result of that word from this read
+  readonly results?: 'none' | 'unchecked';
 }
 
 // brief.md's worst case: every section at its widest, each task at its widest tag, the item in
@@ -34,6 +40,48 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
     ...buildMockIDs('rule', 5),
     ...buildMockIDs('here', 4),
   ];
+
+  const items = [
+    ...tasks.map((id) =>
+      buildMockItem({
+        id,
+        claim: 'c'.repeat(120),
+        check: 'pid:4',
+        last: result,
+        extra: { blocked_by: waits[0] ?? '' },
+      }),
+    ),
+    ...waits.map((id) =>
+      buildMockItem({
+        id,
+        kind: 'wait',
+        claim: 'c'.repeat(120),
+        check: 'pid:4',
+        last: result,
+        extra: { who: 'w'.repeat(16) },
+      }),
+    ),
+    ...buildMockIDs('appr', 1).map((id) =>
+      buildMockItem({
+        id,
+        kind: 'ok',
+        claim: 'q'.repeat(120),
+        extra: { who: 'owner', scope: 's'.repeat(40) },
+      }),
+    ),
+    ...buildMockIDs('rule', 5).map((id) =>
+      buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(120) }),
+    ),
+    ...buildMockIDs('here', 4).map((id) =>
+      buildMockItem({ id, kind: 'where', claim: 'c'.repeat(120), check: 'pid:4', last: result }),
+    ),
+  ];
+
+  const pullRequests = Array.from({ length: 10 }, () => ({
+    ref: 'p'.repeat(60),
+    opened: '2026-03-10T08:43:00Z',
+    result,
+  }));
 
   return buildMockBriefInput({
     host: options.host,
@@ -69,46 +117,8 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
       item: buildMockItem({ id, check: 'pid:4', atWrite: result }),
       result: 'gone',
     })),
-    items: [
-      ...tasks.map((id) =>
-        buildMockItem({
-          id,
-          claim: 'c'.repeat(120),
-          check: 'pid:4',
-          last: result,
-          extra: { blocked_by: waits[0] ?? '' },
-        }),
-      ),
-      ...waits.map((id) =>
-        buildMockItem({
-          id,
-          kind: 'wait',
-          claim: 'c'.repeat(120),
-          check: 'pid:4',
-          last: result,
-          extra: { who: 'w'.repeat(16) },
-        }),
-      ),
-      ...buildMockIDs('appr', 1).map((id) =>
-        buildMockItem({
-          id,
-          kind: 'ok',
-          claim: 'q'.repeat(120),
-          extra: { who: 'owner', scope: 's'.repeat(40) },
-        }),
-      ),
-      ...buildMockIDs('rule', 5).map((id) =>
-        buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(120) }),
-      ),
-      ...buildMockIDs('here', 4).map((id) =>
-        buildMockItem({ id, kind: 'where', claim: 'c'.repeat(120), check: 'pid:4', last: result }),
-      ),
-    ],
-    pullRequests: Array.from({ length: 10 }, () => ({
-      ref: 'p'.repeat(60),
-      opened: '2026-03-10T08:43:00Z',
-      result,
-    })),
+    items,
+    pullRequests,
     checks: {
       kind: 'ran',
       count: 99,
@@ -116,6 +126,15 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
       unchecked: { count: 99, reason: 'u'.repeat(30) },
     },
     resultsNotSaved: 'not-writable',
+    nowHidden: options.nowHidden ?? null,
+    results:
+      options.results === 'unchecked'
+        ? new Map(
+            [...items.map((item) => item.id), ...pullRequests.map((row) => row.ref)].map(
+              (id) => [id, 'unchecked'] as const,
+            ),
+          )
+        : new Map(),
   });
 }
 

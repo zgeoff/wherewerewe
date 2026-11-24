@@ -1,0 +1,556 @@
+import { expect, onTestFinished, test } from 'bun:test';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { waitFor } from '@zgeoff/testing';
+import { linkCommands } from '@zgeoff/testing/bin';
+import { createTempDir } from '@zgeoff/testing/fs';
+import { createGitCommit, runGit } from '@zgeoff/testing/git';
+import { runCLI } from '../run-cli.ts';
+import { parseItemsFile } from '../store/parse-items-file.ts';
+import { readJournalRows } from '../store/read-journal-rows.ts';
+import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
+import { countBriefLines } from '../test-utils/count-brief-lines.ts';
+import { readShellWords } from '../test-utils/read-shell-words.ts';
+import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
+import { seedDayNineStore } from '../test-utils/seed-day-nine-store.ts';
+import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
+import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
+import { seedLockFile } from '../test-utils/seed-lock-file.ts';
+import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
+
+function setupTest() {
+  const root = createTempDir('run-brief').path;
+  const bin = join(root, 'bin');
+  const stateRoot = join(root, 'wherewerewe');
+  const folder = join(stateRoot, 'tide-alerts');
+  const clock = { nowMs: Date.parse('2026-03-10T11:43:00Z') };
+
+  mkdirSync(bin, { recursive: true });
+  linkCommands(bin, ['git']);
+
+  const agentEnv = {
+    HOME: root,
+    XDG_STATE_HOME: root,
+    CLAUDE_CODE_SESSION_ID: 'a1b2-test',
+    PATH: bin,
+  };
+
+  return {
+    root,
+    bin,
+    folder,
+    agentEnv,
+    advance: (durationMs: number) => {
+      clock.nowMs += durationMs;
+    },
+    run: (argv: readonly string[], env: Record<string, string> = agentEnv) =>
+      runCLI({
+        argv,
+        env,
+        cwd: '/work',
+        terminal: { stdin: false, stdout: false },
+        now: () => {
+          clock.nowMs += 1000;
+
+          return clock.nowMs - 1000;
+        },
+      }),
+    runFrozen: (argv: readonly string[]) =>
+      runCLI({
+        argv,
+        env: agentEnv,
+        cwd: '/work',
+        terminal: { stdin: false, stdout: false },
+        now: () => clock.nowMs,
+      }),
+    readDayNine: () => {
+      const text = readFileSync(
+        join(import.meta.dir, '..', '..', '..', '..', 'docs', 'design', 'wherewerewe', 'brief.md'),
+        'utf8',
+      );
+
+      const section = text.slice(text.indexOf('## The brief on day 9'));
+
+      return /```text\n(?<brief>.*?)```/su.exec(section)?.groups?.['brief'] ?? '';
+    },
+    runClock: (env: Record<string, string>, argv: readonly string[]) => {
+      const calls = { count: 0 };
+
+      return runCLI({
+        argv,
+        env,
+        cwd: '/work',
+        terminal: { stdin: false, stdout: false },
+        now: () => {
+          calls.count += 1;
+
+          return Date.parse('2026-03-10T11:43:40Z') + (calls.count > 2 ? 2800 : 0);
+        },
+      });
+    },
+    readItems: () => parseItemsFile(readFileSync(join(folder, 'items.tsv'), 'utf8'), '2').items,
+    readChanged: () => readJournalRows(folder, (row) => row.op === 'changed'),
+    readTree: () => readTreeHashes(stateRoot),
+    createRepo: () => seedGitRepo(root),
+  };
+}
+
+test.each([
+  { title: 'Claude Code', variable: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' } },
+  { title: 'Codex', variable: { CODEX_SESSION_ID: 'c9-test' } },
+])('it prints the day 9 brief of brief.md whole, line for line, for $title', async (row) => {
+  const ctx = setupTest();
+
+  const store = await seedDayNineStore(ctx.root);
+
+  const env = { ...store.env, CLAUDE_CODE_SESSION_ID: '', ...row.variable };
+
+  const result = await ctx.runClock(env, ['--session', 'tide-alerts']);
+
+  expect({
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    lines: countBriefLines(result.stdout),
+    characters: Array.from(result.stdout, (character) => character).length,
+  }).toStrictEqual({
+    exitCode: 0,
+    stdout: ctx.readDayNine(),
+    stderr: '',
+    lines: 48,
+    characters: 3440,
+  });
+});
+
+test('it ends each reply of commands.md with the count of the brief from the day 9 store', async () => {
+  const ctx = setupTest();
+
+  const store = await seedDayNineStore(ctx.root);
+
+  seedGhAnswers(store.bin, {
+    'bosunhq/bosun-api#77': 'OPEN pending',
+    'bosunhq/bosun-app#61': 'MERGED',
+    'tidal-org/tidekit#19': 'OPEN pending',
+    'bosunhq/bosun-app#64': 'OPEN pending',
+  });
+
+  const argvs = [
+    [
+      'set',
+      'pr-api-77',
+      'Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07',
+      '--pr',
+      'bosunhq/bosun-api#77',
+    ],
+    ['done', 'pr-app-61', '--evidence', 'merged as 51aa0e2, seen by check'],
+    ['now', 'pr-api-77', 'fix the failing lint job on 9b41c07, push, then request review'],
+    [
+      'grant',
+      '--reading',
+      'covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases',
+    ],
+  ];
+
+  const lastLines: string[] = [];
+
+  for (const argv of argvs) {
+    const result = await ctx.run(['--session', 'tide-alerts', ...argv], store.env);
+
+    lastLines.push(result.stdout.trimEnd().split('\n').at(-1) ?? '');
+  }
+
+  expect(lastLines).toStrictEqual([
+    'pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.',
+    'pr-app-61  done. Off the brief, kept in the journal. Brief: 45 lines.',
+    'now: pr-api-77, with its note (1h). Brief: 45 lines.',
+    'grant reading: 197 of 200. Brief: 45 lines.',
+  ]);
+});
+
+test('it hides the next step when the item in focus changed after now_set, and prints its note whole under the hidden line', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  const note = buildSpacedText(400);
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['where', 'wt-dock', 'dock map worktree', '--path', repo.folder]);
+  await ctx.run(['now', 'wt-dock', 'watch the tree', '--note', note]);
+
+  writeFileSync(join(repo.folder, 'scratch.txt'), 'dirty\n');
+
+  const hidden = await ctx.run([]);
+
+  const lines = hidden.stdout.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('  next step hidden'));
+  const noteLines = lines.slice(start + 1, start + 6);
+
+  const words = await readShellWords(
+    (lines[start] ?? '').slice((lines[start] ?? '').indexOf('Run: www ') + 'Run: www '.length),
+  );
+
+  const again = await ctx.run([]);
+  const fixed = await ctx.run(words.map((word) => (word === '<next step>' ? 'go on' : word)));
+  const shown = await ctx.run([]);
+
+  expect({
+    hiddenLine:
+      '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"',
+    line: lines[start],
+    noteWhole: noteLines.map((line) => line.trim()).join(' '),
+    noteLineCount: noteLines.length,
+    after: lines[start + 6]?.startsWith('    ') ?? false,
+    hiddenAgain: again.stdout.includes(`${lines[start] ?? ''}\n`),
+    fix: [fixed.exitCode, shown.stdout.includes('  next: go on\n')],
+  }).toStrictEqual({
+    hiddenLine:
+      '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"',
+    line: '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"',
+    noteWhole: note,
+    noteLineCount: 5,
+    after: false,
+    hiddenAgain: true,
+    fix: [0, true],
+  });
+});
+
+test('it keeps the next step hidden on each read, and shows it after the fix, when now and the change land in the same second', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  await ctx.runFrozen(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.runFrozen(['where', 'wt-dock', 'dock map worktree', '--path', repo.folder]);
+  await ctx.runFrozen(['now', 'wt-dock', 'watch the tree']);
+
+  writeFileSync(join(repo.folder, 'scratch.txt'), 'dirty\n');
+
+  const detecting = await ctx.runFrozen([]);
+  const second = await ctx.runFrozen([]);
+  const fixed = await ctx.runFrozen(['now', 'wt-dock', 'go on']);
+  const shown = await ctx.runFrozen([]);
+
+  const hiddenLine =
+    '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"\n';
+
+  expect([
+    detecting.stdout.includes(hiddenLine),
+    second.stdout.includes(hiddenLine),
+    fixed.exitCode,
+    shown.stdout.includes('  next: go on\n'),
+  ]).toStrictEqual([true, true, 0, true]);
+});
+
+test('it hides the next step of an item whose check reads MERGED, and names that reading', async () => {
+  const ctx = setupTest();
+
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'MERGED' });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
+  await ctx.run(['now', 'pr-api-77', 'request review', '--note', 'Wait for the owner']);
+
+  const brief = await ctx.run([]);
+
+  const lines = brief.stdout.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('NOW'));
+
+  expect(lines.slice(start, start + 3)).toStrictEqual([
+    'NOW  pr-api-77 · set 0m ago · note 0m ago',
+    '  next step hidden: pr-api-77 reads MERGED. Run: www now pr-api-77 "<next step>"',
+    '    Wait for the owner',
+  ]);
+});
+
+test('it prints the next step of an item with no change and no reading of the four', async () => {
+  const ctx = setupTest();
+
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
+  await ctx.run(['now', 'pr-api-77', 'request review']);
+
+  const brief = await ctx.run([]);
+
+  expect(brief.stdout).toInclude('  next: request review\n');
+});
+
+test('it saves nothing and says another write held the lock when the lock is held across the save', async () => {
+  const ctx = setupTest();
+
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
+
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'MERGED' });
+  seedLockFile(ctx.folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
+
+  const before = await ctx.readTree();
+  const brief = await ctx.run([]);
+  const after = await ctx.readTree();
+
+  expect({
+    exitCode: brief.exitCode,
+    secondLine: brief.stdout.split('\n')[1],
+    mergedShown: brief.stdout.includes('[MERGED]'),
+    unchanged: after,
+  }).toStrictEqual({
+    exitCode: 0,
+    secondLine: '  results not saved: another write held the lock',
+    mergedShown: true,
+    unchanged: before,
+  });
+});
+
+test.skipIf(process.getuid?.() === 0)(
+  'it prints the brief and says the store is not writable when the session folder is read-only',
+  async () => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 't-a', 'Watch the process', '--pid', String(process.pid)]);
+
+    chmodSync(ctx.folder, 0o555);
+
+    const brief = await ctx.run([]);
+
+    chmodSync(ctx.folder, 0o755);
+
+    expect({
+      exitCode: brief.exitCode,
+      secondLine: brief.stdout.split('\n')[1],
+      row: brief.stdout.includes('  t-a         Watch the process  [alive]\n'),
+    }).toStrictEqual({
+      exitCode: 0,
+      secondLine: '  results not saved: the store is not writable here',
+      row: true,
+    });
+  },
+);
+
+test('it prints the brief, tags each probe unchecked and names gh missing when no gh is on the PATH', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#1']);
+  await ctx.run(['task', 'pr-b', 'Second', '--pr', 'bosunhq/bosun-api#2']);
+
+  const startedAtMs = performance.now();
+
+  const brief = await ctx.run([]);
+
+  const elapsedMs = performance.now() - startedAtMs;
+
+  expect({
+    exitCode: brief.exitCode,
+    header: brief.stdout.split('\n')[0]?.replace(/ in [0-9.]+s/u, ' in <t>s'),
+    tags: brief.stdout.split('\n').filter((line) => line.endsWith('[unchecked]')).length,
+    isFast: elapsedMs < 6000,
+  }).toStrictEqual({
+    exitCode: 0,
+    header:
+      'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · 2 checks in <t>s · 2 unchecked: gh missing',
+    tags: 2,
+    isFast: true,
+  });
+});
+
+test('it names gh not logged in in the header when gh fails authentication', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#1']);
+
+  seedStubCommand(
+    ctx.bin,
+    'gh',
+    "echo 'To get started with GitHub CLI, please run: gh auth login' >&2\nexit 4",
+  );
+
+  const brief = await ctx.run([]);
+
+  expect([
+    brief.stdout.split('\n')[0]?.replace(/ in [0-9.]+s/u, ' in <t>s'),
+    brief.stdout.includes('  pr-a        First  [unchecked]\n'),
+  ]).toStrictEqual([
+    'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · 1 checks in <t>s · 1 unchecked: gh not logged in',
+    true,
+  ]);
+});
+
+test(
+  'it prints within 6 s when gh never returns, names the timeout and kills what it started',
+  async () => {
+    const ctx = setupTest();
+    const marker = join(ctx.root, 'child-ran-on');
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#1']);
+
+    seedStubCommand(ctx.bin, 'gh', `/bin/sh -c '/bin/sleep 30; echo late > "${marker}"' &\nwait`);
+
+    const startedAtMs = performance.now();
+
+    const brief = await ctx.run([]);
+
+    const elapsedMs = performance.now() - startedAtMs;
+    const children = Bun.spawnSync(['pgrep', '-f', marker]);
+
+    expect({
+      exitCode: brief.exitCode,
+      header: brief.stdout.split('\n')[0]?.replace(/ in [0-9.]+s/u, ' in <t>s'),
+      tag: brief.stdout.includes('  pr-a        First  [unchecked]\n'),
+      isWithinSix: elapsedMs < 6000,
+      children: children.exitCode,
+    }).toStrictEqual({
+      exitCode: 0,
+      header:
+        'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · 1 checks in <t>s · 1 unchecked: timeout',
+      tag: true,
+      isWithinSix: true,
+      children: 1,
+    });
+  },
+  // oxlint-disable-next-line zgeoff/max-test-timeout -- 5.5 s on CI; floor: the brief stops waiting for a probe at its 5 s deadline
+  { timeout: 8000 },
+);
+
+test('it loses neither write that runs while a read probes, and saves the result of the item no write touched', async () => {
+  const ctx = setupTest();
+  const started = join(ctx.root, 'started');
+
+  seedGhAnswers(ctx.bin, {
+    'bosunhq/bosun-api#1': 'OPEN passing',
+    'bosunhq/bosun-api#2': 'OPEN passing',
+  });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#1']);
+  await ctx.run(['task', 'pr-b', 'Second', '--pr', 'bosunhq/bosun-api#2']);
+
+  seedStubCommand(
+    ctx.bin,
+    'gh',
+    `case "$5#$3" in
+  'bosunhq/bosun-api#1') echo go > "${started}"; /bin/sleep 1; printf '%s' '{"state":"MERGED","statusCheckRollup":[]}' ;;
+  *) printf '%s' '{"state":"OPEN","statusCheckRollup":[{"name":"unit","status":"COMPLETED","conclusion":"SUCCESS"}]}' ;;
+esac`,
+  );
+
+  const reading = ctx.run([]);
+
+  await waitFor(() => readFileSync(started));
+
+  const rewrite = await ctx.run(['set', 'pr-a', 'First, rewritten', '--pid', String(process.pid)]);
+  const added = await ctx.run(['task', 't-new', 'Added while the read probed']);
+  const brief = await reading;
+
+  const items = ctx.readItems();
+
+  const changed = await ctx.readChanged();
+
+  expect({
+    exitCodes: [rewrite.exitCode, added.exitCode, brief.exitCode],
+    ids: items.map((item) => item.id),
+    rewritten: [items[0]?.claim, items[0]?.check, items[0]?.atWrite, items[0]?.last],
+    saved: [items[1]?.atWrite, items[1]?.last],
+    changedRows: changed.length,
+  }).toStrictEqual({
+    exitCodes: [0, 0, 0],
+    ids: ['pr-a', 'pr-b', 't-new'],
+    rewritten: ['First, rewritten', `pid:${String(process.pid)}`, 'alive', null],
+    saved: ['OPEN passing', 'OPEN passing'],
+    changedRows: 0,
+  });
+});
+
+test('it runs each fix command of the changed rows as printed in a bound session, and the item leaves the section', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  const folder = join(ctx.root, 'plain-folder');
+  const child = Bun.spawn(['/bin/sleep', '60']);
+
+  onTestFinished(() => {
+    child.kill();
+  });
+
+  mkdirSync(folder);
+
+  await runGit(repo.folder, repo.env, ['branch', 'feature']);
+
+  seedGhAnswers(ctx.bin, {
+    'bosunhq/bosun-api#1': 'OPEN passing',
+    'bosunhq/bosun-api#2': 'OPEN pending',
+    'bosunhq/bosun-api#3': 'OPEN passing',
+  });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-merge', 'Merge it', '--pr', 'bosunhq/bosun-api#1']);
+  await ctx.run(['task', 'pr-closed', 'Close it', '--pr', 'bosunhq/bosun-api#2']);
+  await ctx.run(['task', 'pr-fail', 'Fix it', '--pr', 'bosunhq/bosun-api#3']);
+  await ctx.run(['where', 'w-pid', 'A process', '--pid', String(child.pid)]);
+  await ctx.run(['where', 'w-branch', 'A branch', '--branch', `${repo.folder}@feature`]);
+  await ctx.run(['where', 'w-path', 'A folder', '--path', folder]);
+
+  seedGhAnswers(ctx.bin, {
+    'bosunhq/bosun-api#1': 'MERGED',
+    'bosunhq/bosun-api#2': 'CLOSED',
+    'bosunhq/bosun-api#3': 'OPEN failing',
+  });
+
+  child.kill();
+
+  await child.exited;
+  await runGit(repo.folder, repo.env, ['branch', '-D', 'feature']);
+  await createGitCommit(repo.folder, repo.env, { 'other.txt': 'other\n' });
+
+  await Bun.$`rmdir ${folder}`.quiet();
+
+  const fixes: string[] = [];
+  const exits: number[] = [];
+
+  for (let round = 0; round < 8; round += 1) {
+    const brief = await ctx.run([]);
+
+    const row = brief.stdout.split('\n').find((line) => line.includes(' · run: '));
+
+    if (row === undefined) {
+      break;
+    }
+
+    const command = row.slice(row.indexOf(' · run: ') + ' · run: '.length);
+
+    const words = await readShellWords(command.slice('www '.length));
+
+    const filled = words.map((word) => (word === '<what is true now>' ? 'Fixed again' : word));
+
+    const result = await ctx.run(filled);
+
+    fixes.push(`${filled[0] ?? ''} ${filled[1] ?? ''}`);
+    exits.push(result.exitCode);
+  }
+
+  const last = await ctx.run([]);
+
+  expect({
+    fixes: fixes.toSorted(),
+    exits,
+    leftChanged: last.stdout.includes('CHANGED SINCE WRITTEN'),
+  }).toStrictEqual({
+    fixes: [
+      'done pr-merge',
+      'drop pr-closed',
+      'drop w-branch',
+      'drop w-path',
+      'drop w-pid',
+      'set pr-fail',
+    ],
+    exits: [0, 0, 0, 0, 0, 0],
+    leftChanged: false,
+  });
+});

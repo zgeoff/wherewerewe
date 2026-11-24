@@ -1,4 +1,5 @@
 import { isSessionName } from '../rules/is-session-name.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 
@@ -17,7 +18,7 @@ export function pickInitArgsRefusal(args: ParsedArgs): RefusalReason | null {
 
   return pickTextRefusal(
     args,
-    [{ target: { label: 'goal', place: { flag: 'goal' } }, text: goal, limit: 200 }],
+    [{ target: { label: 'goal', place: { flag: 'goal' } }, text: goal, limit: textLimits.goal }],
     false,
   );
 }

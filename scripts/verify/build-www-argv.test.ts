@@ -4,7 +4,7 @@ import { buildWWWArgv } from './build-www-argv.ts';
 test('it runs www with the agent session variables unset and HOME and XDG_STATE_HOME inside the run folder', () => {
   const argv = buildWWWArgv('/runs/r-1', ['help']);
 
-  expect(argv.slice(0, 12)).toStrictEqual([
+  expect(argv.slice(0, 13)).toStrictEqual([
     'env',
     '-u',
     'CLAUDE_CODE_SESSION_ID',
@@ -16,7 +16,8 @@ test('it runs www with the agent session variables unset and HOME and XDG_STATE_
     'WHEREWEREWE_SESSION',
     'HOME=/runs/r-1/home',
     'XDG_STATE_HOME=/runs/r-1/state',
-    'bun',
+    'PATH=/runs/r-1/bin',
+    process.execPath,
   ]);
 
   expect(argv.at(-2)?.endsWith('packages/cli/src/cli.ts')).toBe(true);

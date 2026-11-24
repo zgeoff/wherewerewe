@@ -44,6 +44,8 @@ test('it reads the session and its items', async () => {
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });
@@ -110,6 +112,8 @@ test('it reports a broken items file with its line, and the store as far as it r
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });
@@ -136,6 +140,8 @@ test('it reports a missing items file with the session and no items', async () =
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });
@@ -168,6 +174,8 @@ test('it reads the owner notes oldest first', async () => {
       ],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });
@@ -191,6 +199,8 @@ test('it reads a store with no owner file as holding no notes', async () => {
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });
@@ -218,6 +228,8 @@ test('it reads a broken owner file as a store with the notes that parse and the 
       ownerNotes: [{ id: 'o-1', text: 'Ask me first', said: '2026-03-10T11:00:00Z', on: null }],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: {
         file: 'owner.tsv',
         line: 3,
@@ -525,4 +537,83 @@ test('it shows an item and prints the log from the notes that parse, and names t
       stderr: `${named}This read leaves out what it could not read. Fix the file by hand.\n`,
     },
   });
+});
+
+test('it reads the rows of prs.tsv, and no rows when the file is missing', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+
+  seedStoreFile(
+    ctx.folder,
+    'prs.tsv',
+    'ref\topened\tstate\tseen\nbosunhq/bosun-app#64\t2026-03-10T08:41:30Z\tOPEN\t2026-03-10T11:43:04Z\n',
+  );
+
+  const withRows = await readStore(ctx.folder);
+
+  rmSync(join(ctx.folder, 'prs.tsv'));
+
+  const withNoFile = await readStore(ctx.folder);
+
+  expect([
+    withRows.kind === 'store' && withRows.store.prs,
+    withNoFile.kind === 'store' && [withNoFile.store.prs, withNoFile.store.prsUnread],
+  ]).toStrictEqual([
+    [
+      {
+        ref: 'bosunhq/bosun-app#64',
+        opened: '2026-03-10T08:41:30Z',
+        state: 'OPEN',
+        seen: '2026-03-10T11:43:04Z',
+      },
+    ],
+    [[], null],
+  ]);
+});
+
+test('it leaves a row of prs.tsv that does not parse out, and names it, and the brief says so on stderr', async () => {
+  const ctx = setupTest();
+
+  const folder = await seedSessionStore(join(ctx.root, 'wherewerewe'), 'tide-alerts');
+
+  seedStoreFile(
+    folder,
+    'prs.tsv',
+    'ref\topened\tstate\tseen\nbosunhq/bosun-app#64\t2026-03-10T08:41:30Z\tOPEN\t-\nbroken row\n',
+  );
+
+  const read = await readStore(folder);
+  const brief = await ctx.runAsAgent([]);
+
+  expect([
+    read.kind === 'store' && [read.store.prs.length, read.store.prsUnread],
+    brief.stderr,
+  ]).toStrictEqual([
+    [
+      1,
+      {
+        file: 'prs.tsv',
+        line: 3,
+        reason: 'expected 4 tab-separated columns, found 1',
+      },
+    ],
+    "www: tide-alerts's prs.tsv line 3 does not parse: expected 4 tab-separated columns, found 1. The brief leaves out what it could not read. Fix the file by hand.\n",
+  ]);
+});
+
+test('it leaves prs.tsv unopened when the options say so, and reads no rows of it', async () => {
+  const ctx = setupTest();
+
+  const folder = await seedSessionStore(join(ctx.root, 'wherewerewe'), 'tide-alerts');
+
+  seedStoreFile(
+    folder,
+    'prs.tsv',
+    'ref\topened\tstate\tseen\nbosunhq/bosun-app#64\t2026-03-10T08:41:30Z\tOPEN\t-\nbroken row\n',
+  );
+
+  const read = await readStore(folder, { isPrsRead: false });
+
+  expect(read.kind === 'store' && [read.store.prs, read.store.prsUnread]).toStrictEqual([[], null]);
 });

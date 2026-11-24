@@ -15,8 +15,9 @@ Notes for one long agent session: what is true now, in a brief an agent can read
 
 A coding agent that works in one session for days loses its context at each compaction. This package
 installs `www`, the command that agent uses to keep short notes on what is true now, and to read
-them back as one brief. It also installs the same command as `wherewerewe`. The brief runs no check,
-so it shows what the agent wrote, with its age.
+them back as one brief. It also installs the same command as `wherewerewe`. Each read checks the
+pull requests, branches, paths and processes in your notes, and marks each claim that is no longer
+true.
 
 ## Install
 
@@ -29,7 +30,8 @@ www --help
 
 ## Features
 
-- `www` prints the brief.
+- `www` prints the brief, with a live check of each pull request, branch, path and process an item
+  names.
 - `www help` (the same as `www --help`) prints the commands, and `www sessions` prints the sessions
   on this machine.
 - `www init`, `attach` and `detach` start a session and bind an agent session to it.

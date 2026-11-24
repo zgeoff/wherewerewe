@@ -465,6 +465,7 @@ test('it counts only the agent and owner rows as writes', () => {
       buildMockJournalRow({ ...row, by: 'owner' }),
       buildMockJournalRow({ ...row, by: 'hook' }),
       buildMockJournalRow({ ...row, by: 'import' }),
+      buildMockJournalRow({ ...row, op: 'changed', by: 'agent' }),
     ],
   });
 

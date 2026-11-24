@@ -1,8 +1,11 @@
 import { expect, test } from 'bun:test';
+import { createTempDir } from '@zgeoff/testing/fs';
 import { buildOwnerPrograms } from './build-owner-programs.ts';
 
 test('it names the five programs of the owner-notes journey', () => {
-  expect(Object.keys(buildOwnerPrograms('/runs/r-1'))).toStrictEqual([
+  const programs = buildOwnerPrograms(createTempDir('owner-programs').path);
+
+  expect(Object.keys(programs)).toStrictEqual([
     'say-as-agent',
     'say-first',
     'say-second',
@@ -34,7 +37,7 @@ test.each([
   },
   { name: 'ack-first', tail: ['ack', 'o-1'], isAgent: false },
 ])('it runs $name as www in trial-owner, with CODEX_CI set only for the agent', (row) => {
-  const command = buildOwnerPrograms('/runs/r-1')[row.name]?.command ?? [];
+  const command = buildOwnerPrograms(createTempDir('owner-programs').path)[row.name]?.command ?? [];
 
   expect({
     tail: command.slice(-row.tail.length - 2),
