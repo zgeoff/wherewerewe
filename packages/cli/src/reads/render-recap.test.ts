@@ -477,7 +477,7 @@ test('it prints a credential that crosses column 100 as the placeholder, with no
   expect({
     printed,
     leaked: lines.filter((line) => /xox|12345/u.test(line)),
-    widths: printed.map((line) => [...line].length),
+    widths: printed.map((line) => line.split(/(?:)/u).length),
   }).toStrictEqual({
     printed: [`  t-a         ${'c'.repeat(80)} <whe…`, `  d-1  ${'c'.repeat(80)} <where the …`],
     leaked: [],
@@ -600,8 +600,8 @@ test('it renders the worst case in 55 lines, each at most 100 characters, and at
   expect({
     header: lines[0],
     lines: lines.length,
-    widest: Math.max(...lines.map((line) => [...line].length)),
-    isWithinLimit: [...text].length <= 5555,
+    widest: Math.max(...lines.map((line) => line.split(/(?:)/u).length)),
+    isWithinLimit: text.split(/(?:)/u).length <= 5555,
   }).toStrictEqual({
     header: `${name} · day 999 · recap since day 999 00:00Z (day-999) · 1018 writes`,
     lines: 55,

@@ -1739,7 +1739,7 @@ test('it prints a credential that crosses column 100 as the placeholder with no 
     exitCode: result.exitCode,
     cut: lines.filter((line) => line.includes('c'.repeat(75))),
     leaked: lines.filter((line) => /xox|12345|use </u.test(line)),
-    widest: Math.max(...lines.map((line) => [...line].length)),
+    widest: Math.max(...lines.map((line) => line.split(/(?:)/u).length)),
     stderr: result.stderr,
   }).toStrictEqual({
     exitCode: 0,

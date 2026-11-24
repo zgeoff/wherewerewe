@@ -70,7 +70,7 @@ test('it renders the worst-case grant in 23 lines of at most 100 characters', ()
 
   expect({
     count: lines.length,
-    widest: Math.max(...lines.map((line) => [...line].length)),
+    widest: Math.max(...lines.map((line) => line.split(/(?:)/u).length)),
   }).toStrictEqual({ count: 23, widest: 100 });
 });
 

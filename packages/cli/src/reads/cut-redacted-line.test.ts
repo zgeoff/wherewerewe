@@ -4,7 +4,7 @@ import { cutRedactedLine } from './cut-redacted-line.ts';
 test('it cuts to 100 code points a line whose cut makes the bare name of a pattern a match at the end', () => {
   const cut = cutRedactedLine(`${'p'.repeat(93)} xoxb- and more words`);
 
-  expect({ cut, width: [...cut].length }).toStrictEqual({
+  expect({ cut, width: cut.split(/(?:)/u).length }).toStrictEqual({
     cut: `${'p'.repeat(93)} <wher…`,
     width: 100,
   });
