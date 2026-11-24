@@ -21,9 +21,10 @@ flowchart LR
 
 ```ts
 // checks module
-const results = await runChecks(items, prs, { deadlineMs: 5000 });
-// → Map { 'pr-api-77' => 'OPEN failing', 'p-sim' => 'gone', 'bosunhq/bosun-app#64' => 'OPEN pending' }
-//   plus { ran: 7, unchecked: 0, reason: null, elapsedMs: 2810 }
+// order: the item ids in the order the brief prints them; env: the PATH that finds gh and git
+const run = await runChecks(order, items, prs, { deadlineMs: checkLimits.deadlineMs, env, now });
+// → { results: Map { 'pr-api-77' => 'OPEN failing', 'p-sim' => 'gone', 'bosunhq/bosun-app#64' => 'OPEN pending', … },
+//     ran: 7, unchecked: 0, reason: null, elapsedMs: 2810 }
 
 type CheckResult = string; // one of the values in the table below; at most 15 characters. `show` also gets the names of the failing checks beside an `OPEN failing` result
 
@@ -47,7 +48,7 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 
 ## Constraints
 
-- All probes of one read run in parallel, at most 8 at once, and the read stops waiting at 5 s. A probe still running then reads `unchecked`, and its process is killed. The read starts them in the order the brief prints rows: the item in focus, the task rows that fit, the waits, the where items and the pull request rows, then the tasks the brief leaves out. A probe the deadline stops before it starts reads `unchecked`, as one still running does.
+- All probes of one read run in parallel, at most 8 at once, and the read stops waiting at 5 s. A probe still running then reads `unchecked`, and its process is killed. The read starts them in the order the brief prints rows: the item in focus, the task rows that fit, the waits, the where items and the pull request rows, then the tasks the brief leaves out. A probe the deadline stops before it starts reads `unchecked`, as one still running does. After the deadline no probe starts a command, even a `path` probe whose stat returns late.
 - Each probe runs with `GH_PROMPT_DISABLED=1`, `GIT_TERMINAL_PROMPT=0` and stdin closed, so it can never wait for input.
 - A probe never writes: no `git fetch`, no lazy fetch (`GIT_ALLOW_PROTOCOL=none`), no index refresh (`--no-optional-locks`), no fsmonitor helper (`core.fsmonitor=false`), no `gh` call other than `pr view`, and no write to a repo or to GitHub.
 - A `branch` probe reads `no upstream` only when git says the branch has none. Any other failure of the comparison reads `unchecked`.

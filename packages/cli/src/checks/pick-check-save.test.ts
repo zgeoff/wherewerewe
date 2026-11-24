@@ -6,13 +6,6 @@ import type { CheckRun } from './types.ts';
 
 function setupTest() {
   return {
-    buildRun: (results: Record<string, string>): CheckRun => ({
-      results: new Map(Object.entries(results)),
-      ran: Object.keys(results).length,
-      unchecked: 0,
-      reason: null,
-      elapsedMs: 100,
-    }),
     pickSave: (
       probed: Parameters<typeof pickCheckSave>[0]['probed'],
       results: Record<string, string>,
@@ -22,7 +15,13 @@ function setupTest() {
         probed,
         items: fields.items ?? probed,
         prs: fields.prs ?? [],
-        run: setupTest().buildRun(results),
+        run: {
+          results: new Map(Object.entries(results)),
+          ran: Object.keys(results).length,
+          unchecked: 0,
+          reason: null,
+          elapsedMs: 100,
+        } satisfies CheckRun,
         ts: '2026-03-10T11:43:00Z',
       }),
   };

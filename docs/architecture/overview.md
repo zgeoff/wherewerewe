@@ -195,15 +195,17 @@ bullets share a line. Only the note of the item in focus prints, and every item 
 tagged `owed`. The goal, each grant bullet, the reading and the note wrap at 100 columns by the rule
 in the brief design, at most 3 changed rows and 1 pull request row show, and the footer is one line.
 
-Each read probes each check, and each open pull request in `prs.tsv` that no item names, in
-parallel, within a deadline. It marks each claim whose result differs from its `at_write`, prints
-the command that fixes it, and saves `last`, `changed` rows and `prs.tsv` states only when it takes
-the lock at once. A probe that gets no answer reads `unchecked`, and the item shows its saved
-result, or `not checked yet` when none is saved. A task or where item with no check reads
-`no check · <age>`, and a wait with no check reads `<who> · <age>`. A blocked task reads
-`blocked by <id>` while that id is open, followed by ` · <result>` when it has a check. When a row
-of `items.tsv` does not parse, `www` still prints the rows that do, and names the broken row on
-stderr. See [the brief design](../design/wherewerewe/brief.md) for the layout.
+Each read probes each check, and each open pull request in `prs.tsv` that no item names, at most 8
+at once, and stops waiting at the deadline that [the check design](../design/wherewerewe/checks.md)
+sets. After the deadline, no probe starts a command. It marks each claim whose result differs from
+its `at_write`, prints the command that fixes it, and saves `last`, `changed` rows and `prs.tsv`
+states only when it takes the lock at once. A probe that gets no answer, or that the deadline stops,
+reads `unchecked`, and the item's tag shows `unchecked`. A write's reply probes nothing, so its
+brief's tags show each item's saved result, or `not checked yet` when none is saved. A task or where
+item with no check reads `no check · <age>`, and a wait with no check reads `<who> · <age>`. A
+blocked task reads `blocked by <id>` while that id is open, followed by ` · <result>` when it has a
+check. When a row of `items.tsv` does not parse, `www` still prints the rows that do, and names the
+broken row on stderr. See [the brief design](../design/wherewerewe/brief.md) for the layout.
 
 ## Checks
 
