@@ -3,9 +3,9 @@
 Check that a format 1 store upgrades to format 2 with the owner's words as its grant, in bullets
 under `may`, `not` and `never`, and that the grant can be read and replaced. A user whose store
 holds two standing approvals runs `www import <session>`, is refused, runs the command with the
-owner's words as bullets, and reads the grant in the brief and in `show`. The journey runs the real
-`www` as a process, with its home and state folders inside the run's folder under `.wringer/`, so it
-never touches your own stores. `seed-format-1` copies an invented format 1 store into the run as the
+owner's words as bullets, and reads the grant in the brief and in `show`. The real `www` runs as a
+process, with its home and state folders inside the run's folder under `.wringer/`, so it never
+touches your own stores. `seed-format-1` copies an invented format 1 store into the run as the
 session `trial-grant`.
 
 ## Journey

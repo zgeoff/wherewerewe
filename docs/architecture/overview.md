@@ -75,11 +75,11 @@ is spent. `use` spends it: it leaves `items.tsv` and stays in the journal with w
 with it. `ok --standing` is refused, because lasting permission lives in the grant.
 
 `grant` sets the owner's words as bullets, one `--may`, `--not` or `--never` flag per bullet, with
-an optional `--scope`, where the owner gave them and the agent's reading of what they cover, or with
-`--reading` alone replaces only the reading. Any shell can run it, and its journal row has
-`by=owner` when the terminal test of the owner notes passes and `by=agent` otherwise. A bullet takes
-120 characters once each line break becomes a space, the scope 40, and the bullets and scope
-together 700 in at most 12 bullets; the reading takes 200 and `--where` 16.
+an optional `--scope`, `--where` for where the owner gave them and `--reading` for the agent's
+reading of what they cover. `--reading` alone replaces the reading. Any shell can run it, and its
+journal row has `by=owner` when the terminal test of the owner notes passes and `by=agent`
+otherwise. A bullet takes 120 characters once each line break becomes a space, the scope 40, and the
+bullets and scope together 700 in at most 12 bullets; the reading takes 200 and `--where` 16.
 
 `decide` writes a decision, or with `--ruled-out` an approach that lost, as a journal row and no
 item. The tool numbers it `d-<n>`, one past the highest decision in the journal. A decision made by
@@ -157,15 +157,16 @@ like a credential.
 
 `www import <session>` on a store whose `session` file says `format=1` upgrades it to format 2 in
 place, under the same locks. It refuses, and changes nothing, when the store holds a standing
-approval and the command has no `--may`, more than one one-time approval, or an item with the id
-`grant`, and one refusal holds every problem it finds with one `Run:` line. A standing approval
-folds into the grant that the grant's flags give, and `--drop` repeats once for each item that goes.
-The upgrade copies the format 1 files into `format-1-backup/` through a temporary folder and a
-rename, writes `journal.tsv`, `items.tsv`, `notes.tsv` and `session` in that order, and binds the
-agent last. A stop before the backup's rename leaves the format 1 store as it was, with no
-`format-1-backup/`, and a rerun reads the live files. A later stop leaves `session` at `format=1`
-with a whole backup, which a rerun reads in place of the live files, or at `format=2` with every
-file written. See [the store design](../design/wherewerewe/store.md) for the conversion table.
+approval and the command has no `--may`, when it holds more than one one-time approval, or when it
+holds an item with the id `grant`. One refusal holds every problem it finds with one `Run:` line. A
+standing approval folds into the grant that the grant's flags give, and `--drop` repeats once for
+each item that goes. The upgrade copies the format 1 files into `format-1-backup/` through a
+temporary folder and a rename, writes `journal.tsv`, `items.tsv`, `notes.tsv` and `session` in that
+order, and binds the agent last. A stop before the backup's rename leaves the format 1 store as it
+was, with no `format-1-backup/`, and a rerun reads the live files. A later stop leaves `session` at
+`format=1` with a whole backup, which a rerun reads in place of the live files, or at `format=2`
+with every file written. See [the store design](../design/wherewerewe/store.md) for the conversion
+table.
 
 ## The brief
 

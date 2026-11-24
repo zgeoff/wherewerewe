@@ -5,7 +5,7 @@
 
 One coding agent session runs for about two weeks and is compacted many times. Its Markdown notes file rots: the agent appends below a stale top until the file is too long to read back, and by day 9 it stops keeping notes at all. `wherewerewe` (typed as `www`) replaces the file with a store that holds one short line per thing that is true now, with an optional note of detail on each, and the owner's grant in the owner's words. It prints the whole state in at most 73 lines with live checks of each pull request, branch, path and process the lines name, and puts that brief back in the agent's context after every compaction through a hook in Claude Code and in Codex.
 
-The goal: after any compaction on any day, the agent reads one bounded brief whose stale claims are marked before it acts, and writing a note costs one short command.
+The goal is that after any compaction on any day, the agent reads one bounded brief whose stale claims are marked before it acts, and writing a note costs one short command.
 
 The owner reads this set once and signs off the whole design. A build agent starts at [build-order.md](build-order.md), takes the next slice, and reads the part docs that slice names. When a slice changes a contract, it changes the part doc in the same pull request.
 
