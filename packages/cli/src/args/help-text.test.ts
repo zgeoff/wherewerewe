@@ -59,5 +59,9 @@ test('it keeps each line of the Limits text within 100 characters', () => {
   const start = lines.findIndex((line) => line.startsWith('Limits:'));
   const end = lines.findIndex((line) => line.startsWith('Exit codes:'));
 
-  expect(lines.slice(start, end).filter((line) => [...line].length > 100)).toStrictEqual([]);
+  expect(
+    lines
+      .slice(start, end)
+      .filter((line) => Array.from(line, (character) => character).length > 100),
+  ).toStrictEqual([]);
 });

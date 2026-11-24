@@ -173,7 +173,9 @@ test('it gives git only what is left of the probe timeout after a slow stat', as
       return Promise.resolve({ kind: 'timeout' });
     },
     async () => {
-      await waitFor(() => expect(performance.now() - startMs).toBeGreaterThanOrEqual(1100));
+      await waitFor(() => {
+        expect(performance.now() - startMs).toBeGreaterThanOrEqual(1100);
+      });
 
       return { isDirectory: () => true };
     },

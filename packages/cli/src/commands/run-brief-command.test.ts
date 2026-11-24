@@ -112,7 +112,7 @@ test.each([
     stdout: result.stdout,
     stderr: result.stderr,
     lines: countBriefLines(result.stdout),
-    characters: [...result.stdout].length,
+    characters: Array.from(result.stdout, (character) => character).length,
   }).toStrictEqual({
     exitCode: 0,
     stdout: ctx.readDayNine(),

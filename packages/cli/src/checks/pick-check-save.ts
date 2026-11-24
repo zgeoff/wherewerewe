@@ -99,9 +99,13 @@ function isSameItem(probed: Item, item: Item): boolean {
     probed.last === item.last &&
     probed.written === item.written &&
     probed.by === item.by &&
-    JSON.stringify(Object.entries(probed.extra).toSorted()) ===
-      JSON.stringify(Object.entries(item.extra).toSorted())
+    JSON.stringify(Object.entries(probed.extra).toSorted(compareEntries)) ===
+      JSON.stringify(Object.entries(item.extra).toSorted(compareEntries))
   );
+}
+
+function compareEntries(left: [string, string], right: [string, string]): number {
+  return left[0].localeCompare(right[0]);
 }
 
 function pickState(result: string | undefined): PullRequestRow['state'] {

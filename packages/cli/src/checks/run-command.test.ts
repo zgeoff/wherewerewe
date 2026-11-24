@@ -147,8 +147,13 @@ await runCommand(['gh'], { env: { PATH: ${JSON.stringify(ctx.folder)} }, timeout
     cli.kill('SIGKILL');
   });
 
-  await waitFor(() => expect(existsSync(childPidFile)).toBe(true));
-  await waitFor(() => expect(readFileSync(childPidFile, 'utf8')).toEndWith('\n'));
+  await waitFor(() => {
+    expect(existsSync(childPidFile)).toBe(true);
+  });
+
+  await waitFor(() => {
+    expect(readFileSync(childPidFile, 'utf8')).toEndWith('\n');
+  });
 
   const pids = [pidFile, childPidFile].map((file) => Number(readFileSync(file, 'utf8')));
 

@@ -173,7 +173,9 @@ test('it holds no lock while a probe runs, so a second write replies first and b
 
   const slow = runTracked('slow', ['task', 't-a', 'Write it', '--pr', 'bosunhq/bosun-api#1']);
 
-  await waitFor(() => expect(existsSync(started)).toBe(true));
+  await waitFor(() => {
+    expect(existsSync(started)).toBe(true);
+  });
 
   const quick = await runTracked('quick', ['task', 't-b', 'Draw it']);
   const first = await slow;

@@ -945,7 +945,10 @@ test('it cuts the line of a failing check name of 300 characters to 100', () => 
 
   const row = text.split('\n').find((line) => line.startsWith('  checked now')) ?? '';
 
-  expect([[...row].length, row.endsWith('…')]).toStrictEqual([100, true]);
+  expect([Array.from(row, (character) => character).length, row.endsWith('…')]).toStrictEqual([
+    100,
+    true,
+  ]);
 });
 
 test('it prints no names after a result that is not OPEN failing', () => {

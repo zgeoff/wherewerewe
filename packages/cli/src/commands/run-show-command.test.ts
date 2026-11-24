@@ -92,7 +92,10 @@ test('it cuts the line of a failing check name of 300 characters to 100 characte
 
   const row = shown.stdout.split('\n').find((line) => line.startsWith('  checked now')) ?? '';
 
-  expect([[...row].length, row.endsWith('…')]).toStrictEqual([100, true]);
+  expect([Array.from(row, (character) => character).length, row.endsWith('…')]).toStrictEqual([
+    100,
+    true,
+  ]);
 });
 
 test('it lists every open task with its saved result and probes nothing', async () => {

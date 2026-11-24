@@ -101,9 +101,17 @@ export function runCommand(
       forgetLive();
     };
 
-    child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
-    child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk));
-    child.on('error', () => finish({ kind: 'missing' }));
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout.push(chunk);
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr.push(chunk);
+    });
+
+    child.on('error', () => {
+      finish({ kind: 'missing' });
+    });
 
     child.on('close', (code) => {
       finish({

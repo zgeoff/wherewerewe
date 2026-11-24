@@ -140,9 +140,13 @@ test('it appends the journal before it rewrites items.tsv, and rewrites items.ts
   rmSync(itemsPath);
   mkdirSync(join(itemsPath, 'inside'), { recursive: true });
 
-  await expect(writeCheckFiles(ctx.folder, save)).rejects.toThrow();
+  const itemsFailed = await writeCheckFiles(ctx.folder, save).then(
+    () => false,
+    () => true,
+  );
 
   const afterItemsFailed = {
+    rejected: itemsFailed,
     journal: readFileSync(join(ctx.folder, 'journal.tsv'), 'utf8').includes('alive -> gone'),
     prs: readFileSync(join(ctx.folder, 'prs.tsv'), 'utf8') !== prsBefore,
   };
@@ -153,15 +157,19 @@ test('it appends the journal before it rewrites items.tsv, and rewrites items.ts
   rmSync(join(ctx.folder, 'prs.tsv'));
   mkdirSync(join(ctx.folder, 'prs.tsv', 'inside'), { recursive: true });
 
-  await expect(writeCheckFiles(ctx.folder, save)).rejects.toThrow();
+  const prsFailed = await writeCheckFiles(ctx.folder, save).then(
+    () => false,
+    () => true,
+  );
 
   const afterPrsFailed = {
+    rejected: prsFailed,
     journal: existsSync(join(ctx.folder, 'journal.tsv')),
     items: readFileSync(itemsPath, 'utf8').includes('\tgone\t'),
   };
 
   expect([afterItemsFailed, afterPrsFailed]).toStrictEqual([
-    { journal: true, prs: false },
-    { journal: true, items: true },
+    { rejected: true, journal: true, prs: false },
+    { rejected: true, journal: true, items: true },
   ]);
 });

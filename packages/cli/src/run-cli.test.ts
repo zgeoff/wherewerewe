@@ -2765,7 +2765,7 @@ test.each([
       exitCode: result.exitCode,
       last: /Brief: \d+ lines\.$/u.test(lines.at(-1) ?? ''),
       statusLines: lines.filter((line) => /Brief: \d+ lines\.$/u.test(line)).length,
-      firstIsNote: lines[0]?.startsWith('    ') || (lines[0] ?? '').startsWith('  its note'),
+      firstIsNote: (lines[0] ?? '').startsWith('    ') || (lines[0] ?? '').startsWith('  its note'),
     }).toStrictEqual({ exitCode: 0, last: true, statusLines: 1, firstIsNote: true });
   },
 );
