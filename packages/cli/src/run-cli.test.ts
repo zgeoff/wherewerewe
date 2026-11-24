@@ -846,7 +846,7 @@ test('it replaces an open item of the same kind in place, keeping its row and re
   const brief = await ctx.run([]);
 
   expect(brief.stdout.split('\n').slice(4, 8)).toStrictEqual([
-    'OPEN (2 of 6)',
+    'OPEN (2 of 30)',
     '  t-a         First claim, written again  [no check · 0m]',
     '  t-b         Second claim  [no check · 0m]',
     'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
@@ -1506,7 +1506,7 @@ test('it leaves an item open with no note when a task with a note stops after it
         'GOAL  Ship it',
         `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"`,
         'NOW  none. Run: www now <id> "<next step>"',
-        'OPEN (1 of 6)',
+        'OPEN (1 of 30)',
         '  t-a         Write it  [no check · 0m]',
         'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
         '',

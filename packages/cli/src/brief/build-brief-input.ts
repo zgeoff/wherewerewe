@@ -2,7 +2,12 @@ import type { Store } from '../types.ts';
 import type { BriefInput } from './types.ts';
 
 // What the CLI passes in this slice: no changed rows or pull requests, and no check run.
-export function buildBriefInput(store: Store, nowMs: number): BriefInput {
+export function buildBriefInput(
+  store: Store,
+  nowMs: number,
+  sessionFlag: string | null,
+  host: 'claude' | 'codex' | null,
+): BriefInput {
   const checkCount = store.items.filter((item) => item.check !== null).length;
 
   return {
@@ -15,5 +20,7 @@ export function buildBriefInput(store: Store, nowMs: number): BriefInput {
     checks: checkCount === 0 ? { kind: 'none' } : { kind: 'not-run', count: checkCount },
     resultsNotSaved: null,
     nowMs,
+    sessionFlag,
+    host,
   };
 }

@@ -364,7 +364,7 @@ function buildCredentialRun(found: Found<'credential'>): RunWord[] {
 
 const capWords = {
   ok: { cap: 1, plural: 'one-time approvals' },
-  task: { cap: 6, plural: 'tasks' },
+  task: { cap: 30, plural: 'tasks' },
   wait: { cap: 4, plural: 'waits' },
   rule: { cap: 5, plural: 'rules' },
   where: { cap: 4, plural: 'where items' },
@@ -391,7 +391,7 @@ function buildKindFull(found: Found<'kind-full'>): Refusal {
       : 'Close one, or replace one with www set.';
 
   return refuse(
-    `www: refused: the brief holds ${String(cap)} of ${String(cap)} ${plural}. ${advice}`,
+    `www: refused: the session holds ${String(cap)} of ${String(cap)} ${plural}. ${advice}`,
     argv,
   );
 }

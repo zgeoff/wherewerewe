@@ -14,5 +14,7 @@ test('it lays the named fields over an empty brief input', () => {
     checks: { kind: 'not-run', count: 2 },
     resultsNotSaved: null,
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    sessionFlag: null,
+    host: null,
   });
 });

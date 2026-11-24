@@ -25,6 +25,8 @@ export function buildMockBriefInput(fields: Partial<BriefInput>): BriefInput {
     checks: { kind: 'none' },
     resultsNotSaved: null,
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    sessionFlag: null,
+    host: null,
     ...fields,
   };
 }

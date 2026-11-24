@@ -1,38 +1,45 @@
 import { match } from 'ts-pattern';
-import { canBlock } from '../rules/can-block.ts';
 import type { Item, Note } from '../types.ts';
+import { buildItemSections } from './build-item-sections.ts';
+import { collectChangedIDs } from './collect-changed-ids.ts';
 import { formatAge } from './format-age.ts';
 import { formatGoalLines } from './format-goal-lines.ts';
 import { getSessionDay } from './get-session-day.ts';
+import { orderTasks } from './order-tasks.ts';
 import { padID } from './pad-id.ts';
+import { pickBriefBudget } from './pick-brief-budget.ts';
+import type { BriefBudget } from './pick-brief-budget.ts';
 import { pickFixCommand } from './pick-fix-command.ts';
 import { renderGrantLines } from './render-grant-lines.ts';
-import type { BriefInput } from './types.ts';
+import type { BriefInput, ItemLine, ItemSection } from './types.ts';
 import { wrapBlock } from './wrap-block.ts';
 
-const maxCharacters = 7200;
-const maxLines = 73;
-
-// Renders every section of the brief in its order. When the text passes 7,200 characters or 73
-// lines, it drops item lines from the bottom up and says so. The header, goal, grant, owner notes,
-// changed rows, the note under NOW and the footer are never cut.
+// Renders every section of the brief in its order. OPEN prints the tasks that fit the host's budget
+// and counts the rest. A brief still over the budget loses item lines from the bottom up, and says
+// so; the item in focus and everything outside the item sections are never cut.
 export function renderBrief(input: BriefInput): string {
-  const sections = buildItemSections(input);
+  const budget = pickBriefBudget(input.host);
+  const ordered = orderOpenTasks(input);
+  const shown = pickShownCount(input, ordered, budget);
+  const sections = buildItemSections(input, ordered, shown);
   const cutOrder = [5, 4, 3, 2, 1, 0];
-  const cuts: number[] = sections.map(() => 0);
+  const cuts: boolean[][] = sections.map((section) => section.lines.map(() => false));
   let cutCount = 0;
   let text = joinBrief(input, sections, cuts, cutCount);
 
-  while (countCharacters(text) > maxCharacters || countLines(text) > maxLines) {
-    const target = cutOrder.find(
-      (index) => (sections[index]?.lines.length ?? 0) > (cuts[index] ?? 0),
-    );
+  while (isOver(text, budget)) {
+    const target = findCutTarget(input, sections, cuts, cutOrder);
 
-    if (target === undefined) {
+    if (target === null) {
       break;
     }
 
-    cuts[target] = (cuts[target] ?? 0) + 1;
+    const row = cuts[target.section];
+
+    if (row !== undefined) {
+      row[target.line] = true;
+    }
+
     cutCount += 1;
     text = joinBrief(input, sections, cuts, cutCount);
   }
@@ -40,135 +47,59 @@ export function renderBrief(input: BriefInput): string {
   return text;
 }
 
-interface ItemSection {
-  readonly heading: string;
-  readonly lines: readonly string[];
+// The ids of the task rows the brief prints before any cut, in order.
+export function pickPrintedTaskIDs(input: BriefInput): string[] {
+  const ordered = orderOpenTasks(input);
+
+  return ordered
+    .slice(0, pickShownCount(input, ordered, pickBriefBudget(input.host)))
+    .map((item) => item.id);
 }
 
-// The sections in the order of the brief: tasks, waits, approvals, rules, where items, then the
-// pull requests that no item names. A section with no lines is left out when it joins the brief.
-function buildItemSections(input: BriefInput): ItemSection[] {
-  const items = input.items;
-  const nowMs = input.nowMs;
-  const focus = input.session.now;
-  const ofKind = (kind: Item['kind']): Item[] => items.filter((item) => item.kind === kind);
-
-  const isOwed = (item: Item): boolean =>
-    input.notes.some((note) => note.id === item.id && note.owed);
-
-  const tasks = [
-    ...ofKind('task').filter((item) => item.id === focus),
-    ...ofKind('task').filter((item) => item.id !== focus),
-  ];
-
-  const waits = ofKind('wait');
-  const approvals = ofKind('ok');
-  const rules = ofKind('rule');
-  const whereItems = ofKind('where');
-
-  return [
-    {
-      heading: `OPEN (${String(tasks.length)} of 6)`,
-      lines: tasks.map((item) =>
-        itemLine(item, withOwed(formatTaskTag(item, items, nowMs), isOwed(item))),
-      ),
-    },
-    {
-      heading: `WAITING (${String(waits.length)} of 4)`,
-      lines: waits.map((item) =>
-        itemLine(item, withOwed(formatWaitTag(item, nowMs), isOwed(item))),
-      ),
-    },
-    {
-      heading: `APPROVED ONCE (${String(approvals.length)} of 1)`,
-      lines: approvals.map(
-        (item) =>
-          `  ${padID(item.id)}"${item.claim}" · ${item.extra.scope ?? ''}${isOwed(item) ? '  [owed]' : ''}`,
-      ),
-    },
-    {
-      heading: `RULES (${String(rules.length)} of 5)`,
-      lines: rules.map((item) => `${itemLine(item, null)}${isOwed(item) ? '  [owed]' : ''}`),
-    },
-    {
-      heading: `WHERE (${String(whereItems.length)} of 4)`,
-      lines: whereItems.map((item) =>
-        itemLine(item, withOwed(formatWhereTag(item, nowMs), isOwed(item))),
-      ),
-    },
-    renderPullRequests(input),
-  ];
+function orderOpenTasks(input: BriefInput): Item[] {
+  return orderTasks({
+    items: input.items,
+    notes: input.notes,
+    focus: input.session.now,
+    changedIDs: collectChangedIDs(input.items, input.changed),
+  });
 }
 
-function itemLine(item: Item, tag: string | null): string {
-  return `  ${padID(item.id)}${item.claim}${tag === null ? '' : `  [${tag}]`}`;
-}
+// How many task rows print: all of them when they fit, else the most that fit with the count line,
+// never fewer than the budget's worst case keeps.
+function pickShownCount(input: BriefInput, ordered: readonly Item[], budget: BriefBudget): number {
+  const count = ordered.length;
 
-function withOwed(tag: string, isOwed: boolean): string {
-  return isOwed ? `${tag} · owed` : tag;
-}
-
-function formatTaskTag(item: Item, items: readonly Item[], nowMs: number): string {
-  const blocker = item.extra.blocked_by;
-
-  const isBlocked =
-    blocker !== undefined && items.some((other) => other.id === blocker && canBlock(other.kind));
-
-  if (isBlocked) {
-    return `blocked by ${blocker}${item.check === null ? '' : ` · ${formatResult(item)}`}`;
+  if (count <= budget.taskRows) {
+    return count;
   }
 
-  return item.check === null ? `no check · ${formatItemAge(item, nowMs)}` : formatResult(item);
+  const isWithin = (shown: number): boolean =>
+    !isOver(joinBrief(input, buildItemSections(input, ordered, shown), [], 0), budget);
+
+  if (isWithin(count)) {
+    return count;
+  }
+
+  for (let shown = count - 1; shown >= budget.taskRows; shown -= 1) {
+    if (isWithin(shown)) {
+      return shown;
+    }
+  }
+
+  return budget.taskRows - 1;
 }
 
-function formatResult(item: Item): string {
-  return item.last ?? 'not checked yet';
+function isOver(text: string, budget: BriefBudget): boolean {
+  return countCharacters(text) > budget.maxCharacters || countLines(text) > budget.maxLines;
 }
 
-function formatItemAge(item: Item, nowMs: number): string {
-  return formatAge(nowMs - Date.parse(item.written));
+function countCharacters(text: string): number {
+  return Array.from(text, (character) => character).length;
 }
 
-function formatWaitTag(item: Item, nowMs: number): string {
-  const detail = item.check === null ? formatItemAge(item, nowMs) : formatResult(item);
-
-  return `${item.extra.who ?? ''} · ${detail}`;
-}
-
-function formatWhereTag(item: Item, nowMs: number): string {
-  return item.check === null ? `no check · ${formatItemAge(item, nowMs)}` : formatResult(item);
-}
-
-const maxPullRequestRows = 1;
-
-function renderPullRequests(input: BriefInput): ItemSection {
-  const pullRequests = input.pullRequests;
-  const rest = pullRequests.length - maxPullRequestRows;
-
-  const rows = pullRequests.slice(0, maxPullRequestRows).map((pullRequest) => {
-    const ref =
-      Array.from(pullRequest.ref, (character) => character).length > 60
-        ? `${Array.from(pullRequest.ref, (character) => character)
-            .slice(0, 59)
-            .join('')}…`
-        : pullRequest.ref;
-
-    const age = formatAge(input.nowMs - Date.parse(pullRequest.opened));
-
-    return `  ${ref}  opened ${age} ago  [${pullRequest.result}]`;
-  });
-
-  return {
-    heading: `PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (${String(pullRequests.length)})`,
-    lines:
-      rows.length === 0
-        ? []
-        : [
-            ...rows,
-            ...(rest > 0 ? [`  and ${String(rest)} more: www log --op pr`] : []),
-            '  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>',
-          ],
-  };
+function countLines(text: string): number {
+  return text.split('\n').length - 1;
 }
 
 const footer =
@@ -177,20 +108,27 @@ const footer =
 function joinBrief(
   input: BriefInput,
   sections: readonly ItemSection[],
-  cuts: readonly number[],
+  cuts: readonly (readonly boolean[])[],
   cutCount: number,
 ): string {
-  const kept = sections.map((section, index) => ({
-    heading: section.heading,
-    lines: section.lines.slice(0, section.lines.length - (cuts[index] ?? 0)),
-  }));
+  const kept = sections.map((section, index) => {
+    const lines = section.lines
+      .filter((_line, lineIndex) => cuts[index]?.[lineIndex] !== true)
+      .map((line) => line.text);
+
+    return {
+      heading: section.heading,
+      lines,
+      tail: lines.length > 0 && section.tail !== null ? [section.tail] : [],
+    };
+  });
 
   const lastKeptIndex = kept.findLastIndex((section) => section.lines.length > 0);
   const itemLines: string[] = [];
 
   for (const [index, section] of kept.entries()) {
     if (section.lines.length > 0) {
-      itemLines.push(section.heading, ...section.lines);
+      itemLines.push(section.heading, ...section.lines, ...section.tail);
     }
 
     if (section.lines.length > 0 && cutCount > 0 && index === lastKeptIndex) {
@@ -306,7 +244,9 @@ function renderChanged(input: BriefInput): string[] {
   return [
     `CHANGED SINCE WRITTEN (${String(input.changed.length)}) · these claims are no longer true`,
     ...rows,
-    ...(rest > 0 ? [`  and ${String(rest)} more; each shows its result in its section below`] : []),
+    ...(rest > 0
+      ? [`  and ${String(rest)} more; each shows its result below, or in the list of open tasks`]
+      : []),
   ];
 }
 
@@ -338,10 +278,25 @@ function formatNoteAge(note: Note | undefined, nowMs: number): string {
   return ` · ${note.owed ? 'owed note' : 'note'} ${formatAge(nowMs - Date.parse(note.written))} ago`;
 }
 
-function countCharacters(text: string): number {
-  return Array.from(text, (character) => character).length;
-}
+function findCutTarget(
+  input: BriefInput,
+  sections: readonly ItemSection[],
+  cuts: readonly (readonly boolean[])[],
+  cutOrder: readonly number[],
+): { readonly section: number; readonly line: number } | null {
+  for (const sectionIndex of cutOrder) {
+    const lines: readonly ItemLine[] = sections[sectionIndex]?.lines ?? [];
 
-function countLines(text: string): number {
-  return text.split('\n').length - 1;
+    const line = lines.findLastIndex(
+      (candidate, index) =>
+        cuts[sectionIndex]?.[index] === false &&
+        (candidate.id === null || candidate.id !== input.session.now),
+    );
+
+    if (line !== -1) {
+      return { section: sectionIndex, line };
+    }
+  }
+
+  return null;
 }

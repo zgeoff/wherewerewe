@@ -134,7 +134,7 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ],
   ['say', { counts: [1], usage: '"<text>"', flags: ['on'] }],
   ['ack', { counts: [1], usage: 'o-<n>', flags: [] }],
-  ['show', { counts: [1], usage: '<id>', flags: [] }],
+  ['show', { counts: [0, 1], usage: '[<id>]', flags: [] }],
   ['log', { counts: [0], usage: 'no arguments', flags: ['since', 'op', 'id'] }],
   ['recap', { counts: [0], usage: 'no arguments', flags: ['since'] }],
 ]);

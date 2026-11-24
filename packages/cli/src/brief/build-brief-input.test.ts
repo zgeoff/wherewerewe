@@ -26,6 +26,8 @@ test('it reports no checks when no item has one, with empty later sections', () 
       ownerUnread: null,
     },
     1000,
+    'tide-alerts',
+    'claude',
   );
 
   expect(session).toStrictEqual({
@@ -38,6 +40,8 @@ test('it reports no checks when no item has one, with empty later sections', () 
     checks: { kind: 'none' },
     resultsNotSaved: null,
     nowMs: 1000,
+    sessionFlag: 'tide-alerts',
+    host: 'claude',
   });
 });
 
@@ -67,6 +71,8 @@ test('it passes the owner notes of the store on', () => {
       ownerUnread: null,
     },
     1000,
+    'tide-alerts',
+    'claude',
   );
 
   expect(input.ownerNotes).toStrictEqual([note]);
@@ -100,6 +106,8 @@ test('it counts the items that have a check as not run yet', () => {
       ownerUnread: null,
     },
     1000,
+    'tide-alerts',
+    'claude',
   );
 
   expect(input.checks).toStrictEqual({ kind: 'not-run', count: 2 });

@@ -373,7 +373,7 @@ function pickCapRefusal(input: WriteInput, id: string, isSet: boolean): RefusalR
   return pickFullKind(input.store.items, kind);
 }
 
-const caps: Readonly<Record<Kind, number>> = { task: 6, wait: 4, rule: 5, where: 4, ok: 1 };
+const caps: Readonly<Record<Kind, number>> = { task: 30, wait: 4, rule: 5, where: 4, ok: 1 };
 
 function pickFullKind(items: readonly Item[], kind: Kind): RefusalReason | null {
   const ofKind = items.filter((item) => item.kind === kind);

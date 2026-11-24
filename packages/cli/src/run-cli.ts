@@ -10,6 +10,7 @@ import { runLogCommand } from './commands/run-log-command.ts';
 import { runRecapCommand } from './commands/run-recap-command.ts';
 import { runSessionCommand } from './commands/run-session-command.ts';
 import { runShowCommand } from './commands/run-show-command.ts';
+import { runTaskListCommand } from './commands/run-task-list-command.ts';
 import type { CommandContext } from './commands/types.ts';
 import { buildReadRefusal } from './refusals/build-read-refusal.ts';
 import { buildRefusalResult } from './refusals/build-refusal-result.ts';
@@ -18,6 +19,7 @@ import { buildRefusal } from './refusals/build-refusal.ts';
 import { isOwnerTerminal } from './rules/is-owner-terminal.ts';
 import { isSessionName } from './rules/is-session-name.ts';
 import { redactCredentialWords } from './rules/redact-credential-words.ts';
+import { findAgentID } from './sessions/find-agent-id.ts';
 import { readSessionSummaries } from './sessions/read-session-summaries.ts';
 import { resolveSession } from './sessions/resolve-session.ts';
 import { findStoreRoot } from './store/find-store-root.ts';
@@ -164,6 +166,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
       args,
       cwd: context.cwd,
       nowMs: context.nowMs,
+      host: findHost(context),
       pick: args.command === 'say' ? pickSay : pickAck,
     });
 
@@ -187,6 +190,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
     args,
     cwd: context.cwd,
     nowMs: context.nowMs,
+    host: findHost(context),
     pick,
   });
 
@@ -201,10 +205,20 @@ function runReadCommand(
   const args = context.args;
 
   return match(args.command)
-    .with('show', () => runShowCommand(store, args.positionals[0] ?? '', context.nowMs, unread))
+    .with('show', () => {
+      const [id] = args.positionals;
+
+      return id === undefined
+        ? Promise.resolve(runTaskListCommand(store, context.nowMs, unread))
+        : runShowCommand(store, id, context.nowMs, unread);
+    })
     .with('log', () => runLogCommand(store, args, context, unread))
     .with('recap', () => runRecapCommand(store, args, context, unread))
-    .otherwise(() => Promise.resolve(runBriefCommand(store, context.nowMs, unread)));
+    .otherwise(() => Promise.resolve(runBriefCommand(store, context, unread)));
+}
+
+function findHost(context: CommandContext): 'claude' | 'codex' | null {
+  return findAgentID(context.env)?.harness ?? null;
 }
 
 function resolveWriteResult(written: RunWriteResult, args: ParsedArgs, cwd: string): CLIResult {

@@ -9,6 +9,7 @@ import { parseSessionFile } from '../store/parse-session-file.ts';
 import { buildHandKeptApprovals } from '../test-utils/build-hand-kept-approvals.ts';
 import { buildHandKeptItemRow } from '../test-utils/build-hand-kept-item-row.ts';
 import { buildHandKeptQuestionRow } from '../test-utils/build-hand-kept-question-row.ts';
+import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
 import { buildRowsRefusal } from '../test-utils/build-rows-refusal.ts';
 import { getPickedImport } from '../test-utils/get-picked-import.ts';
@@ -525,13 +526,11 @@ test.each([
     ],
   },
   {
-    title: 'seven tasks against a cap of 6',
-    items: ['t-a', 't-b', 't-c', 't-d', 't-e', 't-f', 't-g'].map((id) =>
-      buildHandKeptItemRow({ id }),
-    ),
+    title: '31 tasks against a cap of 30',
+    items: buildMockIDs('t-', 31).map((id) => buildHandKeptItemRow({ id })),
     journal: [],
     problems: [
-      'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, t-g), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv: 31 open tasks (${buildMockIDs('t-', 31).join(', ')}), and the limit is 30. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
@@ -576,13 +575,13 @@ test.each([
   },
   {
     title: 'a cap that counts an id that looks like a credential without printing it',
-    items: ['t-a', 't-b', 't-c', 't-d', 't-e', 't-f', `AKIA${'Q'.repeat(16)}`].map((id) =>
+    items: [...buildMockIDs('t-', 30), `AKIA${'Q'.repeat(16)}`].map((id) =>
       buildHandKeptItemRow({ id }),
     ),
     journal: [],
     problems: [
-      'items.tsv line 8 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches the AKIA pattern).',
-      'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, <where the secret lives>), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      'items.tsv line 32 (<where the secret lives>): the id breaks the id rule: 2 to 16 characters of a-z, 0-9 and -, starting with a letter, and not grant, d-<n> or o-<n>.; the text looks like a credential (it matches the AKIA pattern).',
+      `items.tsv: 31 open tasks (${buildMockIDs('t-', 30).join(', ')}, <where the secret lives>), and the limit is 30. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
 ])('it refuses $title, with the exact problem lines', (row) => {
@@ -668,9 +667,7 @@ test('it lists a session line, an items row, a journal row and two caps, in that
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nbogus\n',
     items: `${[
       'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra',
-      ...['t-a', 't-b', 't-c', 't-d', 't-e', 't-f', 't-g'].map((id) =>
-        buildHandKeptItemRow({ id }),
-      ),
+      ...buildMockIDs('t-', 31).map((id) => buildHandKeptItemRow({ id })),
       buildHandKeptItemRow({ id: 'ok-a', kind: 'ok' }),
     ].join('\n')}\n`,
     journal: `${[
@@ -693,9 +690,9 @@ test('it lists a session line, an items row, a journal row and two caps, in that
   expect(picked).toStrictEqual(
     buildRowsRefusal([
       'session line 4: the line is not key=value.',
-      'items.tsv line 9 (ok-a): an approval needs who, where, scope, and once or standing.',
+      'items.tsv line 33 (ok-a): an approval needs who, where, scope, and once or standing.',
       'journal.tsv line 2: the row has 3 columns, and a hand-kept journal row has 4.',
-      'items.tsv: 7 open tasks (t-a, t-b, t-c, t-d, t-e, t-f, t-g), and the limit is 6. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv: 31 open tasks (${buildMockIDs('t-', 31).join(', ')}), and the limit is 30. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
       'journal.tsv: 5 open waits (q-1, q-2, q-3, q-4, q-5), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
     ]),
   );
@@ -1448,4 +1445,25 @@ test('it removes a question named grant that --drop names, with a drop row', () 
       ['import', 'old-notes', null],
     ],
   });
+});
+
+test('it imports a hand-kept store with 30 open tasks', () => {
+  const hand = parseHandKeptStore({
+    session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
+    items: `${[
+      'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra',
+      ...buildMockIDs('t-', 30).map((id) => buildHandKeptItemRow({ id })),
+    ].join('\n')}\n`,
+    journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
+  });
+
+  const picked = pickImport(hand, {
+    name: 'old-notes',
+    args: buildParsedArgs(['import', 'old-notes']),
+    nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    byOwner: false,
+    agent: null,
+  });
+
+  expect(picked.kind).toBe('import');
 });

@@ -162,7 +162,7 @@ test('it refuses a second approval and names the open one to spend', () => {
     refusal: {
       exitCode: 3,
       lines: [
-        'www: refused: the brief holds 1 of 1 one-time approvals. Spend it with www use, or drop it.',
+        'www: refused: the session holds 1 of 1 one-time approvals. Spend it with www use, or drop it.',
       ],
       runs: [{ www: ['use', 'ok-a', '--for', toPlaceholder('<what you did with it>')] }],
     },

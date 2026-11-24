@@ -27,4 +27,25 @@ export interface BriefInput {
       };
   readonly resultsNotSaved: 'not-writable' | 'lock-held' | null;
   readonly nowMs: number;
+
+  // the `--session` name as typed, for the command the count line prints
+  readonly sessionFlag: string | null;
+
+  // the agent that reads the brief, which sets its size budget
+  readonly host: 'claude' | 'codex' | null;
+}
+
+export interface ItemLine {
+  readonly text: string;
+
+  // the item the row shows, null for a pull request row
+  readonly id: string | null;
+}
+
+export interface ItemSection {
+  readonly heading: string;
+  readonly lines: readonly ItemLine[];
+
+  // a line after the rows that the cut never takes
+  readonly tail: string | null;
 }
