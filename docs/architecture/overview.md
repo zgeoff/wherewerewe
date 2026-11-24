@@ -172,8 +172,8 @@ table.
 
 `www` prints the goal, the grant, the item in focus with its note, and the open tasks, waits, the
 one-time approval, rules and where items, in at most 73 lines and 7,200 characters. The grant prints
-whole after the goal and is never cut: its bullets under `may`, `not` and `never`, where each `may`
-and `not` bullet takes a line of its own and short `never` bullets share a line. Only the note of
+whole after the goal and is never cut. Its bullets sit under `may`, `not` and `never`: each `may`
+and `not` bullet takes a line of its own, and short `never` bullets share a line. Only the note of
 the item in focus prints, and every item with an owed note is tagged `owed`. The goal, each grant
 bullet, the reading and the note wrap at 100 columns by the rule in the brief design, at most 3
 changed rows and 1 pull request row show, and the footer is one line.
