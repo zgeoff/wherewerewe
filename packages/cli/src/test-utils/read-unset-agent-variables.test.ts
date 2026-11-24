@@ -136,3 +136,63 @@ test('it reports each agent variable that an e2e test names in a string and neve
     'e2e/run.test.ts: CODEX_THREAD_ID',
   ]);
 });
+
+test('it reports each agent variable that one string holds with its colons and sets nothing', () => {
+  const packageDir = createTempDir('unset-agent-variables-key-string').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    'resolveProgram("www");\nconst s = "{CLAUDE_CODE_SESSION_ID: CODEX_SESSION_ID: CODEX_THREAD_ID:";\n',
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
+    'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
+    'e2e/run.test.ts: CODEX_SESSION_ID',
+    'e2e/run.test.ts: CODEX_THREAD_ID',
+  ]);
+});
+
+test('it finds each agent variable set as a shorthand key', () => {
+  const packageDir = createTempDir('unset-agent-variables-shorthand').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    'resolveProgram("www");\nconst CLAUDE_CODE_SESSION_ID = "", CODEX_SESSION_ID = "", CODEX_THREAD_ID = "";\nconst env = { CLAUDE_CODE_SESSION_ID, CODEX_SESSION_ID, CODEX_THREAD_ID };\n',
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([]);
+});
+
+test('it finds each agent variable set as a computed key', () => {
+  const packageDir = createTempDir('unset-agent-variables-computed').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    'resolveProgram("www");\nconst env = { ["CLAUDE_CODE_SESSION_ID"]: "", ["CODEX_SESSION_ID"]: "", ["CODEX_THREAD_ID"]: "" };\n',
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([]);
+});
+
+test('it reports each agent variable that a destructuring pattern names and sets nothing', () => {
+  const packageDir = createTempDir('unset-agent-variables-pattern').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'e2e', 'run.test.ts'),
+    'resolveProgram("www");\nconst { CLAUDE_CODE_SESSION_ID, CODEX_SESSION_ID, CODEX_THREAD_ID } = process.env;\n',
+  );
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
+    'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
+    'e2e/run.test.ts: CODEX_SESSION_ID',
+    'e2e/run.test.ts: CODEX_THREAD_ID',
+  ]);
+});

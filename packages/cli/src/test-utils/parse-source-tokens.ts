@@ -1,0 +1,242 @@
+export interface SourceToken {
+  // a word is an identifier, keyword or number; a string holds its text without quotes; a template
+  // or a regex literal is one `other` token; every other character is a punct
+  readonly kind: 'word' | 'string' | 'punct' | 'other';
+  readonly value: string;
+
+  // the source line the token starts on, from 1
+  readonly line: number;
+}
+
+interface Cursor {
+  readonly source: string;
+  readonly tokens: SourceToken[];
+  at: number;
+  line: number;
+}
+
+// The tokens of TypeScript source with every comment left out. A string, a template literal and a
+// regex literal each become one token, so a name inside one is no word; a template's substitution
+// holds tokens of its own. It reads no types or scopes: it only splits the text.
+export function parseSourceTokens(source: string): SourceToken[] {
+  const cursor: Cursor = { source, tokens: [], at: 0, line: 1 };
+
+  scanCode(cursor, false);
+
+  return cursor.tokens;
+}
+
+// Reads code until the end of the source, or in a template's substitution until its closing brace.
+function scanCode(cursor: Cursor, isSubstitution: boolean): void {
+  let depth = 0;
+
+  while (cursor.at < cursor.source.length) {
+    const char = cursor.source.charAt(cursor.at);
+    const next = cursor.source.charAt(cursor.at + 1);
+
+    if (char === '\n') {
+      cursor.line += 1;
+      cursor.at += 1;
+    } else if (/\s/u.test(char)) {
+      cursor.at += 1;
+    } else if (char === '/' && next === '/') {
+      skipLineComment(cursor);
+    } else if (char === '/' && next === '*') {
+      skipBlockComment(cursor);
+    } else if (char === '"' || char === "'") {
+      scanString(cursor, char);
+    } else if (char === '`') {
+      scanTemplate(cursor);
+    } else if (char === '/' && isRegexStart(cursor.tokens.at(-1))) {
+      scanRegex(cursor);
+    } else if (/[\w$]/u.test(char)) {
+      scanWord(cursor);
+    } else {
+      if (isSubstitution && char === '}' && depth === 0) {
+        cursor.at += 1;
+
+        return;
+      }
+
+      depth += char === '{' ? 1 : 0;
+      depth -= char === '}' ? 1 : 0;
+
+      cursor.tokens.push({ kind: 'punct', value: char, line: cursor.line });
+
+      cursor.at += 1;
+    }
+  }
+}
+
+function skipLineComment(cursor: Cursor): void {
+  const end = cursor.source.indexOf('\n', cursor.at);
+
+  cursor.at = end === -1 ? cursor.source.length : end;
+}
+
+function skipBlockComment(cursor: Cursor): void {
+  const end = cursor.source.indexOf('*/', cursor.at + 2);
+  const stop = end === -1 ? cursor.source.length : end + 2;
+
+  cursor.line += countLineBreaks(cursor.source.slice(cursor.at, stop));
+  cursor.at = stop;
+}
+
+function countLineBreaks(text: string): number {
+  return text.split('\n').length - 1;
+}
+
+function scanString(cursor: Cursor, quote: string): void {
+  const startLine = cursor.line;
+  let value = '';
+
+  cursor.at += 1;
+
+  while (cursor.at < cursor.source.length) {
+    const char = cursor.source.charAt(cursor.at);
+
+    if (char === quote || char === '\n') {
+      break;
+    }
+
+    if (char === '\\') {
+      value += cursor.source.charAt(cursor.at + 1);
+      cursor.at += 2;
+    } else {
+      value += char;
+      cursor.at += 1;
+    }
+  }
+
+  cursor.at += 1;
+
+  cursor.tokens.push({ kind: 'string', value, line: startLine });
+}
+
+function scanTemplate(cursor: Cursor): void {
+  const startLine = cursor.line;
+  const parts: SourceToken[] = [];
+  let text = '';
+
+  cursor.at += 1;
+
+  while (cursor.at < cursor.source.length) {
+    const char = cursor.source.charAt(cursor.at);
+
+    if (char === '`') {
+      break;
+    }
+
+    if (char === '\\') {
+      text += cursor.source.charAt(cursor.at + 1);
+      cursor.line += cursor.source.charAt(cursor.at + 1) === '\n' ? 1 : 0;
+      cursor.at += 2;
+    } else if (char === '$' && cursor.source.charAt(cursor.at + 1) === '{') {
+      cursor.at += 2;
+
+      scanSubstitution(cursor, parts);
+    } else {
+      cursor.line += char === '\n' ? 1 : 0;
+      text += char;
+      cursor.at += 1;
+    }
+  }
+
+  cursor.at += 1;
+
+  // a template with no substitution is a string, so `process[`env`]` reads like `process['env']`
+  if (parts.length === 0) {
+    cursor.tokens.push({ kind: 'string', value: text, line: startLine });
+  } else {
+    cursor.tokens.push({ kind: 'other', value: '`', line: startLine }, ...parts);
+  }
+}
+
+// The tokens of a substitution join the template's own list, which holds them in source order.
+function scanSubstitution(cursor: Cursor, parts: SourceToken[]): void {
+  const outer = cursor.tokens.splice(0);
+
+  scanCode(cursor, true);
+
+  parts.push(...cursor.tokens.splice(0));
+  cursor.tokens.push(...outer);
+}
+
+// Words after which a slash starts a regex literal, not a division.
+const regexPrecedingWords: ReadonlySet<string> = new Set([
+  'return',
+  'typeof',
+  'case',
+  'in',
+  'of',
+  'void',
+  'delete',
+  'throw',
+  'new',
+  'else',
+  'do',
+  'yield',
+  'await',
+]);
+
+function isRegexStart(previous: SourceToken | undefined): boolean {
+  if (previous === undefined) {
+    return true;
+  }
+
+  if (previous.kind === 'word') {
+    return regexPrecedingWords.has(previous.value);
+  }
+
+  return previous.kind === 'punct' && !')]}'.includes(previous.value);
+}
+
+function scanRegex(cursor: Cursor): void {
+  const startLine = cursor.line;
+  const start = cursor.at;
+  let isClass = false;
+
+  cursor.at += 1;
+
+  while (cursor.at < cursor.source.length) {
+    const char = cursor.source.charAt(cursor.at);
+
+    if (char === '\n') {
+      break;
+    }
+
+    if (char === '\\') {
+      cursor.at += 2;
+    } else if (char === '/' && !isClass) {
+      cursor.at += 1;
+      break;
+    } else {
+      isClass = char === '[' || (isClass && char !== ']');
+      cursor.at += 1;
+    }
+  }
+
+  while (/[a-z]/u.test(cursor.source.charAt(cursor.at))) {
+    cursor.at += 1;
+  }
+
+  cursor.tokens.push({
+    kind: 'other',
+    value: cursor.source.slice(start, cursor.at),
+    line: startLine,
+  });
+}
+
+function scanWord(cursor: Cursor): void {
+  const start = cursor.at;
+
+  while (/[\w$]/u.test(cursor.source.charAt(cursor.at))) {
+    cursor.at += 1;
+  }
+
+  cursor.tokens.push({
+    kind: 'word',
+    value: cursor.source.slice(start, cursor.at),
+    line: cursor.line,
+  });
+}
