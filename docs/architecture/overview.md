@@ -1,10 +1,10 @@
 # Overview
 
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
-brief when the agent runs `www`. It has the store, the note writes, approvals, decisions, the two
-history reads, the import of a hand-kept store, the owner's notes and the brief. A command it does
-not have exits 2. Read this before you change the package, then open the design doc that the section
-you change links.
+brief when the agent runs `www`. It has the store, the writes, approvals, decisions, the two history
+reads, the import of a hand-kept store, the owner's notes and the brief. A command it does not have
+exits 2. Read this before you change the package, then open the design doc that the section you
+change links.
 
 ## The package
 
@@ -19,21 +19,22 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal and the item in
-focus, `items.tsv` the open items, `owner.tsv` the owner's notes that still show, and `journal.tsv`
-every write. `init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A session
-never reuses a closed id: a write reads from the journal the ids that `done`, `drop` and `use`
-closed, the decision numbers, who made each decision and, for `say`, the highest note number among
-its `say` rows, and nothing else. See [the store design](../design/wherewerewe/store.md) for the
-formats.
+focus, `items.tsv` the open items, `notes.tsv` one row for each open item that has a note,
+`owner.tsv` the owner's notes that still show, and `journal.tsv` every write. `init` and `import`
+create `owner.tsv`, and only `say` and `ack` rewrite it. A note write and a close rewrite
+`notes.tsv`, and a missing `notes.tsv` reads as no notes. A session never reuses a closed id: a
+write reads from the journal the ids that `done`, `drop` and `use` closed, the decision numbers, who
+made each decision and, for `say`, the highest note number among its `say` rows, and nothing else.
+See [the store design](../design/wherewerewe/store.md) for the formats.
 
-A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv` and `session`
-through a temporary file and a rename, and removes the lock. The journal comes first, so a write
-that stops half way leaves a close recorded and its item still open, never an item gone with no
-record. A writer wins the claim file named after the lock and reads the lock again before it removes
-that lock, its own or a stale one, so one writer is inside at a time as long as each write finishes
-within the stale age the store design sets, measured on the wall clock. A write that runs longer can
-lose the lock to the next writer, and so can a write during which the clock jumps forward by more
-than that age.
+A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv`, `notes.tsv`
+and `session` through a temporary file and a rename, and removes the lock, and a write that changes
+no note leaves `notes.tsv` alone. The journal comes first, so a write that stops half way leaves a
+close recorded and its item still open, never an item gone with no record. A writer wins the claim
+file named after the lock and reads the lock again before it removes that lock, its own or a stale
+one, so one writer is inside at a time as long as each write finishes within the stale age the store
+design sets, measured on the wall clock. A write that runs longer can lose the lock to the next
+writer, and so can a write during which the clock jumps forward by more than that age.
 
 ## Finding the session
 
@@ -48,11 +49,16 @@ command exits 4, and never falls back to the only session on the machine. See
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
 `rule`, `where`, `set`, `ok`, `decide`, `done`, `drop`, `use`, `show`, `log`, `import`, `say` and
-`ack`, and `www` alone prints the brief. A write answers in one line. The reply of a note write,
-such as `task`, `done`, `decide`, `say` or `ack`, names the note or item and ends with the brief's
-length; `init`, `attach`, `detach` and `import` say what they did, and `import` names the folder of
-the backup. Each refusal prints its text and a `Run:` line with the command that fixes it. See
+`ack`, and `www` alone prints the brief. A write answers in one line. The reply of a write, such as
+`task`, `done`, `decide`, `say` or `ack`, names the item or note and ends with the brief's length;
+`init`, `attach`, `detach` and `import` say what they did, and `import` names the folder of the
+backup. Each refusal prints its text and a `Run:` line with the command that fixes it. See
 [the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
+
+`now` and every item write take `--note` and `--owed`, and `set` also takes `--no-note` and no
+claim. A note holds up to 400 characters, an item has at most one, and `--owed` marks a note that
+must be dealt with before the item closes. `now` and each close print the note whole, and `done`,
+`drop` and `use` refuse while the note is owed.
 
 ## Approvals and decisions
 
@@ -135,10 +141,15 @@ that looks like a credential.
 
 ## The brief
 
-`www` prints the goal, the item in focus, and the open tasks, waits, approvals, rules and where
-items, in at most 52 lines and 6,400 characters. The brief runs no check: an item with a check shows
-the last result saved in `items.tsv`, or `not checked yet` when none is saved. A task or where item
-with no check reads `no check · <age>`, and a wait with no check reads `<who> · <age>`. A blocked
-task reads `blocked by <id>` while that id is open, followed by ` · <result>` when it has a check.
-When a row of `items.tsv` does not parse, `www` still prints the rows that do, and names the broken
-row on stderr. See [the brief design](../design/wherewerewe/brief.md) for the layout.
+`www` prints the goal, the item in focus with its note, and the open tasks, waits, approvals, rules
+and where items, in at most 52 lines and 6,400 characters. Only the note of the item in focus
+prints, and every item with an owed note is tagged `owed`. The goal and the note wrap at 100 columns
+by the rule in the brief design, at most 3 changed rows and 1 pull request row show, and the footer
+is one line.
+
+The brief runs no check: an item with a check shows the last result saved in `items.tsv`, or
+`not checked yet` when none is saved. A task or where item with no check reads `no check · <age>`,
+and a wait with no check reads `<who> · <age>`. A blocked task reads `blocked by <id>` while that id
+is open, followed by ` · <result>` when it has a check. When a row of `items.tsv` does not parse,
+`www` still prints the rows that do, and names the broken row on stderr. See
+[the brief design](../design/wherewerewe/brief.md) for the layout.
