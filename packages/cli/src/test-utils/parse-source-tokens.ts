@@ -13,13 +13,19 @@ interface Cursor {
   readonly tokens: SourceToken[];
   at: number;
   line: number;
+
+  // for each open parenthesis, whether an if, while, for or with keyword opens it
+  readonly parens: boolean[];
+
+  // the token of the last closing parenthesis that ended such a head, which a regex may follow
+  headEnd: SourceToken | null;
 }
 
 // The tokens of TypeScript source with every comment left out. A string, a template literal and a
 // regex literal each become one token, so a name inside one is no word; a template's substitution
 // holds tokens of its own. It reads no types or scopes: it only splits the text.
 export function parseSourceTokens(source: string): SourceToken[] {
-  const cursor: Cursor = { source, tokens: [], at: 0, line: 1 };
+  const cursor: Cursor = { source, tokens: [], at: 0, line: 1, parens: [], headEnd: null };
 
   scanCode(cursor, false);
 
@@ -47,7 +53,7 @@ function scanCode(cursor: Cursor, isSubstitution: boolean): void {
       scanString(cursor, char);
     } else if (char === '`') {
       scanTemplate(cursor);
-    } else if (char === '/' && isRegexStart(cursor.tokens.at(-1))) {
+    } else if (char === '/' && isRegexStart(cursor)) {
       scanRegex(cursor);
     } else if (/[\w$]/u.test(char)) {
       scanWord(cursor);
@@ -61,7 +67,7 @@ function scanCode(cursor: Cursor, isSubstitution: boolean): void {
       depth += char === '{' ? 1 : 0;
       depth -= char === '}' ? 1 : 0;
 
-      cursor.tokens.push({ kind: 'punct', value: char, line: cursor.line });
+      pushPunct(cursor, char);
 
       cursor.at += 1;
     }
@@ -179,7 +185,11 @@ const regexPrecedingWords: ReadonlySet<string> = new Set([
   'await',
 ]);
 
-function isRegexStart(previous: SourceToken | undefined): boolean {
+// A `)` that ends an if head starts a regex, and so does a `}`, because a block ends with one and
+// no code divides an object literal. A `++` or `--` ends an operand, so a slash after it divides.
+function isRegexStart(cursor: Cursor): boolean {
+  const previous = cursor.tokens.at(-1);
+
   if (previous === undefined) {
     return true;
   }
@@ -188,7 +198,19 @@ function isRegexStart(previous: SourceToken | undefined): boolean {
     return regexPrecedingWords.has(previous.value);
   }
 
-  return previous.kind === 'punct' && !')]}'.includes(previous.value);
+  if (previous === cursor.headEnd) {
+    return true;
+  }
+
+  const beforePrevious = cursor.tokens.at(-2);
+
+  const isStep =
+    (previous.value === '+' || previous.value === '-') &&
+    beforePrevious?.kind === 'punct' &&
+    beforePrevious.value === previous.value &&
+    cursor.tokens.at(-3)?.value !== previous.value;
+
+  return previous.kind === 'punct' && !isStep && !')]'.includes(previous.value);
 }
 
 function scanRegex(cursor: Cursor): void {
@@ -239,4 +261,25 @@ function scanWord(cursor: Cursor): void {
     value: cursor.source.slice(start, cursor.at),
     line: cursor.line,
   });
+}
+
+const headWords: ReadonlySet<string> = new Set(['if', 'while', 'for', 'with']);
+
+// Pushes one punctuation token, and follows the parentheses so a regex after the head of an if,
+// while, for or with is told from a division after a grouped value.
+function pushPunct(cursor: Cursor, char: string): void {
+  const token: SourceToken = { kind: 'punct', value: char, line: cursor.line };
+  const [before, beforeThat] = [cursor.tokens.at(-1), cursor.tokens.at(-2)];
+
+  if (char === '(') {
+    const isAwaitHead = before?.value === 'await' && beforeThat?.value === 'for';
+
+    cursor.parens.push(before?.kind === 'word' && (headWords.has(before.value) || isAwaitHead));
+  }
+
+  if (char === ')' && cursor.parens.pop() === true) {
+    cursor.headEnd = token;
+  }
+
+  cursor.tokens.push(token);
 }

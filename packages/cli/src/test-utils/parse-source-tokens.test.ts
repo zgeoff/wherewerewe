@@ -53,3 +53,27 @@ test('it reads a template with no substitution as a string', () => {
     ['string', 'env'],
   ]);
 });
+
+test.each([
+  {
+    title: 'a postfix step',
+    source: 'n++ / m / k',
+    kinds: ['word', 'punct', 'punct', 'punct', 'word', 'punct', 'word'],
+  },
+  {
+    title: 'a grouped value',
+    source: '(a) / b / c',
+    kinds: ['punct', 'word', 'punct', 'punct', 'word', 'punct', 'word'],
+  },
+])('it reads a slash after $title as a division', (row) => {
+  expect(parseSourceTokens(row.source).map((token) => token.kind)).toStrictEqual([...row.kinds]);
+});
+
+test.each([
+  { title: 'the head of an if', source: 'if (ok) /a b/.test(s)' },
+  { title: 'the head of a while', source: 'while (ok) /a b/.test(s)' },
+  { title: 'the head of a for await', source: 'for await (const x of y) /a b/.test(s)' },
+  { title: 'a block', source: '{}\n/a b/.test(s)' },
+])('it reads a slash after $title as a regex', (row) => {
+  expect(parseSourceTokens(row.source).map((token) => token.value)).toContain('/a b/');
+});

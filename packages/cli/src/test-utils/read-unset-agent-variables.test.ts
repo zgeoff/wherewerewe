@@ -196,3 +196,25 @@ test('it reports each agent variable that a destructuring pattern names and sets
     'e2e/run.test.ts: CODEX_THREAD_ID',
   ]);
 });
+
+test.each([
+  {
+    title: 'an arrow function parameter',
+    line: 'const pick = ({ CLAUDE_CODE_SESSION_ID, CODEX_SESSION_ID, CODEX_THREAD_ID }) => 1;',
+  },
+  {
+    title: 'a function parameter',
+    line: 'function pick({ CLAUDE_CODE_SESSION_ID, CODEX_SESSION_ID, CODEX_THREAD_ID }) { return 1; }',
+  },
+])('it reports each agent variable that $title names and sets nothing', (row) => {
+  const packageDir = createTempDir('unset-agent-variables-parameter').path;
+
+  mkdirSync(join(packageDir, 'e2e'));
+  writeFileSync(join(packageDir, 'e2e', 'run.test.ts'), `resolveProgram("www");\n${row.line}\n`);
+
+  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
+    'e2e/run.test.ts: CLAUDE_CODE_SESSION_ID',
+    'e2e/run.test.ts: CODEX_SESSION_ID',
+    'e2e/run.test.ts: CODEX_THREAD_ID',
+  ]);
+});

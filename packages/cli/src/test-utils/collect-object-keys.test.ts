@@ -23,3 +23,27 @@ test.each([
     [...collectObjectKeys(row.source)].filter((key) => key === 'A' || key === 'B'),
   ).toStrictEqual([]);
 });
+
+test.each([
+  { title: 'an arrow function parameter', source: 'const f = ({ A, B }) => A;' },
+  { title: 'a function parameter', source: 'function f({ A, B }) { return A; }' },
+  { title: 'a parameter with a default', source: 'const f = ({ A, B } = {}) => A;' },
+  { title: 'an argument of a call, as an arrow parameter', source: 'run(({ A, B }) => A);' },
+  { title: 'a nested pattern in a parameter', source: 'const f = ({ o: { A, B } }) => A;' },
+  { title: 'a nested pattern in a declaration', source: 'const { o: { A, B } } = env;' },
+  { title: 'a catch parameter', source: 'try { f(); } catch ({ A, B }) { g(); }' },
+])('it collects no key from $title', (row) => {
+  expect(
+    [...collectObjectKeys(row.source)].filter((key) => key === 'A' || key === 'B'),
+  ).toStrictEqual([]);
+});
+
+test.each([
+  { title: 'a call inside an if head', source: 'if (f({ A: 1 })) { g(); }' },
+  {
+    title: 'a call argument that a block follows',
+    source: 'for (const x of f({ A: 1 })) { g(); }',
+  },
+])('it collects the key of an object in $title', (row) => {
+  expect([...collectObjectKeys(row.source)]).toStrictEqual(['A']);
+});

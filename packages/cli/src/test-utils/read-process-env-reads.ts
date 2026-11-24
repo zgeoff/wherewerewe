@@ -69,7 +69,9 @@ function findEnvAccess(tokens: readonly SourceToken[], from: number): EnvAccess 
         ? tokens.at(rest + 1)?.value
         : undefined,
     bracketName:
-      named?.value === '[' && tokens.at(rest + 1)?.kind === 'string'
+      named?.value === '[' &&
+      tokens.at(rest + 1)?.kind === 'string' &&
+      tokens.at(rest + 2)?.value === ']'
         ? tokens.at(rest + 1)?.value
         : undefined,
   };

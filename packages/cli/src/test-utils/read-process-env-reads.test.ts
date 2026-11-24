@@ -159,3 +159,35 @@ test('it reports a read inside a template substitution, on its own line', () => 
 
   expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:3']);
 });
+
+test.each([
+  { title: 'a division after a postfix step', line: 'let n = 0; n++ / process.env.X;' },
+  { title: 'a division after a grouped value', line: 'const r = (a + b) / process.env.X;' },
+  {
+    title: 'a computed key that starts with PATH',
+    line: 'const p = process.env["PATH" + suffix];',
+  },
+])('it reports a read on a line with $title', (row) => {
+  const packageDir = createTempDir('process-env-slash').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+  writeFileSync(join(packageDir, 'src', 'render.ts'), `const a = 1;\n${row.line}\n`);
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2']);
+});
+
+test.each([
+  { title: 'a regex after the head of an if', line: 'if (ok) /process.env/.test(s);' },
+  { title: 'a regex after the head of a while', line: 'while (ok) /process.env/.test(s);' },
+  { title: 'a regex that starts a statement after a block', line: '{}\n/process.env/.test(s);' },
+  { title: 'a PATH copy', line: 'const p = process.env["PATH"];' },
+])('it reports no read on a line with $title', (row) => {
+  const packageDir = createTempDir('process-env-slash-none').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+  writeFileSync(join(packageDir, 'src', 'render.ts'), `const a = 1;\n${row.line}\n`);
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
+});
