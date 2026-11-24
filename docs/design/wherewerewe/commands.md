@@ -59,7 +59,7 @@ reading 200. The brief holds at most 6 tasks, 4 waits, 1 approval, 5 rules, 4 wh
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 2c, and the test compares the tool's output with it. The slice 2b and 2c diffs below are what those slices changed. Slice 2d applies its diff below to this block and to the tool in the pull request that builds it. Each diff applies to the block as the slice before it leaves it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line holds the line numbers in the block before and after.
+The block above is the help as built through slice 2c, and the test compares the tool's output with it. The slice 2b and 2c diffs below are what those slices changed. In the pull request that builds slice 2d, apply its diff below to this block and to the tool. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
