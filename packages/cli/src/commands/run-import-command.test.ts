@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -805,3 +805,61 @@ test.each(Array.from({ length: 26 }, (_value, step) => ({ step })))(
     });
   },
 );
+
+test('it leaves an owner.tsv that exists alone, and the brief shows its row', async () => {
+  const ctx = setupTest();
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+  const env = { XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+  const ownerPath = join(ctx.folder, 'owner.tsv');
+
+  seedStoreFile(
+    ctx.folder,
+    'session',
+    'name=old-notes\ngoal=Ship the kiln alerts\nstarted=2026-03-09T09:00:00Z\n',
+  );
+
+  seedStoreFile(
+    ctx.folder,
+    'items.tsv',
+    'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n',
+  );
+
+  seedStoreFile(
+    ctx.folder,
+    'journal.tsv',
+    'ts\top\tid\ttext\n2026-03-09T09:00:00Z\tinit\told-notes\tShip the kiln alerts\n',
+  );
+
+  seedStoreFile(
+    ctx.folder,
+    'owner.tsv',
+    'id\ttext\tsaid\ton\no-1\tAsk me first\t2026-03-09T09:30:00Z\t-\n',
+  );
+
+  chmodSync(ownerPath, 0o444);
+
+  const before = statSync(ownerPath);
+  const beforeText = readFileSync(ownerPath, 'utf8');
+
+  const imported = await ctx.run(['import', 'old-notes'], env, nowMs);
+  const brief = await ctx.run(['--session', 'old-notes'], env, nowMs);
+
+  const after = statSync(ownerPath);
+
+  expect({
+    exitCode: imported.exitCode,
+    ino: after.ino,
+    mode: after.mode & 0o777,
+    text: readFileSync(ownerPath, 'utf8'),
+    briefSection: brief.stdout.split('\n').filter((line) => /^OWNER SAYS|^ {2}o-1 /u.test(line)),
+  }).toStrictEqual({
+    exitCode: 0,
+    ino: before.ino,
+    mode: 0o444,
+    text: beforeText,
+    briefSection: [
+      'OWNER SAYS (1) · act on it; only the owner clears it',
+      '  o-1  Ask me first  [26h]',
+    ],
+  });
+});

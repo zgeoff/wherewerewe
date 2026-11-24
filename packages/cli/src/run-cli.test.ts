@@ -9,6 +9,7 @@ import { parseItemsFile } from './store/parse-items-file.ts';
 import { parseJournalFile } from './store/parse-journal-file.ts';
 import { withStoreLock } from './store/with-store-lock.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
+import { readShellWords } from './test-utils/read-shell-words.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
@@ -429,6 +430,66 @@ test.each([
       env: {},
       stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 4 lines.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'task --note',
+    [['init', 'tide-alerts', '--goal', 'Ship it']],
+    ['task', 't-a', 'Write it', '--note', 'Stop the simulator first', '--owed'],
+    {
+      env: {},
+      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 6 lines.\n',
+      changed: [
+        'tide-alerts/items.tsv',
+        'tide-alerts/journal.tsv',
+        'tide-alerts/notes.tsv',
+        'tide-alerts/session',
+      ],
+    },
+  ],
+  [
+    'set --note',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    ['set', 't-a', '--note', 'Stop the simulator first'],
+    {
+      env: {},
+      stdout: 't-a  note, 24 of 400. Brief: 6 lines.\n',
+      changed: ['tide-alerts/journal.tsv', 'tide-alerts/notes.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'now --note',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
+    ['now', 't-a', 'go', '--note', 'Stop the simulator first'],
+    {
+      env: {},
+      stdout: 'now: t-a, with its note (0m). Brief: 8 lines.\n    Stop the simulator first\n',
+      changed: ['tide-alerts/journal.tsv', 'tide-alerts/notes.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'done of an item with a note',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it', '--note', 'Stop the simulator first'],
+    ],
+    ['done', 't-a', '--evidence', 'commit 4c1d2e0'],
+    {
+      env: {},
+      stdout:
+        't-a  done. Off the brief, kept in the journal with its note (0m). Brief: 4 lines.\n    Stop the simulator first\n',
+      changed: [
+        'tide-alerts/items.tsv',
+        'tide-alerts/journal.tsv',
+        'tide-alerts/notes.tsv',
+        'tide-alerts/session',
+      ],
     },
   ],
   [
@@ -1041,4 +1102,181 @@ test('it refuses say in an agent shell even with no store folder', async () => {
   const result = await ctx.run(['say', 'x'], {}, { stdin: false, stdout: false });
 
   expect(result.exitCode).toBe(3);
+});
+
+test('it keeps the claim, check, at_write and written of an item byte for byte when set gives only a note', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it', '--pid', '5']);
+
+  const before = readFileSync(join(folder, 'items.tsv'), 'utf8');
+
+  ctx.advance(3_600_000);
+
+  const result = await ctx.run(['set', 't-a', '--note', 'Stop the simulator first']);
+
+  const after = readFileSync(join(folder, 'items.tsv'), 'utf8');
+
+  expect({ result: result.stdout, unchanged: after === before }).toStrictEqual({
+    result: 't-a  note, 24 of 400. Brief: 6 lines.\n',
+    unchanged: true,
+  });
+});
+
+test('it removes the notes.tsv row when a close finishes, and leaves each note row in the journal', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it', '--note', 'First note', '--owed']);
+  await ctx.run(['set', 't-a', '--note', 'Second note']);
+  await ctx.run(['done', 't-a', '--evidence', 'commit 4c1d2e0']);
+
+  const journal = parseJournalFile(readFileSync(join(folder, 'journal.tsv'), 'utf8'));
+
+  expect({
+    notes: readFileSync(join(folder, 'notes.tsv'), 'utf8'),
+    noteRows: journal.filter((row) => row.op === 'note').map((row) => row.text),
+  }).toStrictEqual({
+    notes: 'id\towed\twritten\tnote\n',
+    noteRows: ['First note', 'Second note'],
+  });
+});
+
+test('it runs each command of the older-note line as printed', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it', '--note', 'Stop the simulator first']);
+
+  ctx.advance(3_600_000);
+
+  const replaced = await ctx.run(['set', 't-a', 'Written another way']);
+
+  const line = replaced.stdout.split('\n')[1] ?? '';
+
+  const match = /Replace it with www (?<replace>.*), or clear it with www (?<clear>.*)$/u.exec(
+    line,
+  );
+
+  const replaceWords = await readShellWords(match?.groups?.['replace'] ?? '');
+  const clearWords = await readShellWords(match?.groups?.['clear'] ?? '');
+  const replace = await ctx.run(replaceWords);
+  const clear = await ctx.run(clearWords);
+
+  expect({
+    line,
+    replace: [replaceWords, replace.exitCode],
+    clear: [clearWords, clear.exitCode, clear.stdout],
+  }).toStrictEqual({
+    line: '  its note is 1h older than this claim. Replace it with www set t-a --note "<detail>", or clear it with www set t-a --no-note',
+    replace: [['set', 't-a', '--note', '<detail>'], 0],
+    clear: [['set', 't-a', '--no-note'], 0, 't-a  note cleared. Brief: 6 lines.\n'],
+  });
+});
+
+test('it leaves an item open with no note when a task with a note stops after items.tsv, and writes the note on a rerun', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it', '--note', 'Stop the simulator first', '--owed']);
+
+  seedStoreFile(folder, 'notes.tsv', 'id\towed\twritten\tnote\n');
+
+  const afterStop = await ctx.run(['show', 't-a']);
+  const brief = await ctx.run([]);
+
+  const rerun = await ctx.run([
+    'task',
+    't-a',
+    'Write it',
+    '--note',
+    'Stop the simulator first',
+    '--owed',
+  ]);
+
+  const afterRerun = await ctx.run(['show', 't-a']);
+
+  expect({
+    afterStop: afterStop.stdout,
+    briefHasOwedTag: brief.stdout.includes('owed'),
+    rerun: rerun.stdout,
+    afterRerun: afterRerun.stdout,
+  }).toStrictEqual({
+    afterStop:
+      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task · day 1 note\n',
+    briefHasOwedTag: false,
+    rerun: 't-a  task, open, no check, note 24 of 400, owed. Brief: 6 lines.\n',
+    afterRerun:
+      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  owed note (0m): Stop the simulator first\n  journal: day 1 task · day 1 note · day 1 task · day 1 note\n',
+  });
+});
+
+test('it reads a closed item as closed and drops its notes.tsv row at the next notes write, when a close stops after items.tsv', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it', '--note', 'Stop the simulator first']);
+
+  const notesText = readFileSync(join(folder, 'notes.tsv'), 'utf8');
+
+  await ctx.run(['done', 't-a', '--evidence', 'commit 4c1d2e0']);
+
+  seedStoreFile(folder, 'notes.tsv', notesText);
+
+  const brief = await ctx.run([]);
+  const shown = await ctx.run(['show', 't-a']);
+  const next = await ctx.run(['task', 't-b', 'More', '--note', 'Another note']);
+
+  expect({
+    brief,
+    shown: shown.stdout.split('\n')[0],
+    next: next.stdout,
+    notes: readFileSync(join(folder, 'notes.tsv'), 'utf8').split('\n').slice(1, -1),
+  }).toStrictEqual({
+    brief: {
+      exitCode: 0,
+      stdout: [
+        'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · no checks',
+        'GOAL  Ship it',
+        'NOW  none. Run: www now <id> "<next step>"',
+        'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
+        '',
+      ].join('\n'),
+      stderr: '',
+    },
+    shown: 't-a  closed: done on day 1, by agent',
+    next: 't-b  task, open, no check, note 12 of 400. Brief: 6 lines.\n',
+    notes: ['t-b\t-\t2026-03-10T11:43:05Z\tAnother note'],
+  });
+});
+
+test('it keeps the journal row of a set with a note and writes the note on a rerun, when the write stops after the journal', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write it']);
+
+  await seedJournalRow(folder, { ts: '2026-03-10T11:43:02Z', op: 'note', id: 't-a' });
+
+  const afterStop = await ctx.run(['show', 't-a']);
+  const rerun = await ctx.run(['set', 't-a', '--note', 'Stop the simulator first']);
+  const afterRerun = await ctx.run(['show', 't-a']);
+
+  expect({
+    afterStop: afterStop.stdout,
+    rerun: rerun.stdout,
+    afterRerun: afterRerun.stdout,
+  }).toStrictEqual({
+    afterStop:
+      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  journal: day 1 task · day 1 note\n',
+    rerun: 't-a  note, 24 of 400. Brief: 6 lines.\n',
+    afterRerun:
+      't-a  task, open since day 1, by agent\n  claim (0m): Write it\n  note (0m): Stop the simulator first\n  journal: day 1 task · day 1 note · day 1 note\n',
+  });
 });

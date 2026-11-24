@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { buildCountingLockFiles } from '../test-utils/build-counting-lock-files.ts';
 import { buildNoStartLockFiles } from '../test-utils/build-no-start-lock-files.ts';
 import { seedStaleLock } from '../test-utils/seed-stale-lock.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
@@ -185,20 +186,29 @@ test('it reports busy once its wait is spent when the wall clock steps back 31 s
   expect(result).toStrictEqual({ kind: 'busy', pid: process.pid });
 });
 
-test('it reports busy when the lock goes only after its wait is spent', async () => {
+test('it makes one attempt when its wait is 0, and the next call takes the lock once it goes', async () => {
   const ctx = setupTest();
 
   seedStoreFile(ctx.folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
 
-  const release = setTimeout(() => {
+  const counting = buildCountingLockFiles(createLockFiles(), () => {
     rmSync(ctx.lockPath);
-  }, 15);
-
-  onTestFinished(() => {
-    clearTimeout(release);
   });
 
-  const result = await withStoreLock(ctx.folder, () => Promise.resolve('ran'), { waitMs: 5 });
+  const busy = await withStoreLock(ctx.folder, () => Promise.resolve('ran'), {
+    waitMs: 0,
+    files: counting.files,
+  });
 
-  expect(result).toStrictEqual({ kind: 'busy', pid: process.pid });
+  const createCount = counting.getCreateCount();
+
+  rmSync(ctx.lockPath);
+
+  const next = await withStoreLock(ctx.folder, () => Promise.resolve('ran'), { waitMs: 0 });
+
+  expect({ busy, createCount, next }).toStrictEqual({
+    busy: { kind: 'busy', pid: process.pid },
+    createCount: 1,
+    next: { kind: 'ran', value: 'ran' },
+  });
 });

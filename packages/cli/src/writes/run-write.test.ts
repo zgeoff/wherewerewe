@@ -47,7 +47,7 @@ test('it never rewrites owner.tsv in an agent write or a read', async () => {
 
   const untouched = ctx.readOwnerFile();
 
-  const argvs = [
+  const accepted = [
     ['goal', 'Ship the glaze timer and its tests'],
     ['task', 't-a', 'Write it'],
     ['now', 't-a', 'Start with the parser'],
@@ -68,6 +68,11 @@ test('it never rewrites owner.tsv in an agent write or a read', async () => {
     ['rule', 'r-a', 'Run the tests from the repo root'],
     ['where', 'wt-a', 'A worktree for the timer'],
     ['set', 't-a', 'Write it with tests'],
+    ['task', 't-b', 'Fire the test tiles', '--note', '<a note>', '--owed'],
+    ['now', 't-b', 'Load the kiln', '--note', '<a note>'],
+    ['set', 't-b', '--note', '<a note>'],
+    ['set', 't-b', '--no-note'],
+    ['set', 't-b', 'Fire the test tiles at cone 6', '--note', '<a note>'],
     ['decide', 'Retry a 503 3 times', '--why', 'The feed flaps'],
     ['decide', 'Poll every minute', '--why', 'Too slow', '--ruled-out'],
     ['use', 'ok-a', '--for', 'merged the timer'],
@@ -80,18 +85,27 @@ test('it never rewrites owner.tsv in an agent write or a read', async () => {
     ['log'],
   ];
 
+  const refused = [
+    { argv: ['init', 'tide-alerts', '--goal', 'Ship the glaze timer'], exitCode: 3 },
+    { argv: ['import', 'tide-alerts'], exitCode: 3 },
+    { argv: ['install'], exitCode: 2 },
+    { argv: ['doctor'], exitCode: 2 },
+    { argv: ['hook', 'claude'], exitCode: 2 },
+  ];
+
+  const runs = [...accepted.map((argv) => ({ argv, exitCode: 0 })), ...refused];
   const exitCodes: number[] = [];
   const owners: unknown[] = [];
 
-  for (const argv of argvs) {
-    const result = await ctx.runAsAgent(['--session', 'tide-alerts', ...argv]);
+  for (const run of runs) {
+    const result = await ctx.runAsAgent(['--session', 'tide-alerts', ...run.argv]);
 
     exitCodes.push(result.exitCode);
     owners.push(ctx.readOwnerFile());
   }
 
   expect({ exitCodes, owners }).toStrictEqual({
-    exitCodes: argvs.map(() => 0),
-    owners: argvs.map(() => untouched),
+    exitCodes: runs.map((run) => run.exitCode),
+    owners: runs.map(() => untouched),
   });
 });

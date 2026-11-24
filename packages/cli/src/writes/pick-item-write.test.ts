@@ -1,9 +1,10 @@
 import { expect, test } from 'bun:test';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
+import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildOkArgv } from '../test-utils/build-ok-argv.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
 import { getPickedWrite } from '../test-utils/get-picked-write.ts';
-import type { Item, SessionFile } from '../types.ts';
+import type { Item, Note, SessionFile } from '../types.ts';
 import { pickItemWrite } from './pick-item-write.ts';
 
 function setupTest() {
@@ -21,14 +22,14 @@ function setupTest() {
   };
 
   return {
-    pick: (argv: readonly string[], items: readonly Item[]) =>
+    pick: (argv: readonly string[], items: readonly Item[], notes: readonly Note[] = []) =>
       pickItemWrite({
         store: {
           folder: '/state/tide-alerts',
           session,
           items,
           ownerNotes: [],
-          notes: [],
+          notes,
           notesUnread: null,
           ownerUnread: null,
         },
@@ -247,4 +248,318 @@ test('it journals the check of a set on an approval beside its use', () => {
       journal: [{ op: 'set', id: 'ok-merge', extra: 'use=once;check=pid:123' }],
     },
   });
+});
+
+test('it writes a new item with its owed note, journals the note row after the item and replies with the note part', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick(['task', 't-a', 'Wire the sensor', '--note', 'Stop the simulator', '--owed'], []),
+    6,
+  );
+
+  expect(picked).toStrictEqual({
+    change: {
+      items: [expect.objectContaining({ id: 't-a', claim: 'Wire the sensor' })],
+      notes: [
+        {
+          id: 't-a',
+          owed: true,
+          written: '2026-03-10T11:43:00Z',
+          note: 'Stop the simulator',
+        },
+      ],
+      session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
+      journal: [
+        expect.objectContaining({ op: 'task', id: 't-a', text: 'Wire the sensor', extra: null }),
+        {
+          ts: '2026-03-10T11:43:00Z',
+          op: 'note',
+          id: 't-a',
+          by: 'agent',
+          text: 'Stop the simulator',
+          why: null,
+          extra: 'owed=1',
+        },
+      ],
+    },
+    reply: 't-a  task, open, no check, note 18 of 400, owed. Brief: 6 lines.',
+  });
+});
+
+test('it writes a note that is not owed with no owed part in the reply or the journal', () => {
+  const ctx = setupTest();
+  const picked = getPickedWrite(ctx.pick(['rule', 'r-a', 'Run from api/', '--note', 'Why'], []), 6);
+
+  expect(picked).toStrictEqual({
+    change: expect.objectContaining({
+      notes: [{ id: 'r-a', owed: false, written: '2026-03-10T11:43:00Z', note: 'Why' }],
+      journal: [
+        expect.objectContaining({ op: 'rule' }),
+        expect.objectContaining({ op: 'note', text: 'Why', extra: null }),
+      ],
+    }),
+    reply: 'r-a  rule, open, note 3 of 400. Brief: 6 lines.',
+  });
+});
+
+test('it replies ok, open, no check for an approval with a note', () => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick([...buildOkArgv('--once'), '--note', 'Spent on the merge'], []),
+    6,
+  );
+
+  expect(picked.reply).toBe('ok-merge  ok, open, no check, note 18 of 400. Brief: 6 lines.');
+});
+
+test('it keeps the note row, its owed flag and its written time when a claim write gives no note flag', () => {
+  const ctx = setupTest();
+
+  const oldNote = buildMockNote({
+    id: 't-a',
+    owed: true,
+    written: '2026-03-10T10:43:00Z',
+    note: 'Switch the kiln simulator off before this closes',
+  });
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const picked = getPickedWrite(ctx.pick(['task', 't-a', 'Wire it again'], [task], [oldNote]), 6);
+
+  expect(picked.change).toStrictEqual({
+    items: [expect.objectContaining({ id: 't-a', claim: 'Wire it again' })],
+    session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
+    journal: [expect.objectContaining({ op: 'task' })],
+  });
+});
+
+test('it adds the older-note line when a write replaces the claim and keeps a note', () => {
+  const ctx = setupTest();
+
+  const oldNote = buildMockNote({
+    id: 't-a',
+    owed: true,
+    written: '2026-03-10T10:43:00Z',
+    note: 'Switch the kiln simulator off before this closes',
+  });
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const picked = getPickedWrite(ctx.pick(['set', 't-a', 'Wire it again'], [task], [oldNote]), 6);
+
+  expect(picked.reply).toBe(
+    [
+      't-a  task, open, no check run. Brief: 6 lines.',
+      '  its note is 1h older than this claim. Replace it with www set t-a --note "<detail>", or clear it with www set t-a --no-note',
+    ].join('\n'),
+  );
+});
+
+test('it keeps the typed --session in the older-note commands', () => {
+  const ctx = setupTest();
+
+  const oldNote = buildMockNote({
+    id: 't-a',
+    owed: true,
+    written: '2026-03-10T10:43:00Z',
+    note: 'Switch the kiln simulator off before this closes',
+  });
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const picked = getPickedWrite(
+    ctx.pick(['set', 't-a', 'Wire it again', '--session', 'tide-alerts'], [task], [oldNote]),
+    6,
+  );
+
+  expect(picked.reply.split('\n')[1]).toBe(
+    '  its note is 1h older than this claim. Replace it with www --session tide-alerts set t-a --note "<detail>", or clear it with www --session tide-alerts set t-a --no-note',
+  );
+});
+
+test('it adds no older-note line when the write replaces the note, clears it or the item has none', () => {
+  const ctx = setupTest();
+
+  const oldNote = buildMockNote({
+    id: 't-a',
+    owed: true,
+    written: '2026-03-10T10:43:00Z',
+    note: 'Switch the kiln simulator off before this closes',
+  });
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const replies = [
+    ctx.pick(['set', 't-a', 'Wire it again', '--note', 'New'], [task], [oldNote]),
+    ctx.pick(['set', 't-a', 'Wire it again', '--no-note'], [task], [oldNote]),
+    ctx.pick(['set', 't-a', 'Wire it again'], [task], []),
+  ].map((picked) => getPickedWrite(picked, 6).reply);
+
+  expect(replies).toStrictEqual([
+    't-a  task, open, no check run, note 3 of 400. Brief: 6 lines.',
+    't-a  task, open, no check run. Brief: 6 lines.',
+    't-a  task, open, no check run. Brief: 6 lines.',
+  ]);
+});
+
+test('it keeps the claim, check, at_write and written of the item when set gives only a note', () => {
+  const ctx = setupTest();
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const picked = getPickedWrite(ctx.pick(['set', 't-a', '--note', 'Fresh note'], [task]), 6);
+
+  expect(picked).toStrictEqual({
+    change: {
+      notes: [{ id: 't-a', owed: false, written: '2026-03-10T11:43:00Z', note: 'Fresh note' }],
+      session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
+      journal: [
+        {
+          ts: '2026-03-10T11:43:00Z',
+          op: 'note',
+          id: 't-a',
+          by: 'agent',
+          text: 'Fresh note',
+          why: null,
+          extra: null,
+        },
+      ],
+    },
+    reply: 't-a  note, 10 of 400. Brief: 6 lines.',
+  });
+});
+
+test('it replies with the owed part when set gives only an owed note', () => {
+  const ctx = setupTest();
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const picked = getPickedWrite(
+    ctx.pick(['set', 't-a', '--note', 'Fresh note', '--owed'], [task]),
+    6,
+  );
+
+  expect(picked.reply).toBe('t-a  note, 10 of 400, owed. Brief: 6 lines.');
+});
+
+test('it clears the note with set --no-note and journals note cleared', () => {
+  const ctx = setupTest();
+
+  const oldNote = buildMockNote({
+    id: 't-a',
+    owed: true,
+    written: '2026-03-10T10:43:00Z',
+    note: 'Switch the kiln simulator off before this closes',
+  });
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const picked = getPickedWrite(ctx.pick(['set', 't-a', '--no-note'], [task], [oldNote]), 6);
+
+  expect(picked).toStrictEqual({
+    change: {
+      notes: [],
+      session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
+      journal: [
+        {
+          ts: '2026-03-10T11:43:00Z',
+          op: 'note',
+          id: 't-a',
+          by: 'agent',
+          text: null,
+          why: null,
+          extra: 'cleared=1',
+        },
+      ],
+    },
+    reply: 't-a  note cleared. Brief: 6 lines.',
+  });
+});
+
+test.each([
+  [
+    'a check and no claim',
+    ['set', 't-a', '--pid', '5'],
+    'www: refused: a check belongs to a claim, and set with no claim changes only the note.',
+  ],
+  [
+    'a check, a note and no claim',
+    ['set', 't-a', '--pid', '5', '--note', 'x'],
+    'www: refused: a check belongs to a claim, and set with no claim changes only the note.',
+  ],
+  ['only an id', ['set', 't-a'], 'www: refused: set needs a claim, --note or --no-note.'],
+  [
+    'a note over 400 characters',
+    ['task', 't-b', 'Claim', '--note', 'n'.repeat(401)],
+    'www: refused: the note is 401 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.',
+  ],
+  ['no note to clear', ['set', 't-a', '--no-note'], 'www: refused: t-a has no note to clear.'],
+  [
+    'an owed flag and no note',
+    ['task', 't-b', 'Claim', '--owed'],
+    'www: refused: --owed marks a note, and this command gives none.',
+  ],
+  [
+    'a note and --no-note',
+    ['set', 't-a', 'Claim', '--note', 'x', '--no-note'],
+    'www: refused: --note replaces the note and --no-note clears it; give one.',
+  ],
+])('it refuses set or a write with %s', (_title, argv, line) => {
+  const ctx = setupTest();
+
+  const task = buildMockItem({
+    id: 't-a',
+    claim: 'Wire the sensor',
+    check: 'pid:42',
+    atWrite: 'alive',
+    written: '2026-03-10T10:31:09Z',
+  });
+
+  const picked = ctx.pick(argv, [task]);
+
+  expect(picked.kind === 'refused' && picked.refusal.lines[0]).toBe(line);
 });

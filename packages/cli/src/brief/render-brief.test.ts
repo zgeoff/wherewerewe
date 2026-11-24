@@ -2,6 +2,8 @@ import { expect, test } from 'bun:test';
 import { buildMockBriefInput } from '../test-utils/build-mock-brief-input.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
+import { buildMockNote } from '../test-utils/build-mock-note.ts';
+import { buildMockSession } from '../test-utils/build-mock-session.ts';
 import { renderBrief } from './render-brief.ts';
 
 test('it renders each section of one invented store in order', () => {
@@ -460,4 +462,102 @@ test('it cuts item lines from the bottom up when the text passes 6,400 character
     keepsFirstTask: true,
     keepsLastWhere: false,
   });
+});
+
+test.each([
+  [
+    'a note',
+    false,
+    ['NOW  t-a · set 1h ago · note 1h ago', '  next: go', '    Stop the simulator'],
+  ],
+  [
+    'an owed note',
+    true,
+    ['NOW  t-a · set 1h ago · owed note 1h ago', '  next: go', '    Stop the simulator'],
+  ],
+])('it prints %s whole under NOW after the next step', (_title, owed, expected) => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({}),
+      items: [buildMockItem({ id: 't-a', written: '2026-03-10T10:31:00Z' })],
+      notes: [{ id: 't-a', owed, written: '2026-03-10T10:43:00Z', note: 'Stop the simulator' }],
+    }),
+  );
+
+  expect(brief.split('\n').slice(2, 5)).toStrictEqual(expected);
+});
+
+test('it prints the note under NOW when the item has no next step', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({ nowNext: null }),
+      items: [buildMockItem({ id: 't-a' })],
+      notes: [
+        { id: 't-a', owed: false, written: '2026-03-10T10:43:00Z', note: 'Stop the simulator' },
+      ],
+    }),
+  );
+
+  expect(brief.split('\n').slice(2, 4)).toStrictEqual([
+    'NOW  t-a · set 1h ago · note 1h ago',
+    '    Stop the simulator',
+  ]);
+});
+
+test('it prints only the note of the item in focus', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({}),
+      items: [buildMockItem({ id: 't-a' }), buildMockItem({ id: 't-b' })],
+      notes: [
+        { id: 't-a', owed: false, written: '2026-03-10T10:43:00Z', note: 'Focus note' },
+        { id: 't-b', owed: false, written: '2026-03-10T10:43:00Z', note: 'Other note' },
+      ],
+    }),
+  );
+
+  expect({
+    focus: brief.includes('Focus note'),
+    other: brief.includes('Other note'),
+  }).toStrictEqual({
+    focus: true,
+    other: false,
+  });
+});
+
+test('it tags every item with an owed note, the item in focus included, and no item without one', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({}),
+      items: [
+        buildMockItem({ id: 't-a' }),
+        buildMockItem({ id: 't-b' }),
+        buildMockItem({ id: 'w-a', kind: 'wait', extra: { who: 'owner' } }),
+        buildMockItem({
+          id: 'ok-a',
+          kind: 'ok',
+          claim: 'go ahead',
+          extra: { who: 'owner', use: 'once', scope: 'api' },
+        }),
+        buildMockItem({ id: 'r-a', kind: 'rule' }),
+        buildMockItem({ id: 'r-b', kind: 'rule' }),
+        buildMockItem({ id: 'wt-a', kind: 'where' }),
+      ],
+      notes: [
+        buildMockNote({ id: 't-a', owed: true }),
+        buildMockNote({ id: 'w-a', owed: true }),
+        buildMockNote({ id: 'ok-a', owed: true }),
+        buildMockNote({ id: 'r-a', owed: true }),
+        buildMockNote({ id: 'wt-a', owed: true }),
+      ],
+    }),
+  );
+
+  expect(brief.split('\n').filter((line) => line.includes('owed]'))).toStrictEqual([
+    '  t-a         Write the parser  [no check · 1h · owed]',
+    '  w-a         Write the parser  [owner · 1h · owed]',
+    '  ok-a        "go ahead" · once · api  [owed]',
+    '  r-a         Write the parser  [owed]',
+    '  wt-a        Write the parser  [no check · 1h · owed]',
+  ]);
 });

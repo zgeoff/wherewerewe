@@ -8,6 +8,7 @@ import { seedSessionStore } from '../test-utils/seed-session-store.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { readStore } from './read-store.ts';
 import { writeOwnerFiles } from './write-owner-files.ts';
+import { writeStoreFiles } from './write-store-files.ts';
 
 function setupTest() {
   const root = createTempDir('read-store').path;
@@ -368,5 +369,121 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
         "www: tide-alerts's owner.tsv does not parse: the file cannot be read (EISDIR). The brief leaves out what it could not read. Fix the file by hand.\n",
     },
     task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 6 lines.\n', stderr: '' },
+  });
+});
+
+test('it reads a store with no notes.tsv as holding no notes', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a' });
+
+  const read = await readStore(ctx.folder);
+
+  expect(
+    read.kind === 'store' && { notes: read.store.notes, unread: read.store.notesUnread },
+  ).toStrictEqual({
+    notes: [],
+    unread: null,
+  });
+});
+
+test('it reads two notes in file order and leaves out the note of an item that is not open', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a' });
+  await seedItem(ctx.folder, { id: 't-b' });
+
+  await writeStoreFiles(ctx.folder, {
+    journal: [],
+    notes: [
+      { id: 't-b', owed: true, written: '2026-03-10T11:00:00Z', note: 'second item first' },
+      { id: 't-gone', owed: false, written: '2026-03-10T11:01:00Z', note: 'orphan' },
+      { id: 't-a', owed: false, written: '2026-03-10T11:02:00Z', note: 'first item last' },
+    ],
+  });
+
+  const read = await readStore(ctx.folder);
+
+  expect(
+    read.kind === 'store' && { notes: read.store.notes, unread: read.store.notesUnread },
+  ).toStrictEqual({
+    notes: [
+      { id: 't-b', owed: true, written: '2026-03-10T11:00:00Z', note: 'second item first' },
+      { id: 't-a', owed: false, written: '2026-03-10T11:02:00Z', note: 'first item last' },
+    ],
+    unread: null,
+  });
+});
+
+test('it reads a broken notes.tsv as a store with the notes that parse and the row it left out', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a' });
+  await seedItem(ctx.folder, { id: 't-b' });
+
+  seedStoreFile(
+    ctx.folder,
+    'notes.tsv',
+    'id\towed\twritten\tnote\nt-a\t-\t2026-03-10T11:00:00Z\tfine\nt-b\tmaybe\tw\tx\n',
+  );
+
+  const read = await readStore(ctx.folder);
+
+  expect(
+    read.kind === 'store' && { notes: read.store.notes, unread: read.store.notesUnread },
+  ).toStrictEqual({
+    notes: [{ id: 't-a', owed: false, written: '2026-03-10T11:00:00Z', note: 'fine' }],
+    unread: { file: 'notes.tsv', line: 3, reason: 'the owed column is not owed or -' },
+  });
+});
+
+test('it prints the brief from the notes that parse, names the broken row, and refuses each note write and close', async () => {
+  const ctx = setupTest();
+
+  const folder = await seedSessionStore(join(ctx.root, 'wherewerewe'), 'tide-alerts');
+
+  await seedItem(folder, { id: 't-a' });
+
+  const brokenText = 'id\towed\twritten\tnote\nt-a\n';
+
+  seedStoreFile(folder, 'notes.tsv', brokenText);
+
+  const brief = await ctx.runAsAgent([]);
+  const plain = await ctx.runAsAgent(['task', 't-b', 'No note here']);
+  const withNote = await ctx.runAsAgent(['task', 't-c', 'Note here', '--note', 'x']);
+  const clear = await ctx.runAsAgent(['set', 't-a', '--no-note']);
+  const now = await ctx.runAsAgent(['now', 't-a', 'go', '--note', 'x']);
+  const done = await ctx.runAsAgent(['done', 't-a', '--evidence', 'commit 4c1d2e0']);
+
+  const refusal = {
+    exitCode: 3 as const,
+    stdout: '',
+    stderr: `www: tide-alerts's notes.tsv line 2 does not parse: expected 4 tab-separated columns, found 1. Fix the row by hand.\nRun: less ${join(folder, 'notes.tsv')}\n`,
+  };
+
+  expect({
+    brief,
+    plain,
+    withNote,
+    clear,
+    now,
+    done,
+    notes: readFileSync(join(folder, 'notes.tsv'), 'utf8'),
+  }).toStrictEqual({
+    brief: {
+      exitCode: 0,
+      stdout: expect.stringContaining('  t-a         Write the parser  [no check · 1h]\n'),
+      stderr:
+        "www: tide-alerts's notes.tsv line 2 does not parse: expected 4 tab-separated columns, found 1. The brief leaves out what it could not read. Fix the file by hand.\n",
+    },
+    plain: { exitCode: 0, stdout: 't-b  task, open, no check. Brief: 7 lines.\n', stderr: '' },
+    withNote: refusal,
+    clear: refusal,
+    now: refusal,
+    done: refusal,
+    notes: brokenText,
   });
 });

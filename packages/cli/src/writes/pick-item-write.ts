@@ -128,7 +128,7 @@ export function pickItemWrite(input: WriteInput): WriteResult {
         )
         .exhaustive();
 
-      const note = noteChange.kind === 'write' ? `, ${formatNotePart(noteChange.note)}` : '';
+      const note = noteChange.kind === 'write' ? `, note ${formatNotePart(noteChange.note)}` : '';
       const first = `${id}  ${kind}, open${check}${note}. ${brief}`;
 
       return existing !== undefined && existingNote !== undefined && noteChange.kind === 'keep'
@@ -155,7 +155,8 @@ function pickSetWithoutClaimRefusal(args: ParsedArgs, hasClaim: boolean): Refusa
     return { kind: 'set-check-needs-claim', args };
   }
 
-  return hasNoteFlag(args) ? null : { kind: 'set-needs-change', args };
+  // --owed alone gets its own refusal, which names the note it needs
+  return hasNoteFlag(args) || args.values.owed === true ? null : { kind: 'set-needs-change', args };
 }
 
 type ApprovalFlag = 'quote' | 'who' | 'where' | 'scope';
