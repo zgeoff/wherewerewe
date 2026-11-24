@@ -13,7 +13,7 @@ flowchart LR
   hook[wherewerewe hook] -->|"session_id on stdin"| find
   find --> bind[(.bindings/harness-id)]
   bind --> store[(the session's store)]
-  hook -->|"SessionStart: goal, grant, one line"| ctx[agent context]
+  hook -->|"SessionStart: goal, grant, two lines"| ctx[agent context]
   hook -->|"PreToolUse, PostToolUse, Stop"| gate[(.gate/harness-id)]
   hook -->|"PostToolUse: PR, bind, nudge"| store
 ```
@@ -190,7 +190,7 @@ Run: www
 
 On Codex, the `Run:` line is `Run: www   (pass max_output_tokens 10000, so the whole brief reaches you)`, and the `SessionStart` line ends the same way ([brief.md](brief.md#the-briefs-limit)). After a cut read, the Codex reason's first line is `wherewerewe: www's output reached you cut, so tide-alerts's brief is not whole in your context.`, with the same `Run:` line. The reason holds what is true and the command that fixes it, and never steers the agent to hold back or to ask ([0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)). Claude Code shows it to the model as `PreToolUse:Bash hook error: <reason>`. On Codex, the docs say a `Stop` block's reason arrives as a new user prompt.
 
-For a bound id, `SessionStart` prints on plain stdout the `GOAL` block and the `GRANT` block exactly as the brief prints them, whole and never cut, then the two lines above. It reads only the `session` file, runs no check, and prints nothing else of the brief. For a store that needs `www import`, it prints only the two lines, and `www` gives the exit 5 text. The worst case is 3 goal lines, 23 grant lines and the 2 refusal lines: about 1,610 UTF-8 bytes, 16% of Claude Code's 10,000 characters and about 400 tokens by Codex's own count, 16% of its default 2,500. Both hosts add plain stdout from `SessionStart` to context.
+For a bound id, `SessionStart` prints on plain stdout the `GOAL` block and the `GRANT` block exactly as the brief prints them, whole and never cut, then the two lines above. It reads only the binding, the `session` file and the gate file, runs no check, and prints nothing else of the brief. For a store that needs `www import`, it prints only the two lines, and `www` gives the exit 5 text. The worst case is 3 goal lines, 23 grant lines and the 2 refusal lines: about 1,610 UTF-8 bytes, 16% of Claude Code's 10,000 characters and about 400 tokens by Codex's own count, 16% of its default 2,500. Both hosts add plain stdout from `SessionStart` to context.
 
 #### The injected grant authorises nothing
 
