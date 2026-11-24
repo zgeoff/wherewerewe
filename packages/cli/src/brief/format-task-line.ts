@@ -1,7 +1,8 @@
 import type { Item, Note } from '../types.ts';
 import { formatAge } from './format-age.ts';
-import { formatItemLine, withOwed } from './format-item-line.ts';
+import { formatItemLine } from './format-item-line.ts';
 import { isBlockedTask } from './is-blocked-task.ts';
+import { withOwed } from './with-owed.ts';
 
 // A task's row as the brief prints it: `  <id>  <claim>  [<tag>]`, with the tag of brief.md.
 export function formatTaskLine(

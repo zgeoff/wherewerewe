@@ -16,15 +16,15 @@ The brief's size limit follows the host that reads it: 82 lines and 9,000 charac
 - Each budget sits under its host's limit on hook output put into context, with a margin. Codex puts about 2,500 tokens into context. Claude Code puts 10,000 characters, and past that only a 2,000-character preview ([hooks](https://code.claude.com/docs/en/hooks)).
 - The host comes from the reader's environment, because one session can be bound to both hosts at once. With no known host, the smaller budget fits either agent.
 - The order puts first what the agent acts on: the item in focus, a claim that is no longer true, work that waits on something or owes a note, then the newest.
-- 30 leaves half again of room over 20, and a limit still bounds three things: `items.tsv` and `notes.tsv` stay the same size on day 14 as on day 2 (at most 44 open items and 44 notes), every count the brief and the recap print stays at 2 digits, and the number of probes a read starts stays within what finishes in 5 s.
+- 30 leaves half again of room over 20, and a limit still bounds three things: `items.tsv` and `notes.tsv` stay the same size on day 14 as on day 2 (at most 44 open items and 44 notes), every count the brief and the recap print stays at 2 digits, and each probe is one more a read must start. A read starts its probes in the order the brief prints rows and keeps each saved result, so a probe that does not finish in 5 s leaves its task with the result it had.
 
 ## Rejected alternatives
 
 | Option | Why not |
 | --- | --- |
-| no limit | the store files stop being capped, the counts lose their digit bound, and checked tasks pass what the probes finish in 5 s |
+| no limit | the store files stop being capped, the counts lose their digit bound, and most checked tasks would read `unchecked` when the read stops waiting at 5 s |
 | keep 6 | too small for the work the owner runs |
-| print every task in the brief | 30 rows of 196 characters pass 7,200 on their own |
+| print every task in the brief | 30 rows leave too little room for the other sections |
 | cut each task row to 100 characters to fit more | lines bind first, and the brief never cuts a line |
 | a fixed 5 task rows | leaves 26 lines idle on a brief like the day-9 example |
 | `www show tasks` | `tasks` is a valid item id |

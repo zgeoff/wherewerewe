@@ -5,7 +5,3 @@ import { padID } from './pad-id.ts';
 export function formatItemLine(item: Item, tag: string | null): string {
   return `  ${padID(item.id)}${item.claim}${tag === null ? '' : `  [${tag}]`}`;
 }
-
-export function withOwed(tag: string, isOwed: boolean): string {
-  return isOwed ? `${tag} · owed` : tag;
-}

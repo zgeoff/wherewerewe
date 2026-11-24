@@ -11,5 +11,5 @@ test.each([
 ])('it reports a task whose saved result $title as changed: $expected', (row) => {
   const item = buildMockItem({ id: 't-a', atWrite: row.atWrite, last: row.last });
 
-  expect(isChangedResult(item)).toBe(row.expected);
+  expect(isChangedResult(item)).toStrictEqual(row.expected);
 });

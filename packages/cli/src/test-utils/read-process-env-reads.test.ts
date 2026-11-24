@@ -2,18 +2,12 @@ import { expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
-import { readProcessEnvReads, readUnsetAgentVariables } from './read-process-env-reads.ts';
+import { readProcessEnvReads } from './read-process-env-reads.ts';
 
 test('it finds no read of the real environment in the package', () => {
   const packageDir = join(import.meta.dir, '..', '..');
 
   expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
-});
-
-test('it finds no e2e test that runs www without naming each agent variable', () => {
-  const packageDir = join(import.meta.dir, '..', '..');
-
-  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([]);
 });
 
 test('it reports a read of process.env, and not an entry, a PATH copy or a lock folder', () => {
@@ -28,25 +22,38 @@ test('it reports a read of process.env, and not an entry, a PATH copy or a lock 
     'const a = 1;\nconst host = process.env.X;\n',
   );
 
-  writeFileSync(join(packageDir, 'src', 'paths.test.ts'), "const p = process.env['PATH'];\n");
+  writeFileSync(
+    join(packageDir, 'src', 'paths.test.ts'),
+    "const p = process.env['PATH'];\nconst q = [dir, process.env['PATH'] ?? ''].join(':');\n",
+  );
 
   expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:2']);
 });
 
-test('it reports each agent variable that an e2e test running www leaves out', () => {
-  const packageDir = createTempDir('unset-agent-variables').path;
+test('it reports a read of the host on the line of a PATH copy', () => {
+  const packageDir = createTempDir('process-env-same-line').path;
 
+  mkdirSync(join(packageDir, 'src'));
   mkdirSync(join(packageDir, 'e2e'));
 
   writeFileSync(
-    join(packageDir, 'e2e', 'run.test.ts'),
-    "resolveProgram('www');\nconst env = { CLAUDE_CODE_SESSION_ID: '' };\n",
+    join(packageDir, 'src', 'render.ts'),
+    "const env = { PATH: process.env['PATH'], host: process.env.CLAUDE_CODE_SESSION_ID };\n",
   );
 
-  writeFileSync(join(packageDir, 'e2e', 'help.test.ts'), "resolveProgram('other');\n");
+  expect(readProcessEnvReads(packageDir)).toStrictEqual(['src/render.ts:1']);
+});
 
-  expect(readUnsetAgentVariables(packageDir)).toStrictEqual([
-    'e2e/run.test.ts: CODEX_SESSION_ID',
-    'e2e/run.test.ts: CODEX_THREAD_ID',
-  ]);
+test('it reports no read in a comment that names process.env', () => {
+  const packageDir = createTempDir('process-env-comment').path;
+
+  mkdirSync(join(packageDir, 'src'));
+  mkdirSync(join(packageDir, 'e2e'));
+
+  writeFileSync(
+    join(packageDir, 'src', 'render.ts'),
+    '// reads process.env.HOME\n/* process.env.X\n   process.env.Y */\nconst a = 1; // process.env.Z\n',
+  );
+
+  expect(readProcessEnvReads(packageDir)).toStrictEqual([]);
 });

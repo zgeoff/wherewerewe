@@ -1,9 +1,10 @@
 import type { Item } from '../types.ts';
 import { formatAge } from './format-age.ts';
-import { formatItemLine, withOwed } from './format-item-line.ts';
+import { formatItemLine } from './format-item-line.ts';
 import { formatTaskLine } from './format-task-line.ts';
 import { padID } from './pad-id.ts';
 import type { BriefInput, ItemLine, ItemSection } from './types.ts';
+import { withOwed } from './with-owed.ts';
 
 // The sections in the order of the brief: tasks, waits, approvals, rules, where items, then the
 // pull requests that no item names. A section with no lines is left out when it joins the brief.

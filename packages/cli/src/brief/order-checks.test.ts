@@ -3,7 +3,7 @@ import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildWorstCaseBriefInput } from '../test-utils/build-worst-case-brief-input.ts';
 import { orderChecks } from './order-checks.ts';
-import { pickPrintedTaskIDs } from './render-brief.ts';
+import { pickPrintedTaskIDs } from './pick-printed-task-ids.ts';
 
 test.each([
   { host: 'codex', shown: 5 },

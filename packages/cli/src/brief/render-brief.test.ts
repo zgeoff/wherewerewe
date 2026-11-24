@@ -8,7 +8,8 @@ import { buildOverLimitBriefInput } from '../test-utils/build-over-limit-brief-i
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { buildWorstCaseBriefInput } from '../test-utils/build-worst-case-brief-input.ts';
 import { collectBriefSections } from '../test-utils/collect-brief-sections.ts';
-import { pickPrintedTaskIDs, renderBrief } from './render-brief.ts';
+import { pickPrintedTaskIDs } from './pick-printed-task-ids.ts';
+import { renderBrief } from './render-brief.ts';
 
 test('it renders each section of one invented store in order', () => {
   const brief = renderBrief(
@@ -673,15 +674,14 @@ test.each([
     expected: `  and 25 more open tasks: www --session ${'n'.repeat(24)} show`,
   },
 ])('it prints the count line $expected for a session flag of $sessionFlag', (row) => {
-  const brief = renderBrief(buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 }));
-
-  const withFlag = renderBrief({
+  const brief = renderBrief({
     ...buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 }),
     sessionFlag: row.sessionFlag,
   });
 
-  expect(brief).toBeString();
-  expect(withFlag.split('\n').find((line) => line.includes('more open tasks'))).toBe(row.expected);
+  expect(brief.split('\n').find((line) => line.includes('more open tasks'))).toStrictEqual(
+    row.expected,
+  );
 });
 
 test('it prints the changed overflow line that names the list of open tasks', () => {
@@ -699,7 +699,7 @@ test('it prints the changed overflow line that names the list of open tasks', ()
   );
 });
 
-test('it moves a task left out of the rows up when its saved result differs from the one written', () => {
+test('it prints a task left out of the rows second, with its saved result in its tag, when changed is empty', () => {
   const ids = buildMockIDs('task', 30);
   const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 });
 
@@ -707,21 +707,33 @@ test('it moves a task left out of the rows up when its saved result differs from
     item.id === ids[10] ? { ...item, atWrite: 'alive', last: 'gone' } : item,
   );
 
-  expect(pickPrintedTaskIDs({ ...input, items }).slice(0, 2)).toStrictEqual(
-    ['task01', 'task11'].map((id) => id.padEnd(16, 'x')),
-  );
+  const rows = renderBrief({ ...input, items, changed: [] })
+    .split('\n')
+    .filter((line) => /^ {2}task\d\d/u.test(line));
+
+  expect(rows.slice(0, 2)).toStrictEqual([
+    expect.stringMatching(/^ {2}task01x+ {2}c{120} {2}\[blocked by wait01x+ · r{15} · owed\]$/u),
+    expect.stringMatching(/^ {2}task11x+ {2}c{120} {2}\[blocked by wait01x+ · gone · owed\]$/u),
+  ]);
 });
 
-test('it keeps a task with a saved result equal to the one written, or unchecked, out of the changed group', () => {
-  const ids = buildMockIDs('task', 30);
-  const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 });
+test.each(['alive', 'unchecked'])(
+  'it keeps a task left out of the rows out when its saved result is %p and the one written is alive',
+  (last) => {
+    const ids = buildMockIDs('task', 30);
+    const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 });
 
-  const items = input.items.map((item) =>
-    item.id === ids[10] ? { ...item, atWrite: 'alive', last: 'unchecked' } : item,
-  );
+    const items = input.items.map((item) =>
+      item.id === ids[10] ? { ...item, atWrite: 'alive', last } : item,
+    );
 
-  expect(pickPrintedTaskIDs({ ...input, items })).not.toContain(ids[10]);
-});
+    const brief = renderBrief({ ...input, items, changed: [] });
+
+    expect(brief.split('\n').filter((line) => line.startsWith(`  ${ids[10] ?? ''}`))).toStrictEqual(
+      [],
+    );
+  },
+);
 
 test.each([6, 12])(
   'it cuts the pull request, where and rule rows before a task row with %p tasks over the limits',
@@ -789,20 +801,25 @@ test('it keeps the row of a wait in focus, and the whole note, after every task 
 test('it leaves OPEN and its count line out when no task is in focus and every task row is cut', () => {
   const claim = 'c'.repeat(9000);
 
-  const brief = renderBrief(
-    buildMockBriefInput({
-      items: [
-        buildMockItem({ id: 'rule-a', kind: 'rule', claim }),
-        buildMockItem({ id: 't-a', claim }),
-        buildMockItem({ id: 't-b', claim }),
-      ],
-    }),
-  );
+  const input = buildMockBriefInput({
+    items: [
+      buildMockItem({ id: 'rule-a', kind: 'rule', claim }),
+      ...buildMockIDs('task', 12).map((id) => buildMockItem({ id, claim })),
+    ],
+  });
+
+  const withFocus = renderBrief({
+    ...input,
+    session: buildMockSession({ now: 'task01xxxxxxxxxx' }),
+  });
+
+  const brief = renderBrief(input);
 
   expect({
+    focusHasCountLine: withFocus.includes('  and 7 more open tasks: www show\n'),
     sections: collectBriefSections(brief),
     hasCountLine: brief.includes('more open tasks'),
-  }).toStrictEqual({ sections: [], hasCountLine: false });
+  }).toStrictEqual({ focusHasCountLine: true, sections: [], hasCountLine: false });
 });
 
 test('it prints a brief over its budget when only the focus row and the note are left to cut', () => {

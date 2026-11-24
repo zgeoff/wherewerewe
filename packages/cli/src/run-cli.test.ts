@@ -26,6 +26,7 @@ import { seedLockFile } from './test-utils/seed-lock-file.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
 import { seedTasks } from './test-utils/seed-tasks.ts';
 import { seedWorstCaseStore } from './test-utils/seed-worst-case-store.ts';
+import type { CLIResult } from './types.ts';
 
 function setupTest() {
   const root = createTempDir('run-cli').path;
@@ -2199,6 +2200,29 @@ test('it counts the brief of its own host in a task write reply', async () => {
 });
 
 test.each([
+  { host: 'Codex', taskCount: 20, env: { CODEX_SESSION_ID: 'c9-test' } },
+  { host: 'Claude Code', taskCount: 29, env: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' } },
+])('it counts the brief that www --session prints in a $host task write reply', async (row) => {
+  const ctx = setupTest();
+  const name = 'n'.repeat(24);
+  const env = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME, ...row.env };
+
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, row.taskCount);
+
+  await ctx.run(['attach', name], env);
+
+  const reply = await ctx.run(['--session', name, 'task', 't-w1', 'One more'], env);
+  const brief = await ctx.run(['--session', name], env);
+
+  const briefLines = countBriefLines(brief.stdout);
+
+  expect({
+    hasCountLine: brief.stdout.includes(`more open tasks: www --session ${name} show\n`),
+    replyLines: reply.stdout.includes(`Brief: ${String(briefLines)} lines.`),
+  }).toStrictEqual({ hasCountLine: true, replyLines: true });
+});
+
+test.each([
   {
     title: 'the owner terminal, which has no agent variable',
     host: 'none',
@@ -2276,22 +2300,57 @@ test('it prints a count line whose command runs as printed, with and without --s
   });
 });
 
-test('it prints more task rows to a Claude Code session than to a Codex session, with a count line in both', async () => {
+test('it prints more task rows to a Claude Code session than to a Codex session, and each count line runs as printed', async () => {
   const ctx = setupTest();
-  const base = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
+
+  const codexEnv = {
+    HOME: ctx.agentEnv.HOME,
+    XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME,
+    CODEX_SESSION_ID: 'c9-test',
+  };
 
   await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', 30);
 
-  await ctx.run(['attach', 'tide-alerts'], { ...base, CODEX_SESSION_ID: 'c9-test' });
+  await ctx.run(['attach', 'tide-alerts'], codexEnv);
 
   const claude = await ctx.run([]);
-  const codex = await ctx.run([], { ...base, CODEX_SESSION_ID: 'c9-test' });
+  const codex = await ctx.run([], codexEnv);
+
+  const allIDs = buildMockIDs('task', 30);
+
+  const listCommand = async (brief: CLIResult, env: Record<string, string | undefined>) => {
+    const line =
+      brief.stdout.split('\n').find((candidate) => candidate.includes('more open tasks')) ?? '';
+
+    const words = await readShellWords(line.slice(line.indexOf(': ') + 2));
+
+    return ctx.run(words.slice(1), env);
+  };
+
+  const claudeList = await listCommand(claude, ctx.agentEnv);
+  const codexList = await listCommand(codex, codexEnv);
+
+  const taskRow = /^ {2}task\d\d/u;
+  const claudeRows = claude.stdout.split('\n').filter((line) => taskRow.test(line));
+  const codexRows = codex.stdout.split('\n').filter((line) => taskRow.test(line));
 
   expect({
-    claudeMore:
-      claude.stdout.split('\n').filter((line) => /^ {2}task\d\d/u.test(line)).length >
-      codex.stdout.split('\n').filter((line) => /^ {2}task\d\d/u.test(line)).length,
+    claudeMore: claudeRows.length > codexRows.length,
     claudeCount: claude.stdout.includes('more open tasks: www show'),
     codexCount: codex.stdout.includes('more open tasks: www show'),
-  }).toStrictEqual({ claudeMore: true, claudeCount: true, codexCount: true });
+    claudeList: {
+      exitCode: claudeList.exitCode,
+      hasEveryID: allIDs.every((id) => claudeList.stdout.includes(id)),
+    },
+    codexList: {
+      exitCode: codexList.exitCode,
+      hasEveryID: allIDs.every((id) => codexList.stdout.includes(id)),
+    },
+  }).toStrictEqual({
+    claudeMore: true,
+    claudeCount: true,
+    codexCount: true,
+    claudeList: { exitCode: 0, hasEveryID: true },
+    codexList: { exitCode: 0, hasEveryID: true },
+  });
 });

@@ -49,3 +49,12 @@ export interface ItemSection {
   // a line after the rows that the cut never takes
   readonly tail: string | null;
 }
+
+// The brief's size limit for the agent that reads it.
+export interface BriefBudget {
+  readonly maxLines: number;
+  readonly maxCharacters: number;
+
+  // the task rows the budget's worst case holds with no count line
+  readonly taskRows: number;
+}

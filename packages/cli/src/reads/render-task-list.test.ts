@@ -26,7 +26,7 @@ test('it lists the tasks in the brief order with a note and an owed note under t
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
   });
 
-  expect(text).toBe(
+  expect(text).toStrictEqual(
     [
       'OPEN (3 of 30)',
       '  t-c         Write the parser  [no check · 3h · owed]',
@@ -55,11 +55,10 @@ test('it prints a claim of 120 characters and a note of 400 whole', () => {
   expect({
     claim: lines[1]?.includes(claim),
     note: lines
-      .slice(2)
-      .join('')
-      .replaceAll(/^ +(?:note \(\d+h\): )?/gmu, '')
-      .replaceAll(' ', '').length,
-  }).toStrictEqual({ claim: true, note: note.replaceAll(' ', '').length });
+      .slice(2, -1)
+      .map((line) => line.replace(/^ +(?:note \(\d+h\): )?/u, ''))
+      .join(' '),
+  }).toStrictEqual({ claim: true, note });
 });
 
 test('it prints only the heading when no task is open', () => {
@@ -70,7 +69,7 @@ test('it prints only the heading when no task is open', () => {
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
   });
 
-  expect(text).toBe('OPEN (0 of 30)\n');
+  expect(text).toStrictEqual('OPEN (0 of 30)\n');
 });
 
 test('it lists a task whose saved result differs from the one written second, after the focus', () => {

@@ -10,5 +10,5 @@ test.each([
 ])('it reports a task blocked by $title as blocked: $expected', (row) => {
   const task = buildMockItem({ id: 't-a', extra: { blocked_by: 'w-a' } });
 
-  expect(isBlockedTask(task, [task, row.blocker])).toBe(row.expected);
+  expect(isBlockedTask(task, [task, row.blocker])).toStrictEqual(row.expected);
 });

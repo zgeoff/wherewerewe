@@ -714,7 +714,7 @@ test('it imports a session that holds lines import replaces', () => {
     agent: null,
   });
 
-  expect(picked.kind).toBe('import');
+  expect(picked.kind).toStrictEqual('import');
 });
 
 test.each([
@@ -1465,5 +1465,5 @@ test('it imports a hand-kept store with 30 open tasks', () => {
     agent: null,
   });
 
-  expect(picked.kind).toBe('import');
+  expect(picked.kind).toStrictEqual('import');
 });
