@@ -98,7 +98,7 @@ test.each([
   {
     command: 'rule',
     argv: ['rule', 'r-a', 'Keep it small', '--on', 'x'],
-    takes: '--pr, --branch, --path, --pid, --note and --owed',
+    takes: '--note and --owed',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     fills: { '<id>': 'r-a', '<do it this way, and why>': 'Keep it small: reviews stay short' },
   },
@@ -143,7 +143,7 @@ test.each([
   {
     command: 'ok',
     argv: ['ok', 'ok-a', '--on', 'x'],
-    takes: '--quote, --who, --where, --scope, --once, --standing, --note and --owed',
+    takes: '--quote, --who, --where, --scope, --once, --note and --owed',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     fills: {
       '<id>': 'ok-a',
@@ -252,9 +252,21 @@ test('it keeps --session on the usage Run line of a flag the command does not ta
 
   const refused = await ctx.run(['wait', 'w-a', 'x', '--session', 'tide-alerts', '--on', 'y']);
 
-  expect(refused.stderr).toBe(
-    'www: wait takes no --on flag. It takes --pr, --branch, --path, --pid, --note, --owed and --who.\nRun: www --session tide-alerts wait <id> "<what>" --who <who> [<check>]\n',
+  const runLine = refused.stderr.split('\n').find((text) => text.startsWith('Run: www'));
+
+  const filled = await ctx.run(
+    buildUsageRunArgv(runLine ?? '', {
+      '<id>': 'w-a',
+      '<what>': 'The staging key',
+      '<who>': 'owner',
+    }),
   );
+
+  expect({ stderr: refused.stderr, filledExitCode: filled.exitCode }).toStrictEqual({
+    stderr:
+      'www: wait takes no --on flag. It takes --pr, --branch, --path, --pid, --note, --owed and --who.\nRun: www --session tide-alerts wait <id> "<what>" --who <who> [<check>]\n',
+    filledExitCode: 0,
+  });
 });
 
 test('it points a command with no flags at the help, whatever flag it was given', async () => {
@@ -262,9 +274,16 @@ test('it points a command with no flags at the help, whatever flag it was given'
 
   const refused = await ctx.run(['sessions', '--goal', 'x']);
 
-  expect(refused).toStrictEqual({
-    exitCode: 2,
-    stdout: '',
-    stderr: 'www: sessions takes no --goal flag.\nRun: www help\n',
+  const runLine = refused.stderr.split('\n').find((text) => text.startsWith('Run: www'));
+
+  const helped = await ctx.run(buildUsageRunArgv(runLine ?? '', {}));
+
+  expect({ refused, helpedExitCode: helped.exitCode }).toStrictEqual({
+    refused: {
+      exitCode: 2,
+      stdout: '',
+      stderr: 'www: sessions takes no --goal flag.\nRun: www help\n',
+    },
+    helpedExitCode: 0,
   });
 });

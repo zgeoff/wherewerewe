@@ -81,6 +81,10 @@ interface CommandShape {
 
   // the command's line in the help text, after `www`, which a refused flag prints as its Run line
   readonly line?: string;
+
+  // flags the parser lets through so the command can refuse them with its own text, and that a
+  // refusal of an unknown flag therefore never lists as taken
+  readonly refused?: readonly string[];
 }
 
 // A map, so a command named like an inherited object property, such as toString, is unknown.
@@ -138,6 +142,7 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
       counts: [2],
       usage: '<id> "<do it this way, and why>"',
       flags: [...checkFlags, ...noteFlags],
+      refused: checkFlags,
       line: 'rule <id> "<do it this way, and why>"',
     },
   ],
@@ -175,6 +180,7 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
       counts: [1],
       usage: '<id>',
       flags: ['quote', 'who', 'where', 'scope', 'once', 'standing', ...noteFlags],
+      refused: ['standing'],
       line: 'ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>"',
     },
   ],
@@ -270,7 +276,7 @@ function checkArgs(argv: readonly string[]): ParseResult {
       kind: 'flag-not-taken',
       command,
       flag: stray.name,
-      taken: shape.flags,
+      taken: shape.flags.filter((flag) => !(shape.refused ?? []).includes(flag)),
       line: shape.line ?? null,
     });
   }

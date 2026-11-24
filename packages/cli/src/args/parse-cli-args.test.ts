@@ -1,6 +1,10 @@
 import { expect, test } from 'bun:test';
 import { parseCLIArgs } from './parse-cli-args.ts';
 
+function setupTest() {
+  return { parseCLIArgs };
+}
+
 test.each([
   [[], 'brief', []],
   [['--session', 'tide'], 'brief', []],
@@ -109,7 +113,8 @@ test.each([
   [['-h'], 'help', []],
   [['help'], 'help', []],
 ])('it reads %p as the command %s with its positionals', (argv, command, positionals) => {
-  const parsed = parseCLIArgs(argv);
+  const ctx = setupTest();
+  const parsed = ctx.parseCLIArgs(argv);
 
   expect(parsed).toStrictEqual({
     kind: 'args',
@@ -118,7 +123,9 @@ test.each([
 });
 
 test('it keeps the --session value apart from the typed flags and lists the flags in the order typed', () => {
-  const parsed = parseCLIArgs([
+  const ctx = setupTest();
+
+  const parsed = ctx.parseCLIArgs([
     'task',
     't-a',
     'Write it',
@@ -143,7 +150,9 @@ test('it keeps the --session value apart from the typed flags and lists the flag
 });
 
 test('it sees a repeated check flag, so the write can refuse more than one check', () => {
-  const parsed = parseCLIArgs([
+  const ctx = setupTest();
+
+  const parsed = ctx.parseCLIArgs([
     'task',
     't-a',
     'Write it',
@@ -165,7 +174,8 @@ test('it sees a repeated check flag, so the write can refuse more than one check
 });
 
 test('it lets a claim that starts with a dash pass after a dash dash', () => {
-  const parsed = parseCLIArgs(['task', 't-a', '--pid', '5', '--', '-flag first']);
+  const ctx = setupTest();
+  const parsed = ctx.parseCLIArgs(['task', 't-a', '--pid', '5', '--', '-flag first']);
 
   expect(parsed).toStrictEqual({
     kind: 'args',
@@ -270,7 +280,7 @@ test.each([
       kind: 'flag-not-taken',
       command: 'ok',
       flag: 'may',
-      taken: ['quote', 'who', 'where', 'scope', 'once', 'standing', 'note', 'owed'],
+      taken: ['quote', 'who', 'where', 'scope', 'once', 'note', 'owed'],
       line: 'ok <id> --quote "<their exact words>" --who <who> --where <where> --scope "<scope>"',
     },
   ],
@@ -322,6 +332,16 @@ test.each([
       line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
     },
   ],
+  [
+    ['rule', 'r-a', 'x', '--who', 'me'],
+    {
+      kind: 'flag-not-taken',
+      command: 'rule',
+      flag: 'who',
+      taken: ['note', 'owed'],
+      line: 'rule <id> "<do it this way, and why>"',
+    },
+  ],
   [['set'], { kind: 'wrong-positionals', command: 'set', usage: '<id> ["<claim>"]' }],
   [['task', 't-a'], { kind: 'wrong-positionals', command: 'task', usage: '<id> "<claim>"' }],
   [['recap', 'x'], { kind: 'wrong-positionals', command: 'recap', usage: 'no arguments' }],
@@ -347,13 +367,15 @@ test.each([
   [['help', 'x'], { kind: 'wrong-positionals', command: 'help', usage: 'no arguments' }],
   [['attach'], { kind: 'wrong-positionals', command: 'attach', usage: '<name>' }],
 ])('it refuses %p with %p', (argv, reason) => {
-  const actual: unknown = parseCLIArgs(argv);
+  const ctx = setupTest();
+  const actual: unknown = ctx.parseCLIArgs(argv);
 
   expect(actual).toStrictEqual({ kind: 'refused', reason, sessionFlag: null });
 });
 
 test('it hands back the --session value typed with a command it refuses', () => {
-  const actual: unknown = parseCLIArgs(['--session', 'tide', 'taks']);
+  const ctx = setupTest();
+  const actual: unknown = ctx.parseCLIArgs(['--session', 'tide', 'taks']);
 
   expect(actual).toStrictEqual({
     kind: 'refused',
