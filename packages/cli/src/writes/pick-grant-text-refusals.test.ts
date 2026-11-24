@@ -41,17 +41,30 @@ test('it gives grant-too-many-lines with 20 lines for a bullet of 649 characters
   ]);
 });
 
-test('it gives only the bullet refusal for 13 bullets', () => {
+test('it gives only the bullet refusal for 13 bullets that also take 21 lines', () => {
   const ctx = setupTest();
-  const bullets = Array.from({ length: 13 }, () => ['--never', 'n']).flat();
+  const ones = Array.from({ length: 12 }, () => ['--may', 'o']).flat();
 
-  expect(ctx.pick(bullets)).toStrictEqual([{ kind: 'grant-too-many-bullets', count: 13 }]);
+  expect(ctx.pick(['--may', buildSpacedText(649, 74), ...ones])).toStrictEqual([
+    { kind: 'grant-too-many-bullets', count: 13 },
+  ]);
 });
 
-test('it gives only the words refusal for 701 characters', () => {
+test('it gives only the words refusal for 701 characters that also take 21 lines', () => {
   const ctx = setupTest();
+  const ones = Array.from({ length: 11 }, () => ['--may', 'o']).flat();
 
-  expect(ctx.pick(['--may', buildSpacedText(701)])).toStrictEqual([
+  expect(ctx.pick(['--may', buildSpacedText(690, 74), ...ones])).toStrictEqual([
+    { kind: 'grant-words-too-long', length: 701 },
+  ]);
+});
+
+test('it gives the bullet refusal and the words refusal together for 13 bullets of 701 characters', () => {
+  const ctx = setupTest();
+  const ones = Array.from({ length: 12 }, () => ['--may', 'o']).flat();
+
+  expect(ctx.pick(['--may', buildSpacedText(689, 74), ...ones])).toStrictEqual([
+    { kind: 'grant-too-many-bullets', count: 13 },
     { kind: 'grant-words-too-long', length: 701 },
   ]);
 });
