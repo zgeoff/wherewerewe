@@ -1,8 +1,14 @@
 import { expect, test } from 'bun:test';
 import { buildUsageRunArgv } from './build-usage-run-argv.ts';
 
+function setupTest() {
+  return { buildUsageRunArgv };
+}
+
 test('it leaves out each optional group and fills each placeholder', () => {
-  const argv = buildUsageRunArgv(
+  const ctx = setupTest();
+
+  const argv = ctx.buildUsageRunArgv(
     'Run: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
     { '<id>': 't-a', '<claim>': 'Write it' },
   );
@@ -11,7 +17,9 @@ test('it leaves out each optional group and fills each placeholder', () => {
 });
 
 test('it keeps an optional group named in keeps, without its brackets, and leaves out the rest', () => {
-  const argv = buildUsageRunArgv(
+  const ctx = setupTest();
+
+  const argv = ctx.buildUsageRunArgv(
     'Run: www grant [--may "<words>"] [--not "<words>"] --where <where>',
     { '<words>': 'merge it', '<where>': 'chat' },
     ['--may'],
@@ -21,7 +29,9 @@ test('it keeps an optional group named in keeps, without its brackets, and leave
 });
 
 test('it keeps a one-word optional group named in keeps', () => {
-  const argv = buildUsageRunArgv(
+  const ctx = setupTest();
+
+  const argv = ctx.buildUsageRunArgv(
     'Run: www set <id> ["<claim>"] [<check>]',
     {
       '<id>': 't-a',
@@ -34,7 +44,9 @@ test('it keeps a one-word optional group named in keeps', () => {
 });
 
 test('it throws on a placeholder with no fill', () => {
-  expect(() => buildUsageRunArgv('Run: www done <id>', {})).toThrow(
+  const ctx = setupTest();
+
+  expect(() => ctx.buildUsageRunArgv('Run: www done <id>', {})).toThrow(
     'no fill for the placeholder <id>',
   );
 });

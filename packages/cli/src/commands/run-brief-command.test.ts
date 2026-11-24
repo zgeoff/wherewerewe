@@ -407,17 +407,31 @@ test('it starts the probes with the item in focus, then the newest tasks, not in
   seedStubCommand(
     ctx.bin,
     'gh',
-    `echo "$3" >> "${log}"\n/bin/sleep 0.3\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
+    `echo "$LAUNCH $3" >> "${log}"\n/bin/sleep 0.3\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
   );
 
-  await ctx.run([]);
+  const launches = { count: 0 };
 
-  const started = readFileSync(log, 'utf8').split('\n').filter(Boolean);
+  // each command's env is copied just before it starts, so the getter numbers the launches in order
+  const env = {
+    ...ctx.agentEnv,
+    get LAUNCH(): string {
+      launches.count += 1;
 
-  expect({ first: started.slice(0, 8).toSorted(), last: started.at(8) }).toStrictEqual({
-    first: ['2', '3', '4', '5', '6', '7', '8', '9'],
-    last: '1',
-  });
+      return String(launches.count);
+    },
+  };
+
+  await ctx.run([], env);
+
+  const started = readFileSync(log, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.split(' '))
+    .toSorted((first, second) => Number(first[0]) - Number(second[0]))
+    .map((fields) => fields.join(' '));
+
+  expect(started).toStrictEqual(['1 9', '2 8', '3 7', '4 6', '5 5', '6 4', '7 3', '8 2', '9 1']);
 });
 
 test(

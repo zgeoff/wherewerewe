@@ -11,6 +11,10 @@ import { collectBriefSections } from '../test-utils/collect-brief-sections.ts';
 import { pickPrintedTaskIDs } from './pick-printed-task-ids.ts';
 import { renderBrief } from './render-brief.ts';
 
+function setupTest() {
+  return { renderBrief };
+}
+
 test('it renders each section of one invented store in order', () => {
   const brief = renderBrief(
     buildMockBriefInput({
@@ -511,7 +515,9 @@ test.each([
 ] as const)(
   'it renders the worst case with the next step hidden by a change and every result unchecked for host $host',
   (row) => {
-    const brief = renderBrief(
+    const ctx = setupTest();
+
+    const brief = ctx.renderBrief(
       buildWorstCaseBriefInput({
         host: row.host,
         taskCount: row.taskCount,
