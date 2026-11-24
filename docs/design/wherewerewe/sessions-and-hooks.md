@@ -177,11 +177,27 @@ The orderings the review raised, each starting from `wiped`:
 
 #### The `www` commands, the refusal and the injection
 
-A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with `;`, `&&`, `||`, `&`, a line break, a command substitution or a backtick outside single quotes, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
+A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with a separator, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. The hook reads the command as the shell does:
+
+- `;`, `&&`, `||`, `&`, a line break and a process substitution, `<(` or `>(`, are separators, and `|` is a pipe, only outside quotes, single or double, and only when no backslash escapes them.
+- A command substitution, `$(` or a backtick, is a separator outside single quotes and inside double quotes, because the shell runs it in both, unless a backslash escapes it.
+- Inside single quotes nothing is special, and a backslash is a plain character. Inside double quotes, a backslash escapes only `"`, `\`, `$`, a backtick and a line break.
+
+| Command | Gate |
+| --- | --- |
+| `www task t-a "Check logs; record the result"` | passes: the `;` is inside double quotes |
+| `www task t-a 'Merge it && tag it'` | passes: the `&&` is inside single quotes |
+| `www task t-a Check\;logs` | passes: a backslash escapes the `;` |
+| `www task t-a "Say \"done\"; then stop"` | passes: the escaped quotes keep the `;` inside the double quotes |
+| `www task t-a "Check logs"; ls` | gated: the `;` is outside the quotes |
+| `www task t-a "Logs at $(date)"` | gated: the shell runs `$(date)` inside double quotes |
+| `www task t-a 'Logs at $(date)'` | passes: single quotes keep `$(date)` as text |
+
+A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
 
 The brief command is narrower: `www` or `wherewerewe`, bare or as an absolute path ending in that name, alone or with `--session <name>` or `--session=<name>` where `<name>` is the session bound to this id, with no redirect, no pipe and nothing else after it. A leading variable assignment makes a command neither the brief command nor a `www` command. Only the brief command moves the state to `reading`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read.
 
-`PreToolUse` denies with `permissionDecision: "deny"`, and `Stop` blocks with `decision: "block"`. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`; slice 4 records whether Codex accepts it. Both give this reason, one line, a line break, and the `Run:` line:
+`PreToolUse` denies with `permissionDecision: "deny"`, and `Stop` blocks with `decision: "block"`. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`. The [Codex hooks docs](https://learn.chatgpt.com/docs/hooks) give that shape for `PreToolUse` "to add model-visible context without blocking", added as developer context, and slice 4 proves it on a real Codex session with the other Codex claims. Both give this reason, one line, a line break, and the `Run:` line:
 
 ```text
 wherewerewe: this session started or was compacted, and tide-alerts's brief is not in your context yet.
