@@ -220,7 +220,7 @@ Slice 3b moves this text into the block above, with the code and the test, in th
 +                             every row of one kind, whole, as the brief prints it
 +  www recap [--since <t>]    one screen for the owner: grant, notes, promises, decisions, closes
 +Read commands take --json: one JSON value for a script, in place of the text.
- 
+
 @@ -18,2 +22,5 @@
    www rule <id> "<do it this way, and why>"
 +  www lesson <id> "<do this>" --why "<the mistake behind it>"
@@ -232,7 +232,7 @@ Slice 3b moves this text into the block above, with the code and the test, in th
 +  www goal --paste           print a /goal text of the grant, for the owner to paste
    www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
 @@ -30,3 +38,4 @@
- 
+
 -Close. Each leaves the brief and stays in the journal:
 +Close. Each leaves the brief and stays in the journal. A lesson or the owner's words close with
 +drop only:
@@ -587,7 +587,7 @@ The read commands take `--json`: the bare brief (`www`, with or without `--sessi
 - It runs the same checks, takes the same lock, and exits with the same code as its text form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.
 - The JSON brief is never cut and is outside the brief's limit, because no host puts it in front of a model: it holds every open row whole. The recap's JSON holds its rows whole, with no 100-character cut.
 - Each value carries `v: 1`. A new field keeps the version, and a removed or renamed field raises it.
-- `www --json` is a `www` command for the gate, so it passes in every state, but it is not the brief command: it never writes `tried`, and `PostToolUse` never counts it as a whole read ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)). The header and footer contract of [brief.md](brief.md) covers the text form only.
+- `www --json` is a `www` command for the gate, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)). The header and footer contract of [brief.md](brief.md) covers the text form only.
 
 ```ts
 // --json output of each read command; text stays the default

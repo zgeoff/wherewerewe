@@ -5,13 +5,15 @@
 
 ## Decision
 
-The gate never stops an agent for long, and never refuses the same call twice in a row. When a hook cannot start, fails or times out, the host runs the call, and `www install` never sets `onFailure: "block"`. When the brief command ran and no whole read followed, the gate refuses each call that arrives within 2 seconds of it, because a call in the same batch can arrive before the read finishes, then refuses the first later call once, and opens on the next call with one line. When a Codex read reaches the model cut, the gate refuses once with the cut reason and lets the agent read again; a second cut read, or a failed retry, opens the gate after one more refusal at most. `Stop` blocks at most once per turn.
+The gate never stops an agent for long. It changes state only on hook events, and no rule reads a clock. When a hook cannot start, fails or times out, the host runs the call, and `www install` never sets `onFailure: "block"`. While a brief command the gate let through runs, every other call is refused. When it ends with no whole read, the next call passes with one line. When a Codex read reaches the model cut, the gate refuses once with the cut reason and lets the agent read again, and after a second cut read or a failed retry the next call passes. When the host sends no end event for the brief command, the end of the turn counts as a failed end. `Stop` blocks at most once per turn.
 
 ## Why
 
 - The owner's failure case is an agent that is stopped or looping, as [0008](0008-notes-the-grant-and-no-caution-steering.md) records. A separate permission check polices what the agent does.
-- A failed `www` fires `PostToolUseFailure` in Claude Code, not `PostToolUse`. In a run where `www` exited 5, the next call opened the gate through the fail-open path, and no call was refused twice.
+- A failed `www` fires `PostToolUseFailure` in Claude Code, not `PostToolUse`, so a hook on that event sees every failed read. In a run where `www` exited 5, the next call opened the gate.
 - A brief over Claude Code's shell output limit reaches the model as a preview, and `PostToolUse` sees no footer line. The same path opens the gate.
+- When Claude Code's permission step refused `www` in a headless run, none of `PostToolUse`, `PostToolUseFailure` and `PermissionDenied` fired. `Stop` is the next event that proves no call runs.
+- A rule that reads the time cannot keep both promises. A threshold short enough to open the gate soon lets a call pass while a slow `www` still runs, and a review found an order of calls that broke each timed rule tried.
 
 ## Rejected alternatives
 
@@ -19,7 +21,11 @@ The gate never stops an agent for long, and never refuses the same call twice in
 | --- | --- |
 | fail closed with `onFailure: "block"` | a broken hook stops every tool call in every bound session |
 | refuse until `www` exits 0 | an exit 5 or a missing `www` loops the agent forever |
+| open the gate a fixed time after the brief command | a slow `www` lets a call pass while it runs, and a failed retry after a cut read was refused twice |
+| open the gate after a count of refused calls | a batch can hold any number of calls, so no count tells a call in the brief command's batch from a later one |
 
 ## Consequences
 
 - A session whose `www` fails goes on without its brief, and `www`'s own output, already in context, says why.
+- When the permission step refuses `www`, the gate stays shut until the turn ends. The allow rules that `www install` writes keep `www` from reaching that step.
+- Claude Code takes a sixth hook entry, for `PostToolUseFailure`. Codex reports a failed shell call through `PostToolUse` with its exit code, as its docs say.

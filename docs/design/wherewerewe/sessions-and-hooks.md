@@ -77,6 +77,7 @@ One command handles every event, so the hook entries never change between versio
 | `SessionStart`  | no matcher, timeout 5                      | no matcher, timeout 5                      | `wiped` in its gate file, and on plain stdout the goal, the grant and the two lines of the refusal, as [The gate](#the-gate) says; on every source: startup, resume, clear, compact, fork |
 | `PreToolUse`    | no matcher, timeout 3                      | no matcher, timeout 3                      | the refusal, or the one line of the fail-open path, as [The gate](#the-gate) says                               |
 | `PostToolUse`   | matcher `Bash`, timeout 5                  | matcher `Bash`, timeout 5                  | the read check, a pull request record, a binding, or one nudge line, as below                                   |
+| `PostToolUseFailure` | matcher `Bash`, timeout 5             | none: Codex's `PostToolUse` carries the exit code (docs) | the failed end of a brief command, as [The gate](#the-gate) says                                    |
 | `SubagentStart` | no matcher, timeout 5                      | no matcher, timeout 5                      | the one line naming the session, as `additionalContext`                                                          |
 | `Stop`          | no matcher, timeout 3                      | no matcher, timeout 3                      | the refusal, while the gate file says `wiped`                                                                    |
 
@@ -99,6 +100,7 @@ type HookInput =
   | { event: 'SessionStart'; harness: Harness; sessionID: string; source: string | null }
   | { event: 'PreToolUse'; harness: Harness; sessionID: string; agentID: string | null; toolName: string; command: string | null }
   | { event: 'PostToolUse'; harness: Harness; sessionID: string; agentID: string | null; command: string; response: string; exitCode: number | null; maxOutputTokens: number | null }
+  | { event: 'PostToolUseFailure'; harness: 'claude'; sessionID: string; agentID: string | null; command: string }
   | { event: 'SubagentStart'; harness: Harness; sessionID: string }
   | { event: 'Stop'; harness: Harness; sessionID: string; agentID: string | null; stopHookActive: boolean };
 
@@ -109,44 +111,71 @@ type Harness = 'claude' | 'codex';
 
 The gate refuses a bound agent session's tool calls after each start, resume and compaction until the agent has read its brief whole with `www`. The hooks put only the goal, the grant and one line into context, and the agent reads the rest by running `www`, so no host's limit on hook output bounds the brief. [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md) Every Codex claim in this section rests on the Codex docs. Codex runs a project hook only after a person trusts it, so no Codex hook has run, and slice 4 proves each claim on a real Codex session ([build-order.md](build-order.md)).
 
-The gate uses `SessionStart`, `PreToolUse`, `PostToolUse` and `Stop`, on both hosts. `SessionStart`, `PreToolUse` and `Stop` take no matcher, so `PreToolUse` reaches every tool that reaches a hook. On Codex, the docs say that covers shell calls, `exec_command`, `apply_patch`, MCP tools and local function tools such as `spawn_agent`. Hosted tools such as web search never reach a hook, so they can run before the agent reads the brief, and a `write_stdin` poll is not gated again. `PostToolUse` keeps its matcher `Bash` and its other jobs, and adds the read check. The `SubagentStart` line is unchanged.
+The gate uses `SessionStart`, `PreToolUse`, `PostToolUse` and `Stop` on both hosts, and `PostToolUseFailure` on Claude Code. `SessionStart`, `PreToolUse` and `Stop` take no matcher, so `PreToolUse` reaches every tool that reaches a hook. On Codex, the docs say that covers shell calls, `exec_command`, `apply_patch`, MCP tools and local function tools such as `spawn_agent`. Hosted tools such as web search never reach a hook, so they can run before the agent reads the brief, and a `write_stdin` poll is not gated again. `PostToolUse` keeps its matcher `Bash` and its other jobs, and adds the read check. The `SubagentStart` line is unchanged.
 
 The gate refuses a call only for an agent session id that has a binding and a gate file. An unbound id and a bound id with no gate file pass every call without a refusal. A bound id gets its gate file at its first `SessionStart` after it is bound, so a session that runs `init`, `attach` or `import` mid-session is gated from its next resume or compaction. A missing gate file skips only the gate: `PostToolUse` still records pull requests, binds and nudges for every bound id. An agent session that never opted in is untouched, as [0004](../../decisions/0004-hooks-install-once-per-machine.md) requires.
 
-The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds the agent session id to another store, the file's `session` no longer matches the binding, and `PreToolUse` and `Stop` treat the state as `wiped` for the new session and rewrite the file, so a `read` of the old store's brief never opens the gate for the new one.
+The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds the agent session id to another store, the file's `session` no longer matches the binding, and each hook reads the file as a fresh `wiped` for the new session, with `reads=0` and `spare=1`, before it applies the table below. So a `read` of the old store's brief never opens the gate for the new one.
 
-Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> cuts=<0|1> at=<UTC time to the millisecond>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about, `cuts` counts the cut reads since the last wipe, and `at` is when the state was last written: a refusal that leaves the state alone does not rewrite the file. `www` never writes it.
+Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> reads=<n> spare=<0|1>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about. `reads` counts the brief commands the gate let through since the last `SessionStart` whose end it has not seen. `spare` is 1 until the gate spends its one refusal after a cut read. `www` never writes the file.
 
 ```ts
 // hooks module: the gate file's one line
 type GateState =
-  | 'wiped' // SessionStart wrote it: the brief is not in context
-  | 'tried' // PreToolUse let the brief command through from wiped or cut, and PostToolUse has not seen a whole read; the read may still be running
-  | 'held' // PreToolUse refused the first call that arrived 2 seconds or more after tried, so the next call that is not a www command opens the gate
+  | 'wiped' // SessionStart wrote it: the brief is not in context, and no brief command runs
+  | 'reading' // reads > 0: a brief command the gate let through has not ended
+  | 'cut' // on Codex, the last brief command's output reached the model cut
+  | 'failed' // the last brief command ended with no whole read, or the turn ended while one ran
   | 'read' // PostToolUse saw the main agent read this session's brief whole
-  | 'cut' // on Codex, the brief command's output reached the model cut; PreToolUse refuses the next call once with the cut reason
-  | 'open'; // the brief command ran with no whole read after it, so calls pass until the next SessionStart
+  | 'open'; // the gate stopped waiting for a whole read until the next SessionStart
+interface GateFile { state: GateState; session: string; reads: number; spare: 0 | 1 }
 ```
 
-When each hook writes a state:
+#### The gate's states
 
-- `SessionStart` writes `wiped` with `cuts=0` for a bound id, on every source: `startup`, `resume`, `clear`, `compact` and `fork`. After `clear` or `fork` the id can change, and a new id has no binding, so nothing is gated.
-- `PreToolUse` writes `tried` when it lets the brief command through while the state is `wiped` or `cut`, so a retry from `cut` that fails follows the same path as any failed read. In any other state the brief command passes and changes nothing.
-- `PostToolUse` writes `read` on a whole read, whatever the state.
-- `PostToolUse` writes `cut` when a Codex brief command's output was cut and `cuts` is 0, and sets `cuts` to 1. When `cuts` is already 1, it writes `held`: a second cut read counts as no whole read.
-- `PreToolUse` on a call that is not a `www` command acts on the state as the table says.
+The gate changes state only on a hook event, and no rule reads a clock. Each event of the main agent falls in one column of the table:
 
-| State | A call that is not a `www` command |
-| --- | --- |
-| `wiped` | refused with the standard reason; the state stays |
-| `tried` | refused with the standard reason. A call that arrives less than 2 seconds after `at` leaves the state alone, because any number of calls in the same batch as the brief command can reach `PreToolUse` before the read finishes. The first call that arrives later is refused once and writes `held` |
-| `cut` | refused once with the cut reason, and `wiped` is written, so the next brief command moves the state to `tried` again |
-| `held` | `open` is written, the call passes, and the fail-open line is added once |
-| `read`, `open` | passes |
+- **brief command:** `PreToolUse` of the brief command, defined below.
+- **other call:** `PreToolUse` of a call that is not a `www` command. A `www` command that is not the brief command passes in every state and changes nothing.
+- **whole**, **cut** and **failed:** the end event of a brief command, sorted by [What counts as a whole read](#what-counts-as-a-whole-read). It is whole when every rule there holds. It is cut on Codex when the only rules it breaks are the truncation marker and `max_output_tokens`. It is failed otherwise. Claude Code fires `PostToolUseFailure` in place of `PostToolUse` for a failed shell call, and that is a failed end too. A brief cut on Claude Code is failed, because its Bash tool has no parameter that lets a retry read it whole.
+- **`Stop`:** the end of a turn, when no call runs.
+
+| State | `SessionStart` | brief command | other call | whole | cut | failed | `Stop` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `wiped` | `wiped`, `reads=0`, `spare=1`; prints the goal, the grant and the two lines | `reading`, `reads=1`; passes | refused; no change | `read` | no change | no change | blocks when `stop_hook_active` is false, and passes when it is true; no change |
+| `reading` | the same | `reads` + 1; passes | refused; no change | `read`, `reads=0` | `reads` − 1, and `cut` at 0 | `reads` − 1, and `failed` at 0 | `failed`, `reads=0`; passes |
+| `cut` | the same | `reading`, `reads=1`; passes | with `spare=1`, refused with the cut reason and `spare=0`; with `spare=0`, `open`, and passes with the line | `read` | no change | no change | passes; no change |
+| `failed` | the same | passes; no change | `open`; passes with the line | `read` | no change | no change | passes; no change |
+| `read`, `open` | the same | passes; no change | passes; no change | `read` | no change | no change | passes; no change |
+
+The line is the fail-open line, added once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next compaction.` A refusal in `wiped` or `reading` gives the standard reason below. A payload that carries `agent_id` passes and changes nothing in every state, and the table does not apply to it.
+
+The table rests on one property of both hosts: a host compacts only before it calls the model, and calls the model only after every call of a batch has returned. So no brief command runs across a `SessionStart`, and each end event after a `SessionStart` belongs to a brief command the gate let through after it. Slice 4 checks this on both hosts.
+
+These four invariants hold for every order of events, and each follows from the table:
+
+1. **While a brief command runs, no other call passes.** A brief command let through from `wiped`, `reading` or `cut` leaves the state `reading`, with `reads` at least 1. `reads` falls only on an end event, and reaches 0 only on the last end or on `Stop`, which comes only when no call runs. In `reading`, every other call is refused. A `www` command still passes, so the agent can always run the command a refusal names.
+2. **After a cut or failed read, the agent is refused at most once more before the gate opens.** `failed` refuses nothing. `cut` refuses only while `spare` is 1, and that refusal sets it to 0. Only `SessionStart` sets `spare` to 1, so after a second cut read, or a failed retry from `cut`, the next call passes. A call refused in `reading` does not count: the agent ran another brief command, and invariant 1 refuses calls while it runs.
+3. **The gate never stays closed when `www` cannot run.** When `www` is missing, crashes or exits 4 or 5, the host reports a failed call, the state is `failed`, and the next call passes. When the host refuses `www` at its permission step, it sends no end event: in a headless Claude Code run where `www` needed approval, none of `PostToolUse`, `PostToolUseFailure` and `PermissionDenied` fired, although each was hooked. The state then stays `reading` until the turn ends, and `Stop` writes `failed`. That is the one case where the gate waits for the end of a turn, and the allow rules below keep `www` from reaching a permission step. In `wiped`, every refusal names `www`, and the brief command always leaves `wiped`.
+4. **A subagent's calls never change the state.** A payload with `agent_id` passes, and the hook writes nothing for it. Claude Code sends `agent_id` on a subagent's tool calls. Codex documents it on no tool event, so a Codex subagent's payload reads as the main agent's ([Subagents and failing open](#subagents-and-failing-open)), and slice 4 records which holds.
+
+The timeouts in the hooks table bound one run of a hook process, and are not gate state: a hook that times out lets its call run.
+
+The orderings the review raised, each starting from `wiped`:
+
+- **A call batched with the brief command whose `PreToolUse` runs before the read's end:** brief command, `reading`; `ls` refused; whole, `read`; the agent's retried `ls` passes.
+- **The same call when its `PreToolUse` runs after the read's end:** brief command, `reading`; whole, `read`; `ls` passes.
+- **Two batched calls, then a cut read:** brief command, `reading`; `ls` and `cat` refused; cut, `cut`; `ls` refused with the cut reason, `spare=0`; `cat` passes with the line. `ls` is refused twice, once while the read ran and once after the cut, so the gate bounds the refusals after a read ends, not the refusals of one call.
+- **A retry that fails:** cut, `cut`; `ls` refused, `spare=0`; brief command, `reading`; failed, `failed`; `ls` passes with the line. A retry sent straight from `cut` that fails reaches `failed` with no refusal, and one that is cut again reaches `cut` with `spare=0`, so the next call passes.
+- **A slow `www`:** brief command, `reading`; every other call is refused however long `www` runs, and its end event decides. A `www` that never ends is killed at the host's own shell timeout, which the host reports as a failed call.
+- **`www` refused at the permission step:** brief command, `reading`; no end event; each other call is refused; `Stop`, `failed`; the next call passes with the line.
+- **Exit 5:** brief command, `reading`; failed, `failed`; the next call passes with the line, and `www import`, a `www` command, passes in every state.
+
+#### The `www` commands, the refusal and the injection
 
 A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with `;`, `&&`, `||`, `&`, a line break, a command substitution or a backtick outside quotes, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
 
-The brief command is narrower: `www` or `wherewerewe` alone, or with `--session <name>` where `<name>` is the session bound to this id, with nothing after it. Only the brief command moves `wiped` to `tried`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: it never writes `tried`, and `PostToolUse` never counts it as a whole read.
+The brief command is narrower: `www` or `wherewerewe` alone, or with `--session <name>` where `<name>` is the session bound to this id, with nothing after it. Only the brief command moves the state to `reading`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read.
 
 `PreToolUse` denies with `permissionDecision: "deny"`, and `Stop` blocks with `decision: "block"`. Both give this reason, one line, a line break, and the `Run:` line:
 
@@ -182,11 +211,11 @@ The classifier kept the permission across a compaction only when the compaction 
 
 A `PreToolUse`, `PostToolUse` or `Stop` payload that carries `agent_id` passes, and its read never counts. That is the one rule on both hosts. Claude Code sends `agent_id` on a subagent's tool calls. Codex documents `agent_id` only on `SubagentStart`, `SubagentStop` and the model-request events, and gives a subagent's hooks the parent's `session_id`. So on Codex, as documented, a subagent's payload has no `agent_id`: its calls are gated on the parent's state, which is `read` or `open` whenever the parent could spawn it, and its whole read of the brief counts like the main agent's. That is a known gap of the rule on Codex, accepted because the subagent exists only after the parent's `spawn_agent` call passed the gate, and the brief it reads is the parent's own. It matters only when a compaction wipes the state while the subagent runs. Slice 4 records whether Codex sends `agent_id` on tool events, and when it does, the rule above covers it with no change.
 
-The gate never stops an agent for long, and never refuses the same call twice in a row ([0014](../../decisions/0014-the-gate-fails-open.md)):
+The gate never stops an agent for long: after a read ends with no whole brief, it refuses at most one more call before it opens, as [The gate's states](#the-gates-states) shows ([0014](../../decisions/0014-the-gate-fails-open.md)):
 
 - When a hook cannot start, fails or times out, both hosts run the call. `www install` never sets `onFailure: "block"`.
-- When a Codex read was cut, the state is `cut`, and the next call that is not a `www` command is refused once with the cut reason, which writes `wiped`. A retry of the brief command from `cut` writes `tried`, so a retry that fails ends like any failed read, with one more refusal at most. A second cut read counts as no whole read and writes `held`.
-- When the brief command ran and no whole read followed, calls in its own batch are refused and leave the state alone, the first call after that is refused once, and the next writes `open`, passes, and adds this line once as `additionalContext`: `wherewerewe: www printed no whole brief for tide-alerts, so this session's tool calls go through until the next compaction.` That covers `www` missing from the agent's `PATH`, a permission prompt that refused it, a crash, exit 4, exit 5, and a brief over the host's limit. `www`'s own output, already in context, says why.
+- When the brief command ends with no whole read, the state is `failed`, and the next call that is not a `www` command passes with the fail-open line. That covers `www` missing from the agent's `PATH`, a crash, exit 4, exit 5, and a brief over Claude Code's limit. `www`'s own output, already in context, says why. A permission prompt that refused `www` sends no end event, so the state becomes `failed` when the turn ends.
+- When a Codex read is cut, the next call that is not a `www` command is refused once with the cut reason, and the agent can read again with `max_output_tokens`. After a second cut read, or a failed retry, the next call passes with the fail-open line.
 - `Stop` blocks only while the state is `wiped`, and never when `stop_hook_active` is true. So it blocks at most once per turn while the state stays `wiped`, on either host, below Claude Code's cap of 8 consecutive continues.
 
 #### What counts as a whole read
@@ -204,7 +233,7 @@ A hook does this check, and `www` does not, because `www` sees neither case that
 
 ### Install and doctor
 
-`www install` merges the five entries of the hooks table into `~/.claude/settings.json` and `~/.codex/hooks.json`, keeps every other hook, replaces an older entry whose command ends in `wherewerewe hook claude` or `wherewerewe hook codex`, and prints what it changed. It also writes the allow rules below. It writes no other permission rule, no `onFailure`, no `additionalContextLimit` and no `bashOutputMaxChars`. `www install --print` changes nothing and prints both JSON blocks and both rules, for an owner who keeps those files in dotfiles. Neither ever edits `~/.codex/config.toml`; both print the lines it needs:
+`www install` merges the entries of the hooks table into `~/.claude/settings.json` and `~/.codex/hooks.json`, six for Claude Code and five for Codex, keeps every other hook, replaces an older entry whose command ends in `wherewerewe hook claude` or `wherewerewe hook codex`, and prints what it changed. It also writes the allow rules below. It writes no other permission rule, no `onFailure`, no `additionalContextLimit` and no `bashOutputMaxChars`. `www install --print` changes nothing and prints both JSON blocks and both rules, for an owner who keeps those files in dotfiles. Neither ever edits `~/.codex/config.toml`; both print the lines it needs:
 
 ```toml
 [features]
@@ -214,7 +243,7 @@ hooks = true
 writable_roots = ["/home/sam/.local/state/wherewerewe"]   # the store root, as an absolute path
 ```
 
-`www doctor` checks each of these and prints one line per check, `ok` or the exact fix: `wherewerewe` on `PATH`; the five entries in both hook files, and the Bun and bin paths each entry names; the allow rules below; `hooks = true` and the store root in `writable_roots` in the Codex config; that the store root is writable from this shell, by writing and removing a probe file; and `gh auth status`. It exits 0 when every check passes, and 3 otherwise.
+`www doctor` checks each of these and prints one line per check, `ok` or the exact fix: `wherewerewe` on `PATH`; the six Claude Code entries and the five Codex entries, and the Bun and bin paths each entry names; the allow rules below; `hooks = true` and the store root in `writable_roots` in the Codex config; that the store root is writable from this shell, by writing and removing a probe file; and `gh auth status`. It exits 0 when every check passes, and 3 otherwise.
 
 #### The allow rules
 
@@ -267,5 +296,5 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 
 - **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** Run a live test in the hooks slice to settle all three. Until then, a Codex subagent passes `--session`.
 - **Does the gate work on Codex?** Slice 4's Codex proofs settle it: the refusal, the whole read, the compaction source, and `tool_response`. Until then, every Codex claim in [The gate](#the-gate) rests on the docs.
-- **Does a call in the same batch as `www` reach `PreToolUse` before `PostToolUse` writes `read`?** When it does, `PreToolUse` refuses every call in that batch and the agent retries them. Measure how often the refusal comes first. In Claude Code, the second call's hook ran after `www` finished in the one batched run. Measure the hook log's times in sessions where the model batches calls, on both hosts.
+- **Does a host ever compact while a call runs, and does Claude Code report a `www` it kills at its shell timeout as a failed call?** The gate's table assumes neither host compacts while a brief command runs, and invariant 3 assumes a killed `www` ends as a failed call. Slice 4 records the hook log of a session that compacts with a slow `www` running, and of one whose `www` passes the shell timeout, on both hosts.
 - **Does a goal's periodic re-injection carry a permission across a compaction?** A `/goal` condition was blocked in 2 of 2 runs after a compaction and allowed in 1 of 1 before one, and those runs did not test the goal's re-injection. Run the scripted auto mode sessions with a pasted `www goal --paste` text, a compaction, and enough turns for the goal to re-inject, and count the classifier's allows and blocks. Until then, the paste carries authority only until the next compaction.

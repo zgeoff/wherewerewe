@@ -29,7 +29,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/wherewerewe/       the root
     claude-<agent session id>     one file per bound agent session: name=<session>
     codex-<agent session id>
   .gate/
-    claude-<agent session id>     one file per gated agent session: state=<state> at=<time>; written by the hooks only
+    claude-<agent session id>     one file per gated agent session: state=<state> session=<name> reads=<n> spare=<0|1>; written by the hooks only
     codex-<agent session id>
   hook-errors.log                 the last 200 hook errors, newest last
   <session>/                      one folder per session, named by www init
