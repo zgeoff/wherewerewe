@@ -12,6 +12,7 @@ export function removePath(
   stateRoot: string,
   name: string,
   readIdentity: (path: string) => string = readPathIdentity,
+  rename: (from: string, to: string) => void = renameSync,
 ): string {
   checkPathName(name);
 
@@ -38,10 +39,10 @@ export function removePath(
   const holding = mkdtempSync(join(parent, '.removing-'));
   const held = join(holding, name);
 
-  renameSync(join(parent, name), held);
+  rename(join(parent, name), held);
 
   if (!probeMadeFolder(held, marker, readIdentity)) {
-    restoreEntry(held, join(parent, name));
+    setEntryAside(held, rename);
     rmSync(holding, { recursive: true, force: true });
     throw notMade;
   }
@@ -64,10 +65,8 @@ function probeMadeFolder(
   );
 }
 
-// The entry goes back to its name only when that name is still free, so the move never replaces a
-// folder made there since. Otherwise it stays beside the holding folder, under a name of its own.
-function restoreEntry(held: string, path: string): void {
-  const target = existsSync(path) ? `${dirname(held)}.kept` : path;
-
-  renameSync(held, target);
+// A refused entry never goes back to its name, because a rename replaces an empty folder that took
+// the name since. It stays beside the holding folder, under a name of its own.
+function setEntryAside(held: string, rename: (from: string, to: string) => void): void {
+  rename(held, `${dirname(held)}.kept`);
 }
