@@ -4,10 +4,14 @@ import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { helpText } from './args/help-text.ts';
 import { findCredentialMatch } from './rules/find-credential-match.ts';
 import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
+import { formatLessonsFile } from './store/format-lessons-file.ts';
 import { formatNotesFile } from './store/format-notes-file.ts';
+import { formatPromisesFile } from './store/format-promises-file.ts';
+import { formatWordsFile } from './store/format-words-file.ts';
 import { parseItemsFile } from './store/parse-items-file.ts';
 import { parseJournalFile } from './store/parse-journal-file.ts';
 import { readJournalRows } from './store/read-journal-rows.ts';
@@ -17,9 +21,11 @@ import { buildCredentialSamples } from './test-utils/build-credential-samples.ts
 import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
 import { buildGrantFaultCases, faultCredential } from './test-utils/build-grant-fault-cases.ts';
 import { buildMockIDs } from './test-utils/build-mock-ids.ts';
+import { buildRedactionPlacements } from './test-utils/build-redaction-placements.ts';
 import { buildSampleRunArgv } from './test-utils/build-sample-run-argv.ts';
 import { buildSpacedText } from './test-utils/build-spaced-text.ts';
-import { countBriefLines } from './test-utils/count-brief-lines.ts';
+import { getSteeringWords } from './test-utils/get-steering-words.ts';
+import { readBriefFigure } from './test-utils/read-brief-figure.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
 import { readShellWords } from './test-utils/read-shell-words.ts';
 import { readTreeHashes } from './test-utils/read-tree-hashes.ts';
@@ -451,7 +457,7 @@ test.each([
     ['goal', 'Ship the parser'],
     {
       env: {},
-      stdout: 'goal set. Brief: 5 lines.\n',
+      stdout: 'goal set. Brief: 131 of 8000 tokens.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -464,7 +470,7 @@ test.each([
     ['now', 't-a', 'go'],
     {
       env: {},
-      stdout: 'now: t-a. Brief: 8 lines.\n',
+      stdout: 'now: t-a. Brief: 144 of 8000 tokens.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -474,7 +480,7 @@ test.each([
     ['task', 't-a', 'Write it'],
     {
       env: {},
-      stdout: 't-a  task, open, no check. Brief: 7 lines.\n',
+      stdout: 't-a  task, open, no check. Brief: 147 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -484,7 +490,7 @@ test.each([
     ['wait', 'w-a', 'Answer', '--who', 'owner'],
     {
       env: {},
-      stdout: 'w-a  wait, open, no check. Brief: 7 lines.\n',
+      stdout: 'w-a  wait, open, no check. Brief: 146 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -494,7 +500,7 @@ test.each([
     ['rule', 'r-a', 'Run from api/'],
     {
       env: {},
-      stdout: 'r-a  rule, open. Brief: 7 lines.\n',
+      stdout: 'r-a  rule, open. Brief: 143 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -504,7 +510,7 @@ test.each([
     ['where', 'wt-a', 'A worktree', '--path', '<STATE>'],
     {
       env: {},
-      stdout: 'wt-a  where, open, checked now: exists. Brief: 7 lines.\n',
+      stdout: 'wt-a  where, open, checked now: exists. Brief: 152 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -517,7 +523,7 @@ test.each([
     ['set', 't-a', 'Written another way'],
     {
       env: {},
-      stdout: 't-a  task, open, no check. Brief: 7 lines.\n',
+      stdout: 't-a  task, open, no check. Brief: 151 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -530,7 +536,7 @@ test.each([
     ['done', 't-a', '--evidence', 'commit 4c1d2e0'],
     {
       env: {},
-      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 5 lines.\n',
+      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 128 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -543,7 +549,7 @@ test.each([
     ['drop', 't-a', '--why', 'stopped'],
     {
       env: {},
-      stdout: 't-a  dropped. Off the brief, kept in the journal. Brief: 5 lines.\n',
+      stdout: 't-a  dropped. Off the brief, kept in the journal. Brief: 128 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -565,7 +571,7 @@ test.each([
     ],
     {
       env: {},
-      stdout: 'ok-merge  ok, open, no check. Brief: 7 lines.\n',
+      stdout: 'ok-merge  ok, open, no check. Brief: 156 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -590,7 +596,7 @@ test.each([
     ['use', 'ok-merge', '--for', 'merged the alert PR'],
     {
       env: {},
-      stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 5 lines.\n',
+      stdout: 'ok-merge  used. Off the brief, kept in the journal. Brief: 128 of 8000 tokens.\n',
       changed: ['tide-alerts/items.tsv', 'tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -600,7 +606,7 @@ test.each([
     ['task', 't-a', 'Write it', '--note', 'Stop the simulator first', '--owed'],
     {
       env: {},
-      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 7 lines.\n',
+      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 150 of 8000 tokens.\n',
       changed: [
         'tide-alerts/items.tsv',
         'tide-alerts/journal.tsv',
@@ -618,7 +624,7 @@ test.each([
     ['set', 't-a', '--note', 'Stop the simulator first'],
     {
       env: {},
-      stdout: 't-a  note, 24 of 400. Brief: 7 lines.\n',
+      stdout: 't-a  note, 24 of 400. Brief: 147 of 8000 tokens.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/notes.tsv', 'tide-alerts/session'],
     },
   ],
@@ -631,7 +637,8 @@ test.each([
     ['now', 't-a', 'go', '--note', 'Stop the simulator first'],
     {
       env: {},
-      stdout: '    Stop the simulator first\nnow: t-a, with its note (0m). Brief: 9 lines.\n',
+      stdout:
+        '    Stop the simulator first\nnow: t-a, with its note (0m). Brief: 159 of 8000 tokens.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/notes.tsv', 'tide-alerts/session'],
     },
   ],
@@ -645,7 +652,7 @@ test.each([
     {
       env: {},
       stdout:
-        '    Stop the simulator first\nt-a  done. Off the brief, kept in the journal with its note (0m). Brief: 5 lines.\n',
+        '    Stop the simulator first\nt-a  done. Off the brief, kept in the journal with its note (0m). Brief: 128 of 8000 tokens.\n',
       changed: [
         'tide-alerts/items.tsv',
         'tide-alerts/journal.tsv',
@@ -661,7 +668,7 @@ test.each([
     {
       env: {},
       stdout:
-        'grant: 18 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 13 of 200. Brief: 7 lines.\n',
+        'grant: 18 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 13 of 200. Brief: 110 of 8000 tokens.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -674,7 +681,7 @@ test.each([
     ['grant', '--reading', 'covers merges and nothing else'],
     {
       env: {},
-      stdout: 'grant reading: 30 of 200. Brief: 7 lines.\n',
+      stdout: 'grant reading: 30 of 200. Brief: 116 of 8000 tokens.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -687,7 +694,7 @@ test.each([
     ['decide', 'Retry a 503 3 times', '--why', 'The feed flaps', '--on', 't-a'],
     {
       env: {},
-      stdout: 'd-1  decision on t-a. Read it with: www show t-a. Brief: 7 lines.\n',
+      stdout: 'd-1  decision on t-a. Read it with: www show t-a. Brief: 164 of 8000 tokens.\n',
       changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
@@ -860,7 +867,7 @@ test('it names the session on each command when the shell has no agent session i
 
   expect([started.stdout, written.stdout]).toStrictEqual([
     `Started session tide-alerts in ${join(ctx.stateRoot, 'tide-alerts')}. Name it on each command: www --session tide-alerts\n`,
-    't-a  task, open, no check. Brief: 7 lines.\n',
+    't-a  task, open, no check. Brief: 147 of 20000 tokens.\n',
   ]);
 });
 
@@ -877,7 +884,7 @@ test('it finds the session by WHEREWEREWE_SESSION', async () => {
 
   const result = await ctx.run(['task', 't-a', 'Write it'], shellEnv);
 
-  expect(result.stdout).toBe('t-a  task, open, no check. Brief: 7 lines.\n');
+  expect(result.stdout).toBe('t-a  task, open, no check. Brief: 147 of 20000 tokens.\n');
 });
 
 test('it replaces an open item of the same kind in place, keeping its row and replacing its check', async () => {
@@ -983,7 +990,7 @@ test('it closes an item with done after an earlier done stopped between its jour
   expect({ result, items: parseItemsFile(itemsText, '2') }).toStrictEqual({
     result: {
       exitCode: 0,
-      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 5 lines.\n',
+      stdout: 't-a  done. Off the brief, kept in the journal. Brief: 128 of 8000 tokens.\n',
       stderr: '',
     },
     items: { kind: 'items', items: [] },
@@ -1279,7 +1286,7 @@ test('it lets say run for an owner with agent variables set to an empty value', 
   expect(result).toStrictEqual({
     exitCode: 0,
     stdout:
-      'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 7 lines.\n',
+      'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 155 of 20000 tokens.\n',
     stderr: '',
   });
 });
@@ -1426,7 +1433,7 @@ test('it keeps an item with a saved result byte for byte when set gives only a n
     saved: saved.kind === 'store' && saved.store.items.map((item) => [item.atWrite, item.last]),
     itemsKept: after['tide-alerts/items.tsv'] === before['tide-alerts/items.tsv'],
   }).toStrictEqual({
-    result: 't-a  note, 24 of 400. Brief: 9 lines.\n',
+    result: 't-a  note, 24 of 400. Brief: 201 of 8000 tokens.\n',
     saved: [['alive', 'gone']],
     itemsKept: true,
   });
@@ -1509,7 +1516,7 @@ test('it runs each command of the older-note line as printed', async () => {
   }).toStrictEqual({
     line: '  its note is 1h older than this claim. Replace it with www set t-a --note "<detail>", or clear it with www set t-a --no-note',
     replace: [['set', 't-a', '--note', '<detail>'], 0],
-    clear: [['set', 't-a', '--no-note'], 0, 't-a  note cleared. Brief: 7 lines.\n'],
+    clear: [['set', 't-a', '--no-note'], 0, 't-a  note cleared. Brief: 151 of 8000 tokens.\n'],
   });
 });
 
@@ -1566,7 +1573,7 @@ test('it leaves an item open with no note when a task with a note stops after it
     },
     rerun: {
       exitCode: 0,
-      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 7 lines.\n',
+      stdout: 't-a  task, open, no check, note 24 of 400, owed. Brief: 150 of 8000 tokens.\n',
       stderr: '',
     },
     afterRerun: {
@@ -1629,7 +1636,7 @@ test('it reads a closed item as closed and drops its notes.tsv row at the next n
     },
     next: {
       exitCode: 0,
-      stdout: 't-b  task, open, no check, note 12 of 400. Brief: 7 lines.\n',
+      stdout: 't-b  task, open, no check, note 12 of 400. Brief: 146 of 8000 tokens.\n',
       stderr: '',
     },
     notes: ['t-b'],
@@ -1664,7 +1671,7 @@ test('it keeps the journal row of a set with a note and writes the note on a rer
     },
     rerun: {
       exitCode: 0,
-      stdout: 't-a  note, 24 of 400. Brief: 7 lines.\n',
+      stdout: 't-a  note, 24 of 400. Brief: 147 of 8000 tokens.\n',
       stderr: '',
     },
     afterRerun: {
@@ -2235,7 +2242,7 @@ test('it counts the brief of its own host in a task write reply', async () => {
     CODEX_SESSION_ID: 'c9-test',
   };
 
-  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', 20);
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', { taskCount: 20 });
 
   await ctx.run(['attach', 'tide-alerts'], codexEnv);
 
@@ -2244,90 +2251,51 @@ test('it counts the brief of its own host in a task write reply', async () => {
   const codexReply = await ctx.run(['task', 't-w2', 'And another'], codexEnv);
   const codexBrief = await ctx.run([], codexEnv);
 
-  const claudeLines = countBriefLines(claudeBrief.stdout);
-  const codexLines = countBriefLines(codexBrief.stdout);
+  const claudeTokens = Math.ceil(Buffer.byteLength(claudeBrief.stdout) / 3);
+  const codexTokens = Math.ceil(Buffer.byteLength(codexBrief.stdout) / 3);
 
   expect({
-    claudeReply: claudeReply.stdout.includes(`Brief: ${String(claudeLines)} lines.`),
-    codexReply: codexReply.stdout.includes(`Brief: ${String(codexLines)} lines.`),
-    claudeLines,
-    codexLines,
+    claudeReply: readBriefFigure(claudeReply.stdout),
+    codexReply: readBriefFigure(codexReply.stdout),
   }).toStrictEqual({
-    claudeReply: true,
-    codexReply: true,
-    claudeLines: expect.toBeWithin(74, 83),
-    codexLines: expect.toBeWithin(60, 74),
+    claudeReply: { tokens: expect.toBeWithin(claudeTokens - 20, claudeTokens + 21), limit: 8000 },
+    codexReply: { tokens: expect.toBeWithin(codexTokens - 20, codexTokens + 21), limit: 10_000 },
   });
 });
 
-// Each row sizes the brief so that the count line's width decides how many task rows print: the
-// brief that names its session prints one row fewer than the brief that does not.
 test.each([
-  {
-    host: 'Codex',
-    taskCount: 20,
-    env: { CODEX_SESSION_ID: 'c9-test' },
-    nowLength: 80,
-    noteWords: null,
-  },
-  {
-    host: 'Claude Code',
-    taskCount: 29,
-    env: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' },
-    nowLength: 80,
-    noteWords: 3,
-  },
+  { host: 'Codex', env: { CODEX_SESSION_ID: 'c9-test' }, limit: 10_000 },
+  { host: 'Claude Code', env: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' }, limit: 8000 },
 ])('it counts the brief that www --session prints in a $host task write reply', async (row) => {
   const ctx = setupTest();
   const name = 'n'.repeat(24);
   const env = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME, ...row.env };
-  const focus = buildMockIDs('task', row.taskCount)[0] ?? '';
 
-  await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, row.taskCount);
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, { taskCount: 29 });
 
   await ctx.run(['attach', name], env);
 
-  if (row.noteWords !== null) {
-    seedStoreFile(
-      join(ctx.stateRoot, name),
-      'notes.tsv',
-      formatNotesFile([
-        {
-          id: focus,
-          owed: true,
-          written: '2026-03-10T09:00:00Z',
-          note: Array.from({ length: row.noteWords }, () => 'n'.repeat(81)).join(' '),
-        },
-      ]),
-    );
-  }
-
-  await ctx.run(['now', focus, 'n'.repeat(row.nowLength)], env);
-
   const reply = await ctx.run(['--session', name, 'task', 't-w1', 'One more'], env);
   const brief = await ctx.run(['--session', name], env);
-  const bound = await ctx.run([], env);
 
-  const briefLines = countBriefLines(brief.stdout);
+  const tokens = Math.ceil(Buffer.byteLength(brief.stdout) / 3);
 
-  expect({
-    hasCountLine: brief.stdout.includes(`more open tasks: www --session ${name} show\n`),
-    linesDifferFromBound: briefLines !== countBriefLines(bound.stdout),
-    replyLines: reply.stdout.includes(`Brief: ${String(briefLines)} lines.`),
-  }).toStrictEqual({ hasCountLine: true, linesDifferFromBound: true, replyLines: true });
+  expect(readBriefFigure(reply.stdout)).toStrictEqual({
+    tokens: expect.toBeWithin(tokens - 20, tokens + 21),
+    limit: row.limit,
+  });
 });
 
 test.each([
   {
     title: 'the owner terminal, which has no agent variable',
     host: 'none',
-    maxLines: 73,
-    maxCharacters: 7200,
+    maxBytes: 60_000,
   },
-  { title: 'a Codex session', host: 'codex', maxLines: 73, maxCharacters: 7200 },
-  { title: 'a Claude Code session', host: 'claude', maxLines: 82, maxCharacters: 9000 },
-  { title: 'both agent variables', host: 'both', maxLines: 82, maxCharacters: 9000 },
-] as const)('it prints the brief of $title within its budget', async (row) => {
+  { title: 'a Codex session', host: 'codex', maxBytes: 30_000 },
+  { title: 'a Claude Code session', host: 'claude', maxBytes: 24_000 },
+  { title: 'both agent variables', host: 'both', maxBytes: 24_000 },
+] as const)('it prints the brief of $title within its byte limit', async (row) => {
   const ctx = setupTest();
   const base = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
 
@@ -2338,33 +2306,30 @@ test.each([
     both: { ...base, CLAUDE_CODE_SESSION_ID: 'a1b2-test', CODEX_SESSION_ID: 'c9-test' },
   };
 
-  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', 30);
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', { taskCount: 30 });
 
   await ctx.run(['attach', 'tide-alerts'], envs.codex);
 
   const brief = await ctx.run([], envs[row.host]);
 
-  expect({
-    lines: countBriefLines(brief.stdout),
-    characters: Array.from(brief.stdout, (character) => character).length,
-  }).toStrictEqual({
-    lines: expect.toBeWithin(60, row.maxLines + 1),
-    characters: expect.toBeWithin(5000, row.maxCharacters + 1),
-  });
+  expect(Buffer.byteLength(brief.stdout)).toBeWithin(5000, row.maxBytes + 1);
 });
 
 test('it prints a count line whose command runs as printed, with and without --session', async () => {
   const ctx = setupTest();
   const name = 'n'.repeat(24);
 
-  await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, 30);
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, name, {
+    taskCount: 30,
+    claim: 'あ'.repeat(120),
+  });
 
-  const named = await ctx.run(['--session', name], ctx.ownerEnv);
+  const named = await ctx.run(['--session', name]);
 
   const countLine = named.stdout.split('\n').find((line) => line.includes('more open tasks')) ?? '';
 
   const words = await readShellWords(countLine.slice(countLine.indexOf(': ') + 2));
-  const listed = await ctx.run(words.slice(1), ctx.ownerEnv);
+  const listed = await ctx.run(words.slice(1));
   const bound = await ctx.run([]);
 
   const boundLine = bound.stdout.split('\n').find((line) => line.includes('more open tasks')) ?? '';
@@ -2374,8 +2339,7 @@ test('it prints a count line whose command runs as printed, with and without --s
 
   expect({
     namedLine: countLine,
-    namedLines: countBriefLines(named.stdout),
-    namedWithinLimit: Array.from(named.stdout, (character) => character).length <= 7200,
+    namedWithinLimit: Buffer.byteLength(named.stdout) <= 24_000,
     listedExit: listed.exitCode,
     listedAll: buildMockIDs('task', 30).every((id) => listed.stdout.includes(id)),
     boundLine,
@@ -2385,7 +2349,6 @@ test('it prints a count line whose command runs as printed, with and without --s
     namedLine: expect.stringMatching(
       new RegExp(`^ {2}and \\d+ more open tasks: www --session ${name} show$`, 'u'),
     ),
-    namedLines: expect.toBeWithin(60, 74),
     namedWithinLimit: true,
     listedExit: 0,
     listedAll: true,
@@ -2395,7 +2358,7 @@ test('it prints a count line whose command runs as printed, with and without --s
   });
 });
 
-test('it prints more task rows to a Claude Code session than to a Codex session, and each count line runs as printed', async () => {
+test('it prints more task rows to a Codex session than to a Claude Code session, and each count line runs as printed', async () => {
   const ctx = setupTest();
 
   const codexEnv = {
@@ -2404,7 +2367,10 @@ test('it prints more task rows to a Claude Code session than to a Codex session,
     CODEX_SESSION_ID: 'c9-test',
   };
 
-  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', 30);
+  await seedWorstCaseStore(ctx.run, ctx.stateRoot, 'tide-alerts', {
+    taskCount: 30,
+    claim: 'あ'.repeat(120),
+  });
 
   await ctx.run(['attach', 'tide-alerts'], codexEnv);
 
@@ -2423,30 +2389,22 @@ test('it prints more task rows to a Claude Code session than to a Codex session,
   };
 
   const claudeList = await listCommand(claude, ctx.agentEnv);
-  const codexList = await listCommand(codex, codexEnv);
 
   const taskRow = /^ {2}task\d\d/u;
   const claudeRows = claude.stdout.split('\n').filter((line) => taskRow.test(line));
   const codexRows = codex.stdout.split('\n').filter((line) => taskRow.test(line));
 
   expect({
-    claudeMore: claudeRows.length > codexRows.length,
+    codexMore: codexRows.length > claudeRows.length,
     claudeCount: claude.stdout.includes('more open tasks: www show'),
-    codexCount: codex.stdout.includes('more open tasks: www show'),
     claudeList: {
       exitCode: claudeList.exitCode,
       hasEveryID: allIDs.every((id) => claudeList.stdout.includes(id)),
     },
-    codexList: {
-      exitCode: codexList.exitCode,
-      hasEveryID: allIDs.every((id) => codexList.stdout.includes(id)),
-    },
   }).toStrictEqual({
-    claudeMore: true,
+    codexMore: true,
     claudeCount: true,
-    codexCount: true,
     claudeList: { exitCode: 0, hasEveryID: true },
-    codexList: { exitCode: 0, hasEveryID: true },
   });
 });
 
@@ -2476,7 +2434,10 @@ test('it writes a grant of only --not and prints it in the brief, show grant and
   const after = await ctx.run([]);
 
   expect({
-    written: [written.exitCode, written.stdout.replace(/Brief: \d+ lines\./u, 'Brief: <n> lines.')],
+    written: [
+      written.exitCode,
+      written.stdout.replace(/Brief: \d+ of \d+ tokens\./u, 'Brief: <n> of <limit> tokens.'),
+    ],
     briefLines: brief.stdout
       .split('\n')
       .filter(
@@ -2494,7 +2455,7 @@ test('it writes a grant of only --not and prints it in the brief, show grant and
   }).toStrictEqual({
     written: [
       0,
-      'grant: 51 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 84 of 200. Brief: <n> lines.\n',
+      'grant: 51 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 84 of 200. Brief: <n> of <limit> tokens.\n',
     ],
     briefLines: [
       expect.stringMatching(/^GRANT {2}from the owner in chat, /u),
@@ -2516,7 +2477,7 @@ test.each([
       ['--never', 'no night watering'],
     ],
     reply:
-      'grant: 30 of 700 characters in 2 of 12 bullets on 1 of 19 lines, reading 18 of 200. Brief: <n> lines.\n',
+      'grant: 30 of 700 characters in 2 of 12 bullets on 1 of 19 lines, reading 18 of 200. Brief: <n> of <limit> tokens.\n',
     lines: ['  never  • skip the gate  • no night watering'],
   },
   {
@@ -2526,7 +2487,7 @@ test.each([
       ['--never', 'prune the roses'],
     ],
     reply:
-      'grant: 66 of 700 characters in 2 of 12 bullets on 2 of 19 lines, reading 18 of 200. Brief: <n> lines.\n',
+      'grant: 66 of 700 characters in 2 of 12 bullets on 2 of 19 lines, reading 18 of 200. Brief: <n> of <limit> tokens.\n',
     lines: [
       '  not    • replant the north beds before the soil report is in',
       '  never  • prune the roses',
@@ -2555,7 +2516,7 @@ test.each([
     expect({
       written: [
         written.exitCode,
-        written.stdout.replace(/Brief: \d+ lines\./u, 'Brief: <n> lines.'),
+        written.stdout.replace(/Brief: \d+ of \d+ tokens\./u, 'Brief: <n> of <limit> tokens.'),
       ],
       brief: ctx.pickGrantLines(brief.stdout),
       shown: [shown.exitCode, ctx.pickGrantLines(shown.stdout)],
@@ -2716,33 +2677,30 @@ test('it counts the brief of its own environment in a task write reply, with no 
   const base = { HOME: ctx.agentEnv.HOME, XDG_STATE_HOME: ctx.agentEnv.XDG_STATE_HOME };
 
   const hosts = [
-    { name: 'tide-none', env: base },
-    { name: 'tide-codex', env: { ...base, CODEX_SESSION_ID: 'c9-test' } },
-    { name: 'tide-claude', env: { ...base, CLAUDE_CODE_SESSION_ID: 'a1b2-test' } },
+    { name: 'tide-none', env: base, limit: 20_000 },
+    { name: 'tide-codex', env: { ...base, CODEX_SESSION_ID: 'c9-test' }, limit: 10_000 },
+    { name: 'tide-claude', env: { ...base, CLAUDE_CODE_SESSION_ID: 'a1b2-test' }, limit: 8000 },
   ];
 
-  const counts: { reply: boolean; lines: number }[] = [];
+  const figures: { tokens: number | null; limit: number | null; expected: number }[] = [];
 
   for (const host of hosts) {
-    await seedWorstCaseStore(ctx.run, ctx.stateRoot, host.name, 29);
+    await seedWorstCaseStore(ctx.run, ctx.stateRoot, host.name, { taskCount: 29 });
 
     const reply = await ctx.run(['--session', host.name, 'task', 't-w1', 'One more'], host.env);
     const brief = await ctx.run(['--session', host.name], host.env);
 
-    const lines = countBriefLines(brief.stdout);
-
-    counts.push({ reply: reply.stdout.includes(`Brief: ${String(lines)} lines.`), lines });
+    figures.push({
+      ...readBriefFigure(reply.stdout),
+      expected: Math.ceil(Buffer.byteLength(brief.stdout) / 3),
+    });
   }
 
-  expect({
-    replies: counts.map((count) => count.reply),
-    noHostEqualsCodex: counts[0]?.lines === counts[1]?.lines,
-    noHostBelowClaude: (counts[0]?.lines ?? 0) < (counts[2]?.lines ?? 0),
-  }).toStrictEqual({
-    replies: [true, true, true],
-    noHostEqualsCodex: true,
-    noHostBelowClaude: true,
-  });
+  expect(figures.map((figure) => figure.limit)).toStrictEqual(hosts.map((host) => host.limit));
+
+  expect(figures.map((figure) => (figure.tokens ?? 0) - figure.expected)).toSatisfyAll(
+    (difference: number) => Math.abs(difference) <= 20,
+  );
 });
 
 test.each([
@@ -2763,8 +2721,8 @@ test.each([
 
     expect({
       exitCode: result.exitCode,
-      last: /Brief: \d+ lines\.$/u.test(lines.at(-1) ?? ''),
-      statusLines: lines.filter((line) => /Brief: \d+ lines\.$/u.test(line)).length,
+      last: /Brief: \d+ of \d+ tokens\.$/u.test(lines.at(-1) ?? ''),
+      statusLines: lines.filter((line) => /Brief: \d+ of \d+ tokens\.$/u.test(line)).length,
       firstIsNote: (lines[0] ?? '').startsWith('    ') || (lines[0] ?? '').startsWith('  its note'),
     }).toStrictEqual({ exitCode: 0, last: true, statusLines: 1, firstIsNote: true });
   },
@@ -2897,4 +2855,243 @@ test('it stores - in at_write when the probe of a --pr write reads unchecked', a
     exitCode: 0,
     cells: ['-', '-'],
   });
+});
+
+test('it writes a lesson, a promise and the owner words, reads them in every read, and closes each with its own command', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await ctx.run([
+    'lesson',
+    'l-seed',
+    'Reseed the staging table first',
+    '--why',
+    'A stale row passed',
+  ]);
+
+  await ctx.run(['promise', 'due-cost', 'Cost table', '--to', 'owner', '--by', 'day 10']);
+  await ctx.run(['words', 'w-plain', 'Plain words in every reply', '--where', 'chat']);
+
+  const brief = await ctx.run([]);
+  const shown = await ctx.run(['show', 'due-cost']);
+  const listed = await ctx.run(['list', 'lessons']);
+  const logged = await ctx.run(['log', '--op', 'lesson,promise,words']);
+  const recap = await ctx.run(['recap']);
+  const refused = await ctx.run(['done', 'l-seed', '--evidence', 'merged']);
+  const done = await ctx.run(['done', 'due-cost', '--evidence', 'sent']);
+  const dropped = await ctx.run(['drop', 'l-seed', '--why', 'fixed in the seed script']);
+  const after = await ctx.run(['list', 'lessons']);
+
+  expect({
+    sections: brief.stdout.split('\n').filter((line) => /^(?:WORDS|PROMISED|LESSONS) /u.test(line)),
+    shown: shown.stdout.split('\n')[0],
+    listed: listed.stdout,
+    loggedOps: logged.stdout.split('\n').filter((line) => line.startsWith('day ')).length,
+    recap: recap.stdout.split('\n').filter((line) => line.startsWith('PROMISED')),
+    refused: [refused.exitCode, refused.stderr.split('\n').at(-2)],
+    done: done.exitCode,
+    dropped: dropped.exitCode,
+    after: after.stdout,
+  }).toStrictEqual({
+    sections: ['WORDS (1, max 8)', 'PROMISED (1, max 5)', 'LESSONS (1, max 5)'],
+    shown: 'due-cost  promise, open since day 1, by agent · to owner · by day 10',
+    listed:
+      'LESSONS (1, max 5)\n  l-seed      Reseed the staging table first  [why: A stale row passed]\n',
+    loggedOps: 3,
+    recap: ['PROMISED (1, max 5)'],
+    refused: [3, 'Run: www drop l-seed --why "<reason>"'],
+    done: 0,
+    dropped: 0,
+    after: 'LESSONS (0, max 5)\n',
+  });
+});
+
+test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as const))(
+  'it prints a %s credential stored in a lesson, a promise, the owner words and a decision as the placeholder in every read',
+  async (_name, credential) => {
+    const ctx = setupTest();
+
+    const placements = buildRedactionPlacements().map((placement) =>
+      placement.build(credential.sample),
+    );
+
+    const written = '2026-03-09T09:00:00Z';
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    seedStoreFile(
+      join(ctx.stateRoot, 'tide-alerts'),
+      'lessons.tsv',
+      formatLessonsFile(
+        placements.map((text, index) => ({
+          id: `l-${String(index + 1)}`,
+          text,
+          why: text,
+          written,
+          by: 'agent' as const,
+        })),
+      ),
+    );
+
+    seedStoreFile(
+      join(ctx.stateRoot, 'tide-alerts'),
+      'promises.tsv',
+      formatPromisesFile(
+        placements.map((text, index) => ({
+          id: `p-${String(index + 1)}`,
+          what: text,
+          to: 'owner',
+          byWhen: 'day 10',
+          written,
+          by: 'agent' as const,
+        })),
+      ),
+    );
+
+    seedStoreFile(
+      join(ctx.stateRoot, 'tide-alerts'),
+      'words.tsv',
+      formatWordsFile(
+        placements.map((text, index) => ({
+          id: `w-${String(index + 1)}`,
+          words: text,
+          where: 'chat',
+          written,
+          by: 'owner' as const,
+        })),
+      ),
+    );
+
+    for (const [index, text] of placements.entries()) {
+      await seedJournalRow(join(ctx.stateRoot, 'tide-alerts'), {
+        ts: written,
+        op: 'decide',
+        id: `d-${String(index + 1)}`,
+        text,
+        why: text,
+        extra: 'who=agent',
+      });
+    }
+
+    const outputs = [
+      await ctx.run([]),
+      await ctx.run(['list', 'lessons']),
+      await ctx.run(['list', 'promises']),
+      await ctx.run(['list', 'words']),
+      await ctx.run(['list', 'decisions']),
+      await ctx.run(['show', 'l-1']),
+      await ctx.run(['show', 'l-2']),
+      await ctx.run(['show', 'p-3']),
+      await ctx.run(['show', 'w-2']),
+      await ctx.run(['show', 'd-2']),
+      await ctx.run(['log']),
+      await ctx.run(['recap']),
+    ];
+
+    const text = outputs.map((output) => `${output.stdout}${output.stderr}`).join('\n');
+
+    expect({
+      exitCodes: outputs.map((output) => output.exitCode),
+      placeholders: text.includes('<where the secret lives>'),
+      leakedHead: text.includes(credential.tail.slice(0, 4)),
+      leakedTail: text.includes(credential.tail.slice(-4)),
+    }).toStrictEqual({
+      exitCodes: outputs.map(() => 0),
+      placeholders: true,
+      leakedHead: false,
+      leakedTail: false,
+    });
+  },
+);
+
+test('it never prints the tail of a credential typed as the --session name', async () => {
+  const ctx = setupTest();
+  const [credential] = buildCredentialSamples();
+  const name = (credential?.sample ?? '').slice(0, 20);
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const result = await ctx.run(['--session', name, 'list', 'rules']);
+
+  expect(`${result.stdout}${result.stderr}`.includes(credential?.tail ?? 'zz')).toBe(false);
+});
+
+test('it holds no steering word in the new replies, refusals, cut lines, headings and help lines', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  seedStoreFile(
+    join(ctx.stateRoot, 'tide-alerts'),
+    'lessons.tsv',
+    formatLessonsFile(
+      buildMockIDs('less', 5).map((id) => ({
+        id,
+        text: 'A lesson',
+        why: 'A mistake',
+        written: '2026-03-09T09:00:00Z',
+        by: 'agent' as const,
+      })),
+    ),
+  );
+
+  await ctx.run(['promise', 'due-cost', 'Cost table', '--to', 'owner', '--by', 'day 10']);
+  await ctx.run(['words', 'w-plain', 'Plain words', '--where', 'chat']);
+
+  const outputs = [
+    await ctx.run(['lesson', 'l-new', 'A lesson', '--why', 'A mistake']),
+    await ctx.run(['lesson', 'l-new', 'A lesson']),
+    await ctx.run(['promise', 'p-new', 'A promise']),
+    await ctx.run(['promise', 'p-new', 'A promise', '--to', 'owner', '--by', 'Fri; Mon']),
+    await ctx.run(['words', 'w-new', 'Plain words']),
+    await ctx.run(['done', 'less01xxxxxxxxxx', '--evidence', 'merged']),
+    await ctx.run(['done', 'w-plain', '--evidence', 'merged']),
+    await ctx.run(['task', 'due-cost', 'A task']),
+    await ctx.run(['lesson', 'due-cost', 'A lesson', '--why', 'A mistake']),
+    await ctx.run(['list', 'bogus']),
+    await ctx.run(['list', 'promises']),
+    await ctx.run(['list', 'words']),
+    await ctx.run(['--session', 'tide-alerts']),
+  ];
+
+  const text = outputs.map((output) => `${output.stdout}${output.stderr}`).join('\n');
+
+  const newHelpLines = helpText
+    .split('\n')
+    .filter((line) =>
+      /www list|every row of one kind|www lesson|www promise|www words|one screen for the owner|work on now|A lesson or the owner's words close/u.test(
+        line,
+      ),
+    );
+
+  expect({
+    exitCodes: outputs.map((output) => output.exitCode),
+    steering: getSteeringWords(text),
+    help: getSteeringWords(newHelpLines.join('\n')),
+    helpLines: newHelpLines.length > 5,
+  }).toStrictEqual({
+    exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0],
+    steering: [],
+    help: [],
+    helpLines: true,
+  });
+});
+
+test('it prints no text of the new files through process.stdout or console', async () => {
+  const names = [
+    'src/commands/run-list-command.ts',
+    'src/reads/render-list.ts',
+    'src/writes/pick-lesson-write.ts',
+    'src/writes/pick-promise-write.ts',
+    'src/writes/pick-words-write.ts',
+    'src/writes/pick-file-close.ts',
+    'src/refusals/build-kind-refusal.ts',
+  ];
+
+  const texts = await Promise.all(
+    names.map((name) => Bun.file(join(import.meta.dir, '..', name)).text()),
+  );
+
+  expect(texts.filter((text) => /process\.stdout|console\./u.test(text))).toStrictEqual([]);
 });

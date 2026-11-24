@@ -2,6 +2,7 @@ import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
+import { formatBriefLine } from './format-brief-line.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
@@ -26,7 +27,7 @@ export function pickGoalWrite(input: WriteInput): WriteResult {
         { ts, op: 'goal', id: store.session.name, by: 'agent', text: goal, why: null, extra: null },
       ],
     },
-    reply: (briefLines) => `goal set. Brief: ${String(briefLines)} lines.`,
+    reply: (figure) => `goal set. ${formatBriefLine(figure)}`,
   };
 }
 

@@ -1,6 +1,5 @@
 import { match } from 'ts-pattern';
 import { formatAge } from '../brief/format-age.ts';
-import { getSessionDay } from '../brief/get-session-day.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { formatCommandLine } from '../refusals/format-command-line.ts';
@@ -12,6 +11,10 @@ import { parseCheckFlags } from '../rules/parse-check-flags.ts';
 import type { CheckFlagsResult } from '../rules/parse-check-flags.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { Extra, Item, Kind, Note, ParsedArgs, RefusalReason, Store } from '../types.ts';
+import { collectIDHolders, collectOpenIDs } from './collect-id-holders.ts';
+import { formatBriefLine } from './format-brief-line.ts';
+import { pickDuplicateIDRefusal } from './pick-duplicate-id-refusal.ts';
+import { pickKindIDRefusal } from './pick-kind-id-refusal.ts';
 import {
   buildChangedNotes,
   buildNoteJournalRows,
@@ -60,8 +63,8 @@ export function pickItemWrite(input: WriteInput): WriteResult {
     return {
       kind: 'write',
       change: { session, journal: noteRows, ...(notes === undefined ? {} : { notes }) },
-      reply: (briefLines) => {
-        const brief = `Brief: ${String(briefLines)} lines.`;
+      reply: (figure) => {
+        const brief = formatBriefLine(figure);
 
         return noteChange.kind === 'write'
           ? `${id}  note, ${formatNotePart(noteChange.note)}. ${brief}`
@@ -115,8 +118,8 @@ export function pickItemWrite(input: WriteInput): WriteResult {
       ],
       ...(notes === undefined ? {} : { notes }),
     },
-    reply: (briefLines) => {
-      const brief = `Brief: ${String(briefLines)} lines.`;
+    reply: (figure) => {
+      const brief = formatBriefLine(figure);
 
       const check = match(kind)
         .with('rule', () => '')
@@ -345,30 +348,27 @@ function pickWhoRefusal(args: ParsedArgs, existing: Item | undefined): RefusalRe
 function pickStoreRefusal(input: WriteInput, id: string, isSet: boolean): RefusalReason | null {
   const store = input.store;
   const args = input.args;
-  const existing = store.items.find((item) => item.id === id);
+  const duplicate = pickDuplicateIDRefusal(input, id);
+
+  if (duplicate !== null) {
+    return duplicate;
+  }
 
   if (isSet) {
-    return existing === undefined
-      ? { kind: 'no-open-item', args, id, openIDs: store.items.map((item) => item.id) }
-      : null;
+    return store.items.some((item) => item.id === id) ? null : pickNoOpenItemRefusal(input, id);
   }
 
-  const closedTs = input.journal.closed.get(id);
+  return pickKindIDRefusal(input, id, getKind(args.command));
+}
 
-  if (existing === undefined && closedTs !== undefined) {
-    return {
-      kind: 'closed-id',
-      args,
-      id,
-      day: getSessionDay(store.session.started, Date.parse(closedTs)),
-    };
-  }
+// The refusal for an id that no item holds: the other-kind refusal when a lesson, a promise or the
+// owner's words holds it, else no open item, listing the ids of all four files.
+export function pickNoOpenItemRefusal(input: WriteInput, id: string): RefusalReason {
+  const [holder] = collectIDHolders(input.store, id);
 
-  if (existing !== undefined && existing.kind !== getKind(args.command)) {
-    return { kind: 'other-kind', args, id, itemKind: existing.kind };
-  }
-
-  return null;
+  return holder === undefined
+    ? { kind: 'no-open-item', args: input.args, id, openIDs: collectOpenIDs(input.store) }
+    : { kind: 'other-kind', args: input.args, id, itemKind: holder.kind };
 }
 
 function getKind(command: string): Item['kind'] {
@@ -389,6 +389,14 @@ function pickBlockedByRefusal(input: WriteInput): RefusalReason | null {
   }
 
   const openIDs = store.items.filter((item) => canBlock(item.kind)).map((item) => item.id);
+
+  const holder = collectIDHolders(store, blockedBy).find(
+    (candidate) => candidate.file !== 'items.tsv',
+  );
+
+  if (holder !== undefined) {
+    return { kind: 'other-kind', args, id: blockedBy, itemKind: holder.kind };
+  }
 
   return openIDs.includes(blockedBy)
     ? null

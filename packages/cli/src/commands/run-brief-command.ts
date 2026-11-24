@@ -1,7 +1,6 @@
 import { buildReadBriefInput } from '../brief/build-read-brief-input.ts';
 import { buildReplyBriefInput } from '../brief/build-reply-brief-input.ts';
 import { orderChecks } from '../brief/order-checks.ts';
-import { pickPrintedTaskIDs } from '../brief/pick-printed-task-ids.ts';
 import { renderBrief } from '../brief/render-brief.ts';
 import type { BriefInput } from '../brief/types.ts';
 import { checkLimits } from '../checks/check-limits.ts';
@@ -15,6 +14,7 @@ import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeCheckFiles } from '../store/write-check-files.ts';
 import type { CLIResult, JournalRow, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
+import { readDecisions } from './read-decisions.ts';
 import type { CommandContext } from './types.ts';
 
 // Prints the brief: probes every check and open pull request within the deadline, saves the
@@ -26,14 +26,21 @@ export async function runBriefCommand(
   unread: UnreadRows | null,
   host: 'claude' | 'codex' | null,
 ): Promise<CLIResult> {
-  const briefContext = { nowMs: context.nowMs, sessionFlag: context.args.sessionFlag, host };
+  const decided = await readDecisions(store.folder);
+
+  const briefContext = {
+    nowMs: context.nowMs,
+    sessionFlag: context.args.sessionFlag,
+    host,
+    decisions: decided.decisions,
+  };
+
   const reply = buildReplyBriefInput(store, briefContext);
 
   const order = orderChecks({
     items: store.items,
     notes: store.notes,
     focus: store.session.now,
-    printedTaskIDs: pickPrintedTaskIDs(reply),
     pullRequests: reply.pullRequests,
   });
 
@@ -52,7 +59,17 @@ export async function runBriefCommand(
     stdout: renderBrief(
       buildReadBriefInput(store, { run, hidden: hidden.step, saved }, briefContext),
     ),
-    stderr: [unread, store.notesUnread, store.ownerUnread, store.prsUnread, hidden.unread]
+    stderr: [
+      unread,
+      store.notesUnread,
+      store.ownerUnread,
+      store.prsUnread,
+      store.lessonsUnread,
+      store.promisesUnread,
+      store.wordsUnread,
+      decided.unread,
+      hidden.unread,
+    ]
       .flatMap((rows) =>
         rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'The brief')],
       )

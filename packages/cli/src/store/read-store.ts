@@ -1,12 +1,26 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
-import type { Note, OwnerNote, PullRequestRow, SessionFile, Store, UnreadRows } from '../types.ts';
+import type {
+  LessonRow,
+  Note,
+  OwnerNote,
+  PromiseRow,
+  PullRequestRow,
+  SessionFile,
+  Store,
+  UnreadRows,
+  WordsRow,
+} from '../types.ts';
 import { parseItemsFile } from './parse-items-file.ts';
+import { parseLessonsFile } from './parse-lessons-file.ts';
 import { parseNotesFile } from './parse-notes-file.ts';
 import { parseOwnerFile } from './parse-owner-file.ts';
+import { parsePromisesFile } from './parse-promises-file.ts';
 import { parsePrsFile } from './parse-prs-file.ts';
+import type { RowsParse } from './parse-rows-file.ts';
 import { parseSessionFile } from './parse-session-file.ts';
+import { parseWordsFile } from './parse-words-file.ts';
 
 export interface ReadStoreOptions {
   // false leaves prs.tsv unopened and the store with no rows of it
@@ -81,6 +95,7 @@ async function readItems(
 
   const owner = {
     ...(await readOwner(folder)),
+    ...(await readKinds(folder)),
     ...(options.isPrsRead ? await readPrs(folder) : { prs: [], prsUnread: null }),
   };
 
@@ -159,6 +174,61 @@ function readOwnerText(ownerText: string): OwnerRead {
       ownerUnread: { file: 'owner.tsv', line: found.line, reason: found.reason },
     }))
     .exhaustive();
+}
+
+interface KindsRead {
+  readonly lessons: readonly LessonRow[];
+  readonly promises: readonly PromiseRow[];
+  readonly words: readonly WordsRow[];
+  readonly lessonsUnread: UnreadRows | null;
+  readonly promisesUnread: UnreadRows | null;
+  readonly wordsUnread: UnreadRows | null;
+}
+
+// A missing lessons.tsv, promises.tsv or words.tsv reads as no rows, and a row that does not parse
+// is left out and named, as for notes.tsv.
+async function readKinds(folder: string): Promise<KindsRead> {
+  const lessons = await readRows(folder, 'lessons.tsv', parseLessonsFile);
+  const promises = await readRows(folder, 'promises.tsv', parsePromisesFile);
+  const words = await readRows(folder, 'words.tsv', parseWordsFile);
+
+  return {
+    lessons: lessons.rows,
+    lessonsUnread: lessons.unread,
+    promises: promises.rows,
+    promisesUnread: promises.unread,
+    words: words.rows,
+    wordsUnread: words.unread,
+  };
+}
+
+async function readRows<Row extends { readonly id: string }>(
+  folder: string,
+  file: string,
+  parse: (text: string) => RowsParse<Row>,
+): Promise<{ readonly rows: readonly Row[]; readonly unread: UnreadRows | null }> {
+  try {
+    const text = await readTextOrNull(join(folder, file));
+
+    if (text === null) {
+      return { rows: [], unread: null };
+    }
+
+    const found = parse(text);
+
+    return found.kind === 'rows'
+      ? { rows: found.rows, unread: null }
+      : { rows: found.rows, unread: { file, line: found.line, reason: found.reason } };
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+      return {
+        rows: [],
+        unread: { file, line: null, reason: `the file cannot be read (${error.code})` },
+      };
+    }
+
+    throw error;
+  }
 }
 
 interface PrsRead {

@@ -1,8 +1,10 @@
 import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { collectDecisionsInForce } from '../brief/collect-decisions-in-force.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
-import type { JournalIndex } from '../types.ts';
+import type { JournalIndex, JournalRow } from '../types.ts';
+import { parseJournalLine } from './parse-journal-line.ts';
 
 const closingOps: ReadonlySet<string> = new Set(['done', 'drop', 'use']);
 const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
@@ -11,6 +13,7 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
   const closed = new Map<string, string>();
   const decisions = new Map<string, { readonly who: 'owner' | 'agent' | null }>();
 
+  const decideRows: JournalRow[] = [];
   let lastDecisionNumber = 0;
   let lastOwnerNoteNumber = 0;
   const stream = createReadStream(join(folder, 'journal.tsv'), 'utf8');
@@ -35,6 +38,14 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
 
       const number = decisionOps.has(op) ? readNumber(id, 'd') : null;
 
+      if (op === 'decide') {
+        const row = parseJournalLine(line);
+
+        if (row !== null) {
+          decideRows.push(row);
+        }
+      }
+
       if (number !== null) {
         decisions.set(id, { who: readWho(line.split('\t')[6] ?? null) });
 
@@ -47,7 +58,20 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
     }
   }
 
-  return { closed, decisions, lastDecisionNumber, lastOwnerNoteNumber };
+  return {
+    closed,
+    decisions,
+    replaced: new Set(
+      decideRows.flatMap((row) => {
+        const id = findExtraValue(row.extra, 'replaces');
+
+        return id === null ? [] : [id];
+      }),
+    ),
+    inForce: collectDecisionsInForce(decideRows),
+    lastDecisionNumber,
+    lastOwnerNoteNumber,
+  };
 }
 
 function readNumber(id: string, prefix: 'd' | 'o'): number | null {

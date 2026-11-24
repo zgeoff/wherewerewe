@@ -1,5 +1,6 @@
 import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
+import { formatBriefLine } from './format-brief-line.ts';
 import type { OwnerWriteResult, WriteInput } from './types.ts';
 
 export function pickAck(input: WriteInput): OwnerWriteResult {
@@ -35,7 +36,6 @@ export function pickAck(input: WriteInput): OwnerWriteResult {
         },
       ],
     },
-    reply: (briefLines) =>
-      `${id}  cleared. Kept in the journal. Brief: ${String(briefLines)} lines.`,
+    reply: (figure) => `${id}  cleared. Kept in the journal. ${formatBriefLine(figure)}`,
   };
 }

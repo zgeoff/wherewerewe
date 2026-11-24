@@ -2,14 +2,16 @@ import { formatAge } from '../brief/format-age.ts';
 import { getSessionDay } from '../brief/get-session-day.ts';
 import { padID } from '../brief/pad-id.ts';
 import { renderGrantLines } from '../brief/render-grant-lines.ts';
+import { promiseCap } from '../rules/item-caps.ts';
 import { redactCredentialWords } from '../rules/redact-credential-words.ts';
-import type { Item, JournalRow, Note, SessionFile } from '../types.ts';
+import type { Item, JournalRow, Note, PromiseRow, SessionFile } from '../types.ts';
 import { cutRedactedLine } from './cut-redacted-line.ts';
 
 export interface RecapInput {
   readonly session: SessionFile;
   readonly items: readonly Item[];
   readonly notes: readonly Note[];
+  readonly promises: readonly PromiseRow[];
 
   // the journal rows at or after `fromMs`, any order; null when journal.tsv could not be read
   readonly rows: readonly JournalRow[] | null;
@@ -28,13 +30,14 @@ export interface RecapInput {
   readonly nowMs: number;
 }
 
-// One screen of at most 55 lines of at most 100 characters, except an overflow line whose --since
+// One screen of at most 61 lines of at most 100 characters, except an overflow line whose --since
 // passes 7 characters. Each stored text is redacted before its line is cut. The grant's lines, the
 // overflow lines and the footer are never cut, so each command runs as printed.
 export function renderRecap(input: RecapInput): string {
   const lines = [
     renderHeader(input),
     ...renderGrant(input),
+    ...renderPromises(input),
     ...renderNotes(input),
     ...renderRows(input),
     ...renderFooter(input),
@@ -75,6 +78,26 @@ function renderGrant(input: RecapInput): string[] {
   return grant === null
     ? [`GRANT  none. Run: www --session ${input.sessionID} show grant`]
     : renderGrantLines(grant, input.nowMs);
+}
+
+// The open promises, oldest first, each line cut after its texts are redacted.
+function renderPromises(input: RecapInput): string[] {
+  if (input.promises.length === 0) {
+    return [];
+  }
+
+  const promises = input.promises.toSorted(
+    (first, second) => Date.parse(first.written) - Date.parse(second.written),
+  );
+
+  return [
+    `PROMISED (${String(promises.length)}, max ${String(promiseCap)})`,
+    ...promises.map((row) =>
+      cutRedactedLine(
+        `  ${padID(redactCredentialWords(row.id))}${redactCredentialWords(row.what)} · to ${redactCredentialWords(row.to)} · by ${redactCredentialWords(row.byWhen)}`,
+      ),
+    ),
+  ];
 }
 
 const maxNotes = 6;

@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern';
+import { listKinds } from '../rules/list-kinds.ts';
 import type { Refusal, RefusalReason, RunWord } from '../types.ts';
 
 type ArgvRefusalReason = Extract<
@@ -11,7 +12,8 @@ type ArgvRefusalReason = Extract<
       | 'flag-value-has-dash'
       | 'flag-takes-no-value'
       | 'flag-not-taken'
-      | 'wrong-positionals';
+      | 'wrong-positionals'
+      | 'bad-list-kind';
   }
 >;
 
@@ -35,6 +37,9 @@ export function buildArgvRefusal(reason: ArgvRefusalReason): Refusal {
     .with({ kind: 'flag-not-taken' }, (found) => buildFlagNotTaken(found))
     .with({ kind: 'wrong-positionals' }, (found) =>
       usage(`www: ${found.command} takes ${found.usage}.`),
+    )
+    .with({ kind: 'bad-list-kind' }, () =>
+      usage(`www: list takes ${formatKinds()}.`, ['list', 'tasks']),
     )
     .exhaustive();
 }
@@ -62,4 +67,9 @@ function joinFlags(flags: readonly string[]): string {
   const last = named.at(-1);
 
   return named.length === 1 ? (last ?? '') : `${named.slice(0, -1).join(', ')} and ${last ?? ''}`;
+}
+
+// `a, b or c`.
+function formatKinds(): string {
+  return `${listKinds.slice(0, -1).join(', ')} or ${listKinds.at(-1) ?? ''}`;
 }

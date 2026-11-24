@@ -27,6 +27,12 @@ function setupTest() {
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
       ...fields,
     }),
@@ -83,7 +89,7 @@ test("it builds the read from this read's results, in items order, with the pull
       hidden: { kind: 'changed' },
       saved: 'lock-held',
     },
-    { nowMs: 1000, sessionFlag: 'tide-alerts', host: 'codex' },
+    { nowMs: 1000, sessionFlag: 'tide-alerts', host: 'codex', decisions: [] },
   );
 
   expect([
@@ -121,7 +127,7 @@ test('it never shows a pull request row that an item names', () => {
       hidden: null,
       saved: null,
     },
-    { nowMs: 1000, sessionFlag: null, host: 'codex' },
+    { nowMs: 1000, sessionFlag: null, host: 'codex', decisions: [] },
   );
 
   expect(input.pullRequests).toStrictEqual([]);
@@ -129,7 +135,7 @@ test('it never shows a pull request row that an item names', () => {
 
 test('it reports no checks in a read when no probe ran, and no unchecked part when every probe read', () => {
   const ctx = setupTest();
-  const context = { nowMs: 1000, sessionFlag: null, host: 'codex' } as const;
+  const context = { nowMs: 1000, sessionFlag: null, host: 'codex', decisions: [] } as const;
   const parts = { hidden: null, saved: null };
 
   const none = buildReadBriefInput(

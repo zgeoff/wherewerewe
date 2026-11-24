@@ -6,12 +6,12 @@ test('it returns the change and the reply of a write', () => {
   const picked: WriteResult = {
     kind: 'write',
     change: { journal: [] },
-    reply: (briefLines) => `done. Brief: ${String(briefLines)} lines.`,
+    reply: (figure) => `done. Brief: ${String(figure.tokens)} of ${String(figure.limit)} tokens.`,
   };
 
   expect(getPickedWrite(picked, 7)).toStrictEqual({
     change: { journal: [] },
-    reply: 'done. Brief: 7 lines.',
+    reply: 'done. Brief: 7 of 8000 tokens.',
   });
 });
 

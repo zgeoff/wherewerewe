@@ -32,6 +32,12 @@ test('it adds items in order with the defaults the test leaves out', async () =>
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
     },
   });

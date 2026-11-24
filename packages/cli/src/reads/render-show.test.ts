@@ -4,7 +4,7 @@ import { noSecretPlaceholder } from '../rules/redact-credential.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
-import type { Grant, Item, JournalRow, Note, SessionFile } from '../types.ts';
+import type { Grant, Item, JournalRow, Note, SessionFile, Store } from '../types.ts';
 import { renderShow } from './render-show.ts';
 
 interface ShowOptions {
@@ -12,6 +12,7 @@ interface ShowOptions {
   readonly notes?: readonly Note[];
   readonly grant?: Grant;
   readonly checkNow?: { readonly result: string; readonly failing: readonly string[] };
+  readonly store?: Partial<Store>;
 }
 
 function setupTest() {
@@ -47,7 +48,14 @@ function setupTest() {
           notesUnread: null,
           prs: [],
           prsUnread: null,
+          lessons: [],
+          lessonsUnread: null,
+          promises: [],
+          promisesUnread: null,
+          words: [],
+          wordsUnread: null,
           ownerUnread: null,
+          ...options.store,
         },
         rows,
         closed: options.closed ?? new Map(),
@@ -782,7 +790,7 @@ test.each([
   [
     'other words',
     {
-      ts: '2026-03-04T09:00:00Z',
+      ts: '2026-03-04T09:30:00Z',
       text: 'may: Deploy it yourself.',
       why: 'covers merges',
       extra: 'where=chat',
@@ -791,7 +799,7 @@ test.each([
   [
     'the same words and a new reading',
     {
-      ts: '2026-03-04T09:00:00Z',
+      ts: '2026-03-04T09:30:00Z',
       text: 'may: Merge it yourself.',
       why: 'covers deploys',
       extra: 'where=chat',
@@ -809,7 +817,7 @@ test.each([
   [
     'the same words and reading from a new where',
     {
-      ts: '2026-03-04T09:00:00Z',
+      ts: '2026-03-04T09:30:00Z',
       text: 'may: Merge it yourself.',
       why: 'covers merges',
       extra: 'where=terminal',
@@ -818,7 +826,7 @@ test.each([
   [
     'the same words and reading as a row with no reading=1',
     {
-      ts: '2026-03-04T09:00:00Z',
+      ts: '2026-03-04T09:30:00Z',
       text: 'may: Merge it yourself.',
       why: 'covers merges',
       extra: 'where=chat',
@@ -1019,4 +1027,136 @@ test('it prints no names after a result that is not OPEN failing', () => {
   });
 
   expect(text).toInclude('  checked now: OPEN pending · at write: not checked yet\n');
+});
+
+test('it shows a lesson, a promise and the owner words whole, with their journal days', () => {
+  const ctx = setupTest();
+
+  const lesson = ctx.show(
+    'l-seed',
+    [],
+    [
+      buildMockJournalRow({
+        ts: '2026-03-07T15:20:44Z',
+        op: 'lesson',
+        id: 'l-seed',
+        text: 'Reseed the staging alerts table before alerts-e2e',
+      }),
+    ],
+    {
+      store: {
+        lessons: [
+          {
+            id: 'l-seed',
+            text: 'Reseed the staging alerts table before alerts-e2e',
+            why: 'A stale row made alerts-e2e pass on day 6 while no alert fired',
+            written: '2026-03-07T15:20:44Z',
+            by: 'agent',
+          },
+        ],
+      },
+    },
+  );
+
+  const promise = ctx.show(
+    'due-cost',
+    [],
+    [buildMockJournalRow({ ts: '2026-03-09T16:05:10Z', op: 'promise', id: 'due-cost' })],
+    {
+      store: {
+        promises: [
+          {
+            id: 'due-cost',
+            what: 'Cost table for the alert fan-out',
+            to: 'owner',
+            byWhen: 'day 10, before review',
+            written: '2026-03-09T16:05:10Z',
+            by: 'agent',
+          },
+        ],
+      },
+    },
+  );
+
+  const words = ctx.show(
+    'w-plain',
+    [],
+    [buildMockJournalRow({ ts: '2026-03-04T09:30:00Z', op: 'words', id: 'w-plain' })],
+    {
+      store: {
+        words: [
+          {
+            id: 'w-plain',
+            words:
+              'Plain words in every reply; I would rather read three short sentences than one clever one',
+            where: 'chat',
+            written: '2026-03-04T09:30:00Z',
+            by: 'agent',
+          },
+        ],
+      },
+    },
+  );
+
+  expect([lesson, promise, words]).toStrictEqual([
+    [
+      'l-seed  lesson, open since day 6, by agent',
+      '  do this (2d): Reseed the staging alerts table before alerts-e2e',
+      '  why: A stale row made alerts-e2e pass on day 6 while no alert fired',
+      '  journal: day 6 lesson',
+      '',
+    ].join('\n'),
+    [
+      'due-cost  promise, open since day 8, by agent · to owner · by day 10, before review',
+      '  what (19h): Cost table for the alert fan-out',
+      '  journal: day 8 promise',
+      '',
+    ].join('\n'),
+    [
+      "w-plain  owner's words, open since day 3, by agent · said in chat",
+      '  words (6d): "Plain words in every reply; I would rather read three short sentences than one clever one"',
+      '  journal: day 3 words',
+      '',
+    ].join('\n'),
+  ]);
+});
+
+test('it prints a credential in a stored lesson as the placeholder', () => {
+  const ctx = setupTest();
+  const sample = buildCredentialSamples()[0]?.sample ?? '';
+
+  const text = ctx.show('l-seed', [], [], {
+    store: {
+      lessons: [
+        {
+          id: 'l-seed',
+          text: `Never paste ${sample}`,
+          why: `Because ${sample}`,
+          written: '2026-03-07T15:20:44Z',
+          by: 'agent',
+        },
+      ],
+    },
+  });
+
+  expect([text.includes(sample.slice(0, 8)), text.includes(noSecretPlaceholder)]).toStrictEqual([
+    false,
+    true,
+  ]);
+});
+
+test('it lists the ids of all four files when the id is open nowhere', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show('zz-a', [buildMockItem({ id: 't-a' })], [], {
+    store: {
+      lessons: [
+        { id: 'l-seed', text: 'x', why: 'y', written: '2026-03-07T15:20:44Z', by: 'agent' },
+      ],
+    },
+  });
+
+  expect(text).toBe(
+    'zz-a: no item, decision or journal row has this id. Open items: t-a, l-seed.\n',
+  );
 });

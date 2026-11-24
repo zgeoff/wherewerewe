@@ -5,6 +5,7 @@ import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { createGitCommit, runGit } from '@zgeoff/testing/git';
+import { estimateTokens } from '../brief/estimate-tokens.ts';
 import { runCLI } from '../run-cli.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
@@ -13,6 +14,7 @@ import { countBriefLines } from '../test-utils/count-brief-lines.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedDayNineStore } from '../test-utils/seed-day-nine-store.ts';
+import { seedExampleStartStore } from '../test-utils/seed-example-start-store.ts';
 import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
@@ -104,68 +106,80 @@ test.each([
 
   const store = await seedDayNineStore(ctx.root);
 
-  const env = { ...store.env, CLAUDE_CODE_SESSION_ID: '', ...row.variable };
+  const env = {
+    ...store.env,
+    CLAUDE_CODE_SESSION_ID: '',
+    WHEREWEREWE_SESSION: 'tide-alerts',
+    ...row.variable,
+  };
 
-  const result = await ctx.runClock(env, ['--session', 'tide-alerts']);
+  const result = await ctx.runClock(env, []);
 
   expect({
     exitCode: result.exitCode,
     stdout: result.stdout,
     stderr: result.stderr,
     lines: countBriefLines(result.stdout),
-    characters: Array.from(result.stdout, (character) => character).length,
+    bytes: Buffer.byteLength(result.stdout),
+    tokens: estimateTokens(result.stdout),
   }).toStrictEqual({
     exitCode: 0,
     stdout: ctx.readDayNine(),
     stderr: '',
-    lines: 48,
-    characters: 3440,
+    lines: 60,
+    bytes: 4228,
+    tokens: 1410,
   });
 });
 
-test('it ends each reply of commands.md with the count of the brief from the day 9 store', async () => {
+test("it prints each write reply of commands.md's examples, figures included, from the store the examples start from", async () => {
   const ctx = setupTest();
 
-  const store = await seedDayNineStore(ctx.root);
+  const store = await seedExampleStartStore(ctx.root);
 
-  seedGhAnswers(store.bin, {
-    'bosunhq/bosun-api#77': 'OPEN pending',
-    'bosunhq/bosun-app#61': 'MERGED',
-    'tidal-org/tidekit#19': 'OPEN pending',
-    'bosunhq/bosun-app#64': 'OPEN pending',
-  });
+  const text = readFileSync(
+    join(import.meta.dir, '..', '..', '..', '..', 'docs', 'design', 'wherewerewe', 'commands.md'),
+    'utf8',
+  );
 
-  const argvs = [
-    [
-      'set',
-      'pr-api-77',
-      'Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07',
-      '--pr',
-      'bosunhq/bosun-api#77',
-    ],
-    ['done', 'pr-app-61', '--evidence', 'merged as 51aa0e2, seen by check'],
-    ['now', 'pr-api-77', 'fix the failing lint job on 9b41c07, push, then request review'],
-    [
-      'grant',
-      '--reading',
-      'covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases',
-    ],
-  ];
+  const section = text.slice(text.indexOf('Examples from the invented session:'));
+  const block = /```text\n(?<examples>.*?)```/su.exec(section)?.groups?.['examples'] ?? '';
 
-  const lastLines: string[] = [];
+  const examples = block
+    .split('\n\n')
+    .map((chunk) => chunk.trimEnd().split('\n'))
+    .filter((lines) => lines[0]?.startsWith('$ www '));
 
-  for (const argv of argvs) {
-    const result = await ctx.run(['--session', 'tide-alerts', ...argv], store.env);
+  const actual: { command: string; reply: string }[] = [];
 
-    lastLines.push(result.stdout.trimEnd().split('\n').at(-1) ?? '');
+  for (const lines of examples) {
+    const command = (lines[0] ?? '').slice('$ www '.length);
+
+    const argv = await readShellWords(command);
+
+    seedGhAnswers(store.bin, {
+      'bosunhq/bosun-api#77': 'OPEN pending',
+      'bosunhq/bosun-app#61': argv[0] === 'done' ? 'MERGED' : 'OPEN passing',
+      'tidal-org/tidekit#19': 'OPEN pending',
+    });
+
+    const result = await runCLI({
+      argv,
+      env: store.env,
+      cwd: '/work',
+      terminal: { stdin: false, stdout: false },
+      now: () => Date.parse('2026-03-10T11:43:00Z'),
+    });
+
+    actual.push({ command, reply: result.stdout + result.stderr });
   }
 
-  expect(lastLines).toStrictEqual([
-    'pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.',
-    'pr-app-61  done. Off the brief, kept in the journal. Brief: 45 lines.',
-    'now: pr-api-77, with its note (1h). Brief: 45 lines.',
-    'grant reading: 197 of 200. Brief: 45 lines.',
-  ]);
+  expect(actual).toStrictEqual(
+    examples.map((lines) => ({
+      command: (lines[0] ?? '').slice('$ www '.length),
+      reply: `${lines.slice(1).join('\n')}\n`,
+    })),
+  );
 });
 
 test('it hides the next step when the item in focus changed after now_set, and prints its note whole under the hidden line', async () => {

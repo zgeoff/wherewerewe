@@ -1,13 +1,14 @@
+import { itemCaps } from '../rules/item-caps.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
 import type { Kind } from '../types.ts';
 import type { Question } from './types.ts';
 
 const capWords = {
-  task: { cap: 30, plural: 'tasks' },
-  wait: { cap: 4, plural: 'waits' },
+  task: { cap: itemCaps.task, plural: 'tasks' },
+  wait: { cap: itemCaps.wait, plural: 'waits' },
   ok: { cap: 3, plural: 'approvals' },
-  rule: { cap: 5, plural: 'rules' },
-  where: { cap: 4, plural: 'where items' },
+  rule: { cap: itemCaps.rule, plural: 'rules' },
+  where: { cap: itemCaps.where, plural: 'where items' },
 } as const;
 
 export function collectCapProblems(

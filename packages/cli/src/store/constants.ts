@@ -6,3 +6,6 @@ export const prsHeader = 'ref\topened\tstate\tseen';
 
 // store.md: a lock older than 30 s is stale.
 export const staleLockMs = 30_000;
+export const lessonsHeader = 'id\ttext\twhy\twritten\tby';
+export const promisesHeader = 'id\twhat\tto\tby_when\twritten\tby';
+export const wordsHeader = 'id\twords\twhere\twritten\tby';

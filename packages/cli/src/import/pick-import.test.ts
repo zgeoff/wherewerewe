@@ -534,43 +534,37 @@ test.each([
     ],
   },
   {
-    title: 'five questions against a cap of 4 waits',
+    title: 'nine questions against a cap of 8 waits',
     items: [],
-    journal: ['q-1', 'q-2', 'q-3', 'q-4', 'q-5'].map((id) =>
-      buildHandKeptQuestionRow({ id, text: 'Which' }),
-    ),
+    journal: buildMockIDs('q-', 9).map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
     problems: [
-      'journal.tsv: 5 open waits (q-1, q-2, q-3, q-4, q-5), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `journal.tsv: 9 open waits (${buildMockIDs('q-', 9).join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
-    title: 'three wait items and two questions against a cap of 4 waits',
-    items: ['w-a', 'w-b', 'w-c'].map((id) =>
+    title: 'six wait items and three questions against a cap of 8 waits',
+    items: buildMockIDs('w-', 6).map((id) =>
       buildHandKeptItemRow({ id, kind: 'wait', extra: 'who=owner' }),
     ),
-    journal: ['q-1', 'q-2'].map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
+    journal: buildMockIDs('q-', 3).map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
     problems: [
-      'items.tsv and journal.tsv: 5 open waits (w-a, w-b, w-c, q-1, q-2), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv and journal.tsv: 9 open waits (${[...buildMockIDs('w-', 6), ...buildMockIDs('q-', 3)].join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
-    title: 'six rules against a cap of 5',
-    items: ['r-a', 'r-b', 'r-c', 'r-d', 'r-e', 'r-f'].map((id) =>
-      buildHandKeptItemRow({ id, kind: 'rule' }),
-    ),
+    title: '16 rules against a cap of 15',
+    items: buildMockIDs('r-', 16).map((id) => buildHandKeptItemRow({ id, kind: 'rule' })),
     journal: [],
     problems: [
-      'items.tsv: 6 open rules (r-a, r-b, r-c, r-d, r-e, r-f), and the limit is 5. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv: 16 open rules (${buildMockIDs('r-', 16).join(', ')}), and the limit is 15. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
-    title: 'five where items against a cap of 4',
-    items: ['wh-a', 'wh-b', 'wh-c', 'wh-d', 'wh-e'].map((id) =>
-      buildHandKeptItemRow({ id, kind: 'where' }),
-    ),
+    title: 'nine where items against a cap of 8',
+    items: buildMockIDs('wh-', 9).map((id) => buildHandKeptItemRow({ id, kind: 'where' })),
     journal: [],
     problems: [
-      'items.tsv: 5 open where items (wh-a, wh-b, wh-c, wh-d, wh-e), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv: 9 open where items (${buildMockIDs('wh-', 9).join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
@@ -673,9 +667,7 @@ test('it lists a session line, an items row, a journal row and two caps, in that
     journal: `${[
       'ts\top\tid\ttext',
       '2026-03-02T09:00:00Z\tnote\tn-1',
-      ...['q-1', 'q-2', 'q-3', 'q-4', 'q-5'].map((id) =>
-        buildHandKeptQuestionRow({ id, text: 'Which' }),
-      ),
+      ...buildMockIDs('q-', 9).map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
     ].join('\n')}\n`,
   });
 
@@ -693,7 +685,7 @@ test('it lists a session line, an items row, a journal row and two caps, in that
       'items.tsv line 33 (ok-a): an approval needs who, where, scope, and once or standing.',
       'journal.tsv line 2: the row has 3 columns, and a hand-kept journal row has 4.',
       `items.tsv: 31 open tasks (${buildMockIDs('t-', 31).join(', ')}), and the limit is 30. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
-      'journal.tsv: 5 open waits (q-1, q-2, q-3, q-4, q-5), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `journal.tsv: 9 open waits (${buildMockIDs('q-', 9).join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ]),
   );
 });

@@ -1,8 +1,8 @@
 import { parseRunLine } from './parse-run-line.ts';
 
-// The arguments of a usage Run line with each placeholder filled from `fills`. A bracketed optional
-// group is left out unless its first word, with the bracket cut, is in `keeps`: then it stays,
-// without its brackets. It throws on a placeholder with no fill.
+// The arguments of a usage Run line with each placeholder filled from `fills`, and a choice such
+// as `<tasks|waits>` filled as its first choice. A bracketed optional group is left out unless its
+// first word, with the bracket cut, is in `keeps`: then it stays. It throws on an unfilled word.
 export function buildUsageRunArgv(
   line: string,
   fills: Readonly<Record<string, string>>,
@@ -42,6 +42,10 @@ function fillWord(word: string, fills: Readonly<Record<string, string>>, line: s
 
   if (fill !== undefined) {
     return fill;
+  }
+
+  if (/^<[^>]*\|[^>]*>$/u.test(word)) {
+    return word.slice(1).split('|')[0] ?? '';
   }
 
   if (/<[^>]*>/u.test(word)) {

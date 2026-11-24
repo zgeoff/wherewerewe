@@ -4,6 +4,7 @@ import { isItemID } from '../rules/is-item-id.ts';
 import { ownerNoteCap } from '../rules/item-caps.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
+import { formatBriefLine } from './format-brief-line.ts';
 import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { OwnerWriteResult, WriteInput } from './types.ts';
@@ -66,8 +67,8 @@ export function pickSay(input: WriteInput): OwnerWriteResult {
         },
       ],
     },
-    reply: (briefLines) =>
-      `${id}  owner note${on === undefined ? '' : ` on ${on}`}. It shows in every brief until you run: www --session ${store.session.name} ack ${id}. Brief: ${String(briefLines)} lines.`,
+    reply: (figure) =>
+      `${id}  owner note${on === undefined ? '' : ` on ${on}`}. It shows in every brief until you run: www --session ${store.session.name} ack ${id}. ${formatBriefLine(figure)}`,
   };
 }
 

@@ -5,7 +5,7 @@ import { runCLI } from '../run-cli.ts';
 import { readStore } from '../store/read-store.ts';
 import { seedWorstCaseStore } from './seed-worst-case-store.ts';
 
-test('it seeds the tasks, waits, approval, rules and where items of the worst case', async () => {
+test('it seeds the tasks, waits, approval, rules and where items, and the lessons, promises and words of the worst case', async () => {
   const root = createTempDir('seed-worst-case').path;
   const env = { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
 
@@ -18,7 +18,7 @@ test('it seeds the tasks, waits, approval, rules and where items of the worst ca
       now: () => Date.parse('2026-03-10T11:43:00Z'),
     });
 
-  await seedWorstCaseStore(runAsAgent, join(root, 'wherewerewe'), 'tide-alerts', 7);
+  await seedWorstCaseStore(runAsAgent, join(root, 'wherewerewe'), 'tide-alerts', { taskCount: 7 });
 
   const read = await readStore(join(root, 'wherewerewe', 'tide-alerts'));
 
@@ -30,11 +30,16 @@ test('it seeds the tasks, waits, approval, rules and where items of the worst ca
     ok: kinds.filter((kind) => kind === 'ok').length,
     rule: kinds.filter((kind) => kind === 'rule').length,
     where: kinds.filter((kind) => kind === 'where').length,
+    rows:
+      read.kind === 'store'
+        ? [read.store.lessons.length, read.store.promises.length, read.store.words.length]
+        : [],
   }).toStrictEqual({
     task: 7,
-    wait: 4,
+    wait: 8,
     ok: 1,
-    rule: 5,
-    where: 4,
+    rule: 15,
+    where: 8,
+    rows: [5, 5, 8],
   });
 });

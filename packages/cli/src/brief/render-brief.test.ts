@@ -1,19 +1,25 @@
 import { expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
+import { buildCutOrderStore } from '../test-utils/build-cut-order-store.ts';
 import { buildMockBriefInput } from '../test-utils/build-mock-brief-input.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
-import { buildOverLimitBriefInput } from '../test-utils/build-over-limit-brief-input.ts';
-import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
+import { buildThreeByteCutInput } from '../test-utils/build-three-byte-cut-input.ts';
 import { buildWorstCaseBriefInput } from '../test-utils/build-worst-case-brief-input.ts';
-import { collectBriefSections } from '../test-utils/collect-brief-sections.ts';
-import { pickPrintedTaskIDs } from './pick-printed-task-ids.ts';
+import { collectBriefRows } from '../test-utils/collect-brief-rows.ts';
+import { hasBriefRow } from '../test-utils/has-brief-row.ts';
+import { hasSecondArgument } from '../test-utils/has-second-argument.ts';
+import { listTypeScriptFiles } from '../test-utils/list-type-script-files.ts';
+import { threeByteRanks } from '../test-utils/three-byte-ranks.ts';
+import { threeByteSections } from '../test-utils/three-byte-sections.ts';
+import { cutRanks } from './cut-ranks.ts';
+import type { CutRank } from './cut-ranks.ts';
+import { briefFooter } from './join-brief.ts';
 import { renderBrief } from './render-brief.ts';
-
-function setupTest() {
-  return { renderBrief };
-}
 
 test('it renders each section of one invented store in order', () => {
   const brief = renderBrief(
@@ -77,13 +83,13 @@ test('it renders each section of one invented store in order', () => {
       'OPEN (2, max 30)',
       '  pr-api-77   Alert job retries a 503  [not checked yet]',
       '  t-e2e       Write alerts-e2e against staging  [no check · 3d]',
-      'WAITING (1, max 4)',
+      'WAITING (1, max 8)',
       '  w-apns      upload the staging push key to the vault  [owner · 2d]',
       'APPROVED ONCE (1, max 1)',
       '  ok-merge    "merge the alert PRs yourself once CI is green" · bosun-api, bosun-app',
-      'RULES (1, max 5)',
+      'RULES (1, max 15)',
       '  r-api-tests Run the API tests from api/',
-      'WHERE (1, max 4)',
+      'WHERE (1, max 8)',
       '  s-staging   staging secrets live in the vault bosun-staging  [no check · 1h]',
       'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
       '',
@@ -278,7 +284,7 @@ test('it renders owner notes, changed rows with their overflow, and pull request
     'NOW  none. Run: www now <id> "<next step>"',
     'PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (4)',
     '  acme/tool#1  opened 3h ago  [OPEN pending]',
-    '  and 3 more: www log --op pr',
+    '  and 3 more: www list prs',
     '  name each in an item: www task <id> "<claim>" --pr <owner>/<repo>#<n>',
     'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help',
   ]);
@@ -294,339 +300,6 @@ test('it cuts a pull request ref over 60 characters to 59 and an ellipsis', () =
   );
 
   expect(brief).toInclude(`  ${ref.slice(0, 59)}…  opened 3h ago  [OPEN pending]\n`);
-});
-
-test.each([
-  {
-    title: 'Codex, 6 tasks, goal of 3 lines',
-    host: 'codex',
-    taskCount: 6,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-  },
-  {
-    title: 'Codex, 6 tasks, goal in long words',
-    host: 'codex',
-    taskCount: 6,
-    goal: 'long',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-  },
-  {
-    title: 'Codex, 30 tasks',
-    host: 'codex',
-    taskCount: 30,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 5,
-    hasCountLine: true,
-    maxLines: 73,
-    maxCharacters: 7200,
-  },
-  {
-    title: 'no known host, 30 tasks',
-    host: null,
-    taskCount: 30,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 5,
-    hasCountLine: true,
-    maxLines: 73,
-    maxCharacters: 7200,
-  },
-  {
-    title: 'Claude Code, 15 tasks',
-    host: 'claude',
-    taskCount: 15,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 15,
-    hasCountLine: false,
-    maxLines: 82,
-    maxCharacters: 9000,
-  },
-  {
-    title: 'Claude Code, 30 tasks',
-    host: 'claude',
-    taskCount: 30,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 14,
-    hasCountLine: true,
-    maxLines: 82,
-    maxCharacters: 9000,
-  },
-  {
-    title: 'Codex, 6 tasks, the next step hidden by a change',
-    host: 'codex',
-    taskCount: 6,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-    nowHidden: { kind: 'changed' },
-  },
-  {
-    title: 'Codex, 6 tasks, the next step hidden by a reading of 15 characters',
-    host: 'codex',
-    taskCount: 6,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-    nowHidden: { kind: 'reads', result: 'r'.repeat(15) },
-  },
-  {
-    title: 'Codex, 6 tasks, every result unchecked',
-    host: 'codex',
-    taskCount: 6,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-    results: 'unchecked',
-  },
-  {
-    title: 'no known host, 6 tasks, the next step hidden by a change',
-    host: null,
-    taskCount: 6,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-    nowHidden: { kind: 'changed' },
-  },
-  {
-    title: 'no known host, 6 tasks, the next step hidden by a reading of 15 characters',
-    host: null,
-    taskCount: 6,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-    nowHidden: { kind: 'reads', result: 'r'.repeat(15) },
-  },
-  {
-    title: 'no known host, 6 tasks, every result unchecked',
-    host: null,
-    taskCount: 6,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 6,
-    hasCountLine: false,
-    maxLines: 73,
-    maxCharacters: 7200,
-    results: 'unchecked',
-  },
-  {
-    title: 'Claude Code, 15 tasks, the next step hidden by a change',
-    host: 'claude',
-    taskCount: 15,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 15,
-    hasCountLine: false,
-    maxLines: 82,
-    maxCharacters: 9000,
-    nowHidden: { kind: 'changed' },
-  },
-  {
-    title: 'Claude Code, 15 tasks, the next step hidden by a reading of 15 characters',
-    host: 'claude',
-    taskCount: 15,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 15,
-    hasCountLine: false,
-    maxLines: 82,
-    maxCharacters: 9000,
-    nowHidden: { kind: 'reads', result: 'r'.repeat(15) },
-  },
-  {
-    title: 'Claude Code, 15 tasks, every result unchecked',
-    host: 'claude',
-    taskCount: 15,
-    goal: 'short',
-    goalLines: 3,
-    taskRows: 15,
-    hasCountLine: false,
-    maxLines: 82,
-    maxCharacters: 9000,
-    results: 'unchecked',
-  },
-] as const)('it renders the worst case for $title within its budget', (row) => {
-  const brief = renderBrief(
-    buildWorstCaseBriefInput({
-      host: row.host,
-      taskCount: row.taskCount,
-      goal: row.goal,
-      ...('nowHidden' in row ? { nowHidden: row.nowHidden } : {}),
-      ...('results' in row ? { results: row.results } : {}),
-    }),
-  );
-
-  const lines = brief.split('\n');
-  const characters = Array.from(brief, (character) => character).length;
-
-  expect({
-    goalCharacters: 200,
-    lines: lines.length - 1,
-    isWithinLimit: characters <= row.maxCharacters,
-    goalLines: lines.filter((line) => line.startsWith('GOAL  ') || /^ {6}\S/u.test(line)).length,
-    taskRows: lines.filter((line) => /^ {2}task\d\d/u.test(line)).length,
-    firstTaskRow: lines[lines.findIndex((line) => line.startsWith('OPEN (')) + 1]?.slice(0, 8),
-    countLines: lines.filter((line) => line.includes('more open tasks: www show')).length,
-    hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
-    noteLines: lines.filter((line) => /^ {4}n+$/u.test(line)).length,
-  }).toStrictEqual({
-    goalCharacters: 200,
-    lines: row.maxLines,
-    isWithinLimit: true,
-    goalLines: row.goalLines,
-    taskRows: row.taskRows,
-    firstTaskRow: '  task01',
-    countLines: row.hasCountLine ? 1 : 0,
-    hasCutLine: false,
-    noteLines: 5,
-  });
-});
-
-test.each([
-  { host: 'codex', taskCount: 6, lines: 73, characters: 7050 },
-  { host: null, taskCount: 6, lines: 73, characters: 7050 },
-  { host: 'claude', taskCount: 15, lines: 82, characters: 8770 },
-] as const)(
-  'it renders the worst case with the next step hidden by a change and every result unchecked for host $host',
-  (row) => {
-    const ctx = setupTest();
-
-    const brief = ctx.renderBrief(
-      buildWorstCaseBriefInput({
-        host: row.host,
-        taskCount: row.taskCount,
-        goal: 'short',
-        nowHidden: { kind: 'changed' },
-        results: 'unchecked',
-      }),
-    );
-
-    expect({
-      lines: brief.split('\n').length - 1,
-      characters: Array.from(brief, (character) => character).length,
-      hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
-    }).toStrictEqual({ lines: row.lines, characters: row.characters, hasCutLine: false });
-  },
-);
-
-test.each(
-  (['wide-bullets', 'long-bullet', 'long-bullet-no-scope'] as const).flatMap((grant) => [
-    { grant, host: 'codex', taskCount: 6, taskRows: 6, maxLines: 73, maxCharacters: 7200 } as const,
-    { grant, host: null, taskCount: 6, taskRows: 6, maxLines: 73, maxCharacters: 7200 } as const,
-    {
-      grant,
-      host: 'claude',
-      taskCount: 15,
-      taskRows: 15,
-      maxLines: 82,
-      maxCharacters: 9000,
-    } as const,
-  ]),
-)(
-  'it renders the worst case with the $grant grant for host $host and $taskCount tasks within its budget',
-  (row) => {
-    const brief = renderBrief(
-      buildWorstCaseBriefInput({
-        host: row.host,
-        taskCount: row.taskCount,
-        goal: 'long',
-        grant: row.grant,
-      }),
-    );
-
-    const lines = brief.split('\n');
-    const characters = Array.from(brief, (character) => character).length;
-
-    expect({
-      lines: lines.length - 1,
-      isWithinLimit: characters <= row.maxCharacters,
-      taskRows: lines.filter((line) => /^ {2}task\d\d/u.test(line)).length,
-      hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
-    }).toStrictEqual({
-      lines: row.maxLines,
-      isWithinLimit: true,
-      taskRows: row.taskRows,
-      hasCutLine: false,
-    });
-  },
-);
-
-test('it cuts item lines from the bottom up when the text passes 7,000 characters, and keeps the rest', () => {
-  const claim = 'c'.repeat(450);
-  const ids = ['task-0', 'task-1', 'task-2', 'task-3', 'task-4', 'task-5'];
-
-  const brief = renderBrief(
-    buildMockBriefInput({
-      ownerNotes: [{ id: 'o-1', text: 'Ask me first.', said: '2026-03-10T09:40:12Z', on: null }],
-      changed: [
-        { item: buildMockItem({ id: 'a-1', check: 'pid:4', atWrite: 'alive' }), result: 'gone' },
-      ],
-      items: [
-        ...ids.map((id) => buildMockItem({ id, claim })),
-        ...['w-1', 'w-2', 'w-3', 'w-4'].map((id) =>
-          buildMockItem({ id, kind: 'wait', claim, extra: { who: 'owner' } }),
-        ),
-        ...['r-1', 'r-2', 'r-3', 'r-4', 'r-5'].map((id) =>
-          buildMockItem({ id, kind: 'rule', claim }),
-        ),
-        ...['wt-1', 'wt-2', 'wt-3', 'wt-4'].map((id) =>
-          buildMockItem({ id, kind: 'where', claim }),
-        ),
-      ],
-    }),
-  );
-
-  const lines = brief.split('\n');
-
-  expect({
-    isWithinLimit: Array.from(brief, (character) => character).length <= 7000,
-    keepsHeader: lines[0]?.startsWith('tide-alerts · day 9'),
-    keepsOwner: brief.includes('OWNER SAYS (1)') && brief.includes('o-1  Ask me first.'),
-    keepsChanged: brief.includes('CHANGED SINCE WRITTEN (1)'),
-    keepsNow: brief.includes('NOW  none.'),
-    keepsGoal: brief.includes('GOAL  Ship tide alerts'),
-    endsWithFooter: lines.at(-2)?.startsWith('Write as you go:'),
-    hasCutLine: brief.includes('lines cut to fit; run www show <id>)'),
-    keepsFirstTask: brief.includes('task-5'),
-    keepsLastWhere: brief.includes('wt-4'),
-  }).toStrictEqual({
-    isWithinLimit: true,
-    keepsHeader: true,
-    keepsOwner: true,
-    keepsChanged: true,
-    keepsNow: true,
-    keepsGoal: true,
-    endsWithFooter: true,
-    hasCutLine: true,
-    keepsFirstTask: true,
-    keepsLastWhere: false,
-  });
 });
 
 test.each([
@@ -777,61 +450,6 @@ test('it prints two short never bullets of a grant of only never bullets on one 
   ]);
 });
 
-test('it prints the grant whole and ends the last kept section with the cut line, when 12 tasks and 10 rules pass the limits', () => {
-  const mayBullet = buildSpacedText(120).replaceAll('g', 'x');
-  const may = Array.from({ length: 5 }, () => mayBullet);
-  const reading = buildSpacedText(200);
-  const not = buildSpacedText(60).replaceAll('g', 'k');
-  const scope = 's'.repeat(40);
-
-  const brief = renderBrief(
-    buildMockBriefInput({
-      session: buildMockSession({
-        grant: {
-          may,
-          not: [not],
-          never: [],
-          scope,
-          reading,
-          where: 'chat',
-          set: '2026-03-03T09:00:00Z',
-        },
-      }),
-      items: [
-        ...buildMockIDs('task', 12).map((id) => buildMockItem({ id, claim: 'c'.repeat(120) })),
-        ...buildMockIDs('rule', 10).map((id) =>
-          buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(900) }),
-        ),
-      ],
-    }),
-  );
-
-  const lines = brief.split('\n');
-  const cutAt = lines.findIndex((line) => line.includes('lines cut to fit; run www show <id>)'));
-
-  const grantLines = lines.filter((line) =>
-    /^(?:GRANT {2}| {2}(?:may|not) +• | {9}• | {11}[xk]| {2}reading: | {4}g)/u.test(line),
-  );
-
-  expect({
-    isWithinLines: lines.length - 1 <= 73,
-    isWithinLimit: Array.from(brief, (character) => character).length <= 7200,
-    grantLines: grantLines.length,
-    mayCharacters: grantLines.join('').split('x').length - 1,
-    notCharacters: grantLines.join('').split('k').length - 1,
-    cutEndsLastSection: lines[cutAt - 1]?.startsWith('  rule'),
-    footerFollowsCut: lines[cutAt + 1]?.startsWith('Write as you go:'),
-  }).toStrictEqual({
-    isWithinLines: true,
-    isWithinLimit: true,
-    grantLines: 15,
-    mayCharacters: 5 * 115,
-    notCharacters: 58,
-    cutEndsLastSection: true,
-    footerFollowsCut: true,
-  });
-});
-
 test('it orders the tasks as the day-9 example does: focus, changed, blocked and owed, then newest', () => {
   const brief = renderBrief(
     buildMockBriefInput({
@@ -886,56 +504,6 @@ test('it prints every task and no count line when a brief with room holds 20', (
   }).toStrictEqual({ heading: true, rows: 20, hasCountLine: false });
 });
 
-test('it prints OPEN (20, max 30) over the rows that fit and a count line for the rest, on a Codex budget', () => {
-  const brief = renderBrief(buildWorstCaseBriefInput({ host: 'codex', taskCount: 20 }));
-  const lines = brief.split('\n');
-
-  expect({
-    hasHeading: lines.includes('OPEN (20, max 30)'),
-    rows: lines.filter((line) => /^ {2}task\d\d/u.test(line)).length,
-    countLine: lines.find((line) => line.includes('more open tasks')),
-  }).toStrictEqual({
-    hasHeading: true,
-    rows: 5,
-    countLine: '  and 15 more open tasks: www show',
-  });
-});
-
-test('it prints 5 rows of the order and a count line for 7 tasks in the worst case', () => {
-  const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 7 });
-  const brief = renderBrief(input);
-
-  expect({
-    printed: pickPrintedTaskIDs(input),
-    rows: brief
-      .split('\n')
-      .filter((line) => /^ {2}task\d\d/u.test(line))
-      .map((line) => line.slice(2, 8)),
-    countLine: brief.split('\n').find((line) => line.includes('more open tasks')),
-  }).toStrictEqual({
-    printed: ['task01', 'task07', 'task06', 'task05', 'task04'].map((id) => id.padEnd(16, 'x')),
-    rows: ['task01', 'task07', 'task06', 'task05', 'task04'],
-    countLine: '  and 2 more open tasks: www show',
-  });
-});
-
-test.each([
-  { sessionFlag: null, expected: '  and 25 more open tasks: www show' },
-  {
-    sessionFlag: 'n'.repeat(24),
-    expected: `  and 25 more open tasks: www --session ${'n'.repeat(24)} show`,
-  },
-])('it prints the count line $expected for a session flag of $sessionFlag', (row) => {
-  const brief = renderBrief({
-    ...buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 }),
-    sessionFlag: row.sessionFlag,
-  });
-
-  expect(brief.split('\n').find((line) => line.includes('more open tasks'))).toStrictEqual(
-    row.expected,
-  );
-});
-
 test('it prints the changed overflow line that names the list of open tasks', () => {
   const brief = renderBrief(
     buildMockBriefInput({
@@ -949,157 +517,6 @@ test('it prints the changed overflow line that names the list of open tasks', ()
   expect(brief).toInclude(
     '  and 1 more; each shows its result below, or in the list of open tasks\n',
   );
-});
-
-test('it prints a task left out of the rows second, with its saved result in its tag, when changed is empty', () => {
-  const ids = buildMockIDs('task', 30);
-  const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 });
-
-  const items = input.items.map((item) =>
-    item.id === ids[10] ? { ...item, atWrite: 'alive', last: 'gone' } : item,
-  );
-
-  const rows = renderBrief({ ...input, items, changed: [] })
-    .split('\n')
-    .filter((line) => /^ {2}task\d\d/u.test(line));
-
-  expect(rows.slice(0, 2)).toStrictEqual([
-    expect.stringMatching(/^ {2}task01x+ {2}c{120} {2}\[blocked by wait01x+ · r{15} · owed\]$/u),
-    expect.stringMatching(/^ {2}task11x+ {2}c{120} {2}\[blocked by wait01x+ · gone · owed\]$/u),
-  ]);
-});
-
-test.each(['alive', 'unchecked'])(
-  'it keeps a task left out of the rows out when its saved result is %p and the one written is alive',
-  (last) => {
-    const ids = buildMockIDs('task', 30);
-    const input = buildWorstCaseBriefInput({ host: 'codex', taskCount: 30 });
-
-    const items = input.items.map((item) =>
-      item.id === ids[10] ? { ...item, atWrite: 'alive', last } : item,
-    );
-
-    const brief = renderBrief({ ...input, items, changed: [] });
-
-    expect(brief.split('\n').filter((line) => line.startsWith(`  ${ids[10] ?? ''}`))).toStrictEqual(
-      [],
-    );
-  },
-);
-
-test.each([6, 12])(
-  'it cuts the pull request, where and rule rows before a task row with %p tasks over the limits',
-  (taskCount) => {
-    const brief = renderBrief(buildOverLimitBriefInput({ taskCount, focus: null }));
-
-    expect({
-      sections: collectBriefSections(brief),
-      taskRows: brief.split('\n').filter((line) => line.startsWith('  task')).length,
-    }).toStrictEqual({
-      sections: ['OPEN', 'WAITING', 'APPROVED ONCE', 'RULES'],
-      taskRows: taskCount === 6 ? 6 : 5,
-    });
-  },
-);
-
-test('it stops the fill at 5 rows and a count line for 12 tasks, and the cut then takes rows above the count line', () => {
-  const lines = renderBrief(
-    buildOverLimitBriefInput({ taskCount: 12, focus: null, claimLength: 1500 }),
-  ).split('\n');
-
-  const countAt = lines.findIndex((line) => line.includes('more open tasks'));
-
-  expect({
-    countLine: lines[countAt],
-    cutLine: lines[countAt + 1],
-    rowsAboveCount: lines.slice(0, countAt).filter((line) => line.startsWith('  task')).length,
-    cutLines: lines.filter((line) => line.includes('lines cut to fit')).length,
-  }).toStrictEqual({
-    countLine: '  and 7 more open tasks: www show',
-    cutLine: expect.stringMatching(/^ {2}\(\d+ lines cut to fit; run www show <id>\)$/u),
-    rowsAboveCount: expect.toBeWithin(1, 5),
-    cutLines: 1,
-  });
-});
-
-test('it keeps the focus row and the count line when the cut takes every other task row', () => {
-  const lines = renderBrief(
-    buildOverLimitBriefInput({ taskCount: 12, focus: 'task03xxxxxxxxxx', claimLength: 4000 }),
-  ).split('\n');
-
-  const openAt = lines.findIndex((line) => line.startsWith('OPEN ('));
-
-  expect(lines.slice(openAt, openAt + 3)).toStrictEqual([
-    'OPEN (12, max 30)',
-    expect.stringMatching(/^ {2}task03xxxxxxxxxx {2}c+ {2}\[no check · 1h\]$/u),
-    expect.stringMatching(/^ {2}and 7 more open tasks: www show$/u),
-  ]);
-
-  expect(lines.join('\n')).toInclude('    Keep this note whole\n');
-});
-
-test('it keeps the row of a wait in focus, and the whole note, after every task row is cut', () => {
-  const brief = renderBrief(
-    buildOverLimitBriefInput({ taskCount: 6, focus: 'wait01xxxxxxxxxx', claimLength: 4000 }),
-  );
-
-  expect({
-    sections: collectBriefSections(brief),
-    focusRow: brief.split('\n').filter((line) => line.startsWith('  wait01')).length,
-    note: brief.includes('    Keep this note whole\n'),
-  }).toStrictEqual({ sections: ['WAITING'], focusRow: 1, note: true });
-});
-
-test('it leaves OPEN and its count line out when no task is in focus and every task row is cut', () => {
-  const claim = 'c'.repeat(9000);
-
-  const input = buildMockBriefInput({
-    items: [
-      buildMockItem({ id: 'rule-a', kind: 'rule', claim }),
-      ...buildMockIDs('task', 12).map((id) => buildMockItem({ id, claim })),
-    ],
-  });
-
-  const withFocus = renderBrief({
-    ...input,
-    session: buildMockSession({ now: 'task01xxxxxxxxxx' }),
-  });
-
-  const brief = renderBrief(input);
-
-  expect({
-    focusHasCountLine: withFocus.includes('  and 7 more open tasks: www show\n'),
-    sections: collectBriefSections(brief),
-    hasCountLine: brief.includes('more open tasks'),
-  }).toStrictEqual({ focusHasCountLine: true, sections: [], hasCountLine: false });
-});
-
-test('it prints a brief over its budget when only the focus row and the note are left to cut', () => {
-  const claim = 'c'.repeat(9000);
-
-  const brief = renderBrief(
-    buildMockBriefInput({
-      session: buildMockSession({ now: 't-a' }),
-      notes: [buildMockNote({ id: 't-a', note: 'Keep this note whole' })],
-      items: [
-        buildMockItem({ id: 't-a', claim }),
-        buildMockItem({ id: 'rule-a', kind: 'rule', claim }),
-        buildMockItem({ id: 'rule-b', kind: 'rule', claim }),
-      ],
-    }),
-  );
-
-  const lines = brief.split('\n');
-
-  expect({
-    focusRow: lines.filter((line) => line.startsWith('  t-a')).length,
-    note: brief.includes('    Keep this note whole\n'),
-    cutLine: lines.find((line) => line.includes('lines cut to fit')),
-  }).toStrictEqual({
-    focusRow: 1,
-    note: true,
-    cutLine: '  (2 lines cut to fit; run www show <id>)',
-  });
 });
 
 test.each([
@@ -1189,4 +606,582 @@ test("it tags each row from this read's result before the saved one", () => {
   );
 
   expect(brief).toInclude('  t-a         Write the parser  [gone]\n');
+});
+
+test.each([
+  {
+    title: 'owner words',
+    expected:
+      '  w-plain     "Plain words in every reply; I would rather read three short sentences than one clever one"  [chat · 6d]',
+    input: {
+      words: [
+        {
+          id: 'w-plain',
+          words:
+            'Plain words in every reply; I would rather read three short sentences than one clever one',
+          where: 'chat',
+          written: '2026-03-04T11:43:00Z',
+          by: 'owner' as const,
+        },
+      ],
+    },
+  },
+  {
+    title: 'a promise',
+    expected:
+      '  due-cost    Cost table for the alert fan-out  [to owner · by day 10, before review]',
+    input: {
+      promises: [
+        {
+          id: 'due-cost',
+          what: 'Cost table for the alert fan-out',
+          to: 'owner',
+          byWhen: 'day 10, before review',
+          written: '2026-03-09T10:43:00Z',
+          by: 'agent' as const,
+        },
+      ],
+    },
+  },
+  {
+    title: 'a lesson',
+    expected:
+      '  l-seed      Reseed the staging alerts table before alerts-e2e  [why: A stale row made alerts-e2e pass on day 6 while no alert fired]',
+    input: {
+      lessons: [
+        {
+          id: 'l-seed',
+          text: 'Reseed the staging alerts table before alerts-e2e',
+          why: 'A stale row made alerts-e2e pass on day 6 while no alert fired',
+          written: '2026-03-04T11:43:00Z',
+          by: 'agent' as const,
+        },
+      ],
+    },
+  },
+])('it renders the row of $title as the day-9 brief does', (row) => {
+  const brief = renderBrief(buildMockBriefInput(row.input));
+
+  expect(brief.split('\n')).toContain(row.expected);
+});
+
+test('it prints the headings of the new sections with their caps, in the order of the brief', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      words: [
+        {
+          id: 'w-a',
+          words: 'Be brief',
+          where: 'chat',
+          written: '2026-03-04T11:43:00Z',
+          by: 'owner',
+        },
+      ],
+      promises: [
+        {
+          id: 'due-a',
+          what: 'Ship it',
+          to: 'owner',
+          byWhen: 'Friday',
+          written: '2026-03-04T11:43:00Z',
+          by: 'agent',
+        },
+      ],
+      lessons: [
+        {
+          id: 'l-a',
+          text: 'Reseed',
+          why: 'It broke',
+          written: '2026-03-04T11:43:00Z',
+          by: 'agent',
+        },
+      ],
+      decisions: [{ id: 'd-2', choice: 'Use the feed' }],
+      items: [
+        buildMockItem({ id: 'w-b', kind: 'wait', extra: { who: 'owner' } }),
+        buildMockItem({ id: 'r-a', kind: 'rule' }),
+        buildMockItem({ id: 'wh-a', kind: 'where' }),
+      ],
+    }),
+  );
+
+  expect(
+    brief.split('\n').filter((line) => /^[A-Z]/u.test(line) && !line.startsWith('GRANT')),
+  ).toStrictEqual([
+    expect.stringMatching(/^GOAL/u),
+    'WORDS (1, max 8)',
+    'NOW  none. Run: www now <id> "<next step>"',
+    'WAITING (1, max 8)',
+    'PROMISED (1, max 5)',
+    'RULES (1, max 15)',
+    'LESSONS (1, max 5)',
+    'DECISIONS (1 in force)',
+    'WHERE (1, max 8)',
+    expect.stringMatching(/^Write as you go/u),
+  ]);
+});
+
+test('it prints the 3 newest decisions in force and a count line for the rest', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      decisions: ['d-23', 'd-21', 'd-20', 'd-19', 'd-12', 'd-7'].map((id) => ({
+        id,
+        choice: `Choice ${id}`,
+      })),
+    }),
+  );
+
+  expect(brief.split('\n').slice(4, 9)).toStrictEqual([
+    'DECISIONS (6 in force)',
+    '  d-23  Choice d-23',
+    '  d-21  Choice d-21',
+    '  d-20  Choice d-20',
+    '  and 3 more: www list decisions',
+  ]);
+});
+
+test('it cuts a decision of 300 characters to 199 and an ellipsis', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({ decisions: [{ id: 'd-1', choice: 'c'.repeat(300) }] }),
+  );
+
+  expect(brief).toInclude(`  d-1  ${'c'.repeat(199)}…\n`);
+});
+
+test('it drops the rows one at a time in the cut order, each from the end of its section', () => {
+  const ctx = buildCutOrderStore();
+  const full = renderBrief(ctx.input);
+  const violations: number[] = [];
+
+  const droppedCounts = new Set<number>();
+
+  for (let limit = Buffer.byteLength(full); limit >= 0; limit -= 1) {
+    const brief = renderBrief(ctx.input, limit);
+    const dropped = ctx.order.filter((mark) => !hasBriefRow(brief, mark));
+
+    droppedCounts.add(dropped.length);
+
+    if (JSON.stringify(dropped) !== JSON.stringify(ctx.order.slice(0, dropped.length))) {
+      violations.push(limit);
+    }
+  }
+
+  expect({ violations, reachesLast: droppedCounts.has(ctx.order.length) }).toStrictEqual({
+    violations: [],
+    reachesLast: true,
+  });
+});
+
+test('it keeps the item in focus and its count line when the cut takes every other task row', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({ now: 't-b' }),
+      items: ['t-a', 't-b', 't-c', 't-d'].map((id) => buildMockItem({ id })),
+      notes: [buildMockNote({ id: 't-b', note: 'Keep this note whole' })],
+    }),
+    1,
+  );
+
+  const lines = brief.split('\n');
+  const openAt = lines.indexOf('OPEN (4, max 30)');
+
+  expect(lines.slice(openAt, openAt + 3)).toStrictEqual([
+    'OPEN (4, max 30)',
+    '  t-b         Write the parser  [no check · 1h]',
+    '  and 3 more open tasks: www show',
+  ]);
+
+  expect(brief).toInclude('    Keep this note whole\n');
+});
+
+test('it leaves OPEN out when no task is in focus and no task exists, and keeps its heading and count line when every task row is cut', () => {
+  const input = buildMockBriefInput({
+    session: buildMockSession({ now: null, nowNext: null, nowSet: null }),
+    items: ['t-a', 't-b'].map((id) => buildMockItem({ id })),
+  });
+
+  expect(renderBrief(input, 1).split('\n')).toContain('  and 2 more open tasks: www show');
+});
+
+test('it keeps the row of a wait in focus, with its note, while the waits are cut', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({ now: 'w-a' }),
+      items: [
+        buildMockItem({ id: 'w-a', kind: 'wait', extra: { who: 'owner' } }),
+        buildMockItem({ id: 'w-b', kind: 'wait', extra: { who: 'owner' } }),
+      ],
+      notes: [buildMockNote({ id: 'w-a', note: 'Keep this note whole' })],
+    }),
+    1,
+  );
+
+  expect(
+    brief.split('\n').filter((line) => line.startsWith('  w-') || line.startsWith('  and')),
+  ).toStrictEqual(['  w-a         Write the parser  [owner · 1h]', '  and 1 more: www list waits']);
+});
+
+test('it keeps a wait on the owner while every wait on someone else is cut, and the cut line counts only the cut ones', () => {
+  const waits = [
+    buildMockItem({ id: 'w-own1', kind: 'wait', claim: 'Owner one', extra: { who: 'owner' } }),
+    buildMockItem({ id: 'w-own2', kind: 'wait', claim: 'Owner two', extra: { who: 'owner' } }),
+    buildMockItem({ id: 'w-oth1', kind: 'wait', claim: 'Other one', extra: { who: 'vendor' } }),
+    buildMockItem({ id: 'w-oth2', kind: 'wait', claim: 'Other two', extra: { who: 'vendor' } }),
+    buildMockItem({ id: 'w-oth3', kind: 'wait', claim: 'Other three', extra: { who: 'vendor' } }),
+  ];
+
+  const input = buildMockBriefInput({ session: buildMockSession({ now: null }), items: waits });
+  const full = renderBrief(input);
+
+  const otherBytes = full
+    .split('\n')
+    .filter((line) => line.startsWith('  w-oth'))
+    .reduce((sum, line) => sum + Buffer.byteLength(line) + 1, 0);
+
+  const cutLineBytes = Buffer.byteLength('  and 3 more: www list waits\n');
+  const brief = renderBrief(input, Buffer.byteLength(full) - otherBytes + cutLineBytes);
+
+  expect(
+    brief.split('\n').filter((line) => line.startsWith('  w-') || line.startsWith('  and')),
+  ).toStrictEqual([
+    expect.stringMatching(/^ {2}w-own1 /u),
+    expect.stringMatching(/^ {2}w-own2 /u),
+    '  and 3 more: www list waits',
+  ]);
+});
+
+test('it keeps the heading and the cut line of a section that loses every row', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({ items: [buildMockItem({ id: 'r-a', kind: 'rule' })] }),
+    1,
+  );
+
+  expect(brief).toInclude('RULES (1, max 15)\n  and 1 more: www list rules\n');
+});
+
+test.each([
+  { sessionFlag: null, rules: 'www list rules', prs: 'www list prs' },
+  {
+    sessionFlag: 'tide-alerts',
+    rules: 'www --session tide-alerts list rules',
+    prs: 'www --session tide-alerts list prs',
+  },
+])('it ends the cut sections with their list command for the session flag $sessionFlag', (row) => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      sessionFlag: row.sessionFlag,
+      items: [buildMockItem({ id: 'r-a', kind: 'rule' })],
+      pullRequests: ['acme/tool#1', 'acme/tool#2', 'acme/tool#3'].map((ref) => ({
+        ref,
+        opened: '2026-03-10T08:43:00Z',
+        result: 'OPEN',
+      })),
+    }),
+    1,
+  );
+
+  expect(brief.split('\n').filter((line) => line.startsWith('  and '))).toStrictEqual([
+    `  and 1 more: ${row.rules}`,
+    `  and 3 more: ${row.prs}`,
+  ]);
+});
+
+test('it keeps the overflow line of the pull request section, counting every pull request, when the cut drops its row and hint', () => {
+  const brief = renderBrief(
+    buildMockBriefInput({
+      pullRequests: ['acme/tool#1', 'acme/tool#2'].map((ref) => ({
+        ref,
+        opened: '2026-03-10T08:43:00Z',
+        result: 'OPEN',
+      })),
+    }),
+    1,
+  );
+
+  expect(brief).toInclude(
+    'PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (2)\n  and 2 more: www list prs\nWrite as you go',
+  );
+});
+
+test('it ends DECISIONS with its count line and then its cut line, when 6 are in force and 2 of its 3 rows are cut', () => {
+  const input = buildMockBriefInput({
+    decisions: ['d-6', 'd-5', 'd-4', 'd-3', 'd-2', 'd-1'].map((id) => ({
+      id,
+      choice: `Choice number ${id}`,
+    })),
+  });
+
+  const full = renderBrief(input);
+
+  const rowBytes = ['  d-5  Choice number d-5\n', '  d-4  Choice number d-4\n'].map((line) =>
+    Buffer.byteLength(line),
+  );
+
+  const cutLineBytes = Buffer.byteLength('  and 2 more: www list decisions\n');
+
+  const brief = renderBrief(
+    input,
+    Buffer.byteLength(full) - (rowBytes[0] ?? 0) - (rowBytes[1] ?? 0) + cutLineBytes,
+  );
+
+  expect(brief).toInclude(
+    'DECISIONS (6 in force)\n  d-6  Choice number d-6\n  and 3 more: www list decisions\n  and 2 more: www list decisions\n',
+  );
+});
+
+test('it drops the open row of a changed task like any task row, and keeps its changed row', () => {
+  const changed = buildMockItem({ id: 't-chg', check: 'pid:4', atWrite: 'alive' });
+
+  const brief = renderBrief(
+    buildMockBriefInput({
+      session: buildMockSession({ now: null, nowNext: null, nowSet: null }),
+      items: [changed],
+      changed: [{ item: changed, result: 'gone' }],
+    }),
+    1,
+  );
+
+  expect(brief.split('\n').filter((line) => line.startsWith('  t-chg'))).toStrictEqual([
+    expect.stringContaining('was alive (1h) · now gone'),
+  ]);
+});
+
+test('it prints the never-cut lines whole when they alone pass the limit, over a limit of 100 bytes', () => {
+  const brief = renderBrief(
+    {
+      ...buildWorstCaseBriefInput({ host: 'claude', taskCount: 30 }),
+      nowHidden: { kind: 'changed' },
+    },
+    100,
+  );
+
+  const lines = brief.split('\n');
+  const focus = buildMockIDs('task', 1)[0] ?? '';
+
+  expect({
+    header: lines[0]?.includes(' · day '),
+    goal: lines.some((line) => line.startsWith('GOAL  ')),
+    grant: lines.some((line) => line.startsWith('GRANT  from the owner')),
+    ownerNotes: lines.some((line) => line.startsWith('OWNER SAYS (2)')),
+    changedOverflow: lines.some((line) => line.startsWith('  and 7 more;')),
+    now: lines.some((line) => line.startsWith('NOW  ')),
+    hidden: lines.some((line) => line.startsWith('  next step hidden:')),
+    focusRow: lines.some((line) => line.startsWith(`  ${focus}`)),
+    footer: lines.at(-2) === briefFooter,
+    rows: lines.filter((line) =>
+      /^ {2}(?:word|prom|less|rule|appr|here|wait|d-|task0[2-9])/u.test(line),
+    ),
+    isOver: Buffer.byteLength(brief) > 100,
+  }).toStrictEqual({
+    header: true,
+    goal: true,
+    grant: true,
+    ownerNotes: true,
+    changedOverflow: true,
+    now: true,
+    hidden: true,
+    focusRow: true,
+    footer: true,
+    rows: [],
+    isOver: true,
+  });
+});
+
+test.each([
+  { host: 'claude', limit: 24_000 },
+  { host: 'codex', limit: 30_000 },
+  { host: null, limit: 60_000 },
+] as const)(
+  'it renders the ASCII worst case of brief.md within the limit of $host and cuts nothing',
+  (row) => {
+    const input = {
+      ...buildWorstCaseBriefInput({ host: row.host, taskCount: 30, goal: 'short' }),
+      nowHidden: { kind: 'changed' as const },
+    };
+
+    const unchecked = buildWorstCaseBriefInput({
+      host: row.host,
+      taskCount: 30,
+      goal: 'short',
+      nowHidden: { kind: 'changed' },
+      results: 'unchecked',
+    });
+
+    const brief = renderBrief(input);
+    const everyRow = renderBrief(input, Number.MAX_SAFE_INTEGER);
+
+    expect({
+      bytes: Buffer.byteLength(brief),
+      isWithinLimit: Buffer.byteLength(brief) <= row.limit,
+      isWhole: brief === everyRow,
+      uncheckedIsWhole: renderBrief(unchecked) === renderBrief(unchecked, Number.MAX_SAFE_INTEGER),
+      listLines: brief.split('\n').filter((line) => /^ {2}and \d+ more: www list /u.test(line)),
+      rows: collectBriefRows(brief, /^ {2}\S/u).length,
+    }).toStrictEqual({
+      bytes: Buffer.byteLength(everyRow),
+      isWithinLimit: true,
+      isWhole: true,
+      uncheckedIsWhole: true,
+      listLines: ['  and 3 more: www list decisions', '  and 9 more: www list prs'],
+      rows: collectBriefRows(everyRow, /^ {2}\S/u).length,
+    });
+  },
+);
+
+test.each(['claude', 'codex', null] as const)(
+  "it cuts the 3-byte worst case for %p in the cut order, and each cut line's command lists what it cut",
+  (host) => {
+    const brief = renderBrief(buildThreeByteCutInput(host));
+    const limit = { claude: 24_000, codex: 30_000, none: 60_000 }[host ?? 'none'];
+    const lines = brief.split('\n');
+
+    const rowsOf = (rank: CutRank): string[] =>
+      lines.filter(
+        (line) => threeByteRanks[rank].prefix.test(line) && !line.startsWith('  task01'),
+      );
+
+    const lost = (rank: CutRank): number => threeByteRanks[rank].cap - rowsOf(rank).length;
+    const stoppedAt = cutRanks.findIndex((rank) => rowsOf(rank).length > 0);
+
+    // a rank before the stop has no row, the stop lost rows from its end, a later rank is whole
+    const wrongRanks = cutRanks.filter((rank, index) => {
+      if (index < stoppedAt) {
+        return lost(rank) !== threeByteRanks[rank].cap;
+      }
+
+      return index === stoppedAt ? lost(rank) < 0 : lost(rank) !== 0;
+    });
+
+    const gaps = cutRanks.filter((rank) => {
+      const numbers = rowsOf(rank).map((line) => Number(/(?<digits>\d+)/u.exec(line)?.[1]));
+
+      return (
+        rank !== 'tasks' &&
+        rank !== 'pull-requests' &&
+        numbers.some((number, index) => number !== (rank === 'decisions' ? 99 - index : index + 1))
+      );
+    });
+
+    const cutLineCounts = Object.fromEntries(
+      cutRanks
+        .filter((rank) => threeByteSections[rank].kind !== null)
+        .map((rank) => [
+          rank,
+          lines.filter(
+            (line) =>
+              line ===
+              `  and ${String(lost(rank))} more: www list ${threeByteSections[rank].kind ?? ''}`,
+          ).length,
+        ]),
+    );
+
+    expect({
+      isWithinLimit: Buffer.byteLength(brief) <= limit,
+      wrongRanks,
+      gaps,
+      neverCut: [
+        lines[0]?.includes(' · day '),
+        lines.some((line) => line.startsWith('GOAL  ')),
+        lines.some((line) => line.startsWith('GRANT  from the owner')),
+        lines.some((line) => line.startsWith('OWNER SAYS (2)')),
+        lines.some((line) => line.startsWith('CHANGED SINCE WRITTEN (10)')),
+        lines.some((line) => line.startsWith('  and 7 more;')),
+        lines.some((line) => line.startsWith('NOW  task01xxxxxxxxxx')),
+        lines.some((line) => line.startsWith('  next step hidden:')),
+        lines.some((line) => line.startsWith('  task01xxxxxxxxxx')),
+        lines.at(-2) === briefFooter,
+      ].every(Boolean),
+      openCountLine: lines.filter((line) => line.includes('more open tasks: www show')),
+      pullRequestLine: lines.filter((line) => line.includes('more: www list prs')),
+      cutLineCounts,
+    }).toStrictEqual({
+      isWithinLimit: true,
+      wrongRanks: [],
+      gaps: [],
+      neverCut: true,
+      openCountLine:
+        lost('tasks') === 0 ? [] : [`  and ${String(lost('tasks'))} more open tasks: www show`],
+      pullRequestLine: [`  and ${String(10 - rowsOf('pull-requests').length)} more: www list prs`],
+
+      // DECISIONS also ends with its count line, the same text when the cut takes all 3
+      cutLineCounts: Object.fromEntries(
+        cutRanks
+          .filter((rank) => threeByteSections[rank].kind !== null)
+          .map((rank) => [
+            rank,
+            lost(rank) === 0 ? 0 : 1 + Number(lost(rank) === 3 && rank === 'decisions'),
+          ]),
+      ),
+    });
+  },
+);
+
+test('it holds the never-cut lines of the 3-byte worst case under 9,000 bytes, and under 17,000 with the owner words', () => {
+  const input = buildThreeByteCutInput(null);
+
+  // the words are the last rank the cut reaches, so the smallest limit that keeps all 8 leaves
+  // every other row cut
+  let low = 0;
+  let high = 60_000;
+
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+
+    if (collectBriefRows(renderBrief(input, middle), /^ {2}word\d\d/u).length === 8) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+
+  const withWords = renderBrief(input, low);
+
+  expect({
+    neverCut: Buffer.byteLength(renderBrief(input, 1)) < 9000,
+    withWords: Buffer.byteLength(withWords) < 17_000,
+    otherRows: withWords
+      .split('\n')
+      .filter((line) => /^ {2}(?:prom|here|wait|d-|less|rule|appr|p{60})/u.test(line)),
+  }).toStrictEqual({ neverCut: true, withWords: true, otherRows: [] });
+});
+
+test('it starts the header with the session name and day, and ends with the footer, for every store', () => {
+  const briefs = [
+    renderBrief(buildMockBriefInput({})),
+    ...(['claude', 'codex', null] as const).flatMap((host) => [
+      renderBrief(buildWorstCaseBriefInput({ host, taskCount: 30 })),
+      renderBrief(buildThreeByteCutInput(host)),
+    ]),
+    renderBrief(buildThreeByteCutInput(null), 100),
+  ];
+
+  expect(
+    briefs.map((brief) => [
+      /^[a-z0-9-]+ · day \d+ · /u.test(brief),
+      brief.endsWith(`${briefFooter}\n`),
+    ]),
+  ).toStrictEqual(briefs.map(() => [true, true]));
+});
+
+test('it prints a credential in a stored decision as the placeholder, when the cut would split it', () => {
+  const sample = buildCredentialSamples()[0]?.sample ?? '';
+  const choice = `${'c'.repeat(190)} ${sample} ${'d'.repeat(50)}`;
+  const brief = renderBrief(buildMockBriefInput({ decisions: [{ id: 'd-1', choice }] }));
+
+  expect({
+    hasSample: brief.includes(sample.slice(0, 8)),
+    hasPlaceholder: brief.includes('<where the secret lives>'),
+  }).toStrictEqual({ hasSample: false, hasPlaceholder: true });
+});
+
+test('it gives renderBrief a limit in no file but its tests', () => {
+  const packageDir = join(import.meta.dir, '..', '..');
+
+  const callers = listTypeScriptFiles(packageDir, ['src'])
+    .filter((file) => !file.endsWith('.test.ts'))
+    .filter((file) =>
+      hasSecondArgument(readFileSync(join(packageDir, file), 'utf8'), 'renderBrief'),
+    );
+
+  expect(callers).toStrictEqual([]);
 });

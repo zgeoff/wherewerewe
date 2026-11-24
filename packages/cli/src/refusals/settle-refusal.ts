@@ -5,9 +5,9 @@ import type { Placeholder, PlaceholderShape, Refusal, RunLine, RunWord } from '.
 import { pickArgsRefusals } from '../writes/pick-args-refusals.ts';
 import { buildGrantRefusal } from './build-grant-refusal.ts';
 import { buildRefusal } from './build-refusal.ts';
+import { collectUsageVariants } from './collect-usage-variants.ts';
 import type { RefusalScope } from './format-refusal.ts';
 import { toPrintedWords } from './to-printed-words.ts';
-import { toUsageWords } from './to-usage-words.ts';
 
 // The scope a Run line prints in, and the folder its relative paths resolve in.
 export interface RunScope extends RefusalScope {
@@ -188,14 +188,18 @@ function restorePlaceholders(refusal: Refusal, samples: ReadonlyMap<string, Plac
   };
 }
 
-// A usage line's optional groups decide whether the store-free checks pass, as grant needs one of
-// its optional bullets, so its required part is filled and checked as the parser reads it. The
-// refusal tests fill each usage line whole and run it.
+// A usage line is checked as the parser reads it: its required words alone, then with each optional
+// group, or each choice of a group that holds `|`, added. The store-free checks stay out, because
+// `grant`'s required words alone hold no bullet. The printed line stays unfilled.
 function findUsageProblem(line: string, scope: RunScope): Refusal | null {
-  const filled = fillPlaceholders(toPrintedWords(toUsageWords(line), scope.sessionFlag));
-  const parsed = parseCLIArgs(filled.argv);
+  for (const words of collectUsageVariants(line)) {
+    const filled = fillPlaceholders(toPrintedWords(words, scope.sessionFlag));
+    const parsed = parseCLIArgs(filled.argv);
 
-  return parsed.kind === 'refused'
-    ? restorePlaceholders(buildRefusal(parsed.reason), filled.samples)
-    : null;
+    if (parsed.kind === 'refused') {
+      return restorePlaceholders(buildRefusal(parsed.reason), filled.samples);
+    }
+  }
+
+  return null;
 }

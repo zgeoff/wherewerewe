@@ -35,12 +35,20 @@ function setupTest() {
           notesUnread: null,
           prs: [],
           prsUnread: null,
+          lessons: [],
+          lessonsUnread: null,
+          promises: [],
+          promisesUnread: null,
+          words: [],
+          wordsUnread: null,
           ownerUnread: null,
         },
         journal: {
           closed: new Map([['t-done', '2026-03-05T08:00:00Z']]),
           decisions: new Map(),
           lastDecisionNumber: 0,
+          replaced: new Set(),
+          inForce: [],
           lastOwnerNoteNumber: 0,
           ...journal,
         },
@@ -55,7 +63,7 @@ function setupTest() {
 test('it writes the first note as o-1, with a journal row by the owner and a reply', () => {
   const ctx = setupTest();
   const picked = ctx.pick(['say', 'Ask me first'], [], {});
-  const actual: unknown = picked.kind === 'write' ? picked.reply(8) : null;
+  const actual: unknown = picked.kind === 'write' ? picked.reply({ tokens: 8, limit: 8000 }) : null;
 
   expect([picked, actual]).toStrictEqual([
     {
@@ -76,7 +84,7 @@ test('it writes the first note as o-1, with a journal row by the owner and a rep
       },
       reply: expect.any(Function),
     },
-    'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 8 lines.',
+    'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 8 of 8000 tokens.',
   ]);
 });
 
@@ -84,7 +92,7 @@ test('it writes a note on an item with on= in the extra, and appends it to the s
   const ctx = setupTest();
   const shown = { id: 'o-1', text: 'Ask me first', said: '2026-03-10T11:00:00Z', on: null };
   const picked = ctx.pick(['say', 'Use readings', '--on', 't-a'], [shown], {});
-  const actual: unknown = picked.kind === 'write' ? picked.reply(9) : null;
+  const actual: unknown = picked.kind === 'write' ? picked.reply({ tokens: 9, limit: 8000 }) : null;
 
   expect([picked, actual]).toStrictEqual([
     {
@@ -108,7 +116,7 @@ test('it writes a note on an item with on= in the extra, and appends it to the s
       },
       reply: expect.any(Function),
     },
-    'o-2  owner note on t-a. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 9 lines.',
+    'o-2  owner note on t-a. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 9 of 8000 tokens.',
   ]);
 });
 

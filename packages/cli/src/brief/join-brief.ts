@@ -3,6 +3,7 @@ import { redactCredentialWords } from '../rules/redact-credential-words.ts';
 import type { Note } from '../types.ts';
 import { formatAge } from './format-age.ts';
 import { formatGoalLines } from './format-goal-lines.ts';
+import { formatListCommand } from './format-list-command.ts';
 import { getSessionDay } from './get-session-day.ts';
 import { padID } from './pad-id.ts';
 import { pickFixCommand } from './pick-fix-command.ts';
@@ -10,40 +11,43 @@ import { renderGrantLines } from './render-grant-lines.ts';
 import type { BriefInput, ItemSection } from './types.ts';
 import { wrapBlock } from './wrap-block.ts';
 
-const footer =
+export const briefFooter =
   'Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or drop · www help';
 
-// The brief's text with the sections' kept lines, after the redaction `runCLI` runs on all output,
-// so the brief is measured as it prints: a session name that looks like a credential grows.
+// The brief's text with the sections' kept rows, after the redaction `runCLI` runs on all output.
+// No credential spans a line break, so each line redacts on its own, and a caller that joins the
+// same lines again passes a redactor that remembers them.
 export function joinBrief(
   input: BriefInput,
   sections: readonly ItemSection[],
   cuts: readonly (readonly boolean[])[],
-  cutCount: number,
+  redactLine: (line: string) => string = redactCredentialWords,
 ): string {
-  const kept = sections.map((section, index) => {
-    const lines = section.lines
-      .filter((_line, lineIndex) => cuts[index]?.[lineIndex] !== true)
-      .map((line) => line.text);
+  const early: string[] = [];
+  const late: string[] = [];
 
-    return {
-      heading: section.heading,
-      lines,
-      tail: lines.length > 0 && section.tail !== null ? [section.tail] : [],
-    };
-  });
-
-  const lastKeptIndex = kept.findLastIndex((section) => section.lines.length > 0);
-  const itemLines: string[] = [];
-
-  for (const [index, section] of kept.entries()) {
-    if (section.lines.length > 0) {
-      itemLines.push(section.heading, ...section.lines, ...section.tail);
+  for (const [index, section] of sections.entries()) {
+    if (section.lines.length === 0) {
+      continue;
     }
 
-    if (section.lines.length > 0 && cutCount > 0 && index === lastKeptIndex) {
-      itemLines.push(`  (${String(cutCount)} lines cut to fit; run www show <id>)`);
-    }
+    const kept = section.lines.filter((_line, lineIndex) => cuts[index]?.[lineIndex] !== true);
+    const dropped = section.lines.length - kept.length;
+    const count = section.count(kept.length);
+
+    const lines = [
+      section.heading,
+      ...kept.map((line) => line.text),
+      ...(count === null ? [] : [count]),
+      ...(section.cutKind !== null && dropped > 0
+        ? [
+            `  and ${String(dropped)} more: ${formatListCommand(section.cutKind, input.sessionFlag)}`,
+          ]
+        : []),
+      ...(section.after !== null && kept.length > 0 ? [section.after] : []),
+    ];
+
+    (section.isEarly ? early : late).push(...lines);
   }
 
   const lines = [
@@ -51,13 +55,14 @@ export function joinBrief(
     ...formatGoalLines(input.session.goal),
     ...renderGrant(input),
     ...renderOwnerNotes(input),
+    ...early,
     ...renderChanged(input),
     ...renderNow(input),
-    ...itemLines,
-    footer,
+    ...late,
+    briefFooter,
   ];
 
-  return redactCredentialWords(`${lines.join('\n')}\n`);
+  return `${lines.map((line) => redactLine(line)).join('\n')}\n`;
 }
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

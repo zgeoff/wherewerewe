@@ -19,6 +19,13 @@ export const textLimits = {
   waitWho: 16,
   idMin: 2,
   idMax: 16,
+  lesson: 120,
+  lessonWhy: 200,
+  promise: 120,
+  promiseTo: 16,
+  promiseBy: 24,
+  words: 300,
+  wordsWhere: 16,
   sessionNameMin: 2,
   sessionNameMax: 24,
 } as const;

@@ -35,12 +35,20 @@ function setupTest() {
           notesUnread: null,
           prs: [],
           prsUnread: null,
+          lessons: [],
+          lessonsUnread: null,
+          promises: [],
+          promisesUnread: null,
+          words: [],
+          wordsUnread: null,
           ownerUnread: null,
         },
         journal: {
           closed: new Map(),
           decisions: new Map(),
           lastDecisionNumber: 0,
+          replaced: new Set(),
+          inForce: [],
           lastOwnerNoteNumber: 0,
         },
         args: buildParsedArgs(argv),
@@ -152,7 +160,9 @@ test('it replies with the approval as ok, open, with no check', () => {
   const ctx = setupTest();
   const picked = ctx.pick(buildOkArgv(), []);
 
-  expect(getPickedWrite(picked, 9).reply).toBe('ok-merge  ok, open, no check. Brief: 9 lines.');
+  expect(getPickedWrite(picked, 9).reply).toBe(
+    'ok-merge  ok, open, no check. Brief: 9 of 8000 tokens.',
+  );
 });
 
 test('it refuses a second approval and names the open one to spend', () => {
@@ -290,7 +300,7 @@ test('it writes a new item with its owed note, journals the note row after the i
         },
       ],
     },
-    reply: 't-a  task, open, no check, note 18 of 400, owed. Brief: 6 lines.',
+    reply: 't-a  task, open, no check, note 18 of 400, owed. Brief: 6 of 8000 tokens.',
   });
 });
 
@@ -417,7 +427,7 @@ test.each(
         },
       ],
     },
-    reply: `${found.row.replyHead}, note 18 of 400${found.owed ? ', owed' : ''}. Brief: 6 lines.`,
+    reply: `${found.row.replyHead}, note 18 of 400${found.owed ? ', owed' : ''}. Brief: 6 of 8000 tokens.`,
   });
 });
 
@@ -433,7 +443,7 @@ test('it writes a note that is not owed with no owed part in the reply or the jo
         expect.objectContaining({ op: 'note', text: 'Why', extra: null }),
       ],
     }),
-    reply: 'r-a  rule, open, note 3 of 400. Brief: 6 lines.',
+    reply: 'r-a  rule, open, note 3 of 400. Brief: 6 of 8000 tokens.',
   });
 });
 
@@ -445,7 +455,9 @@ test('it replies ok, open, no check for an approval with a note', () => {
     6,
   );
 
-  expect(picked.reply).toBe('ok-merge  ok, open, no check, note 18 of 400. Brief: 6 lines.');
+  expect(picked.reply).toBe(
+    'ok-merge  ok, open, no check, note 18 of 400. Brief: 6 of 8000 tokens.',
+  );
 });
 
 test('it keeps the note row, its owed flag and its written time when a claim write gives no note flag', () => {
@@ -498,7 +510,7 @@ test('it adds the older-note line when a write replaces the claim and keeps a no
   expect(picked.reply).toBe(
     [
       '  its note is 1h older than this claim. Replace it with www set t-a --note "<detail>", or clear it with www set t-a --no-note',
-      't-a  task, open, checked now: unchecked. Brief: 6 lines.',
+      't-a  task, open, checked now: unchecked. Brief: 6 of 8000 tokens.',
     ].join('\n'),
   );
 });
@@ -556,9 +568,9 @@ test('it adds no older-note line when the write replaces the note, clears it or 
   ].map((picked) => getPickedWrite(picked, 6).reply);
 
   expect(replies).toStrictEqual([
-    't-a  task, open, checked now: unchecked, note 3 of 400. Brief: 6 lines.',
-    't-a  task, open, checked now: unchecked. Brief: 6 lines.',
-    't-a  task, open, checked now: unchecked. Brief: 6 lines.',
+    't-a  task, open, checked now: unchecked, note 3 of 400. Brief: 6 of 8000 tokens.',
+    't-a  task, open, checked now: unchecked. Brief: 6 of 8000 tokens.',
+    't-a  task, open, checked now: unchecked. Brief: 6 of 8000 tokens.',
   ]);
 });
 
@@ -591,7 +603,7 @@ test('it keeps the claim, check, at_write and written of the item when set gives
         },
       ],
     },
-    reply: 't-a  note, 10 of 400. Brief: 6 lines.',
+    reply: 't-a  note, 10 of 400. Brief: 6 of 8000 tokens.',
   });
 });
 
@@ -611,7 +623,7 @@ test('it replies with the owed part when set gives only an owed note', () => {
     6,
   );
 
-  expect(picked.reply).toBe('t-a  note, 10 of 400, owed. Brief: 6 lines.');
+  expect(picked.reply).toBe('t-a  note, 10 of 400, owed. Brief: 6 of 8000 tokens.');
 });
 
 test('it clears the note with set --no-note and journals note cleared', () => {
@@ -650,7 +662,7 @@ test('it clears the note with set --no-note and journals note cleared', () => {
         },
       ],
     },
-    reply: 't-a  note cleared. Brief: 6 lines.',
+    reply: 't-a  note cleared. Brief: 6 of 8000 tokens.',
   });
 });
 

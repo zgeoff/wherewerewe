@@ -325,3 +325,45 @@ test('it labels the second line of a grant row reading', () => {
     ].join('\n'),
   );
 });
+
+test('it prints a lesson row with its why, and a promise and a words row with their text', () => {
+  const rows: JournalRow[] = [
+    {
+      ts: '2026-03-07T15:20:44Z',
+      op: 'lesson',
+      id: 'l-seed',
+      by: 'agent',
+      text: 'Reseed the staging alerts table before alerts-e2e',
+      why: 'A stale row made alerts-e2e pass',
+      extra: null,
+    },
+    {
+      ts: '2026-03-09T16:05:10Z',
+      op: 'promise',
+      id: 'due-cost',
+      by: 'agent',
+      text: 'Cost table for the alert fan-out',
+      why: null,
+      extra: 'to=owner;by=day 10, before review',
+    },
+    {
+      ts: '2026-03-04T09:30:00Z',
+      op: 'words',
+      id: 'w-plain',
+      by: 'owner',
+      text: 'Plain words in every reply',
+      why: null,
+      extra: 'where=chat',
+    },
+  ];
+
+  expect(renderLog(rows, '2026-03-02T08:04:11Z')).toBe(
+    [
+      'day 3  09:30  words     w-plain    owner  Plain words in every reply',
+      'day 6  15:20  lesson    l-seed     agent  Reseed the staging alerts table before alerts-e2e',
+      '                                          why: A stale row made alerts-e2e pass',
+      'day 8  16:05  promise   due-cost   agent  Cost table for the alert fan-out',
+      '',
+    ].join('\n'),
+  );
+});

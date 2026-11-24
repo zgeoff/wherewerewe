@@ -43,6 +43,13 @@ test('it keeps a one-word optional group named in keeps', () => {
   expect(argv).toStrictEqual(['set', 't-a', 'Write it']);
 });
 
+test('it fills a choice placeholder with its first choice', () => {
+  const ctx = setupTest();
+  const argv = ctx.buildUsageRunArgv('Run: www list <tasks|waits|prs>', {});
+
+  expect(argv).toStrictEqual(['list', 'tasks']);
+});
+
 test('it throws on a placeholder with no fill', () => {
   const ctx = setupTest();
 

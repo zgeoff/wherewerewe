@@ -2,6 +2,7 @@ import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
+import { formatBriefLine } from './format-brief-line.ts';
 import { pickOnRefusal } from './pick-on-refusal.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
@@ -59,8 +60,8 @@ export function pickDecision(input: WriteInput): WriteResult {
         },
       ],
     },
-    reply: (briefLines) =>
-      `${id}  ${isRuledOut ? 'ruled out' : 'decision'}${on === undefined ? '' : ` on ${on}`}. Read it with: www show ${on ?? id}. Brief: ${String(briefLines)} lines.`,
+    reply: (figure) =>
+      `${id}  ${isRuledOut ? 'ruled out' : 'decision'}${on === undefined ? '' : ` on ${on}`}. Read it with: www show ${on ?? id}. ${formatBriefLine(figure)}`,
   };
 }
 

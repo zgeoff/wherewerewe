@@ -26,6 +26,12 @@ function setupTest() {
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
       ...fields,
     }),
@@ -45,6 +51,7 @@ test('it reports no checks in a reply when no item has one, and passes the sessi
     nowMs: 1000,
     sessionFlag: 'tide-alerts',
     host: 'claude',
+    decisions: [],
   });
 
   expect(input).toStrictEqual({
@@ -52,6 +59,10 @@ test('it reports no checks in a reply when no item has one, and passes the sessi
     items: [expect.objectContaining({ id: 't-a' })],
     notes: [],
     ownerNotes: [],
+    words: [],
+    promises: [],
+    lessons: [],
+    decisions: [],
     changed: [],
     pullRequests: [],
     checks: { kind: 'none' },
@@ -72,6 +83,7 @@ test('it passes the owner notes of the store on in a reply', () => {
     nowMs: 1000,
     sessionFlag: null,
     host: 'codex',
+    decisions: [],
   });
 
   expect(input.ownerNotes).toStrictEqual([note]);
@@ -88,7 +100,7 @@ test('it counts the items that have a check as not run yet in a reply', () => {
         buildMockItem({ id: 't-c' }),
       ],
     }),
-    { nowMs: 1000, sessionFlag: null, host: 'codex' },
+    { nowMs: 1000, sessionFlag: null, host: 'codex', decisions: [] },
   );
 
   expect(input.checks).toStrictEqual({ kind: 'not-run', count: 2 });
@@ -110,7 +122,7 @@ test('it marks a changed row in a reply from the saved result, and shows each op
         ctx.buildRow('bosunhq/bosun-app#10', 'MERGED'),
       ],
     }),
-    { nowMs: 1000, sessionFlag: null, host: 'codex' },
+    { nowMs: 1000, sessionFlag: null, host: 'codex', decisions: [] },
   );
 
   expect([input.changed.map((change) => change.item.id), input.pullRequests]).toStrictEqual([

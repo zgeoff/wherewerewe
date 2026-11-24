@@ -6,8 +6,10 @@ import { wrapBlock } from '../brief/wrap-block.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { getKindWord } from '../rules/get-kind-word.ts';
+import { redactCredential } from '../rules/redact-credential.ts';
 import { redactJoinedCredentials } from '../rules/redact-joined-credentials.ts';
-import type { Item, JournalRow, Store } from '../types.ts';
+import type { Item, JournalRow, LessonRow, PromiseRow, Store, WordsRow } from '../types.ts';
+import { collectOpenIDs } from '../writes/collect-id-holders.ts';
 import { cutRedactedLine } from './cut-redacted-line.ts';
 
 export interface ShowInput {
@@ -42,6 +44,12 @@ export function renderShow(input: ShowInput): string {
     return renderOpenItem(input, item);
   }
 
+  const fileRow = findFileRow(input.store, input.id);
+
+  if (fileRow !== null) {
+    return renderFileRow(input, fileRow);
+  }
+
   const closing = input.rows.findLast(
     (row) => row.id === input.id && (row.op === 'done' || row.op === 'drop' || row.op === 'use'),
   );
@@ -60,7 +68,7 @@ export function renderShow(input: ShowInput): string {
     return `${[`${input.id}  not an item or a decision`, ...formatHistoryLines(input)].join('\n')}\n`;
   }
 
-  const openIDs = input.store.items.map((candidate) => candidate.id);
+  const openIDs = collectOpenIDs(input.store);
   const open = openIDs.length === 0 ? 'none' : openIDs.join(', ');
 
   return `${input.id}: no item, decision or journal row has this id. Open items: ${open}.\n`;
@@ -252,6 +260,54 @@ function formatHistoryLines(input: ShowInput): string[] {
   const more = own.length > shown.length ? '… · ' : '';
 
   return own.length === 0 ? [] : [`  journal: ${more}${entries.join(' · ')}`];
+}
+
+type FileRow =
+  | { readonly kind: 'lesson'; readonly row: LessonRow }
+  | { readonly kind: 'promise'; readonly row: PromiseRow }
+  | { readonly kind: 'words'; readonly row: WordsRow };
+
+function findFileRow(store: Store, id: string): FileRow | null {
+  const lesson = store.lessons.find((row) => row.id === id);
+  const promise = store.promises.find((row) => row.id === id);
+  const words = store.words.find((row) => row.id === id);
+
+  if (lesson !== undefined) {
+    return { kind: 'lesson', row: lesson };
+  }
+
+  if (promise !== undefined) {
+    return { kind: 'promise', row: promise };
+  }
+
+  return words === undefined ? null : { kind: 'words', row: words };
+}
+
+// A lesson, a promise or the owner's words, whole, each stored text redacted and none wrapped.
+function renderFileRow(input: ShowInput, found: FileRow): string {
+  const first = input.rows.find((row) => row.id === input.id);
+  const startedAt = first === undefined ? found.row.written : first.ts;
+  const since = getDay(input.store, Date.parse(startedAt));
+  const age = formatAge(input.nowMs - Date.parse(found.row.written));
+  const open = `open since day ${String(since)}, by ${found.row.by}`;
+
+  const lines = match(found)
+    .with({ kind: 'lesson' }, (lesson) => [
+      `${lesson.row.id}  lesson, ${open}`,
+      `  do this (${age}): ${redactCredential(lesson.row.text)}`,
+      `  why: ${redactCredential(lesson.row.why)}`,
+    ])
+    .with({ kind: 'promise' }, (promise) => [
+      `${promise.row.id}  promise, ${open} · to ${redactCredential(promise.row.to)} · by ${redactCredential(promise.row.byWhen)}`,
+      `  what (${age}): ${redactCredential(promise.row.what)}`,
+    ])
+    .with({ kind: 'words' }, (words) => [
+      `${words.row.id}  owner's words, ${open} · said in ${redactCredential(words.row.where)}`,
+      `  words (${age}): "${redactCredential(words.row.words)}"`,
+    ])
+    .exhaustive();
+
+  return `${[...lines, ...formatHistoryLines(input)].join('\n')}\n`;
 }
 
 function renderClosedItem(input: ShowInput, closing: JournalRow): string {

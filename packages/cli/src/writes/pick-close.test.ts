@@ -44,12 +44,20 @@ function setupTest() {
           notesUnread: null,
           prs: [],
           prsUnread: null,
+          lessons: [],
+          lessonsUnread: null,
+          promises: [],
+          promisesUnread: null,
+          words: [],
+          wordsUnread: null,
           ownerUnread: null,
         },
         journal: {
           closed: options.closed ?? new Map(),
           decisions: new Map(),
           lastDecisionNumber: 0,
+          replaced: new Set(),
+          inForce: [],
           lastOwnerNoteNumber: 0,
         },
         args: buildParsedArgs(argv),
@@ -115,7 +123,7 @@ test('it replies that the approval is used, and off the brief', () => {
   );
 
   expect(getPickedWrite(picked, 6).reply).toBe(
-    'ok-wipe  used. Off the brief, kept in the journal. Brief: 6 lines.',
+    'ok-wipe  used. Off the brief, kept in the journal. Brief: 6 of 8000 tokens.',
   );
 });
 
@@ -332,7 +340,7 @@ test.each([
         session: expect.objectContaining({ lastWrite: '2026-03-10T11:43:00Z' }),
         journal: [expect.objectContaining({ id: 't-a' })],
       },
-      reply: `    The simulator is shared on Fridays\nt-a  ${verb} Off the brief, kept in the journal with its note (1h). Brief: 6 lines.`,
+      reply: `    The simulator is shared on Fridays\nt-a  ${verb} Off the brief, kept in the journal with its note (1h). Brief: 6 of 8000 tokens.`,
     });
   },
 );
@@ -355,7 +363,7 @@ test('it prints the note of a spent approval after used.', () => {
   );
 
   expect(picked.reply).toBe(
-    '    The simulator is shared on Fridays\nok-wipe  used. Off the brief, kept in the journal with its note (1h). Brief: 6 lines.',
+    '    The simulator is shared on Fridays\nok-wipe  used. Off the brief, kept in the journal with its note (1h). Brief: 6 of 8000 tokens.',
   );
 });
 

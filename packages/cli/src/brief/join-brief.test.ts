@@ -8,5 +8,5 @@ test('it joins a brief with no credential in the session name', () => {
   const sample = buildCredentialSamples()[0]?.sample ?? '';
   const input = buildMockBriefInput({ session: buildMockSession({ name: sample }) });
 
-  expect(joinBrief(input, [], [], 0)).not.toInclude(sample);
+  expect(joinBrief(input, [], [])).not.toInclude(sample);
 });

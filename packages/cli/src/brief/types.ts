@@ -1,4 +1,5 @@
-import type { Item, Note, SessionFile } from '../types.ts';
+import type { Item, LessonRow, Note, PromiseRow, SessionFile, WordsRow } from '../types.ts';
+import type { CutRank } from './cut-ranks.ts';
 
 export interface BriefInput {
   readonly session: SessionFile;
@@ -10,6 +11,12 @@ export interface BriefInput {
     readonly said: string;
     readonly on: string | null;
   }[];
+  readonly words: readonly WordsRow[];
+  readonly promises: readonly PromiseRow[];
+  readonly lessons: readonly LessonRow[];
+
+  // the decisions in force, newest first
+  readonly decisions: readonly { readonly id: string; readonly choice: string }[];
   readonly changed: readonly { readonly item: Item; readonly result: string }[];
   readonly pullRequests: readonly {
     readonly ref: string;
@@ -40,30 +47,46 @@ export interface BriefInput {
   // the `--session` name as typed, for the command the count line prints
   readonly sessionFlag: string | null;
 
-  // the agent that reads the brief, which sets its size budget
+  // the agent that reads the brief, which sets its size limit
   readonly host: 'claude' | 'codex' | null;
 }
+
+// What a section's cut line lists: the argument of `www list`.
+export type CutKind =
+  | 'waits'
+  | 'approvals'
+  | 'rules'
+  | 'where'
+  | 'lessons'
+  | 'promises'
+  | 'words'
+  | 'decisions';
 
 export interface ItemLine {
   readonly text: string;
 
-  // the item the row shows, null for a pull request row
+  // the item the row shows, null for a row of no item
   readonly id: string | null;
+
+  // the rank at which the cut drops the row; null for a row the cut never takes
+  readonly rank: CutRank | null;
 }
 
 export interface ItemSection {
   readonly heading: string;
+
+  // every row the section holds, in print order, before any cut
   readonly lines: readonly ItemLine[];
 
-  // a line after the rows that the cut never takes
-  readonly tail: string | null;
-}
+  // the section's own count line, given the rows that are kept
+  readonly count: (keptRows: number) => string | null;
 
-// The brief's size limit for the agent that reads it.
-export interface BriefBudget {
-  readonly maxLines: number;
-  readonly maxCharacters: number;
+  // the kind its cut line names, null for a section that ends with its count line alone
+  readonly cutKind: CutKind | null;
 
-  // the task rows the budget's worst case holds with no count line
-  readonly taskRows: number;
+  // a line after the count line, printed while a row is kept
+  readonly after: string | null;
+
+  // true for a section that prints before CHANGED SINCE WRITTEN
+  readonly isEarly: boolean;
 }

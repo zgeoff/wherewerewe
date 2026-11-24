@@ -30,15 +30,15 @@ const longWords = [...Array.from({ length: 3 }, () => 'g'.repeat(49)), 'g'.repea
 
 export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput {
   const result = 'r'.repeat(15);
-  const waits = buildMockIDs('wait', 4);
+  const waits = buildMockIDs('wait', 8);
   const tasks = buildMockIDs('task', options.taskCount);
 
   const ids = [
     ...tasks,
     ...waits,
     ...buildMockIDs('appr', 1),
-    ...buildMockIDs('rule', 5),
-    ...buildMockIDs('here', 4),
+    ...buildMockIDs('rule', 15),
+    ...buildMockIDs('here', 8),
   ];
 
   const items = [
@@ -69,10 +69,10 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
         extra: { who: 'owner', scope: 's'.repeat(40) },
       }),
     ),
-    ...buildMockIDs('rule', 5).map((id) =>
+    ...buildMockIDs('rule', 15).map((id) =>
       buildMockItem({ id, kind: 'rule', claim: 'c'.repeat(120) }),
     ),
-    ...buildMockIDs('here', 4).map((id) =>
+    ...buildMockIDs('here', 8).map((id) =>
       buildMockItem({ id, kind: 'where', claim: 'c'.repeat(120), check: 'pid:4', last: result }),
     ),
   ];
@@ -103,6 +103,32 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
       lastNudge: null,
       importedFrom: null,
     },
+    words: buildMockIDs('word', 8).map((id) => ({
+      id,
+      words: 'w'.repeat(300),
+      where: 'w'.repeat(16),
+      written: '2026-03-04T09:00:00Z',
+      by: 'owner' as const,
+    })),
+    promises: buildMockIDs('prom', 5).map((id) => ({
+      id,
+      what: 'p'.repeat(120),
+      to: 't'.repeat(16),
+      byWhen: 'b'.repeat(24),
+      written: '2026-03-04T09:00:00Z',
+      by: 'agent' as const,
+    })),
+    lessons: buildMockIDs('less', 5).map((id) => ({
+      id,
+      text: 'l'.repeat(120),
+      why: 'y'.repeat(200),
+      written: '2026-03-04T09:00:00Z',
+      by: 'agent' as const,
+    })),
+    decisions: Array.from({ length: 6 }, (_value, index) => ({
+      id: `d-${String(99 - index)}`,
+      choice: 'd'.repeat(200),
+    })),
     ownerNotes: [
       { id: 'o-1', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[1] ?? null },
       { id: 'o-2', text: 'o'.repeat(160), said: '2026-03-10T09:40:12Z', on: tasks[2] ?? null },

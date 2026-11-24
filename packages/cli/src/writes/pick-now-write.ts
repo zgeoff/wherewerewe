@@ -4,6 +4,9 @@ import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
+import { formatBriefLine } from './format-brief-line.ts';
+import { pickDuplicateIDRefusal } from './pick-duplicate-id-refusal.ts';
+import { pickNoOpenItemRefusal } from './pick-item-write.ts';
 import {
   buildChangedNotes,
   buildNoteJournalRows,
@@ -26,16 +29,12 @@ export function pickNowWrite(input: WriteInput): WriteResult {
     return { kind: 'refused', refusal: buildRefusal(reason) };
   }
 
-  if (!store.items.some((item) => item.id === id)) {
-    return {
-      kind: 'refused',
-      refusal: buildRefusal({
-        kind: 'no-open-item',
-        args,
-        id,
-        openIDs: store.items.map((item) => item.id),
-      }),
-    };
+  const missing =
+    pickDuplicateIDRefusal(input, id) ??
+    (store.items.some((item) => item.id === id) ? null : pickNoOpenItemRefusal(input, id));
+
+  if (missing !== null) {
+    return { kind: 'refused', refusal: buildRefusal(missing) };
   }
 
   const unreadReason = args.values.note === undefined ? null : pickNotesUnreadRefusal(store);
@@ -59,8 +58,8 @@ export function pickNowWrite(input: WriteInput): WriteResult {
       ],
       ...(notes === undefined ? {} : { notes }),
     },
-    reply: (briefLines) => {
-      const brief = `Brief: ${String(briefLines)} lines.`;
+    reply: (figure) => {
+      const brief = formatBriefLine(figure);
 
       if (note === undefined) {
         return `now: ${id}. ${brief}`;

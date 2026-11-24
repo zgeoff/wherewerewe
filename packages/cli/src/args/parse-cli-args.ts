@@ -1,5 +1,7 @@
 import { parseArgs } from 'node:util';
 import { match } from 'ts-pattern';
+import { findListKind } from '../rules/find-list-kind.ts';
+import { listKinds } from '../rules/list-kinds.ts';
 import type { ParsedArgs, RefusalReason, TypedFlag } from '../types.ts';
 import { joinDashValues } from './join-dash-values.ts';
 
@@ -42,6 +44,8 @@ const options = {
   standing: { type: 'boolean' },
   'ruled-out': { type: 'boolean' },
   note: { type: 'string' },
+  to: { type: 'string' },
+  by: { type: 'string' },
   owed: { type: 'boolean' },
   'no-note': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
@@ -155,6 +159,33 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
     },
   ],
   [
+    'lesson',
+    {
+      counts: [2],
+      usage: '<id> "<do this>"',
+      flags: ['why'],
+      line: 'lesson <id> "<do this>" --why "<the mistake behind it>"',
+    },
+  ],
+  [
+    'promise',
+    {
+      counts: [2],
+      usage: '<id> "<what>"',
+      flags: ['to', 'by'],
+      line: 'promise <id> "<what>" --to <who> --by <when>',
+    },
+  ],
+  [
+    'words',
+    {
+      counts: [2],
+      usage: '<id> "<the owner\'s exact words>"',
+      flags: ['where'],
+      line: 'words <id> "<the owner\'s exact words>" --where <where>',
+    },
+  ],
+  [
     'where',
     {
       counts: [2],
@@ -218,6 +249,15 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
     },
   ],
   ['recap', { counts: [0], usage: 'no arguments', flags: ['since'], line: 'recap [--since <t>]' }],
+  [
+    'list',
+    {
+      counts: [0, 1],
+      usage: '<kind>',
+      flags: [],
+      line: `list <${listKinds.join('|')}>`,
+    },
+  ],
 ]);
 
 function checkArgs(argv: readonly string[]): ParseResult {
@@ -283,6 +323,10 @@ function checkArgs(argv: readonly string[]): ParseResult {
 
   if (!shape.counts.includes(rest.length)) {
     return refuse({ kind: 'wrong-positionals', command, usage: shape.usage });
+  }
+
+  if (command === 'list' && findListKind(rest[0]) === null) {
+    return refuse({ kind: 'bad-list-kind' });
   }
 
   return { kind: 'args', args };
@@ -354,14 +398,17 @@ function toParseRefusal(error: unknown, argv: readonly string[]): RefusalReason 
 // A flag no command takes gets the refusal of its command, read leniently, so it names the flags
 // that command takes. `www brief` is unknown, as in the strict read.
 function refuseUnknownFlag(argv: readonly string[], flag: string): RefusalReason {
-  const [first] = parseArgs({
+  const lenient = parseArgs({
     args: [...argv],
     options,
     strict: false,
     allowPositionals: true,
-  }).positionals;
+  });
 
-  const command = first ?? 'brief';
+  const [first] = lenient.positionals;
+
+  // `-h` and `--help` with no command mean help, as in the strict read
+  const command = first ?? (lenient.values.help === true ? 'help' : 'brief');
   const shape = commandShapes.get(command);
 
   return first === 'brief' || shape === undefined

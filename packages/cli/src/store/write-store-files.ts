@@ -3,13 +3,16 @@ import { join } from 'node:path';
 import type { StoreChange } from '../types.ts';
 import { formatItemsFile } from './format-items-file.ts';
 import { formatJournalRows } from './format-journal-rows.ts';
+import { formatLessonsFile } from './format-lessons-file.ts';
 import { formatNotesFile } from './format-notes-file.ts';
+import { formatPromisesFile } from './format-promises-file.ts';
 import { formatSessionFile } from './format-session-file.ts';
+import { formatWordsFile } from './format-words-file.ts';
 import { writeFileAtomic } from './write-file-atomic.ts';
 
-// Runs only inside the lock. The journal goes first, then items.tsv, notes.tsv and session, so a write that stops half way leaves a close
-// recorded with its item still open, never an item gone with no record, which would free its id.
-// It never opens owner.tsv or prs.tsv.
+// Runs only inside the lock. The journal goes first, then the files, so a write that stops half way
+// leaves a close recorded with its row still open, never a row gone with no record, which would
+// free its id. The lessons, promises and words files are written only when the change holds them.
 export async function writeStoreFiles(folder: string, change: StoreChange): Promise<void> {
   if (change.journal.length > 0) {
     await appendFile(join(folder, 'journal.tsv'), formatJournalRows(change.journal));
@@ -21,6 +24,18 @@ export async function writeStoreFiles(folder: string, change: StoreChange): Prom
 
   if (change.notes !== undefined) {
     writeFileAtomic(join(folder, 'notes.tsv'), formatNotesFile(change.notes));
+  }
+
+  if (change.lessons !== undefined) {
+    writeFileAtomic(join(folder, 'lessons.tsv'), formatLessonsFile(change.lessons));
+  }
+
+  if (change.promises !== undefined) {
+    writeFileAtomic(join(folder, 'promises.tsv'), formatPromisesFile(change.promises));
+  }
+
+  if (change.words !== undefined) {
+    writeFileAtomic(join(folder, 'words.tsv'), formatWordsFile(change.words));
   }
 
   if (change.session !== undefined) {

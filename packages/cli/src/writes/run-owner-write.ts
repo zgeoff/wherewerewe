@@ -1,6 +1,4 @@
 import { match } from 'ts-pattern';
-import { buildReplyBriefInput } from '../brief/build-reply-brief-input.ts';
-import { renderBrief } from '../brief/render-brief.ts';
 import { buildReadRefusal } from '../refusals/build-read-refusal.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { readJournalIndex } from '../store/read-journal-index.ts';
@@ -8,6 +6,7 @@ import { readStore } from '../store/read-store.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeOwnerFiles } from '../store/write-owner-files.ts';
 import type { ParsedArgs, Store } from '../types.ts';
+import { readBriefFigure } from './read-brief-figure.ts';
 import type { RunWriteResult } from './run-write.ts';
 import type { OwnerWriteResult, WriteInput } from './types.ts';
 
@@ -95,21 +94,18 @@ async function writeOnce(input: OwnerWriteRequest, store: Store): Promise<RunWri
 
   return match(picked)
     .with({ kind: 'refused' }, (refused): RunWriteResult => refused)
-    .with({ kind: 'write' }, (write): RunWriteResult => {
+    .with({ kind: 'write' }, async (write): Promise<RunWriteResult> => {
       writeOwnerFiles(input.folder, write.change);
 
       const written = { ...store, ownerNotes: write.change.notes };
 
-      const briefLines =
-        renderBrief(
-          buildReplyBriefInput(written, {
-            nowMs: input.nowMs,
-            sessionFlag: input.args.sessionFlag,
-            host: input.host,
-          }),
-        ).split('\n').length - 1;
+      const figure = await readBriefFigure(input.folder, written, {
+        nowMs: input.nowMs,
+        sessionFlag: input.args.sessionFlag,
+        host: input.host,
+      });
 
-      return { kind: 'replied', reply: write.reply(briefLines) };
+      return { kind: 'replied', reply: write.reply(figure) };
     })
     .exhaustive();
 }
