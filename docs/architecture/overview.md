@@ -159,9 +159,11 @@ approval and the command has no `--quote`, more than one one-time approval, or a
 folds into the grant that `--quote`, `--where` and `--reading` give, and `--drop` repeats once for
 each item that goes. The upgrade copies the format 1 files into `format-1-backup/` through a
 temporary folder and a rename, writes `journal.tsv`, `items.tsv`, `notes.tsv` and `session` in that
-order, and binds the agent last. A stop leaves `session` at `format=1` with a whole backup, which a
-rerun reads in place of the live files, or at `format=2` with every file written. See
-[the store design](../design/wherewerewe/store.md) for the conversion table.
+order, and binds the agent last. A stop before the backup's rename leaves the format 1 store as it
+was, with no `format-1-backup/`, and a rerun reads the live files. A later stop leaves `session` at
+`format=1` with a whole backup, which a rerun reads in place of the live files, or at `format=2`
+with every file written. See [the store design](../design/wherewerewe/store.md) for the conversion
+table.
 
 ## The brief
 
