@@ -1,8 +1,16 @@
 import { expect, test } from 'bun:test';
-import { existsSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { makePath } from './make-path.ts';
+import { readPathIdentity } from './read-path-identity.ts';
 import { removePath } from './remove-path.ts';
 
 test('it removes the folder that makePath made, and refuses a second removal and a bad name', () => {
@@ -68,4 +76,33 @@ test('it refuses a folder that replaced the one make-path made, while the marker
 
   expect(() => removePath(root, 'dock-map')).toThrow('was not made by `www make-path` in this run');
   expect(existsSync(join(folder, 'keep.txt'))).toBe(true);
+});
+
+test('it keeps a folder swapped in after the identity check, and removes nothing', () => {
+  const root = createTempDir('remove-path-swapped').path;
+  const folder = makePath(root, 'dock-map');
+  const reads = { count: 0 };
+
+  const swapAfterFirstRead = (path: string): string => {
+    const identity = readPathIdentity(path);
+
+    reads.count += 1;
+
+    if (reads.count === 1) {
+      renameSync(folder, join(root, 'paths', 'moved'));
+      mkdirSync(folder);
+      writeFileSync(join(folder, 'keep.txt'), 'by hand\n');
+    }
+
+    return identity;
+  };
+
+  expect(() => removePath(root, 'dock-map', swapAfterFirstRead)).toThrow(
+    'was not made by `www make-path` in this run',
+  );
+
+  expect([
+    existsSync(join(folder, 'keep.txt')),
+    readdirSync(join(root, 'paths')).toSorted(),
+  ]).toStrictEqual([true, ['.made-dock-map', 'dock-map', 'moved']]);
 });
