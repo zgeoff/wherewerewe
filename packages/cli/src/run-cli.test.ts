@@ -167,6 +167,100 @@ test('it labels a format 1 store in the session list with the command that upgra
   });
 });
 
+test.each([
+  { command: 'brief', argv: ['--session', 'sample'], isOwner: false },
+  { command: 'show', argv: ['show', 't-valves', '--session', 'sample'], isOwner: false },
+  { command: 'log', argv: ['log', '--session', 'sample'], isOwner: false },
+  { command: 'goal', argv: ['goal', 'Ship more', '--session', 'sample'], isOwner: false },
+  {
+    command: 'grant',
+    argv: ['grant', '--quote', 'Go.', '--where', 'chat', '--reading', 'r', '--session', 'sample'],
+    isOwner: false,
+  },
+  { command: 'now', argv: ['now', 't-valves', 'go', '--session', 'sample'], isOwner: false },
+  { command: 'task', argv: ['task', 't-x', 'x', '--session', 'sample'], isOwner: false },
+  {
+    command: 'wait',
+    argv: ['wait', 'w-x', 'x', '--who', 'a', '--session', 'sample'],
+    isOwner: false,
+  },
+  {
+    command: 'ok',
+    argv: [
+      'ok',
+      'ok-x',
+      '--quote',
+      'q',
+      '--who',
+      'o',
+      '--where',
+      'chat',
+      '--scope',
+      's',
+      '--session',
+      'sample',
+    ],
+    isOwner: false,
+  },
+  { command: 'rule', argv: ['rule', 'r-x', 'x', '--session', 'sample'], isOwner: false },
+  { command: 'where', argv: ['where', 'wh-x', 'x', '--session', 'sample'], isOwner: false },
+  { command: 'set', argv: ['set', 't-valves', 'x', '--session', 'sample'], isOwner: false },
+  { command: 'decide', argv: ['decide', 'x', '--why', 'y', '--session', 'sample'], isOwner: false },
+  {
+    command: 'done',
+    argv: ['done', 't-valves', '--evidence', 'e', '--session', 'sample'],
+    isOwner: false,
+  },
+  {
+    command: 'drop',
+    argv: ['drop', 't-valves', '--why', 'y', '--session', 'sample'],
+    isOwner: false,
+  },
+  { command: 'use', argv: ['use', 'ok-wipe', '--for', 'f', '--session', 'sample'], isOwner: false },
+  { command: 'attach', argv: ['attach', 'sample'], isOwner: false },
+  { command: 'detach', argv: ['detach'], isOwner: false },
+  { command: 'init', argv: ['init', 'sample', '--goal', 'Ship it'], isOwner: false },
+  { command: 'say', argv: ['say', 'x', '--session', 'sample'], isOwner: true },
+  { command: 'ack', argv: ['ack', 'o-1', '--session', 'sample'], isOwner: true },
+])('it exits 5 on a format 1 store for $command', async (row) => {
+  const ctx = setupTest();
+
+  seedFormat1Store(ctx.stateRoot, 'sample');
+  seedStoreFile(join(ctx.stateRoot, '.bindings'), 'claude-a1b2-test', 'name=sample\n');
+
+  const before = await ctx.readTree();
+
+  const agentEnv = ctx.agentEnv;
+  const ownerEnv = { HOME: agentEnv.HOME, XDG_STATE_HOME: agentEnv.XDG_STATE_HOME };
+  const env = row.isOwner ? ownerEnv : agentEnv;
+  const terminal = row.isOwner ? { stdin: true, stdout: true } : null;
+
+  const result = await ctx.run(row.argv, env, terminal);
+  const after = await ctx.readTree();
+
+  const stderrLines = result.stderr.split('\n');
+
+  expect({
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    isFormat1Refusal: stderrLines.some((line) => line.includes('sample is format 1')),
+    unchanged: after,
+  }).toStrictEqual({ exitCode: 5, stdout: '', isFormat1Refusal: true, unchanged: before });
+});
+
+test.each(['sessions', 'help'])(
+  'it does not exit 5 on a format 1 store for %s',
+  async (command) => {
+    const ctx = setupTest();
+
+    seedFormat1Store(ctx.stateRoot, 'sample');
+
+    const result = await ctx.run([command]);
+
+    expect(result.exitCode).toBe(0);
+  },
+);
+
 test('it never journals a detach on a session the binding no longer names', async () => {
   const ctx = setupTest();
   const folder = join(ctx.stateRoot, 'alpha-notes');
@@ -509,6 +603,29 @@ test.each([
         'tide-alerts/notes.tsv',
         'tide-alerts/session',
       ],
+    },
+  ],
+  [
+    'grant --quote',
+    [['init', 'tide-alerts', '--goal', 'Ship it']],
+    ['grant', '--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
+    {
+      env: {},
+      stdout: 'grant: 18 of 700 characters, reading 13 of 200. Brief: 7 lines.\n',
+      changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
+    },
+  ],
+  [
+    'grant --reading',
+    [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['grant', '--quote', 'Merge it yourself.', '--where', 'chat', '--reading', 'covers merges'],
+    ],
+    ['grant', '--reading', 'covers merges and nothing else'],
+    {
+      env: {},
+      stdout: 'grant reading: 30 of 200. Brief: 7 lines.\n',
+      changed: ['tide-alerts/journal.tsv', 'tide-alerts/session'],
     },
   ],
   [

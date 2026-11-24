@@ -163,6 +163,27 @@ test('it keeps an owner.tsv and a prs.tsv that exist', () => {
   );
 });
 
+test('it keeps a notes.tsv that exists', () => {
+  const ctx = setupTest();
+
+  seedStoreFile(ctx.folder, 'session', 'name=old-notes\n');
+
+  seedStoreFile(
+    ctx.folder,
+    'notes.tsv',
+    'id\towed\twritten\tnote\nt-a\t-\t2026-03-03T08:00:00Z\tKeep it\n',
+  );
+
+  writeImportFiles(ctx.folder, {
+    originals: { session: 'name=old-notes\n', items: null, journal: null },
+    converted: { session: 'format=2\n', items: 'new items\n', journal: 'new journal\n' },
+  });
+
+  expect(ctx.readText('notes.tsv')).toBe(
+    'id\towed\twritten\tnote\nt-a\t-\t2026-03-03T08:00:00Z\tKeep it\n',
+  );
+});
+
 test('it copies only the original files that exist', () => {
   const ctx = setupTest();
 

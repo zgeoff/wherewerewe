@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { cpSync, existsSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -9,6 +9,7 @@ import { withStoreLock } from '../store/with-store-lock.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
+import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 
 function setupTest() {
@@ -51,6 +52,10 @@ function setupTest() {
         },
       }),
     readTree: () => readTreeHashes(join(root, 'wherewerewe')),
+    readListing: (): string[] =>
+      existsSync(stateRoot)
+        ? readdirSync(stateRoot, { recursive: true, encoding: 'utf8' }).toSorted()
+        : [],
   };
 }
 
@@ -2439,6 +2444,386 @@ test.each([
       'www: refused: ok-wipe has an owed note (0m). Clear it once the work is done, or replace it with a note that is not owed.\n    Check the tmp dir first.\nRun: www set ok-wipe --no-note\nRun: www set ok-wipe --note "<detail>"\n',
     fills: [{}, { '<detail>': 'The tmp dir is clean' }],
   },
+  {
+    title:
+      'a format 1 store with a one-time approval and no standing approval, whose Run line upgrades it',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nok-wipe\tok\tyou can wipe the staging sensor table once\t-\t-\t-\t2026-03-05T09:00:00Z\tagent\twho=owner;where=chat;scope=staging sensor table;use=once\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+      { session: '.bindings', name: 'claude-a1b2-test', text: 'name=old-notes\n' },
+    ],
+    argv: [],
+    env: 'agent',
+    exitCode: 5,
+    stderr:
+      'www: old-notes is format 1, and this www reads format 2. Upgrade it in place; the upgrade keeps a copy of each file it changes, and changes nothing when it refuses.\nRun: www import old-notes\n',
+    fills: [{}],
+  },
+  {
+    title: 'an upgrade of a store with standing approvals and no grant',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nok-merge\tok\tmerge the garden-api PRs yourself once CI is green\t-\t-\t-\t2026-03-03T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=standing\nok-deploy\tok\tdeploy to the staging beds whenever you need to\t-\t-\t-\t2026-03-04T09:00:00Z\tagent\twho=owner;where=chat;scope=staging beds;use=standing\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge   "merge the garden-api PRs yourself once CI is green" · garden-api\n  ok-deploy  "deploy to the staging beds whenever you need to" · staging beds\nRun: www import old-notes --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [
+      {
+        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what they cover; what the owner kept back>': 'covers merges',
+      },
+    ],
+  },
+  {
+    title: 'an upgrade of a store with two one-time approvals',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nok-wipe\tok\tyou can wipe the staging sensor table once\t-\t-\t-\t2026-03-05T09:00:00Z\tagent\twho=owner;where=chat;scope=staging sensor table;use=once\nok-tags\tok\tpush the garden-api tags\t-\t-\t-\t2026-03-08T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=once\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: old-notes holds 2 one-time approvals, and format 2 holds 1. Drop all but one.\n  ok-wipe  "you can wipe the staging sensor table once" · staging sensor table  [5d]\n  ok-tags  "push the garden-api tags" · garden-api  [2d]\nRun: www import old-notes --drop ok-wipe\n',
+    fills: [{}],
+  },
+  {
+    title: 'an upgrade of a store with an item named grant',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\ngrant\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: format 2 keeps the id grant for the grant, and old-notes has an item grant. Drop it, and write it again under a new id after the upgrade.\nRun: www import old-notes --drop grant\n',
+    fills: [{}],
+  },
+  {
+    title: 'an upgrade with a --drop that names no item',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes', '--drop', 'nope'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --drop nope names no item in old-notes. Items: t-valves.\nRun: www import old-notes\n',
+    fills: [{}],
+  },
+  {
+    title: 'an upgrade with only --quote',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes', '--quote', 'Merge it yourself.'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www import old-notes --quote "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [{ '<what they cover; what the owner kept back>': 'covers merges' }],
+  },
+  {
+    title: 'an upgrade with grant words of 701 characters',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nt-valves\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: [
+      'import',
+      'old-notes',
+      '--quote',
+      'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+      '--where',
+      'chat',
+      '--reading',
+      'covers merges',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the grant\'s words are 701 characters, and the limit is 700. The grant holds the owner\'s words whole, so it takes a statement of at most 700 characters.\nRun: www import old-notes --quote "<the owner\'s words, at most 700 characters>" --where chat --reading "covers merges"\n',
+    fills: [{ "<the owner's words, at most 700 characters>": 'Merge it yourself.' }],
+  },
+  {
+    title: 'an upgrade that meets every problem at once',
+    format1: 'old-notes',
+    setup: [],
+    files: [
+      {
+        session: 'old-notes',
+        name: 'items.tsv',
+        text: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\nok-merge\tok\tmerge the garden-api PRs yourself once CI is green\t-\t-\t-\t2026-03-03T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=standing\nok-wipe\tok\tyou can wipe the staging sensor table once\t-\t-\t-\t2026-03-05T09:00:00Z\tagent\twho=owner;where=chat;scope=staging sensor table;use=once\nok-tags\tok\tpush the garden-api tags\t-\t-\t-\t2026-03-08T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=once\ngrant\ttask\tWire the valve relay test\t-\t-\t-\t2026-03-06T09:00:00Z\tagent\t-\n',
+      },
+      { session: 'old-notes', name: 'notes.tsv', text: 'id\towed\twritten\tnote\n' },
+    ],
+    argv: ['import', 'old-notes', '--drop', 'nope'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: old-notes holds 1 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner\'s words in the same command.\n  ok-merge  "merge the garden-api PRs yourself once CI is green" · garden-api\nwww: refused: old-notes holds 2 one-time approvals, and format 2 holds 1. Drop all but one.\n  ok-wipe  "you can wipe the staging sensor table once" · staging sensor table  [5d]\n  ok-tags  "push the garden-api tags" · garden-api  [2d]\nwww: refused: format 2 keeps the id grant for the grant, and old-notes has an item grant. Drop it, and write it again under a new id after the upgrade.\nwww: refused: --drop nope names no item in old-notes. Items: ok-merge, ok-wipe, ok-tags, grant.\nRun: www import old-notes --drop ok-wipe --drop grant --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [
+      {
+        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what they cover; what the owner kept back>': 'covers merges',
+      },
+    ],
+  },
+  {
+    title: 'an approval with --standing',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'ok',
+      'ok-a',
+      '--quote',
+      'merge yourself',
+      '--who',
+      'owner',
+      '--where',
+      'chat',
+      '--scope',
+      'bosun-api',
+      '--standing',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: lasting permission lives in the grant, in the owner\'s words whole.\nRun: www grant --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [
+      {
+        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what they cover; what the owner kept back>': 'covers merges',
+      },
+    ],
+  },
+  {
+    title: 'a grant with no flag',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['grant'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --quote "<the owner\'s words, whole>" --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [
+      {
+        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what they cover; what the owner kept back>': 'covers merges',
+      },
+    ],
+  },
+  {
+    title: 'a grant with only --quote',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['grant', '--quote', 'Merge it yourself.'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --quote "Merge it yourself." --where chat --reading "<what they cover; what the owner kept back>"\n',
+    fills: [{ '<what they cover; what the owner kept back>': 'covers merges' }],
+  },
+  {
+    title: 'a grant with only --where',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['grant', '--where', 'chat'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a grant needs the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --where chat --quote "<the owner\'s words, whole>" --reading "<what they cover; what the owner kept back>"\n',
+    fills: [
+      {
+        "<the owner's words, whole>": 'Merge it yourself.',
+        '<what they cover; what the owner kept back>': 'covers merges',
+      },
+    ],
+  },
+  {
+    title: 'a grant reading with no grant',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['grant', '--reading', 'covers merges'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: tide-alerts has no grant, so there is no reading to replace.\nRun: www grant --quote "<the owner\'s words, whole>" --where "<where>" --reading "covers merges"\n',
+    fills: [{ "<the owner's words, whole>": 'Merge it yourself.', '<where>': 'chat' }],
+  },
+  {
+    title: 'grant words of 701 characters',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--quote',
+      'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+      '--where',
+      'chat',
+      '--reading',
+      'covers merges',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the grant\'s words are 701 characters, and the limit is 700. The grant holds the owner\'s words whole, so it takes a statement of at most 700 characters.\nRun: www grant --quote "<the owner\'s words, at most 700 characters>" --where chat --reading "covers merges"\n',
+    fills: [{ "<the owner's words, at most 700 characters>": 'Merge it yourself.' }],
+  },
+  {
+    title: 'a grant reading of 201 characters',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--quote',
+      'Merge it yourself.',
+      '--where',
+      'chat',
+      '--reading',
+      'rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the reading is 201 characters, and the limit is 200.\nRun: www grant --quote "Merge it yourself." --where chat --reading "<reading of at most 200 characters>"\n',
+    fills: [{ '<reading of at most 200 characters>': 'covers merges' }],
+  },
+  {
+    title: 'a credential in the grant words',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--quote',
+      `token ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}`,
+      '--where',
+      'chat',
+      '--reading',
+      'covers merges',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --quote "<where the secret lives>" --where chat --reading "covers merges"\n',
+    fills: [{ '<where the secret lives>': 'the vault item for the owner' }],
+  },
+  {
+    title: 'a credential in the grant reading',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--quote',
+      'Merge it yourself.',
+      '--where',
+      'chat',
+      '--reading',
+      `token ${['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('')}`,
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the text looks like a credential (it matches ghp_). Write where the secret lives, never its value.\nRun: www grant --quote "Merge it yourself." --where chat --reading "<where the secret lives>"\n',
+    fills: [{ '<where the secret lives>': 'covers merges' }],
+  },
+  {
+    title: 'a grant where of 17 characters',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--quote',
+      'Merge it yourself.',
+      '--where',
+      'wwwwwwwwwwwwwwwww',
+      '--reading',
+      'covers merges',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the where is 17 characters, and the limit is 16. Write what is true now; the story belongs in a PR or a commit.\nRun: www grant --quote "Merge it yourself." --where "<where of at most 16 characters>" --reading "covers merges"\n',
+    fills: [{ '<where of at most 16 characters>': 'chat' }],
+  },
+  {
+    title: 'a grant where with a semicolon',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'grant',
+      '--quote',
+      'Merge it yourself.',
+      '--where',
+      'chat;x',
+      '--reading',
+      'covers merges',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --where cannot hold ; or =.\nRun: www grant --quote "Merge it yourself." --where chat,x --reading "covers merges"\n',
+    fills: [{}],
+  },
+  {
+    title: 'a task with the id grant',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['task', 'grant', 'Tidy the beds'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not grant, d-<n> or o-<n>.\nRun: www task <new id> "Tidy the beds"\n',
+    fills: [{ '<new id>': 't-beds' }],
+  },
 ])('it refuses $title with its text and a Run line that passes', async (row) => {
   const ctx = setupTest();
 
@@ -2462,6 +2847,10 @@ test.each([
     await ctx.run(setupArgv, envs[row.setupEnv ?? 'agent'], terminals[row.setupEnv ?? 'agent']);
   }
 
+  if (row.format1 !== undefined) {
+    seedFormat1Store(ctx.stateRoot, row.format1);
+  }
+
   for (const file of row.files) {
     seedStoreFile(join(ctx.stateRoot, file.session), file.name, file.text);
   }
@@ -2469,9 +2858,13 @@ test.each([
   ctx.writeSnapshot();
 
   const before = await ctx.readTree();
+
+  const listingBefore = ctx.readListing();
+
   const result = await ctx.run(row.argv, envs[row.env], terminals[row.env]);
   const after = await ctx.readTree();
 
+  const listingAfter = ctx.readListing();
   const replayEnv = envs[row.replayEnv ?? row.env];
   const stderr = row.stderr.replaceAll('<STATE>', ctx.stateRoot);
   const runLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
@@ -2500,6 +2893,7 @@ test.each([
 
   expect(result).toStrictEqual({ exitCode: row.exitCode, stdout: '', stderr });
   expect(after).toStrictEqual(before);
+  expect(listingAfter).toStrictEqual(listingBefore);
   expect(filledExitCodes).toStrictEqual(row.fills.map(() => 0));
   expect(lessExitCodes).toStrictEqual(lessLines.map(() => 0));
 });

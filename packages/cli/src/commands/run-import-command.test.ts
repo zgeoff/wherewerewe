@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { chmodSync, existsSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -8,9 +8,11 @@ import { withBindingLock } from '../sessions/with-binding-lock.ts';
 import { createImportFiles } from '../store/create-import-files.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeImportFiles } from '../store/write-import-files.ts';
+import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
+import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
 import { seedStaleLock } from '../test-utils/seed-stale-lock.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 
@@ -914,4 +916,136 @@ test('it leaves an owner.tsv that exists alone, and the brief shows its row', as
       '  o-1  Ask me first  [26h]',
     ],
   });
+});
+
+test('it refuses a format 1 store with two standing and two one-time approvals, changes nothing, and its Run line upgrades it', async () => {
+  const ctx = setupTest();
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+  seedFormat1Store(ctx.stateRoot, 'old-notes');
+
+  // four approvals pass the cap of 3 that format 1 writes enforce, so the commands cannot make this
+  seedStoreFile(
+    ctx.folder,
+    'items.tsv',
+    `${ctx.readText('old-notes/items.tsv')}ok-tags\tok\tpush the garden-api tags\t-\t-\t-\t2026-03-08T09:00:00Z\tagent\twho=owner;where=chat;scope=garden-api;use=once\n`,
+  );
+
+  const formatOneFiles = ['session', 'items.tsv', 'notes.tsv', 'journal.tsv'];
+  const originals = formatOneFiles.map((file) => ctx.readText(`old-notes/${file}`));
+
+  const before = await ctx.readTree();
+
+  const listing = readdirSync(ctx.folder).toSorted();
+
+  const refused = await ctx.run(['import', 'old-notes'], env, nowMs);
+  const after = await ctx.readTree();
+
+  const runLine = refused.stderr.split('\n').find((line) => line.startsWith('Run: www'));
+
+  expect({
+    exitCode: refused.exitCode,
+    problems: refused.stderr.split('\n').filter((line) => line.startsWith('www: refused')),
+    runCount: refused.stderr.split('\n').filter((line) => line.startsWith('Run: ')).length,
+    unchanged: after,
+    sameListing: readdirSync(ctx.folder).toSorted(),
+  }).toStrictEqual({
+    exitCode: 3,
+    problems: [
+      "www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
+      'www: refused: old-notes holds 2 one-time approvals, and format 2 holds 1. Drop all but one.',
+    ],
+    runCount: 1,
+    unchanged: before,
+    sameListing: listing,
+  });
+
+  const filled = buildFilledRunArgv(runLine ?? '', {
+    "<the owner's words, whole>": 'Merge and deploy to the staging beds yourself.',
+    '<what they cover; what the owner kept back>': 'covers garden-api merges and staging deploys',
+  });
+
+  const upgraded = await ctx.run(filled, env, nowMs);
+  const rerun = await ctx.run(['import', 'old-notes'], env, nowMs);
+
+  expect({
+    upgraded,
+    backup: formatOneFiles.map((file) => ctx.readText(`old-notes/format-1-backup/${file}`)),
+    session: ctx.readText('old-notes/session').split('\n').slice(0, 7),
+    itemIDs: ctx
+      .readText('old-notes/items.tsv')
+      .split('\n')
+      .slice(1, -1)
+      .map((line) => line.split('\t').at(0)),
+    binding: ctx.readText('.bindings/claude-a1b2-test'),
+    rerun,
+  }).toStrictEqual({
+    upgraded: {
+      exitCode: 0,
+      stdout: `Upgraded old-notes to format 2: grant 46 of 700 characters, 2 standing approvals folded into it, 1 one-time approval kept. Originals in ${ctx.folder}/format-1-backup/.\n  ok-merge had a note: Turn the staging pump flag back off before merging the pump change.\n`,
+      stderr: '',
+    },
+    backup: originals,
+    session: [
+      'format=2',
+      'name=old-notes',
+      'goal=Ship soil-moisture alerts for the garden irrigation app',
+      'grant=Merge and deploy to the staging beds yourself.',
+      'grant_reading=covers garden-api merges and staging deploys',
+      'grant_where=chat',
+      'grant_set=2026-03-10T11:43:00Z',
+    ],
+    itemIDs: ['t-valves', 't-timer', 'r-tests', 'ok-tags'],
+    binding: 'name=old-notes\n',
+    rerun: {
+      exitCode: 3,
+      stdout: '',
+      stderr:
+        'www: refused: old-notes is already format 2. Bind this agent session to it.\nRun: www attach old-notes\n',
+    },
+  });
+});
+
+test('it upgrades from a leftover format-1-backup/, not from the live files', async () => {
+  const ctx = setupTest();
+  const env = { HOME: ctx.root, XDG_STATE_HOME: ctx.root };
+  const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+  seedFormat1Store(ctx.stateRoot, 'old-notes');
+
+  // a stopped upgrade left a whole backup, and live files that differ from it
+  for (const file of ['session', 'items.tsv', 'notes.tsv', 'journal.tsv']) {
+    seedStoreFile(join(ctx.folder, 'format-1-backup'), file, ctx.readText(`old-notes/${file}`));
+  }
+
+  seedStoreFile(
+    ctx.folder,
+    'items.tsv',
+    'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n',
+  );
+
+  const result = await ctx.run(
+    [
+      'import',
+      'old-notes',
+      '--quote',
+      'Go ahead.',
+      '--where',
+      'chat',
+      '--reading',
+      'covers the beds',
+    ],
+    env,
+    nowMs,
+  );
+
+  expect({
+    exitCode: result.exitCode,
+    itemIDs: ctx
+      .readText('old-notes/items.tsv')
+      .split('\n')
+      .slice(1, -1)
+      .map((line) => line.split('\t').at(0)),
+  }).toStrictEqual({ exitCode: 0, itemIDs: ['ok-wipe', 't-valves', 't-timer', 'r-tests'] });
 });

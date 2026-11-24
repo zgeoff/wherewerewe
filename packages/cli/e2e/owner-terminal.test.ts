@@ -38,7 +38,7 @@ async function setupTest() {
 
   return {
     ownerOnlyText:
-      'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait or an approval.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
+      'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
     folder,
     runPiped: (argv: readonly string[], env: Record<string, string> = {}) =>
       run(program.command, { cwd: program.cwd, env: { ...cleanEnv, ...env }, args: argv }),
@@ -69,9 +69,9 @@ test('it writes and clears a note under a terminal with no agent variable', asyn
     say: {
       exitCode: 0,
       output:
-        'o-1  owner note. It tops the brief until you run: www --session tide-alerts ack o-1. Brief: 6 lines.\n',
+        'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 7 lines.\n',
     },
-    ack: { exitCode: 0, output: 'o-1  cleared. Kept in the journal. Brief: 4 lines.\n' },
+    ack: { exitCode: 0, output: 'o-1  cleared. Kept in the journal. Brief: 5 lines.\n' },
   });
 });
 
