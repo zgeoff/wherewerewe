@@ -99,7 +99,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
 
 ### Caps and the worst case
 
-The day-9 example in [The brief on day 9](#the-brief-on-day-9-of-an-invented-session) is the brief as built through slice 3, so its headings show that slice's caps: 4 waits, 5 rules and 4 where items. Its `After slice 3b` subsection shows the caps below.
+The day-9 example in [The brief on day 9](#the-brief-on-day-9-of-an-invented-session) is the brief as built through slice 3, so its headings show that slice's caps: 4 waits, 5 rules and 4 where items. For the brief with the caps below, read its `After slice 3b` subsection.
 
 | Kind               | Cap | Why this number                                                                 |
 | ------------------ | --- | ------------------------------------------------------------------------------- |
@@ -181,7 +181,7 @@ The ASCII worst case above fits each host's limit:
 | Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,684 bytes, 28.9%   |
 | no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,684 bytes, 64.5%  |
 
-So the ASCII worst case cuts nothing on any host, and Claude Code's room is the smallest. A store whose stored texts are all in a 3-byte script takes more: the never-cut lines then take under 9,000 bytes, and with the owner's words under 17,000, so they fit the smallest limit and [the cut order](#the-cut-order) decides what else stays. The `--json` output of [commands.md](lists-and-json.md#--json) is outside this limit.
+So the ASCII worst case cuts nothing on any host, and Claude Code's room is the smallest. A store whose stored texts are all in a 3-byte script takes more: the never-cut lines then take under 9,000 bytes, and with the owner's words under 17,000, so they fit the smallest limit and [the cut order](#the-cut-order) decides what else stays. The `--json` output of [lists-and-json.md](lists-and-json.md#--json) is outside this limit.
 
 ### The cut order
 
@@ -206,7 +206,7 @@ Changed rows are never cut, because a claim that is now false leads to a wrong a
 
 The owner set the order of the kinds the owner ranked: the goal, the grant, the owner's notes, the item in focus and its next step are never cut; then come waits on the owner, rules and lessons; then changed or failing checks, task rows and where rows; then promises, notes and counts of history. The table keeps that order. The design placed the rest, each either more protective than the owner's order or of a kind the owner did not rank: the header, the footer, the cut lines, the changed rows and the note of the item in focus among the never-cut lines; owner's words at rank 2; the one-time approval at rank 4; decision rows at rank 7; waits on someone else at rank 8; and pull request rows last.
 
-Each section that lost rows ends with one line that names the command listing every row of its kind: `  and <n> more: www list <kind>`, with `--session <name>` when the brief ran with it. `OPEN` keeps its count line, `  and <m> more open tasks: www show`. A section that loses every row keeps its heading and that line.
+Each section that lost rows ends with `  and <n> more: www list <kind>`, with `--session <name>` when the brief ran with it; that command lists every row of its kind. `OPEN` keeps its count line, `  and <m> more open tasks: www show`. A section that loses every row keeps its heading and that line.
 
 ## Constraints
 
@@ -284,7 +284,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 
 ### After slice 3b
 
-Slice 3b moves this text into the block above, with the code and the test, in the same pull request. It is the same session on the same day, with the new kinds, the decisions section and the higher caps, and every other line slice 3b changes. This output is 60 lines and 4,228 bytes, 1,410 estimated tokens.
+In slice 3b, replace the block above with this text, in the same pull request as the code and the test. It is the same session on the same day, with the new kinds, the decisions section and the higher caps, and every other line slice 3b changes. This output is 60 lines and 4,228 bytes, 1,410 estimated tokens.
 
 ```text
 tide-alerts · day 9 · Tue 2026-03-10 11:43Z · last write 41m ago · 7 checks in 2.8s
@@ -357,7 +357,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 - **The grant prints as bullets under `may`, `not` and `never`, one permission a bullet.** The owner reads a wrapped quote of 700 characters as a wall; a bullet per permission reads at a glance. The bullets cost up to 10 lines more than a quote. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Only the note of the item in focus prints.** The brief stays the same size however many items carry a note. An owed note shows as a tag on its item, and `now`, each close and `www show` print a note whole. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - **Row limits pay for the grant and the note, and the caps rise.** The brief shows at most 3 changed rows and 1 pull request row, each section with an overflow line, and a one-line footer. The wait, rule and where caps rise to 8, 15 and 8, so no store that fits the old caps is refused, and the task cap is 30 ([0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)); the format 2 upgrade in [store.md](store.md) handles the approvals.
-- **The brief prints the tasks that fit, in the order an agent needs them, and counts the rest.** The agent reads the item in focus first, then a claim that is no longer true, then work that waits on something or owes a note, then the newest. The count line names `www show`, which lists every open task in full. [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
+- **The brief prints the tasks that fit, in the order an agent needs them, and counts the rest.** The agent reads the item in focus first, then a claim that is no longer true, then work that waits on something or owes a note, then the newest. The count line ends with `www show`, which lists every open task in full. [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
 - **The brief's limit is 20,000 estimated tokens or the host's shell output limit, whichever is smaller.** Claude Code gets 24,000 bytes, Codex 30,000 and a reader with no known host 60,000. The host comes from the reader's environment, because one session can be bound to both hosts. [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md)
 - **A claim is at most 120 characters.** A claim stays one line in the brief and in `www show`.
 - **Caps count items.** The section heading shows the count (`4, max 30`), and every field's own limit bounds the characters; a grant bullet's are the grant's words and lines.
@@ -365,7 +365,7 @@ The agent's next commands come from the brief alone: `www done pr-app-61 --evide
 - **A grant takes any of `may`, `not` and `never`, and its bullets take at most 19 lines.** A limit alone is a grant, and the brief's size bounds the grant in place of a cap on one bullet. The 19 lines bound the `SessionStart` injection ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)) and the grant's share of the never-cut lines. [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md)
 - **The brief prints no journal rows.** `www log`, `www show` and `www recap` read the journal; the brief stays the same size however long the session runs. `DECISIONS` is the one place the brief prints journal rows: the 3 newest decisions in force, read from the journal, and a count line.
 - **The cut order is a rule of this doc, with no record.** A renderer change reverses it, and it changes no stored format. The kinds of the order, from never cut to first cut, are in [The cut order](#the-cut-order).
-- **`www list <kind>` lists every row the brief can cut.** Each cut line names it, so the agent sees the rest in one command. [commands.md](lists-and-json.md#www-list)
+- **`www list <kind>` lists every row the brief can cut.** The command is in each cut line, so the agent sees the rest in one command. [lists-and-json.md](lists-and-json.md#www-list)
 - **A lesson, a promise and the owner's words are kinds of their own.** Each prints its own section and takes its own file ([store.md](store.md)). [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 
 ## Builder decides

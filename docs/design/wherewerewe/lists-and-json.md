@@ -3,13 +3,13 @@
 - **Status:** agreed
 - **Decision records:** [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md)
 
-Three reads that slice 3b adds: `www list <kind>`, which prints every row of a kind the brief can cut; `--json` on the read commands, for hooks and scripts; and `www goal --paste`, which prints a `/goal` text for the owner to paste. The help lines, signatures, text limits, refusals and constraints that every command shares are in [commands.md](commands.md). Build these three from this doc, in the slice [build-order.md](build-order.md) names.
+Three reads that slice 3b adds: `www list <kind>`, which prints every row of a kind the brief can cut; `--json` on the read commands, for hooks and scripts; and `www goal --paste`, which prints a `/goal` text for the owner to paste. The help lines, signatures, text limits, refusals and constraints that every command shares are in [commands.md](commands.md). Build these three from this doc, in the slice named in [build-order.md](build-order.md).
 
 ## Contracts
 
 ### www list
 
-`www list <kind>` prints every open row of one kind, whole, so the agent reads what the brief cut. Each cut line in the brief names the command for its kind ([brief.md](brief.md#the-cut-order)).
+`www list <kind>` prints every open row of one kind, whole, so the agent reads what the brief cut. Run the command on a cut line of the brief to read what it cut ([brief.md](brief.md#the-cut-order)).
 
 | Kind | Command | Prints |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Three reads that slice 3b adds: `www list <kind>`, which prints every row of a k
 | decisions | `www list decisions` | the decisions in force, newest first; `www log --op decide,ruled-out` keeps the history |
 | pull request rows | `www list prs` | the open pull requests no item names |
 
-`www list <kind>` prints every open row of the kind whole, in the brief's order, with each item's note under it as `www show` prints it. It runs no check, so each tag shows the result the last read saved, and it never takes the lock. It takes the kind words because `www show <word>` reads its argument as an item id, and a task can have any id. `www list` with no kind, or an unknown one, exits 2 with `Run: www list tasks`.
+`www list <kind>` prints every open row of the kind whole, in the brief's order, with each item's note under it as `www show` prints it. It runs no check, so each tag shows the result the last read saved, and it never takes the lock. It is a subcommand of its own because `www show <word>` reads its argument as an item id, and a task can have any id. `www list` with no kind, or an unknown one, exits 2 with `Run: www list tasks`.
 
 ```text
 $ www list tasks
@@ -99,7 +99,7 @@ PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
 
 ### --json
 
-The read commands take `--json`: the bare brief (`www`, with or without `--session <name>`), `www show` and `www show <id>`, `www log`, `www list <kind>` and `www recap`. Text stays the default. Hooks and scripts read the JSON, and the agent reads the text: the `www` skill and every `Run:` line name the text form. No write command takes `--json`.
+The read commands take `--json`: the bare brief (`www`, with or without `--session <name>`), `www show` and `www show <id>`, `www log`, `www list <kind>` and `www recap`. Text stays the default. Hooks and scripts read the JSON, and the agent reads the text, so the `www` skill and every `Run:` line use the text form. No write command takes `--json`.
 
 - A JSON read prints one JSON value and a newline on stdout, and nothing else.
 - It runs the same checks, takes the same lock, and exits with the same code as its text form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.

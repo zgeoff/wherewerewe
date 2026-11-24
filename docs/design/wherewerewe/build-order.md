@@ -61,11 +61,11 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] Each refusal in commands.md prints its text and its `Run:` line, and the `Run:` line, with its placeholders filled in, passes. Evidence: one test per refusal row.
 - [ ] A store with every cap full and every text at its limit renders within the line and character caps in brief.md. Evidence: the worst-case render test.
 - [ ] Two sessions bound to two agent session ids never read or write each other's store. Evidence: a test with two `CLAUDE_CODE_SESSION_ID` values.
-- [ ] `www import` converts a fixture laid out like the hand-kept store, with invented content, as the table in store.md says, keeps the originals in `import-backup/`, and refuses with one line per bad row when a row breaks a rule. Evidence: import tests for both cases.
+- [ ] `www import` converts a fixture laid out like the hand-kept store, with invented content, following the table in store.md, keeps the originals in `import-backup/`, and refuses with one line per bad row when a row breaks a rule. Evidence: import tests for both cases.
 - [ ] Ten writes started at once all land, and none corrupts a file. Evidence: a concurrency test.
 - [ ] A copy installed from a packed tarball runs as `www` and as `wherewerewe` after the worktree is removed. Evidence: a CI step that packs, installs with `bun add -g`, deletes the source folder, and runs `www help`.
 - [ ] The `notes` and `import` journeys reach their end states. Evidence: the wringer report block in the pull request, with a claim for each, and a green `verify / gate`.
-- [ ] The orchestrating agent's hand-kept store converts. Evidence: after the agent fixes the rows import names, `www import build` exits 0, and `www --session build` prints its brief.
+- [ ] The orchestrating agent's hand-kept store converts. Evidence: after the agent fixes the rows that `www import` refuses, `www import build` exits 0, and `www --session build` prints its brief.
 
 **Pull requests.** Build slice 1 as three pull requests, and start each one after the one before it merges:
 
@@ -114,7 +114,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] The `grant` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `grant`, and a green `verify / gate`.
 - [ ] The worst case in brief.md renders in at most 73 lines and 7,200 characters. Evidence: the worst-case render test, which seeds every row of the worst-case table in brief.md.
 - [ ] The grant prints whole after `GOAL`, and a store whose item lines pass the cap keeps the whole grant while cut-to-fit drops item lines. Evidence: brief tests.
-- [ ] A format 1 store with two standing approvals and two one-time approvals makes the upgrade refuse with both problems and one `Run:` line, and leaves every file and the folder listing unchanged. With the `Run:` line's placeholders filled, the upgrade converts it as the table in store.md says, and `format-1-backup/` holds the original files. The test seeds the store by hand, because four approvals pass the cap of 3 that format 1's `ok` enforces, and the upgrade reads the store with no cap of 3. Evidence: import tests that hash the folder before and after.
+- [ ] A format 1 store with two standing approvals and two one-time approvals makes the upgrade refuse with both problems and one `Run:` line, and leaves every file and the folder listing unchanged. With the `Run:` line's placeholders filled, the upgrade converts it as the table in store.md says, and `format-1-backup/` holds the original files. The test seeds the store by hand, because format 1's `ok` caps approvals at 3 and this store holds 4. The upgrade applies no such cap. Evidence: import tests that hash the folder before and after.
 - [ ] Every command except `import`, `sessions` and `help` exits 5 on a format 1 store, with the text in commands.md: `detach` keeps the binding, and `init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; a bound session's `www` prints the same text. Evidence: one test per command.
 - [ ] The grant prints in bullets under `may`, `not` and `never`, and short `never` bullets share a line. The grant's bullets and scope take 700 characters after each line break becomes a space, in at most 12 bullets of 120 characters, and the limits on the bullets, the scope, the reading and `--where` and the credential test refuse with the texts in commands.md. Evidence: renderer, write and refusal tests.
 - [ ] The build session's store upgrades to format 2, with the owner's words that authorise the build as its grant. Evidence: the output of `www import build` and of `www --session build`, which shows the `GRANT` section.
@@ -145,7 +145,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] A merged pull request, a gone process and a missing path each show under `CHANGED` with the fix command from brief.md, and that command runs as printed on an item with no owed note. Evidence: brief tests that run the printed commands.
 - [ ] The next step hides when the item in focus changes after `now_set`, and the item's note still prints whole under the `next step hidden` line. Evidence: a brief test.
 - [ ] The day-9 example in brief.md renders as printed, from a store seeded to match it and a stub `gh`. Evidence: a snapshot test.
-- [ ] With `gh` missing, with `gh` failing authentication, and with a probe that never returns, the brief prints within 6 s, tags each probe `unchecked`, and names the reason in the header. Evidence: tests for the three cases.
+- [ ] With `gh` missing, with `gh` failing authentication, and with a probe that never returns, the brief prints within 6 s, tags each probe `unchecked`, and gives the reason in the header. Evidence: tests for the three cases.
 - [ ] A read with the store folder read-only prints the brief and the `results not saved` line. Evidence: a test.
 - [ ] No probe writes: the git repos' index files and refs are unchanged after a read. Evidence: a test that hashes `.git` before and after.
 
@@ -163,7 +163,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] The brief's header starts with `<name> · day` and its last line is the footer, for every store. Evidence: a renderer test that the hooks slice reuses.
 - [ ] Each write reply ends `Brief: <t> of <limit> tokens.`, with `<t>` equal to the estimate of the brief a read prints next, and `<limit>` the reader's host's. Evidence: reply tests for each host.
 - [ ] `www list` prints every open row of each kind in commands.md, and exits 2 with its `Run:` line for no kind or an unknown one. Evidence: list tests.
-- [ ] The brief prints the 3 newest decisions in force and a count line naming `www list decisions`; a replaced or ruled-out decision never counts. Evidence: brief tests.
+- [ ] The brief prints the 3 newest decisions in force and a count line with `www list decisions`; a replaced or ruled-out decision never counts. Evidence: brief tests.
 - [ ] `www lesson`, `www promise` and `www words` write only their own file and the journal, refuse at their caps, refuse each text over its limit and each credential, and a refused write changes no file. A store with none of the three files reads with none. Evidence: store and refusal tests.
 - [ ] `done` refuses a lesson and owner's words with a `Run: www drop` line, and `done` and `drop` close a promise. Evidence: refusal and store tests.
 - [ ] A recap with the worst-case grant, 5 promises and the rest of the recap's worst case renders in at most 61 lines, each at most 100 characters. Evidence: the recap worst-case test.
@@ -199,7 +199,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] A `PreToolUse` or `Stop` payload with `agent_id` passes, and a bound id with no gate file passes. Evidence: hook tests.
 - [ ] `Stop` blocks once while the state is `wiped`, and passes when `stop_hook_active` is true. Evidence: hook tests for both harnesses.
 - [ ] The gate's four invariants in sessions-and-hooks.md hold for every sequence of the state table's events up to length 8, with `SessionStart` at any point, subagent payloads, and brief commands that get no end event among them. Evidence: a hook test that drives the gate through each sequence, with no clock and no sleep, and checks each invariant after each event.
-- [ ] Each ordering listed under the state table gives, for both harnesses, the decision the table says for each call as it arrives and the state the table says after each event: a call batched with the brief command before and after the read's end, two batched calls then a cut read, a retry that fails, a slow `www`, `www` refused at the permission step, a brief command that runs across a compaction, two hooks at once, and exit 5. The cut and retry orderings run on Codex payloads. Evidence: hook tests that replay each ordering with recorded payloads, and the hook log of a Claude Code session that batches `ls` with `www`.
+- [ ] Each ordering listed under the state table gives, on both harnesses, the table's decision for each call as it arrives and the table's state after each event: a call batched with the brief command before and after the read's end, two batched calls then a cut read, a retry that fails, a slow `www`, `www` refused at the permission step, a brief command that runs across a compaction, two hooks at once, and exit 5. The cut and retry orderings run on Codex payloads. Evidence: hook tests that replay each ordering with recorded payloads, and the hook log of a Claude Code session that batches `ls` with `www`.
 - [ ] A `www` refused at Claude Code's permission step leaves the state `reading` until `Stop`, and the next call after it passes with the gate's one line. Evidence: a `claude -p` run in the default mode with no allow rule, with the hook log and the gate file's states.
 - [ ] Two hook processes started at once on one gate file both apply their events: two brief commands give `reads=2`, and two calls refused in `cut` with `spare=1` give one refusal and one pass. Evidence: a hook test that starts the two processes together and waits for both to exit, with no sleep.
 - [ ] A `www` the host kills at its shell timeout ends as a failed call. Evidence: the hook logs that settle the open question in sessions-and-hooks.md.
@@ -235,7 +235,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 **Acceptance.**
 
 - [ ] Each skill passes the skill-writing checks of `zgeoff/skills`. Evidence: the pull request's `## Checks` section and green CI.
-- [ ] A handoff doc written from a bound session fills each section from the store as the table in skills.md says, with the grant's words whole and each open item's note. Evidence: a handoff doc from an invented session, attached to the pull request.
+- [ ] A handoff doc written from a bound session fills each section from the store following the table in skills.md, with the grant's words whole and each open item's note. Evidence: a handoff doc from an invented session, attached to the pull request.
 - [ ] A pickup from that handoff doc into a store with no grant records the doc's grant with `www grant`. Evidence: the brief's `GRANT` section in the invented session after the pickup.
 
 ## Constraints

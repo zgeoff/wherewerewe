@@ -202,7 +202,7 @@ The limits' diff adds every limit the code enforces to the help, so an agent can
 
 #### After slice 3b
 
-Slice 3b moves this text into the block above, with the code and the test, in the same pull request. It applies this diff to the block as the limits' diff left it, and it adds the brief's limit, the new kinds, the list command, `--json` and the printed goal, decision records 0016 to 0020:
+In slice 3b, move this text into the block above, with the code and the test, in the same pull request. Apply this diff to the block as the limits' diff left it, to add the brief's limit, the new kinds, the list command, `--json` and the printed goal, decision records 0016 to 0020:
 
 ```diff
 @@ -3,4 +3,5 @@
@@ -651,7 +651,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
 - Each printed `Run:` line, with its placeholders filled in, passes every check its command runs before it reads the store, from the same functions the write calls. So a printed `Run:` line is never refused for its own words, such as an empty, over-length or credential-like claim or a bad id: a line that would be is replaced before it prints, as [Refusals](#refusals) says.
-- No reply, refusal or help line tells the agent to hold back, to ask, or to act only inside a limit. The credential refusal's "never its value" is the one exception: it keeps a secret out of the store and the journal. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- Never steer the agent, in a reply, a refusal or a help line, to hold back, to ask, or to act only inside a limit. The credential refusal's "never its value" is the one exception: it keeps a secret out of the store and the journal. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 
 ## Decisions
 

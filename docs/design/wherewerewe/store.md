@@ -196,7 +196,7 @@ interface WordsRow {
 }
 ```
 
-- A missing one of the three files reads as none, as `notes.tsv` does.
+- A missing `lessons.tsv`, `promises.tsv` or `words.tsv` reads as no rows, as a missing `notes.tsv` does.
 - A write of one kind rewrites only its file and adds a journal row. A close removes the row and adds its journal row.
 
 ### journal.tsv
@@ -263,25 +263,25 @@ interface PrRow {
 - Every file is UTF-8 with LF line endings, and every `.tsv` starts with its header row.
 - A cell or a `session` value never holds a tab or a line break, a Unicode line or paragraph separator among them: each write refuses them, so no cell needs escaping. `www grant` is the one exception: it turns each line break in a bullet or the scope into one space before it checks the length.
 - A value in `extra` never holds `;` or `=`; the tool refuses a `--who`, `--where`, `--scope`, `--to` or `--by` that holds one.
-- `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row. `done` and `drop` remove a promise's row, and `drop` removes a lesson's or a piece of the owner's words' row, each with one journal row.
+- `items.tsv` holds only open items. `done`, `drop` and `use` remove the item's row and its `notes.tsv` row, and add one journal row. `done` and `drop` remove a promise's row, and `drop` removes the row of a lesson or of a piece of the owner's words. Each removal adds one journal row.
 - `notes.tsv` holds at most one note per open item. A close that stops part way can leave a row whose item is closed, as the next point describes. A missing `notes.tsv` reads as no notes.
 - A write rewrites `items.tsv` before `notes.tsv`. A close that stops between the two leaves a `notes.tsv` row whose id names no open item, and never an open item that lost its note. Every read leaves such a row out with no warning, and the next write that rewrites `notes.tsv` drops it.
 - A `notes.tsv` row that does not parse does not break the store. Each read leaves the row out and names it on stderr, as `www: tide-alerts's notes.tsv line 3 does not parse: the id repeats an earlier row. The brief leaves out what it could not read. Fix the file by hand.` A write with `--note` or `--no-note`, `done`, `drop` and `use` refuse with the text in [commands.md](commands.md), because the row left out may be the item's owed note. Every other write works.
 - An id closed once is never reused in that session, across `items.tsv` and the three files above: a new item with a closed id is refused.
 - Each write takes `lock` with an exclusive create, appends its journal rows, rewrites each changed file through a temporary file and a rename in the same folder, and removes `lock`. The journal goes first because a write reads it to refuse a closed id, so a write that stops after the append leaves the id closed and its item still open, never an item gone while its id can be reused.
 - A write with a check runs its probe before it takes `lock`, and applies the result only when the item still names that check. A write waits up to 2 s for `lock`, then refuses. A lock whose pid is gone, or that is older than 30 s, is stale: the next write removes it and goes on.
-- A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. [brief.md](brief.md) has what the header shows then.
+- A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. See [brief.md](brief.md) for the header in that case.
 - The journal is never rewritten, with two exceptions: `www import` rewrites a hand-kept journal into the current format once, after it copies the original into `import-backup/`, and the format 2 upgrade writes `journal.tsv` again: every format 1 row unchanged, then the upgrade's own rows. Nothing prints the journal whole, except `www log` with no filter.
 - A session folder is never deleted by the tool.
 
 ## Versions
 
-- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. `lessons.tsv`, `promises.tsv` and `words.tsv` belong to format 2 and change no format number: a tool that predates them ignores the files and still reads the store, and a missing file reads as none. The other item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, a format 2 store holds up to 30 tasks, and the caps of 8 waits, 15 rules, 8 where items, 5 lessons, 5 promises and 8 owner's words are not part of the format either.
+- `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. `lessons.tsv`, `promises.tsv` and `words.tsv` belong to format 2 and change no format number: a tool that predates them ignores the files and still reads the store, and a missing file reads as none. The other item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks. The same goes for the caps of 8 waits, 15 rules, 8 where items, 5 lessons, 5 promises and 8 owner's words.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
-- A store with `format=1` exits 5 on every command except `www import`, `www sessions` and `www help`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
+- Every command except `www import`, `www sessions` and `www help` exits 5 on a store with `format=1`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install`, `doctor` and `hook` are slice 4's; a bound session's `www` prints the same text.
-- A store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
-- A store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
+- A command on a store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
+- A command on a store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
 - A read never converts a store. Each later format ships with an upgrade that `www import` runs.
 - A format 2 store whose grant has no `grant_may` line, or a bullet over 120 characters, is refused by the tool of `5fdaa5e`, the task-cap merge before [decision record 0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), and by every older one. Each of its commands that reads the store and fails on it, such as `www`, `www show` or `www task`, exits 3 with `www: <name>'s session does not parse: a grant needs a grant_may line and grant_reading, grant_where and grant_set. Fix the file by hand.`, or `a grant bullet is <n> characters, and the limit is 120` in place of the reason, and `Run: less <path to the store>/session`; `www help` skips the store, and `www sessions` reads the file, prints `<name>  unreadable session file` for it and exits 0. That tool writes nothing to that store, so the format stays 2.
 

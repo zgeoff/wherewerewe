@@ -59,7 +59,7 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 - A probe finds `gh` and `git` through the `PATH` the command was given.
 - `unchecked` never counts as changed and never overwrites `last`. An item whose saved `last` differs from `at_write` counts as changed on every read until its claim is rewritten, whether or not this read probed it.
 - A pid whose start time differs from `pid_start` reads `gone`: the number now belongs to another process. Where `/proc` is missing, the probe checks only that the pid is alive.
-- When `gh` is not on `PATH`, every `pr` probe reads `unchecked`, and the header names `gh missing`. When `gh` exits with an authentication error, the header names `gh not logged in`. When a network error is seen, the header names `offline`.
+- When `gh` is not on `PATH`, every `pr` probe reads `unchecked`, and the header's reason is `gh missing`. When `gh` exits with an authentication error, the reason is `gh not logged in`. When a network error is seen, the reason is `offline`.
 - A `prs.tsv` row whose `state` is `MERGED` or `CLOSED` is never probed again.
 - A write with a check runs that one probe, with the same timeout, before it replies, and stores the result in `at_write`. An `unchecked` result is stored as `-`, so the next read takes its first result without counting a change.
 

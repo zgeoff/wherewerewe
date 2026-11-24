@@ -11,7 +11,7 @@ After each start, resume and compaction of a bound agent session, the `SessionSt
 
 - The agent reads its state by its own act, and a hook checks that it did. The brief's length then stops depending on how much hook output a host puts into context.
 - A refused call works. In Claude Code, the first call after a refused batch was `www` in 6 of 6 runs. With the `SessionStart` line alone, the model ran `www` first in 4 of 9 starts and resumes, and the gate refused the first call in the other 5.
-- Codex's default of about 2,500 tokens for hook output is not a hard limit: a handler's `additionalContextLimit` raises it. Every Codex claim about the gate rests on the Codex docs until a real Codex session proves it, because Codex runs a project hook only after a person trusts it.
+- Codex's default of about 2,500 tokens for hook output is not a hard limit: a handler's `additionalContextLimit` raises it. Every Codex claim about the gate rests on the Codex docs until someone proves it in a real Codex session, because Codex runs a project hook only after a person trusts it.
 - The injection serves the agent's memory and nothing else. Scripted Claude Code sessions in auto mode, each given a standing permission in one place, then a compaction, then the permitted action, gave these counts of the classifier's allows and blocks:
 
 | Where the permission was | Allowed | Blocked |

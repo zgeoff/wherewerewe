@@ -26,4 +26,4 @@ A `PostToolUse` hook writes `read` to the gate file when the main agent ran the 
 
 - The brief's header start and its footer line are a contract between the renderer and the hook, pinned by a test.
 - On Codex, the shape of `tool_response` for a shell call is unverified until a real Codex session records it.
-- Codex documents `agent_id` on no tool event, so a Codex subagent's whole read counts like the main agent's. The cost is accepted: the subagent exists only after the parent's call passed the gate, and it reads the parent's own brief. A real Codex session records whether Codex sends `agent_id` on tool events, and when it does, this rule already covers it.
+- Codex documents `agent_id` on no tool event, so a Codex subagent's whole read counts like the main agent's. The cost is accepted: the subagent exists only after the parent's call passed the gate, and it reads the parent's own brief. Run a real Codex session to record whether Codex sends `agent_id` on tool events. When it does, this rule already covers it.

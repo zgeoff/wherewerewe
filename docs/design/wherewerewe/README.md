@@ -9,7 +9,7 @@ The tool serves a single long-running orchestrator. One brief shared across mach
 
 The goal is that after any compaction on any day, the agent reads one bounded brief whose stale claims are marked before it acts, and writing a note costs one short command.
 
-The owner reads this set once and signs off the whole design. A build agent starts at [build-order.md](build-order.md), takes the next slice, and reads the part docs that slice names. When a slice changes a contract, it changes the part doc in the same pull request.
+The owner reads this set once and signs off the whole design. A build agent starts at [build-order.md](build-order.md), takes the next slice, and reads each part doc linked from that slice. When a slice changes a contract, it changes the part doc in the same pull request.
 
 ## Shape
 
@@ -71,7 +71,7 @@ Only the owner can do these, by hand:
 
 - Internal module names, file layout, and the argument parser.
 - Test layout and fixture names.
-- The wording of help text beyond the lines [commands.md](commands.md) fixes.
+- The wording of help text beyond the lines fixed in [commands.md](commands.md).
 - The name of any command or flag except `www goal --paste`, when the docs read better for it. The builder keeps the help block, the `Run:` lines and the tests in step.
 
 ## Out of scope
