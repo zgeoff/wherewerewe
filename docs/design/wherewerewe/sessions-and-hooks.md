@@ -81,7 +81,7 @@ One command handles every event, so the hook entries never change between versio
 | `SubagentStart` | no matcher, timeout 5                      | no matcher, timeout 5                      | the one line naming the session, as `additionalContext`                                                          |
 | `Stop`          | no matcher, timeout 3                      | no matcher, timeout 3                      | its column of [The gate's states](#the-gates-states)                                                             |
 
-For a bound session whose store needs `www import`, a hand-kept or a format 1 store, `SessionStart` prints only the two lines of the refusal. `www` prints the exit 5 text from [commands.md](commands.md), and the gate opens on the next call ([The gate](#the-gate)).
+For a bound session whose store needs `www import`, a hand-kept or a format 1 store, or any store whose `session` file holds a `format` other than 2, `SessionStart` prints only the two lines of the refusal. `www` prints the exit 5 text from [commands.md](commands.md), and the gate opens on the next call ([The gate](#the-gate)).
 
 `PostToolUse` does these, in order, and prints at most one JSON object, `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"<line>"}}`:
 
@@ -115,7 +115,7 @@ The gate uses `SessionStart`, `PreToolUse`, `PostToolUse` and `Stop` on both hos
 
 The gate refuses a call only for an agent session id that has a binding and a gate file. An unbound id and a bound id with no gate file pass every call without a refusal. A bound id gets its gate file at its first `SessionStart` after it is bound, so a session that runs `init`, `attach` or `import` mid-session is gated from its next resume or compaction. A missing gate file skips only the gate: `PostToolUse` still records pull requests, binds and nudges for every bound id. An agent session that never opted in is untouched, as [0004](../../decisions/0004-hooks-install-once-per-machine.md) requires.
 
-The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds an agent session id that already has a gate file to another store, the file's `session` no longer matches the binding, and each hook reads the file as a fresh `wiped` for the new session, with `spare=1` and `reads` kept, before it applies the table below. So a `read` of the old store's brief never opens the gate for the new one.
+The gate file belongs to one wherewerewe session. When a mid-session `attach` or `import` binds an agent session id that already has a gate file to another store, the file's `session` no longer matches the binding, and each hook reads the file as a fresh `wiped` for the new session, with `spare=1` and `reads` kept, before it applies the table below, and writes the result back even when the table leaves the state as it is. So a `read` of the old store's brief never opens the gate for the new one.
 
 Each gated agent session has one gate file, `<root>/.gate/<harness>-<agent session id>`, beside `.bindings/`. It holds one line, `state=<state> session=<name> reads=<n> spare=<0|1>`, and each hook replaces it through a temporary file and a rename. `session` is the wherewerewe session the state is about. `reads` counts the brief commands in flight, by the rule in [The gate's states](#the-gates-states), so a brief command that started before a compaction still counts. `spare` is 1 until the gate spends its one refusal after a cut read. `www` never writes the file.
 
@@ -197,7 +197,7 @@ A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
 
 The brief command is narrower: `www` or `wherewerewe`, bare or as an absolute path ending in that name, alone or with `--session <name>` or `--session=<name>` where `<name>` is the session bound to this id, with no redirect, no pipe and nothing else after it. A leading variable assignment makes a command neither the brief command nor a `www` command. Only the brief command moves the state to `reading`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read.
 
-`PreToolUse` denies with `permissionDecision: "deny"`, and `Stop` blocks with `decision: "block"`. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`. The [Codex hooks docs](https://learn.chatgpt.com/docs/hooks) give that shape for `PreToolUse` "to add model-visible context without blocking", added as developer context, and slice 4 proves it on a real Codex session with the other Codex claims. Both give this reason, one line, a line break, and the `Run:` line:
+`PreToolUse` denies with `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"<reason>"}}`, and `Stop` blocks with `{"decision":"block","reason":"<reason>"}`, the shapes both hosts' hook docs give. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`. The [Claude Code hooks docs](https://code.claude.com/docs/en/hooks) list `additionalContext` on `PreToolUse`, added to the context beside the tool result. The [Codex hooks docs](https://learn.chatgpt.com/docs/hooks) give the same shape "to add model-visible context without blocking", added as developer context, and slice 4 proves it on a real Codex session with the other Codex claims. Both give this reason, one line, a line break, and the `Run:` line:
 
 ```text
 wherewerewe: this session started or was compacted, and tide-alerts's brief is not in your context yet.
@@ -206,7 +206,7 @@ Run: www
 
 On Codex, the `Run:` line is `Run: www   (pass max_output_tokens 10000, so the whole brief reaches you)`, and the `SessionStart` line ends the same way ([brief.md](brief.md#the-briefs-limit)). After a cut read, the Codex reason's first line is `wherewerewe: www's output reached you cut, so tide-alerts's brief is not whole in your context.`, with the same `Run:` line. The reason holds what is true and the command that fixes it, and never steers the agent to hold back or to ask ([0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)). Claude Code shows it to the model as `PreToolUse:Bash hook error: <reason>`. On Codex, the docs say a `Stop` block's reason arrives as a new user prompt.
 
-For a bound id, `SessionStart` prints on plain stdout the `GOAL` block and the `GRANT` block exactly as the brief prints them, whole and never cut, then the two lines above. It reads only the binding, the `session` file and the gate file, runs no check, and prints nothing else of the brief. For a store that needs `www import`, it prints only the two lines, and `www` gives the exit 5 text. The worst case is 3 goal lines, 23 grant lines and the 2 refusal lines: about 1,610 UTF-8 bytes, 16% of Claude Code's 10,000 characters and about 400 tokens by Codex's own count, 16% of its default 2,500. Both hosts add plain stdout from `SessionStart` to context.
+For a bound id, `SessionStart` prints on plain stdout the `GOAL` block and the `GRANT` block exactly as the brief prints them, whole and never cut, the brief's line for no grant included, then the two lines above. It reads only the binding, the `session` file and the gate file, runs no check, and prints nothing else of the brief. For a store that needs `www import`, it prints only the two lines, and `www` gives the exit 5 text. The worst case is 3 goal lines, 23 grant lines and the 2 refusal lines: about 1,610 UTF-8 bytes, 16% of Claude Code's 10,000 characters and about 400 tokens by Codex's own count, 16% of its default 2,500. Both hosts add plain stdout from `SessionStart` to context.
 
 #### The injected grant authorises nothing
 
@@ -243,9 +243,9 @@ The gate never stops an agent for long: after a read ends with no whole brief, i
 `PostToolUse` writes `read` when all of these hold ([0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md)):
 
 - the payload has no `agent_id`, so on Claude Code a subagent's read never counts, and on Codex it can ([above](#subagents-and-failing-open));
-- the tool is the shell tool, and the command is the brief command, so a piped, filtered or redirected read never counts;
+- `tool_name` is `Bash`, the shell tool's name in both hosts' docs, and the command is the brief command, so a piped, filtered or redirected read never counts;
 - the host reports the call as a success: Claude Code fires `PostToolUse` only then, and fires `PostToolUseFailure` for a failed `www`; on Codex `PostToolUse` also fires after a command that exits non-zero, and the docs name no exit code field, so the hook reads an exit code from `tool_response` only when one is there; a failed `www` prints no brief, so it fails the header and footer rules below either way;
-- the output in `tool_response` starts with the header line of the bound session, `<name> · day`, and ends with the footer line of [brief.md](brief.md);
+- the output starts with the header line of the bound session, `<name> · day`, and ends with the footer line of [brief.md](brief.md), after one final line break is trimmed. On Claude Code the output is `tool_response.stdout`, beside `stderr`, `interrupted` and `isImage` in the Bash tool's output object; on Codex it is the text of `tool_response`, whose shape for a shell call slice 4 records;
 - the output holds no host truncation marker: Claude Code's `<persisted-output>`, or Codex's `tokens truncated`;
 - on Codex, when `tool_input` carries `max_output_tokens`, that number × 4 is at least the output's UTF-8 bytes, because the model sees no more than that. An output past Codex's own cut of 39,000 bytes carries the truncation marker, so the rule above catches it whatever the number.
 
@@ -311,6 +311,7 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 
 - The regular expressions that spot `gh pr create`, `git push`, `gh pr merge` and the `www` commands in a command line.
 - How `install` writes JSON: key order and indentation, as long as every other hook survives.
+- How a hook takes the gate lock and how long it waits for it, as long as the operating system releases the lock when the hook exits and the wait ends before the hook's timeout.
 
 ## Open questions
 
