@@ -5,7 +5,7 @@ export const cliPath = join(import.meta.dir, '..', '..', 'packages', 'cli', 'src
 
 // The argv that runs the real `www` as a process, with HOME and XDG_STATE_HOME inside the run's
 // state folder under .wringer/ and the agent's session variables unset, so a journey never touches
-// the owner's stores. A host then sets its session variable, so the brief takes that host's budget.
+// the owner's stores. PATH is the run's bin folder, which holds git and no gh. A host then sets its session variable, so the brief takes that host's budget.
 export function buildWWWArgv(
   stateRoot: string,
   argv: readonly string[],
@@ -30,7 +30,8 @@ export function buildWWWArgv(
     ...hostVariables,
     `HOME=${join(stateRoot, 'home')}`,
     `XDG_STATE_HOME=${join(stateRoot, 'state')}`,
-    'bun',
+    `PATH=${join(stateRoot, 'bin')}`,
+    process.execPath,
     cliPath,
     ...argv,
   ];

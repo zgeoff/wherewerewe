@@ -7,8 +7,11 @@ import { z } from 'zod';
 import { buildOwnerPrograms } from './build-owner-programs.ts';
 import { buildWWWArgv } from './build-www-argv.ts';
 import { checkWWWHelp } from './check-www-help.ts';
+import { fillRunFolder } from './fill-run-folder.ts';
+import { makePath } from './make-path.ts';
 import { readStateRoot } from './read-state-root.ts';
 import { readWWWOutput } from './read-www-output.ts';
+import { removePath } from './remove-path.ts';
 import { runWWWLineOnCopy } from './run-www-line-on-copy.ts';
 import { runWWWLine } from './run-www-line.ts';
 
@@ -52,7 +55,8 @@ export function createVerifyRegistry(): Wringer {
     })
     .command({
       path: ['www', 'run'],
-      summary: 'Run the `www` command line --line, and check that it exits 0 and prints --expect',
+      summary:
+        'Run the `www` command line --line, and check that it exits 0 and prints --expect; {run} in either is the run folder',
       args: z.strictObject({
         line: z.string(),
         expect: z.string(),
@@ -60,16 +64,15 @@ export function createVerifyRegistry(): Wringer {
       }),
       data: wwwRunSchema,
       run: async (args, ctx) => {
-        const output = await runWWWLine(
-          ctx.exec,
-          readStateRoot(ctx.endpoints),
-          args.line,
-          args.host,
-        );
+        const stateRoot = readStateRoot(ctx.endpoints);
+        const line = fillRunFolder(args.line, stateRoot);
+        const expected = fillRunFolder(args.expect, stateRoot);
 
-        if (output.exitCode !== 0 || !output.stdout.includes(args.expect)) {
+        const output = await runWWWLine(ctx.exec, stateRoot, line, args.host);
+
+        if (output.exitCode !== 0 || !output.stdout.includes(expected)) {
           throw new WringerError('check-failed', {
-            message: `${args.line} exited ${String(output.exitCode)} and printed ${JSON.stringify(output.stdout + output.stderr)}, which lacks ${JSON.stringify(args.expect)}`,
+            message: `${line} exited ${String(output.exitCode)} and printed ${JSON.stringify(output.stdout + output.stderr)}, which lacks ${JSON.stringify(expected)}`,
           });
         }
 
@@ -99,6 +102,22 @@ export function createVerifyRegistry(): Wringer {
 
         return output;
       },
+    })
+    .command({
+      path: ['www', 'make-path'],
+      summary: 'Make the folder <run>/paths/<name> for a --path check; usage when it exists',
+      args: z.strictObject({ name: z.string() }),
+      data: z.strictObject({ folder: z.string() }),
+      run: (args, ctx) =>
+        Promise.resolve({ folder: makePath(readStateRoot(ctx.endpoints), args.name) }),
+    })
+    .command({
+      path: ['www', 'remove-path'],
+      summary: 'Remove the folder <run>/paths/<name>; usage when it is missing',
+      args: z.strictObject({ name: z.string() }),
+      data: z.strictObject({ folder: z.string() }),
+      run: (args, ctx) =>
+        Promise.resolve({ folder: removePath(readStateRoot(ctx.endpoints), args.name) }),
     })
     .command({
       path: ['www', 'seed-hand-kept'],
@@ -211,6 +230,12 @@ export function createVerifyRegistry(): Wringer {
       name: 'tasks',
       summary:
         'Open 20 tasks, read them in the brief under each host, and list every open task with `www show`',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
+    .feature({
+      name: 'checks',
+      summary:
+        'Write an item with a --path check, remove the path, read the CHANGED row, and run the fix command it prints',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
     .shared(
