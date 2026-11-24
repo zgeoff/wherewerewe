@@ -22,6 +22,8 @@ test('it makes a readable store with no items and returns its folder', async () 
       ownerNotes: [],
       notes: [],
       notesUnread: null,
+      prs: [],
+      prsUnread: null,
       ownerUnread: null,
     },
   });

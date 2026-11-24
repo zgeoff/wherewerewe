@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
-import type { Note, OwnerNote, SessionFile, Store, UnreadRows } from '../types.ts';
+import type { Note, OwnerNote, PullRequestRow, SessionFile, Store, UnreadRows } from '../types.ts';
 import { parseItemsFile } from './parse-items-file.ts';
 import { parseNotesFile } from './parse-notes-file.ts';
 import { parseOwnerFile } from './parse-owner-file.ts';
+import { parsePrsFile } from './parse-prs-file.ts';
 import { parseSessionFile } from './parse-session-file.ts';
 
 export type StoreRead =
@@ -63,7 +64,9 @@ async function readTextOrNull(path: string): Promise<string | null> {
 
 async function readItems(folder: string, session: SessionFile): Promise<StoreRead> {
   const itemsText = await readTextOrNull(join(folder, 'items.tsv'));
-  const owner = await readOwner(folder);
+
+  const owner = { ...(await readOwner(folder)), ...(await readPrs(folder)) };
+
   const noteRead = await readNotes(folder);
 
   if (itemsText === null) {
@@ -137,6 +140,44 @@ function readOwnerText(ownerText: string): OwnerRead {
     .with({ kind: 'broken' }, (found): OwnerRead => ({
       ownerNotes: found.notes,
       ownerUnread: { file: 'owner.tsv', line: found.line, reason: found.reason },
+    }))
+    .exhaustive();
+}
+
+interface PrsRead {
+  readonly prs: readonly PullRequestRow[];
+  readonly prsUnread: UnreadRows | null;
+}
+
+// A missing prs.tsv reads as no rows. A file system error reads as a broken file, as owner.tsv's
+// does.
+async function readPrs(folder: string): Promise<PrsRead> {
+  try {
+    const text = await readTextOrNull(join(folder, 'prs.tsv'));
+
+    return text === null ? { prs: [], prsUnread: null } : readPrsText(text);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+      return {
+        prs: [],
+        prsUnread: {
+          file: 'prs.tsv',
+          line: null,
+          reason: `the file cannot be read (${error.code})`,
+        },
+      };
+    }
+
+    throw error;
+  }
+}
+
+function readPrsText(text: string): PrsRead {
+  return match(parsePrsFile(text))
+    .with({ kind: 'prs' }, (found): PrsRead => ({ prs: found.prs, prsUnread: null }))
+    .with({ kind: 'broken' }, (found): PrsRead => ({
+      prs: found.prs,
+      prsUnread: { file: 'prs.tsv', line: found.line, reason: found.reason },
     }))
     .exhaustive();
 }
