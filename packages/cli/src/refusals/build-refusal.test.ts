@@ -1841,6 +1841,16 @@ test.each([
     fills: [{ '<owner or agent>': 'owner' }],
   },
   {
+    title: 'a decision whose text holds both words that --who takes, which no sample can stand for',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['decide', 'owner and agent', '--why', 'why', '--who', 'nobody'],
+    env: 'agent',
+    exitCode: 3,
+    stderr: 'www: refused: --who on a decision is owner or agent.\nRun: www help\n',
+    fills: [],
+  },
+  {
     title: 'a decision on a near miss of an open id',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],

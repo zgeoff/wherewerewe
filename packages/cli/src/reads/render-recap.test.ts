@@ -153,14 +153,14 @@ test('it renders the recap of the design example line for line', () => {
       '  reading: covers merges in both repos on green CI with findings answered, staging deploys, the',
       '    staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit',
       '    merges and releases',
-      'NOTES (3 of 3 open items with a note) · owed first, then newest',
+      'NOTES (3 of 3 notes, on 13 open items) · owed first, then newest',
       '  t-flag      Turn on the tide_alerts flag in staging config',
       '    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…',
       '  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07',
       "    note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, …",
       '  wt-tz       bosun-api worktree for the time zone fix, branch tz-fix',
       '    note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads it…',
-      '  no note: pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-sim-port, p-sim,…',
+      '  other open items (10): pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-si…',
       'DECIDED SINCE day 8 12:00Z (2)',
       '  d-23  Retry a 503 from the tide feed 3 times, 2 s apart · why: The feed returns 503 for about 4 s…',
       '  d-24  ruled out: Queue failed alerts for the next tide · why: a queued alert lands after low water',
@@ -189,7 +189,7 @@ test('it lists owed notes first, then the rest newest first, ties in notes.tsv o
   });
 
   expect(lines.slice(2, 11)).toStrictEqual([
-    'NOTES (4 of 4 open items with a note) · owed first, then newest',
+    'NOTES (4 of 4 notes, on 4 open items) · owed first, then newest',
     '  t-c         claim t-c',
     '    owed note (25h): c',
     '  t-d         claim t-d',
@@ -213,7 +213,7 @@ test('it prints 6 notes and an overflow line that names the rest, when 7 items h
   });
 
   expect(lines.filter((line) => /^NOTES|^ {2}and /u.test(line))).toStrictEqual([
-    'NOTES (6 of 7 open items with a note) · owed first, then newest',
+    'NOTES (6 of 7 notes, on 7 open items) · owed first, then newest',
     '  and 1 more with a note: www --session tide-alerts log --op note',
   ]);
 });
@@ -227,25 +227,30 @@ test('it prints an approval with its quote in double quotes', () => {
   });
 
   expect(lines.slice(2, 5)).toStrictEqual([
-    'NOTES (1 of 1 open items with a note) · owed first, then newest',
+    'NOTES (1 of 1 notes, on 1 open items) · owed first, then newest',
     '  ok-wipe     "wipe the staging table once"',
     '    note (1h): Spent on day 9.',
   ]);
 });
 
-test('it names the open items with no note in items.tsv order', () => {
+test('it names the other open items, a rule and a where item among them, in items.tsv order', () => {
   const ctx = setupTest();
 
   const lines = ctx.renderLines({
-    items: ['t-z', 't-a', 't-m'].map((id) => buildMockItem({ id })),
+    items: [
+      buildMockItem({ id: 't-z' }),
+      buildMockItem({ id: 't-a' }),
+      buildMockItem({ id: 'r-m', kind: 'rule' }),
+      buildMockItem({ id: 'wt-q', kind: 'where' }),
+    ],
     notes: [buildMockNote({ id: 't-a' })],
   });
 
   expect(lines.slice(2, 6)).toStrictEqual([
-    'NOTES (1 of 1 open items with a note) · owed first, then newest',
+    'NOTES (1 of 1 notes, on 4 open items) · owed first, then newest',
     '  t-a         Write the parser',
     '    note (1h): The simulator is shared on Fridays',
-    '  no note: t-z, t-m',
+    '  other open items (3): t-z, r-m, wt-q',
   ]);
 });
 
@@ -261,7 +266,7 @@ test('it leaves NOTES out when no item is open', () => {
   ]);
 });
 
-test('it prints 0 of 0 and the no note line when open items have no note', () => {
+test('it prints 0 of 0 notes and the other open items when open items have no note', () => {
   const ctx = setupTest();
 
   const lines = ctx.renderLines({
@@ -269,8 +274,8 @@ test('it prints 0 of 0 and the no note line when open items have no note', () =>
   });
 
   expect(lines.slice(2, 4)).toStrictEqual([
-    'NOTES (0 of 0 open items with a note) · owed first, then newest',
-    '  no note: t-a, t-b',
+    'NOTES (0 of 0 notes, on 2 open items) · owed first, then newest',
+    '  other open items (2): t-a, t-b',
   ]);
 });
 

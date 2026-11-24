@@ -355,14 +355,14 @@ GRANT  from the owner in chat, 7d ago · in bosun-api, bosun-app and tidekit
   reading: covers merges in both repos on green CI with findings answered, staging deploys, the
     staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit
     merges and releases
-NOTES (3 of 3 open items with a note) · owed first, then newest
+NOTES (3 of 3 notes, on 13 open items) · owed first, then newest
   t-flag      Turn on the tide_alerts flag in staging config
     owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…
   pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, …
   wt-tz       bosun-api worktree for the time zone fix, branch tz-fix
     note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads it…
-  no note: pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-sim-port, p-sim,…
+  other open items (10): pr-tk-19, t-e2e, w-apns, w-tk, ok-prod-index, r-api-tests, r-tk-fork, r-si…
 DECIDED SINCE day 8 12:00Z (2)
   d-23  Retry a 503 from the tide feed 3 times, 2 s apart · why: The feed returns 503 for about 4 s…
   d-24  ruled out: Queue failed alerts for the next tide · why: a queued alert lands after low water
@@ -378,20 +378,20 @@ Correct: www --session tide-alerts say "<text>" [--on <id>]
 | --------- | --------------------------------------------------------------------------------------------- | ------------- |
 | header    | `<name> · day <d> · recap since day <d> <HH:MMZ> (<t>) · <n> writes`                         | 1             |
 | `GRANT`   | the grant, exactly as the brief prints it, or `GRANT  none. Run: www --session <name> show grant` | 23            |
-| `NOTES`   | `NOTES (<k> of <m> open items with a note) · owed first, then newest`, `<k>` the items printed and `<m>` the open items with a note; then the open items with a note, owed first, then newest by the note's time, ties in `notes.tsv` order: the item line, with an approval's quote in double quotes, then `    note (<age>): <note>` or `    owed note (<age>): <note>`; at most 6 items, then `  and <n> more with a note: www --session <name> log --op note`, then `  no note: <ids>` for the open items with no note, in `items.tsv` order | 15 |
+| `NOTES`   | `NOTES (<k> of <m> notes, on <o> open items) · owed first, then newest`, `<k>` the items printed, `<m>` the open items with a note and `<o>` the open items; then the open items with a note, owed first, then newest by the note's time, ties in `notes.tsv` order: the item line, with an approval's quote in double quotes, then `    note (<age>): <note>` or `    owed note (<age>): <note>`; at most 6 items, then `  and <n> more with a note: www --session <name> log --op note`, then `  other open items (<n>): <ids>` for the open items with no note, in `items.tsv` order, cut at 100 characters | 15 |
 | `DECIDED SINCE` | `decide` and `ruled-out` rows since `<t>`, oldest first: `  <d-n>  [ruled out: ]<choice> · why: <reason>`; the 5 oldest, then `  and <n> more: www --session <name> log --op decide,ruled-out --since <t>`, which prints every row since `<t>` | 7 |
 | `CLOSED SINCE`  | `done`, `drop` and `use` rows since `<t>`, oldest first: `  <id>  <done, dropped or used> · <evidence, reason or use>`; the 5 oldest, then `  and <n> more: www --session <name> log --op done,drop,use --since <t>`, which prints every row since `<t>` | 7 |
 | footer    | `Whole text: www [--session <name>] show <id>` and `Correct: www [--session <name>] say "<text>" [--on <id>]`, with `--session <name>` as the next paragraph says | 2             |
 
-`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 of 0 open items with a note) · owed first, then newest` and the `no note:` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
+`NOTES` is left out when no item is open. With open items and no note, it prints `NOTES (0 of 0 notes, on <o> open items) · owed first, then newest` and the `other open items` line. A section with no rows is left out, except `GRANT`, which prints `GRANT  none. Run: www --session <name> show grant` with no grant. The `writes` count is the journal rows since `<t>` with `by` `agent` or `owner`.
 
 The recap reads from the start of the session when `<t>` falls before it, so the header and the two `SINCE` headings print `day 1` and the start's time, and the commands keep `<t>` as typed. When `journal.tsv` cannot be read, the header shows `journal unreadable` in place of `<n> writes`, `DECIDED SINCE` and `CLOSED SINCE` are left out, and stderr names the reason, as `show` does.
 
 The owner runs the recap from a terminal that has no binding, so the no-grant line and the three overflow lines always carry `--session <name>`, with `<name>` the name of the session's folder, and each runs as printed. A recap run with `--session` prints it in both footer lines. A recap in a bound session, with no `--session`, prints neither, and the footer's two lines run there as printed.
 
-The recap is at most 55 lines: 1 + 23 + (1 heading + 6 × 2 + 1 overflow + 1 no-note line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 2 = 55. Every line is at most 100 characters, except a `SINCE` overflow line when `<t>` is longer than 7 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer's two lines with a 24-character name are 60 and 72, and each other line that would pass 100 is cut to 99 characters and `…`, after a credential in a stored text becomes `<where the secret lives>`, so the cut counts the placeholder. The grant's lines, the overflow lines and the footer's two lines are never cut, so each command runs as printed, and each overflow line stays within 100 for a `<t>` of at most 7 characters. A longer `<t>`, such as `0000024h`, adds each character past 7 to the two `SINCE` overflow lines, which stay whole so their commands run as typed. So the recap is at most 55 × 100 + 55 = 5,555 characters, plus 2 for each character of `<t>` past 7.
+The recap is at most 55 lines: 1 + 23 + (1 heading + 6 × 2 + 1 overflow + 1 other-items line) + (1 heading + 5 + 1 overflow) + (1 heading + 5 + 1 overflow) + 2 = 55. Every line is at most 100 characters, except a `SINCE` overflow line when `<t>` is longer than 7 characters: the grant's heading is at most 94, its bullets and reading wrap at 100 as in the brief, the widest header (a 24-character name, day 999, `day-999`) is 87, the footer's two lines with a 24-character name are 60 and 72, and each other line that would pass 100 is cut to 99 characters and `…`, after a credential in a stored text becomes `<where the secret lives>`, so the cut counts the placeholder. The grant's lines, the overflow lines and the footer's two lines are never cut, so each command runs as printed, and each overflow line stays within 100 for a `<t>` of at most 7 characters. A longer `<t>`, such as `0000024h`, adds each character past 7 to the two `SINCE` overflow lines, which stay whole so their commands run as typed. So the recap is at most 55 × 100 + 55 = 5,555 characters, plus 2 for each character of `<t>` past 7.
 
-With counts of at most 4 digits where no cap applies, at most 20 open items and a header of 87 characters, the widest lines sum to at most 4,159 characters, or 4,172 when a header is cut at 100, under the bound of 5,555.
+With counts of at most 4 digits where no cap applies, at most 44 open items and a header of 87 characters, the widest lines sum to at most 4,160 characters, or 4,173 when a header is cut at 100, under the bound of 5,555. `NOTES` prints at most 6 items, so its `<m>` is at most 44 and its overflow count at most 38, both 2 digits, and its overflow line stays at 79 characters.
 
 ## Refusals
 
