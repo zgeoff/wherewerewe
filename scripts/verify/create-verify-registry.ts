@@ -238,6 +238,12 @@ export function createVerifyRegistry(): Wringer {
         'Write an item with a --path check, remove the path, read the CHANGED row, and run the fix command it prints',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
+    .feature({
+      name: 'new-kinds',
+      summary:
+        "Write a lesson, a promise and the owner's words, read them in the brief and the recap, list the rules, and close each",
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
     .shared(
       'scripts/verify/**',
       'package.json',

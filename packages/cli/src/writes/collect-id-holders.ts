@@ -1,3 +1,4 @@
+import { getKindWord } from '../rules/get-kind-word.ts';
 import type { FileKind, Kind, Store } from '../types.ts';
 
 export interface IDHolder {
@@ -34,4 +35,11 @@ export function collectOpenIDs(store: Store): string[] {
     ...store.promises.map((row) => row.id),
     ...store.words.map((row) => row.id),
   ];
+}
+
+// `a task in items.tsv`, `the owner's words in words.tsv`.
+export function formatIDHolder(holder: IDHolder): string {
+  return holder.kind === 'words'
+    ? `the owner's words in ${holder.file}`
+    : `a ${getKindWord(holder.kind)} in ${holder.file}`;
 }

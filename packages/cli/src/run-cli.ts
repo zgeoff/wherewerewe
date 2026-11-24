@@ -3,6 +3,7 @@ import { match } from 'ts-pattern';
 import { helpText } from './args/help-text.ts';
 import { parseCLIArgs } from './args/parse-cli-args.ts';
 import { getSessionDay } from './brief/get-session-day.ts';
+import { formatDuplicateNotes } from './commands/format-duplicate-notes.ts';
 import { formatSessionLines } from './commands/format-session-lines.ts';
 import { runBriefCommand } from './commands/run-brief-command.ts';
 import { runImportCommand } from './commands/run-import-command.ts';
@@ -213,7 +214,17 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
   return resolveWriteResult(written, args, context.cwd);
 }
 
-function runReadCommand(
+async function runReadCommand(
+  context: CommandContext,
+  store: Store,
+  unread: UnreadRows | null,
+): Promise<CLIResult> {
+  const result = await runReadCommandBody(context, store, unread);
+
+  return { ...result, stderr: `${result.stderr}${formatDuplicateNotes(store)}` };
+}
+
+function runReadCommandBody(
   context: CommandContext,
   store: Store,
   unread: UnreadRows | null,

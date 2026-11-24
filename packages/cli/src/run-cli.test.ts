@@ -3095,3 +3095,62 @@ test('it prints no text of the new files through process.stdout or console', asy
 
   expect(texts.filter((text) => /process\.stdout|console\./u.test(text))).toStrictEqual([]);
 });
+
+test('it refuses every write that names an id two files hold, prints both rows on a read, and keeps every file', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'l-seed', 'A task that shares an id']);
+
+  seedStoreFile(
+    folder,
+    'lessons.tsv',
+    formatLessonsFile([
+      {
+        id: 'l-seed',
+        text: 'A lesson',
+        why: 'A mistake',
+        written: '2026-03-09T09:00:00Z',
+        by: 'agent',
+      },
+    ]),
+  );
+
+  const lessonsBefore = readFileSync(join(folder, 'lessons.tsv'), 'utf8');
+  const itemsBefore = readFileSync(join(folder, 'items.tsv'), 'utf8');
+
+  const refusals = [
+    await ctx.run(['set', 'l-seed', 'New claim']),
+    await ctx.run(['done', 'l-seed', '--evidence', 'merged']),
+    await ctx.run(['now', 'l-seed', 'go on']),
+    await ctx.run(['lesson', 'l-seed', 'A lesson', '--why', 'A mistake']),
+  ];
+
+  const other = await ctx.run(['task', 't-other', 'Another task']);
+  const brief = await ctx.run([]);
+  const listed = await ctx.run(['list', 'lessons']);
+
+  const twice =
+    'www: tide-alerts holds l-seed twice, as a task in items.tsv and as a lesson in lessons.tsv. Rename one of them by hand; the journal keeps both.\n';
+
+  expect({
+    refusals: refusals.map((result) => [result.exitCode, result.stderr.includes(' twice, as ')]),
+    other: other.exitCode,
+    briefHasBoth: [
+      brief.stdout.includes('  l-seed      A task'),
+      listed.stdout.includes('A lesson'),
+    ],
+    briefStderr: brief.stderr.startsWith(twice),
+    unchanged: [
+      readFileSync(join(folder, 'lessons.tsv'), 'utf8'),
+      readFileSync(join(folder, 'items.tsv'), 'utf8').startsWith(itemsBefore.split('\n')[0] ?? ''),
+    ],
+  }).toStrictEqual({
+    refusals: refusals.map(() => [3, true]),
+    other: 0,
+    briefHasBoth: [true, true],
+    briefStderr: true,
+    unchanged: [lessonsBefore, true],
+  });
+});

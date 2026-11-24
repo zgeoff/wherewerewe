@@ -43,6 +43,10 @@ www --help
   with where they gave them and your reading of them; the brief prints them after the goal. A grant
   needs one bullet in any of the three groups.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
+- `www lesson`, `promise` and `words` keep a lesson with the mistake behind it, a promise to the
+  owner with its due time, and the owner's exact words; `done` closes a promise, and `drop` closes
+  any of the three.
+- `www list <kind>` prints every open row of one kind, whole, as the brief prints it.
 - `www done` and `drop` close an item and keep it in the journal.
 - `www say` and `ack` let the owner write a note from a terminal outside any agent. The note stays
   in every brief until the owner clears it.
@@ -51,8 +55,8 @@ www --help
   `format-1-backup/`.
 - `www show` prints one item or decision with its history, and with no id, every open task. `log`
   prints the journal.
-- `www recap` prints one screen for the owner: the grant, the notes on open items, and the decisions
-  and closes since a time.
+- `www recap` prints one screen for the owner: the grant, the promises, the notes on open items, and
+  the decisions and closes since a time.
 
 ## Documentation
 

@@ -179,9 +179,10 @@ Each of these orderings starts from `wiped`:
 
 A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with a separator, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. The hook reads the command as the shell does:
 
+- The gate reads the command after the shell's removal of each backslash that ends a line, together with the line break, outside single quotes.
 - `;`, `&&`, `||`, `&`, a line break and a process substitution, `<(` or `>(`, are separators, and `|` is a pipe, only outside quotes, single or double, and only when no backslash escapes them.
 - A command substitution, `$(` or a backtick, is a separator outside single quotes and inside double quotes, because the shell runs it in both, unless a backslash escapes it.
-- Inside single quotes nothing is special, and a backslash is a plain character. Inside double quotes, a backslash escapes only `"`, `\`, `$`, a backtick and a line break.
+- Inside single quotes nothing is special, and a backslash is a plain character. Inside double quotes, a backslash escapes only `"`, `\`, `$` and a backtick, and a backslash with a line break is removed.
 - The `&` of a redirect, as in `2>&1` or `&>`, belongs to the redirect. A command that holds anything else these rules do not read, such as `|&`, a `#` comment, a heredoc, `$'…'` or an unclosed quote, is gated.
 
 | Command | Gate |
@@ -193,12 +194,13 @@ A shell command passes the gate in every state when it is one `www` or `wherewer
 | `www task t-a "Check logs"; ls` | gated: the `;` is outside the quotes |
 | `www task t-a "Logs at $(date)"` | gated: the shell runs `$(date)` inside double quotes |
 | `www task t-a 'Logs at $(date)'` | passes: single quotes keep `$(date)` as text |
+| `www task t-a "$\` and a line break and `(date)"` | gated: the shell removes the backslash and line break, then reads `$(date)` |
 
 A Codex command wrapped as `<shell> -lc '<command>'` is read inside the wrapper.
 
 The brief command is narrower: `www` or `wherewerewe`, bare or as an absolute path ending in that name, alone or with `--session <name>` or `--session=<name>` where `<name>` is the session bound to this id, with no redirect, no pipe and nothing else after it. A leading variable assignment makes a command neither the brief command nor a `www` command. Only the brief command moves the state to `reading`, so `www help` and `www | tail -1` never open the gate. `www --json` is a `www` command, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read.
 
-`PreToolUse` denies with `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"<reason>"}}`, and `Stop` blocks with `{"decision":"block","reason":"<reason>"}`, the shapes both hosts' hook docs give. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`. The [Claude Code hooks docs](https://code.claude.com/docs/en/hooks) list `additionalContext` on `PreToolUse`, added to the context beside the tool result. The [Codex hooks docs](https://learn.chatgpt.com/docs/hooks) give the same shape "to add model-visible context without blocking", added as developer context, and slice 4 proves it on a real Codex session with the other Codex claims. Both hosts give the agent this reason: one line, a line break, and the `Run:` line:
+`PreToolUse` denies with `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"<reason>"}}`, and `Stop` blocks with `{"decision":"block","reason":"<reason>"}`, the shapes both hosts' hook docs give. A `PreToolUse` that passes with the fail-open line prints `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"<line>"}}`. The [Claude Code hooks docs](https://code.claude.com/docs/en/hooks) list `additionalContext` on `PreToolUse`, added to the context beside the tool result. The [Codex hooks docs](https://learn.chatgpt.com/docs/hooks) give the same shape "to add model-visible context without blocking", and slice 4 proves it on a real Codex session with the other Codex claims. Both hosts give the agent this reason: one line, a line break, and the `Run:` line:
 
 ```text
 wherewerewe: this session started or was compacted, and tide-alerts's brief is not in your context yet.
@@ -234,7 +236,7 @@ A `PreToolUse`, `PostToolUse` or `Stop` payload that carries `agent_id` passes, 
 
 The gate never stops an agent for long: after a read ends with no whole brief, it refuses at most one more call before it opens, as [The gate's states](#the-gates-states) shows ([0014](../../decisions/0014-the-gate-fails-open.md)):
 
-- When a hook cannot start, fails or times out, both hosts run the call. `www install` never sets `onFailure: "block"`.
+- When a hook cannot start, fails, times out or returns a malformed response, both hosts run the call. `www install` never sets `onFailure: "block"`.
 - When the last brief command in flight ends failed in `reading`, the state is `failed`, and the next call that is not a `www` command passes with the fail-open line. That covers `www` missing from the agent's `PATH`, a crash, exit 4, exit 5, and a brief over Claude Code's limit. The reason is in `www`'s own output, already in context. A `www` that the host refuses before it runs may send no end event, on either host, so the state stays `reading` until a `Stop` writes `failed`.
 - When a Codex read is cut, the gate refuses one call with the cut reason, and no more however many retries are cut; the agent can read again with `max_output_tokens`. A failed retry opens the gate on the next call.
 - `Stop` blocks only while the state is `wiped`, and never when `stop_hook_active` is true. So it blocks at most once per turn while the state stays `wiped`, on either host, below Claude Code's cap of 8 consecutive continues. A `Stop` that passes in `wiped` writes `failed`, so the next turn's first call that is not a `www` command passes with the fail-open line instead of meeting a gate the agent was already stopped on once.

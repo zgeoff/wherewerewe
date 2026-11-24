@@ -1,8 +1,6 @@
 import { join } from 'node:path';
-import { getKindWord } from '../rules/get-kind-word.ts';
 import type { RefusalReason } from '../types.ts';
-import { collectIDHolders } from './collect-id-holders.ts';
-import type { IDHolder } from './collect-id-holders.ts';
+import { collectIDHolders, formatIDHolder } from './collect-id-holders.ts';
 import type { WriteInput } from './types.ts';
 
 // The refusal for an id that two of the four files hold open, as the tool of an earlier version can
@@ -16,14 +14,8 @@ export function pickDuplicateIDRefusal(input: WriteInput, id: string): RefusalRe
         kind: 'id-held-twice',
         name: input.store.session.name,
         id,
-        first: describeHolder(first),
-        second: describeHolder(second),
+        first: formatIDHolder(first),
+        second: formatIDHolder(second),
         path: join(input.store.folder, second.file),
       };
-}
-
-function describeHolder(holder: IDHolder): string {
-  return holder.kind === 'words'
-    ? `the owner's words in ${holder.file}`
-    : `a ${getKindWord(holder.kind)} in ${holder.file}`;
 }
