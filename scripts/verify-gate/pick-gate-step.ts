@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // release-please opens its release pull request from this branch, as main.yml configures it.
 const releaseBranch = 'release-please--branches--main--components--@wherewerewe/cli';
-const releaseLogin = 'zgeoff-release-please[bot]';
+const releaseLogin = 'zgeoff-release-bot[bot]';
 const renovateLogin = 'zgeoff-renovate[bot]';
 const repoSchema = z.object({ full_name: z.string().min(1) }).nullable();
 const refSchema = z.object({ ref: z.string().min(1), repo: repoSchema });

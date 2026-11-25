@@ -80,7 +80,7 @@ test('it passes a release pull request without running the gate', async () => {
       ref: 'release-please--branches--main--components--@wherewerewe/cli',
       repo: { full_name: 'acme/notes' },
     },
-    user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
+    user: { type: 'Bot', login: 'zgeoff-release-bot[bot]' },
   });
 
   const code = await ctx.run({ GITHUB_EVENT_PATH: eventPath, RUNNER_TEMP: ctx.temp.path }, 7);
