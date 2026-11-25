@@ -82,7 +82,7 @@ test.each([
   ].map((field) => ({ type: 'brief' as const, field })),
   ...['v', 'subjects'].map((field) => ({ type: 'show' as const, field })),
   ...['v', 'rows'].map((field) => ({ type: 'log' as const, field })),
-  ...['v', 'rows'].map((field) => ({ type: 'list' as const, field })),
+  ...['v', 'kind', 'rows'].map((field) => ({ type: 'list' as const, field })),
   ...[
     'v',
     'session',

@@ -381,9 +381,21 @@ test.each(
     const scope = row.scope === '' ? '' : `--session ${row.scope} `;
     const comment = isReadCommand(row.command) ? '' : nothingWrittenComment;
 
-    expect({ exitCode: refused.exitCode, second }).toStrictEqual({
+    const fills = Object.fromEntries(
+      parseRunLine(second ?? '')
+        .map((word) => word.replaceAll(/^\[+|\]+$/gu, ''))
+        .filter((word) => /<[^>|]*>/u.test(word))
+        .map((word) => [word, 'zz-a']),
+    );
+
+    expect({
+      exitCode: refused.exitCode,
+      second,
+      replay: parseCLIArgs(buildUsageRunArgv(second ?? '', fills)).kind,
+    }).toStrictEqual({
       exitCode: 2,
       second: `Run: www ${scope}${row.line}${comment}`,
+      replay: 'args',
     });
 
     expect(first).toStartWith(`www: ${row.command} takes `);

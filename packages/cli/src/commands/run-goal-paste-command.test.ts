@@ -77,7 +77,7 @@ test('it prints the grant as a /goal text and writes nothing', async () => {
 
   const marker = join(ctx.root, 'gh-ran');
 
-  seedStubCommand(store.bin, 'gh', `touch ${marker}`);
+  seedStubCommand(store.bin, 'gh', `echo ran > "${marker}"`);
 
   seedLockFile(
     join(ctx.stateRoot, 'tide-alerts'),
@@ -114,6 +114,20 @@ test('it prints the grant as a /goal text and writes nothing', async () => {
     unchanged: before,
     ghRan: false,
   });
+});
+
+test('it leaves the marker of the stub gh when a read runs gh, so the marker shows a run', async () => {
+  const ctx = setupTest();
+
+  const store = await seedDayNineStore(ctx.root);
+
+  const marker = join(ctx.root, 'gh-ran');
+
+  seedStubCommand(store.bin, 'gh', `echo ran > "${marker}"`);
+
+  await ctx.run(['--session', 'tide-alerts'], store.env);
+
+  expect(existsSync(marker)).toBe(true);
 });
 
 test('it reads only the session file', async () => {

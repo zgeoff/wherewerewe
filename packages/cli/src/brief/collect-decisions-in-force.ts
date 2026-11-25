@@ -1,31 +1,12 @@
 import type { JournalRow } from '../types.ts';
-import { collectReplacedIDs } from './collect-replaced-ids.ts';
+import { collectDecisionRowsInForce } from './collect-decision-rows-in-force.ts';
 
 export interface DecisionInForce {
   readonly id: string;
   readonly choice: string;
 }
 
-// The decisions in force, newest first by ts, the higher d-<n> first on a tie. A decide row is in
-// force unless a later decide row's replaces names it, later in journal order; a ruled-out row never is. A decision on a
-// closed item stays in force.
+// The decisions in force, each as the brief prints it, in the order of their rows.
 export function collectDecisionsInForce(rows: readonly JournalRow[]): DecisionInForce[] {
-  const replaced = collectReplacedIDs(rows);
-
-  return rows
-    .filter((row) => row.op === 'decide' && !replaced.has(row.id))
-    .toSorted((first, second) => {
-      if (first.ts !== second.ts) {
-        return first.ts < second.ts ? 1 : -1;
-      }
-
-      return parseDecisionNumber(second.id) - parseDecisionNumber(first.id);
-    })
-    .map((row) => ({ id: row.id, choice: row.text ?? '' }));
-}
-
-function parseDecisionNumber(id: string): number {
-  const digits = /^d-(?<number>\d+)$/u.exec(id)?.groups?.['number'];
-
-  return digits === undefined ? 0 : Number(digits);
+  return collectDecisionRowsInForce(rows).map((row) => ({ id: row.id, choice: row.text ?? '' }));
 }

@@ -41,5 +41,6 @@ export async function runTaskListCommand(
       nowMs: context.nowMs,
     }),
     stderr,
+    stdoutFormat: 'text',
   };
 }

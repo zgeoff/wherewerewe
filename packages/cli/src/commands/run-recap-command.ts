@@ -85,5 +85,6 @@ export async function runRecapCommand(
       nowMs,
     }),
     stderr: notes.join(''),
+    stdoutFormat: 'text',
   };
 }

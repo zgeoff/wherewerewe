@@ -60,6 +60,7 @@ export async function runShowCommand(
     exitCode: 0,
     stdout: renderShow({ id, store, rows, closed, nowMs: context.nowMs, checkNows }),
     stderr: notes.join(''),
+    stdoutFormat: 'text',
   };
 }
 

@@ -3,13 +3,13 @@ import { buildRefusalResult } from '../refusals/build-refusal-result.ts';
 import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { readSessionSummaries } from '../sessions/read-session-summaries.ts';
-import type { CLIResult } from '../types.ts';
+import type { CommandResult } from '../types.ts';
 import type { CommandContext } from './types.ts';
 
 export async function refuseNoSession(
   context: CommandContext,
   named: string | null,
-): Promise<CLIResult> {
+): Promise<CommandResult> {
   const summaries = await readSessionSummaries(context.root);
 
   const refusal = buildRefusal({

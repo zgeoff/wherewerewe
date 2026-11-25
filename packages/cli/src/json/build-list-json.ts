@@ -1,4 +1,5 @@
 import { collectChangedIDs } from '../brief/collect-changed-ids.ts';
+import { collectDecisionRowsInForce } from '../brief/collect-decision-rows-in-force.ts';
 import { orderTasks } from '../brief/order-tasks.ts';
 import type { BriefInput } from '../brief/types.ts';
 import type { ListKind } from '../rules/list-kinds.ts';
@@ -14,8 +15,8 @@ export interface ListJsonInput {
   // the rows of prs.tsv that parse
   readonly prs: readonly PullRequestRow[];
 
-  // every decide row of the journal
-  readonly decideRows: readonly JournalRow[];
+  // every decide and ruled-out row of the journal
+  readonly decisionRows: readonly JournalRow[];
 }
 
 // The rows the text form prints for one kind, whole.
@@ -26,11 +27,7 @@ export function buildListJSON(kind: ListKind, input: ListJsonInput): ListJson {
     return {
       ...jsonVersion,
       kind,
-      rows: brief.decisions.flatMap((decision) => {
-        const row = input.decideRows.findLast((candidate) => candidate.id === decision.id);
-
-        return row === undefined ? [] : [row];
-      }),
+      rows: collectDecisionRowsInForce(input.decisionRows),
     };
   }
 

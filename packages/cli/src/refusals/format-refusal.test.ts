@@ -1,10 +1,25 @@
 import { expect, test } from 'bun:test';
+import { join } from 'node:path';
+import { createTempDir } from '@zgeoff/testing/fs';
+import { run } from '@zgeoff/testing/process';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
-import { formatRefusal } from './format-refusal.ts';
+import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
+import { formatRefusal, nothingWrittenComment } from './format-refusal.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
 function setupTest() {
-  return { formatRefusal };
+  const bin = join(createTempDir('format-refusal').path, 'bin');
+
+  seedStubCommand(bin, 'www', `printf 'www\\n'; printf '%s\\n' "$@"`);
+  seedStubCommand(bin, 'less', `printf 'less\\n'; printf '%s\\n' "$@"`);
+
+  return {
+    formatRefusal,
+    runInShell: (command: string) =>
+      run(['bash', '--posix', '-c', command], {
+        env: { PATH: `${bin}:/usr/bin:/bin` },
+      }),
+  };
 }
 
 test('it prints the lines, then each run as a Run line', () => {
@@ -197,5 +212,112 @@ test.each([
     );
 
     expect(printed.map((entry) => entry.name)).toStrictEqual([]);
+  },
+);
+
+test.each([
+  {
+    title: 'a fixed call',
+    runs: [{ www: ['task', 't-a', 'Write it'] }],
+    last: 'Run: www task t-a "Write it"',
+  },
+  {
+    title: 'a usage line',
+    runs: [{ usage: 'now <id> "<next step>"' }],
+    last: 'Run: www now <id> "<next step>"',
+  },
+  { title: 'the help', runs: [{ www: ['help'] }], last: 'Run: www help' },
+  {
+    title: 'a shell command',
+    runs: [{ shell: ['less', '/srv/tide-alerts/items.tsv'] }],
+    last: 'Run: less /srv/tide-alerts/items.tsv',
+  },
+  {
+    title: 'two Run lines, of which only the last ends with the comment',
+    runs: [{ www: ['help'] }, { www: ['now', 't-a', 'go on'] }],
+    last: 'Run: www now t-a "go on"',
+  },
+])('it ends the last Run line of a refused write with the comment: $title', (row) => {
+  const ctx = setupTest();
+
+  const lines = ctx
+    .formatRefusal(
+      { exitCode: 3, lines: ['www: refused: x.'], runs: row.runs },
+      { sessionFlag: null, writes: true },
+    )
+    .trimEnd()
+    .split('\n');
+
+  const expected =
+    row.runs.length === 1
+      ? [`${row.last}${nothingWrittenComment}`]
+      : ['Run: www help', `${row.last}${nothingWrittenComment}`];
+
+  expect(lines.slice(1)).toStrictEqual(expected);
+});
+
+test.each([
+  { title: 'a fixed call', runs: [{ www: ['show', 'zz'] }] },
+  { title: 'a kind to list', runs: [{ www: ['list', 'tasks'] }] },
+])('it ends the last Run line of a refused read with no comment: $title', (row) => {
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
+    { exitCode: 2, lines: ['www: x.'], runs: row.runs },
+    { sessionFlag: null, writes: false },
+  );
+
+  expect(text).not.toInclude(nothingWrittenComment);
+});
+
+test.each([
+  {
+    title: 'a fixed call',
+    runs: [{ www: ['task', 't-a', 'Write it'] }],
+    echoed: ['www', 'task', 't-a', 'Write it'],
+  },
+  {
+    title: 'a quoted placeholder',
+    runs: [{ www: ['task', 't-a', toPlaceholder('<claim>')] }],
+    echoed: ['www', 'task', 't-a', '<claim>'],
+  },
+  {
+    title: 'a value with shell characters and a hash',
+    runs: [{ www: ['task', 't-a', 'costs $5 # not a comment `x` "y"'] }],
+    echoed: ['www', 'task', 't-a', 'costs $5 # not a comment `x` "y"'],
+  },
+  {
+    title: 'a shell command with a path that holds a space',
+    runs: [{ shell: ['less', '/srv/tide alerts/items.tsv'] }],
+    echoed: ['less', '/srv/tide alerts/items.tsv'],
+  },
+  {
+    title: 'the last of two Run lines',
+    runs: [{ www: ['help'] }, { www: ['now', 't-a', 'go on'] }],
+    echoed: ['www', 'now', 't-a', 'go on'],
+  },
+])(
+  'it ends the Run line of a refused write with a comment that a POSIX shell reads as none: $title',
+  async (row) => {
+    const ctx = setupTest();
+
+    const text = ctx.formatRefusal(
+      { exitCode: 3, lines: ['www: x.'], runs: row.runs },
+      { sessionFlag: null, writes: true },
+    );
+
+    const last = text.trimEnd().split('\n').at(-1) ?? '';
+
+    const replayed = await ctx.runInShell(last.slice('Run: '.length));
+
+    expect({
+      exitCode: replayed.exitCode,
+      stdout: replayed.stdout,
+      stderr: replayed.stderr,
+    }).toStrictEqual({
+      exitCode: 0,
+      stdout: `${row.echoed.join('\n')}\n`,
+      stderr: '',
+    });
   },
 );

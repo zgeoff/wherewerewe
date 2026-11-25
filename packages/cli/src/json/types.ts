@@ -55,7 +55,7 @@ export interface BriefJson {
   readonly prs: readonly PullRequestRow[];
 }
 
-export type ShowSubject =
+type ShowSubject =
   | (Shown & {
       readonly checkedNow: string | null;
       readonly failingChecks: readonly string[];

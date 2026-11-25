@@ -360,7 +360,7 @@ function refuseCommand(command: string): RefusalReason {
     : { kind: 'unknown-command', command };
 }
 
-export interface CommandFlags {
+interface CommandFlags {
   readonly command: string;
 
   // the flags a refusal of an unknown flag names, and the command's help line after `www`
@@ -459,11 +459,12 @@ function pickSessionFlag(argv: readonly string[]): string | null {
   return typeof session === 'string' && !session.startsWith('-') ? session : null;
 }
 
-// Whether the command typed writes, read leniently so a refusal of any flag still knows.
+// Whether the command typed writes, read leniently so a refusal of any flag still knows. The word
+// `brief` is an unknown command, and an unknown command is refused as a write.
 export function isWriteArgv(argv: readonly string[]): boolean {
   const lenient = parseArgs({ args: [...argv], options, strict: false, allowPositionals: true });
   const [first] = lenient.positionals;
   const command = first ?? (lenient.values.help === true ? 'help' : 'brief');
 
-  return isWriteCommand(command, lenient.values.paste === true);
+  return first === 'brief' || isWriteCommand(command, lenient.values.paste === true);
 }

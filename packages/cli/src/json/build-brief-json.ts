@@ -1,3 +1,4 @@
+import { collectDecisionRowsInForce } from '../brief/collect-decision-rows-in-force.ts';
 import { getSessionDay } from '../brief/get-session-day.ts';
 import { orderOpenTasks } from '../brief/order-open-tasks.ts';
 import { pickBriefLimit } from '../brief/pick-brief-limit.ts';
@@ -16,8 +17,8 @@ export interface BriefJsonInput {
   // the rows of prs.tsv that parse
   readonly prs: readonly PullRequestRow[];
 
-  // every decide row of the journal
-  readonly decideRows: readonly JournalRow[];
+  // every decide and ruled-out row of the journal
+  readonly decisionRows: readonly JournalRow[];
 
   // the figure a write reply gives on the store as the read leaves it
   readonly estimate: number;
@@ -63,11 +64,7 @@ export function buildBriefJSON(input: BriefJsonInput): BriefJson {
     promises: brief.promises.toSorted((first, second) =>
       first.written.localeCompare(second.written),
     ),
-    decisions: brief.decisions.flatMap((decision) => {
-      const row = input.decideRows.findLast((candidate) => candidate.id === decision.id);
-
-      return row === undefined ? [] : [row];
-    }),
+    decisions: collectDecisionRowsInForce(input.decisionRows),
     prs: input.prs.flatMap((row) => {
       const found = brief.pullRequests.find((candidate) => candidate.ref === row.ref);
 

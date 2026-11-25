@@ -8,12 +8,15 @@ import type { JournalRow, UnreadRows } from '../types.ts';
 export async function readDecisions(folder: string): Promise<{
   readonly decisions: BriefInput['decisions'];
 
-  // every decide row of the journal, in journal order
+  // every decide and ruled-out row of the journal, in journal order
   readonly rows: readonly JournalRow[];
   readonly unread: UnreadRows | null;
 }> {
   try {
-    const rows = await readJournalRows(folder, (row) => row.op === 'decide');
+    const rows = await readJournalRows(
+      folder,
+      (row) => row.op === 'decide' || row.op === 'ruled-out',
+    );
 
     return { decisions: collectDecisionsInForce(rows), rows, unread: null };
   } catch (error) {

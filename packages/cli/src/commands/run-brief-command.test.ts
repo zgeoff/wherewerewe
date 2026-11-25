@@ -6,14 +6,17 @@ import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { createGitCommit, runGit } from '@zgeoff/testing/git';
 import { estimateTokens } from '../brief/estimate-tokens.ts';
+import { pickBriefLimit } from '../brief/pick-brief-limit.ts';
 import { itemCaps, lessonCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
 import { runCLI } from '../run-cli.ts';
 import { formatPrsFile } from '../store/format-prs-file.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
+import { readStore } from '../store/read-store.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { countBriefLines } from '../test-utils/count-brief-lines.ts';
+import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedDayNineStore } from '../test-utils/seed-day-nine-store.ts';
@@ -25,6 +28,7 @@ import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { seedWorstCaseStore } from '../test-utils/seed-worst-case-store.ts';
+import { readBriefFigure } from '../writes/read-brief-figure.ts';
 
 function setupTest() {
   const root = createTempDir('run-brief').path;
@@ -825,3 +829,138 @@ test.each([
     });
   },
 );
+
+test.each([
+  { host: 'claude', variables: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' }, limit: 'claude' },
+  { host: 'codex', variables: { CODEX_THREAD_ID: 'c9-test' }, limit: 'codex' },
+  { host: 'no host', variables: {}, limit: null },
+] as const)(
+  'it gives in the JSON brief the limit and estimate of the text brief for $host',
+  async (row) => {
+    const textCtx = setupTest();
+    const jsonCtx = setupTest();
+    const name = 'n'.repeat(24);
+
+    const pullRequestRefs = Array.from(
+      { length: 12 },
+      (_unused, index) => `bosunhq/bosun-api#${String(100 + index)}`,
+    );
+
+    const createCopy = async (ctx: ReturnType<typeof setupTest>) => {
+      seedGhAnswers(
+        ctx.bin,
+        Object.fromEntries(pullRequestRefs.map((ref) => [ref, 'OPEN passing'])),
+      );
+
+      await seedWorstCaseStore((argv) => ctx.run(argv, ctx.agentEnv), ctx.stateRoot, name, {
+        taskCount: 30,
+        isThreeByte: true,
+      });
+
+      seedStoreFile(
+        join(ctx.stateRoot, name),
+        'prs.tsv',
+        formatPrsFile(
+          pullRequestRefs.map((ref) => ({
+            ref,
+            opened: '2026-03-10T08:43:00Z',
+            state: 'OPEN' as const,
+            seen: '2026-03-10T09:00:00Z',
+          })),
+        ),
+      );
+    };
+
+    await createCopy(textCtx);
+    await createCopy(jsonCtx);
+
+    const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+    const read = (ctx: ReturnType<typeof setupTest>, argv: readonly string[]) =>
+      runCLI({
+        argv,
+        env: { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: '', ...row.variables },
+        cwd: '/work',
+        terminal: { stdin: false, stdout: false },
+        now: () => nowMs,
+      });
+
+    const printedText = await read(textCtx, ['--session', name]);
+    const printedJSON = await read(jsonCtx, ['--session', name, '--json']);
+    const stored = await readStore(join(jsonCtx.stateRoot, name));
+
+    if (stored.kind !== 'store') {
+      throw new Error('the seeded store does not read');
+    }
+
+    const figure = await readBriefFigure(join(jsonCtx.stateRoot, name), stored.store, {
+      nowMs,
+      sessionFlag: name,
+      host: row.limit,
+    });
+
+    const brief = jsonSchemas.brief.parse(JSON.parse(printedJSON.stdout));
+
+    expect({
+      exitCodes: [printedText.exitCode, printedJSON.exitCode],
+      stderr: printedJSON.stderr,
+      isTextCut: /^ {2}and \d+ more/mu.test(printedText.stdout),
+      limit: brief.limit,
+      estimate: brief.estimate,
+      open: brief.open.map((shown) => shown.row.id).toSorted(),
+      lessons: brief.lessons.map((entry) => entry.id).toSorted(),
+      promises: brief.promises.map((entry) => entry.id).toSorted(),
+      words: brief.words.map((entry) => entry.id).toSorted(),
+      decisions: brief.decisions.map((entry) => entry.id).toSorted(),
+      prs: brief.prs.map((entry) => entry.ref).toSorted(),
+    }).toStrictEqual({
+      exitCodes: [0, 0],
+      stderr: printedText.stderr,
+      isTextCut: true,
+      limit: pickBriefLimit(row.limit),
+      estimate: figure.tokens,
+      open: stored.store.items.map((entry) => entry.id).toSorted(),
+      lessons: stored.store.lessons.map((entry) => entry.id).toSorted(),
+      promises: stored.store.promises.map((entry) => entry.id).toSorted(),
+      words: stored.store.words.map((entry) => entry.id).toSorted(),
+      decisions: ['d-1', 'd-2', 'd-3'],
+      prs: pullRequestRefs.toSorted(),
+    });
+  },
+);
+
+test('it prints the JSON brief and the stderr of the text brief when items.tsv stops reading during a probe', async () => {
+  const text = setupTest();
+  const json = setupTest();
+
+  const createCopy = async (ctx: ReturnType<typeof setupTest>) => {
+    const itemsPath = join(ctx.folder, 'items.tsv');
+
+    seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#1': 'OPEN passing' });
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#1']);
+
+    seedStubCommand(
+      ctx.bin,
+      'gh',
+      `/bin/rm -f "${itemsPath}"; /bin/mkdir "${itemsPath}"; printf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
+    );
+  };
+
+  await createCopy(text);
+  await createCopy(json);
+
+  const printedText = await text.run([]);
+  const printedJSON = await json.run(['--json']);
+
+  expect({
+    exitCode: printedJSON.exitCode,
+    stderr: printedJSON.stderr,
+    session: JSON.parse(printedJSON.stdout).session,
+  }).toStrictEqual({
+    exitCode: printedText.exitCode,
+    stderr: printedText.stderr,
+    session: 'tide-alerts',
+  });
+});

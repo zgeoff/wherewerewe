@@ -58,7 +58,13 @@ export function buildShowJSON(input: ShowJsonInput): ShowJson {
   if (id === 'grant') {
     return {
       ...jsonVersion,
-      subjects: [{ kind: 'grant', row: buildGrantOpts(store.session.grant), journal: own }],
+      subjects: [
+        {
+          kind: 'grant',
+          row: buildGrantOpts(store.session.grant),
+          journal: own.filter((row) => row.op === 'grant'),
+        },
+      ],
     };
   }
 

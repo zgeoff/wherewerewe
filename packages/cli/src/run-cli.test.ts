@@ -82,6 +82,20 @@ function setupTest() {
       }),
     readTree: () => readTreeHashes(stateRoot),
 
+    // the result a read saved for t-a of tide-alerts, or null when no items.tsv reads
+    readSavedResult: () => {
+      try {
+        const parsed = parseItemsFile(
+          readFileSync(join(stateRoot, 'tide-alerts', 'items.tsv'), 'utf8'),
+          '2',
+        );
+
+        return parsed.items.find((item) => item.id === 't-a')?.last ?? null;
+      } catch {
+        return null;
+      }
+    },
+
     // a store of its own under the test's folder, with the lesson, promise, owner's words and
     // decision of seedRedactionStore, then one command, all at one time
     runInRedactionStore: async (
@@ -168,6 +182,8 @@ test.each([[['help']], [['--help']], [['-h']]])(
 
 test.each([
   [['taks'], `www: unknown command "taks".\nRun: www help${nothingWrittenComment}\n`],
+  [['brief'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
+  [['brief', '--bogus'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
   [
     ['doctor', 'x'],
     `www: "doctor" comes in a later version of www.\nRun: www help${nothingWrittenComment}\n`,
@@ -3250,7 +3266,24 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
   await ctx.run(['promise', 'due-cost', 'Cost table', '--to', 'owner', '--by', 'day 10']);
   await ctx.run(['words', 'w-plain', 'Plain words', '--where', 'chat']);
 
+  const noGrantPaste = await ctx.run(['goal', '--paste']);
+
+  await ctx.run([
+    'grant',
+    '--may',
+    'merge the chart PRs once CI is green',
+    '--never',
+    'publish a release',
+    '--scope',
+    'in the sailing app',
+    '--where',
+    'chat',
+    '--reading',
+    'covers chart merges on green CI',
+  ]);
+
   const outputs = [
+    noGrantPaste,
     await ctx.run(['lesson', 'l-new', 'A lesson', '--why', 'A mistake']),
     await ctx.run(['lesson', 'l-new', 'A lesson']),
     await ctx.run(['promise', 'p-new', 'A promise']),
@@ -3264,6 +3297,16 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     await ctx.run(['list', 'promises']),
     await ctx.run(['list', 'words']),
     await ctx.run(['--session', 'tide-alerts']),
+    await ctx.run(['goal', '--paste']),
+    await ctx.run(['goal', '--paste', 'Ship it']),
+    await ctx.run(['goal', '--paste', '--json']),
+    await ctx.run(['--bogus']),
+    await ctx.run(['show', '--bogus']),
+    await ctx.run(['log', '--bogus']),
+    await ctx.run(['list', 'rules', '--bogus']),
+    await ctx.run(['recap', '--bogus']),
+    await ctx.run(['goal', 'Ship it', '--bogus']),
+    await ctx.run(['task', 't-a', 'A task', '--json']),
   ];
 
   const text = outputs.map((output) => `${output.stdout}${output.stderr}`).join('\n');
@@ -3271,7 +3314,7 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
   const newHelpLines = helpText
     .split('\n')
     .filter((line) =>
-      /www list|every row of one kind|www lesson|www promise|www words|one screen for the owner|work on now|A lesson or the owner's words close/u.test(
+      /www list|every row of one kind|www lesson|www promise|www words|one screen for the owner|work on now|A lesson or the owner's words close|take --json|www goal --paste/u.test(
         line,
       ),
     );
@@ -3282,7 +3325,7 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     help: getSteeringWords(newHelpLines.join('\n')),
     helpLines: newHelpLines.length > 5,
   }).toStrictEqual({
-    exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0],
+    exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2],
     steering: [],
     help: [],
     helpLines: true,
@@ -3309,7 +3352,16 @@ test.each(
       { command: 'www log', argv: ['log'] },
       { command: 'www list tasks', argv: ['list', 'tasks'] },
       { command: 'www recap', argv: ['recap'] },
-    ].map((read) => ({ command: read.command, argv: read.argv, state })),
+    ].map((read) => ({
+      command: read.command,
+      argv: read.argv,
+      state,
+      saved:
+        read.command === 'www' &&
+        (state === 'a whole store' || state === 'a notes row that does not parse')
+          ? 'exists'
+          : null,
+    })),
   ),
 )('it exits $command --json with the code and stderr of its text form when $state', async (row) => {
   const text = setupTest();
@@ -3323,6 +3375,9 @@ test.each(
   const printedText = await text.run(scoped);
   const printedJSON = await json.run([...scoped, '--json']);
 
+  const savedText = text.readSavedResult();
+  const savedJSON = json.readSavedResult();
+
   restoreText();
   restoreJson();
 
@@ -3331,30 +3386,38 @@ test.each(
     stderr: printedJSON.stderr.replaceAll(json.root, '<ROOT>'),
     stdout: printedJSON.exitCode === 0 ? 'one line of JSON' : printedJSON.stdout,
     lines: printedJSON.stdout.split('\n').length,
+    saved: savedJSON,
   }).toStrictEqual({
     exitCode: printedText.exitCode,
     stderr: printedText.stderr.replaceAll(text.root, '<ROOT>'),
     stdout: printedJSON.exitCode === 0 ? 'one line of JSON' : '',
     lines: printedJSON.exitCode === 0 ? 2 : 1,
+    saved: row.saved,
   });
 
+  expect(savedText).toBe(row.saved);
   expect(() => (printedJSON.exitCode === 0 ? JSON.parse(printedJSON.stdout) : null)).not.toThrow();
 });
 
 test.each([
-  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h', '--json'] },
-  { title: 'www list --json', argv: ['list', '--json'] },
+  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h'] },
+  { title: 'www list --json', argv: ['list'] },
 ])(
   'it exits $title with the code and stderr of its usage refusal and prints no JSON',
   async (row) => {
-    const ctx = setupTest();
+    const text = setupTest();
+    const json = setupTest();
 
-    const refused = await ctx.run(row.argv);
+    const refusedText = await text.run(row.argv);
+    const refusedJSON = await json.run([...row.argv, '--json']);
 
-    expect({ exitCode: refused.exitCode, stdout: refused.stdout }).toStrictEqual({
-      exitCode: 2,
-      stdout: '',
-    });
+    expect({
+      exitCode: refusedJSON.exitCode,
+      stdout: refusedJSON.stdout,
+      stderr: refusedJSON.stderr,
+    }).toStrictEqual({ exitCode: 2, stdout: '', stderr: refusedText.stderr });
+
+    expect(refusedText.exitCode).toBe(2);
   },
 );
 
@@ -3402,7 +3465,15 @@ test('it changes the files a read changes, and no more, with --json', async () =
   const jsonTree = await json.readTree();
   const textTree = await text.readTree();
 
-  expect(jsonTree).toStrictEqual(textTree);
+  const changedRows = await readJournalRows(
+    join(json.stateRoot, 'tide-alerts'),
+    (row) => row.op === 'changed',
+  );
+
+  expect({
+    sameFiles: jsonTree,
+    changed: changedRows.map((row) => [row.id, row.text]),
+  }).toStrictEqual({ sameFiles: textTree, changed: [['t-a', 'exists -> missing']] });
 });
 
 test.each([

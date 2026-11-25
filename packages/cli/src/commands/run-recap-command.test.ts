@@ -124,6 +124,7 @@ test.each([['soon'], ['day-100000002'], ['day-3000000'], ['99999999999999d']])(
       exitCode: 2,
       stdout: '',
       stderr: 'www: --since takes 24h, 3d or day-7.\nRun: www recap --since 24h\n',
+      stdoutFormat: 'text',
     });
   },
 );
@@ -168,6 +169,7 @@ test('it prints the recap and names journal.tsv on stderr when the journal canno
     ].join('\n'),
     stderr:
       "www: tide-alerts's journal.tsv does not parse: EISDIR. This read leaves out what it could not read. Fix the file by hand.\n",
+    stdoutFormat: 'text',
   });
 });
 

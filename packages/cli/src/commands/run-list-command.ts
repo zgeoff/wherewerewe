@@ -47,7 +47,7 @@ export async function runListCommand(
         buildListJSON(kind, {
           brief: input,
           prs: store.prs,
-          decideRows: decided?.rows ?? [],
+          decisionRows: decided?.rows ?? [],
         }),
       ),
       stderr,
@@ -55,5 +55,5 @@ export async function runListCommand(
     };
   }
 
-  return { exitCode: 0, stdout: renderList(kind, input), stderr };
+  return { exitCode: 0, stdout: renderList(kind, input), stderr, stdoutFormat: 'text' };
 }

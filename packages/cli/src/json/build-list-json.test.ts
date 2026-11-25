@@ -26,8 +26,8 @@ test('it lists the open approvals, waits, rules and where rows, each of its own 
   const rule = buildMockItem({ id: 'r-a', kind: 'rule' });
   const task = buildMockItem({ id: 't-a' });
   const brief = buildMockBriefInput({ items: [wait, rule, task] });
-  const waits = ctx.buildListJSON('waits', { brief, prs: [], decideRows: [] });
-  const rules = ctx.buildListJSON('rules', { brief, prs: [], decideRows: [] });
+  const waits = ctx.buildListJSON('waits', { brief, prs: [], decisionRows: [] });
+  const rules = ctx.buildListJSON('rules', { brief, prs: [], decisionRows: [] });
 
   expect([waits, rules]).toStrictEqual([
     { ...jsonVersion, kind: 'waits', rows: [{ kind: 'wait', row: wait, note: null }] },
@@ -47,7 +47,7 @@ test('it lists the notes of the open items, owed first, then the newest', () => 
     ],
   });
 
-  const listed = ctx.buildListJSON('notes', { brief, prs: [], decideRows: [] });
+  const listed = ctx.buildListJSON('notes', { brief, prs: [], decisionRows: [] });
 
   expect(listed).toStrictEqual({
     ...jsonVersion,
@@ -59,14 +59,52 @@ test('it lists the notes of the open items, owed first, then the newest', () => 
   });
 });
 
-test('it lists the decide row of each decision in force, and no other row', () => {
+test('it lists the decide row of each decision in force, and no replaced or ruled-out row', () => {
   const ctx = setupTest();
-  const brief = buildMockBriefInput({ decisions: [{ id: 'd-2', choice: 'Use UTC' }] });
   const older = buildMockJournalRow({ ts: '2026-03-09T10:00:00Z', op: 'decide', id: 'd-1' });
-  const kept = buildMockJournalRow({ ts: '2026-03-10T10:00:00Z', op: 'decide', id: 'd-2' });
-  const listed = ctx.buildListJSON('decisions', { brief, prs: [], decideRows: [older, kept] });
+
+  const kept = buildMockJournalRow({
+    ts: '2026-03-10T10:00:00Z',
+    op: 'decide',
+    id: 'd-2',
+    extra: 'replaces=d-1',
+  });
+
+  const ruledOut = buildMockJournalRow({ ts: '2026-03-10T11:00:00Z', op: 'ruled-out', id: 'd-3' });
+
+  const listed = ctx.buildListJSON('decisions', {
+    brief: buildMockBriefInput({}),
+    prs: [],
+    decisionRows: [older, kept, ruledOut],
+  });
 
   expect(listed).toStrictEqual({ ...jsonVersion, kind: 'decisions', rows: [kept] });
+});
+
+test('it lists each of two decide rows that hold one id, as the text form lists them', () => {
+  const ctx = setupTest();
+
+  const first = buildMockJournalRow({
+    ts: '2026-03-09T10:00:00Z',
+    op: 'decide',
+    id: 'd-1',
+    text: 'First',
+  });
+
+  const second = buildMockJournalRow({
+    ts: '2026-03-10T10:00:00Z',
+    op: 'decide',
+    id: 'd-1',
+    text: 'Second',
+  });
+
+  const listed = ctx.buildListJSON('decisions', {
+    brief: buildMockBriefInput({}),
+    prs: [],
+    decisionRows: [first, second],
+  });
+
+  expect(listed).toStrictEqual({ ...jsonVersion, kind: 'decisions', rows: [second, first] });
 });
 
 test.each([['day 9' as const], ['worst case' as const]])(
@@ -115,5 +153,5 @@ test('it prints the www list rules --json example of lists-and-json.md from the 
 
   const printed = await ctx.run(env, ['list', 'rules']);
 
-  expect(JSON.stringify(printed.value)).toBe(example.split('\n')[1] ?? '');
+  expect(printed.stdout).toBe(`${example.split('\n')[1] ?? ''}\n`);
 });

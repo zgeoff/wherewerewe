@@ -19,7 +19,7 @@ export type JsonCase =
   | 'a session that does not parse';
 
 // The session tide-alerts under the root's wherewerewe folder, in the state of the case. It holds
-// one task with a path check, so a brief probes. Returns what restores a folder the case made
+// one task with a path check and no saved result, so a brief probes and has a result to save. Returns what restores a folder the case made
 // read-only.
 export async function seedJsonCaseStore(root: string, state: JsonCase): Promise<() => void> {
   const stateRoot = join(root, 'wherewerewe');
@@ -65,7 +65,7 @@ export async function seedJsonCaseStore(root: string, state: JsonCase): Promise<
 
 async function seedWholeStore(root: string, folder: string, state: JsonCase): Promise<() => void> {
   await seedSessionStore(join(root, 'wherewerewe'), 'tide-alerts');
-  await seedItem(folder, { id: 't-a', check: `path:${root}`, atWrite: 'exists', last: 'exists' });
+  await seedItem(folder, { id: 't-a', check: `path:${root}`, atWrite: 'exists', last: null });
 
   if (state === 'a notes row that does not parse') {
     seedStoreFile(folder, 'notes.tsv', 'id\towed\twritten\tnote\nt-a\n');

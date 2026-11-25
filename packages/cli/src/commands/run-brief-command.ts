@@ -5,6 +5,7 @@ import { renderBrief } from '../brief/render-brief.ts';
 import type { BriefInput } from '../brief/types.ts';
 import { checkLimits } from '../checks/check-limits.ts';
 import { pickCheckSave } from '../checks/pick-check-save.ts';
+import { pickSavedStore } from '../checks/pick-saved-store.ts';
 import { runChecks } from '../checks/run-checks.ts';
 import type { CheckRun } from '../checks/types.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
@@ -75,12 +76,13 @@ export async function runBriefCommand(
     .join('');
 
   if (context.args.values.json !== true) {
-    return { exitCode: 0, stdout: renderBrief(input), stderr };
+    return { exitCode: 0, stdout: renderBrief(input), stderr, stdoutFormat: 'text' };
   }
 
-  const left = await readStore(store.folder);
-
-  const figureStore = left.kind === 'store' ? left.store : store;
+  const figureStore =
+    unread === null && saved === null
+      ? pickSavedStore(store, run, formatTimestamp(context.nowMs))
+      : store;
 
   const figure = buildBriefFigure(
     figureStore,
@@ -94,7 +96,7 @@ export async function runBriefCommand(
       buildBriefJSON({
         brief: input,
         prs: store.prs,
-        decideRows: decided.rows,
+        decisionRows: decided.rows,
         estimate: figure.tokens,
       }),
     ),

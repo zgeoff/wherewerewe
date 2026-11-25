@@ -12,7 +12,8 @@ export interface RecapJsonInput {
   readonly notes: readonly Note[];
   readonly promises: readonly PromiseRow[];
 
-  // the journal rows at or after `fromMs`; null when journal.tsv could not be read
+  // the journal rows at or after `fromMs`; null when journal.tsv could not be read. Rows are stamped
+  // to the second, so `since` rounds `fromMs` up to the second that keeps the same rows.
   readonly rows: readonly JournalRow[] | null;
   readonly fromMs: number;
   readonly nowMs: number;
@@ -43,7 +44,7 @@ export function buildRecapJSON(input: RecapJsonInput): RecapJson {
     ...jsonVersion,
     session: input.session.name,
     day: getSessionDay(input.session.started, input.nowMs),
-    since: formatTimestamp(input.fromMs),
+    since: formatTimestamp(Math.ceil(input.fromMs / 1000) * 1000),
     writes:
       input.rows === null
         ? null

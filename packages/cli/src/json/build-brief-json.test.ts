@@ -23,7 +23,7 @@ test('it names the session, its day, the host with none for no host, the goal an
   const brief = ctx.buildBriefJSON({
     brief: buildMockBriefInput({}),
     prs: [],
-    decideRows: [],
+    decisionRows: [],
     estimate: 123,
   });
 
@@ -68,7 +68,7 @@ test('it shows the result this read got as the last result of a checked item', (
       ]),
     }),
     prs: [],
-    decideRows: [],
+    decisionRows: [],
     estimate: 0,
   });
 
@@ -83,24 +83,33 @@ test('it shows the result this read got as the last result of a checked item', (
   ]);
 });
 
-test('it holds the decide row of each decision in force, whole', () => {
+test('it holds the decide row of each decision in force, whole, two rows of one id included', () => {
   const ctx = setupTest();
 
-  const row = buildMockJournalRow({
-    ts: '2026-03-10T10:00:00Z',
+  const first = buildMockJournalRow({
+    ts: '2026-03-09T10:00:00Z',
     op: 'decide',
-    id: 'd-2',
-    text: 'Use UTC',
+    id: 'd-1',
+    text: 'First',
   });
 
+  const second = buildMockJournalRow({
+    ts: '2026-03-10T10:00:00Z',
+    op: 'decide',
+    id: 'd-1',
+    text: 'Second',
+  });
+
+  const ruledOut = buildMockJournalRow({ ts: '2026-03-10T11:00:00Z', op: 'ruled-out', id: 'd-2' });
+
   const brief = ctx.buildBriefJSON({
-    brief: buildMockBriefInput({ decisions: [{ id: 'd-2', choice: 'Use UTC' }] }),
+    brief: buildMockBriefInput({}),
     prs: [],
-    decideRows: [row],
+    decisionRows: [first, second, ruledOut],
     estimate: 0,
   });
 
-  expect(brief.decisions).toStrictEqual([row]);
+  expect(brief.decisions).toStrictEqual([second, first]);
 });
 
 test.each([['day 9' as const], ['worst case' as const]])(

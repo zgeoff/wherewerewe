@@ -77,7 +77,7 @@ const sessionCommands: ReadonlySet<string> = new Set(['init', 'attach', 'detach'
 
 async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CommandResult> {
   if (args.command === 'help') {
-    return { exitCode: 0, stdout: helpText, stderr: '' };
+    return { exitCode: 0, stdout: helpText, stderr: '', stdoutFormat: 'text' };
   }
 
   if (ownerCommands.has(args.command) && !isOwnerTerminal(input)) {
@@ -93,7 +93,12 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<Command
   if (root === null) {
     // Listing sessions needs no session and is never refused: with no folder, there are none.
     return args.command === 'sessions'
-      ? { exitCode: 0, stdout: `${formatSessionLines([], nowMs)}\n`, stderr: '' }
+      ? {
+          exitCode: 0,
+          stdout: `${formatSessionLines([], nowMs)}\n`,
+          stderr: '',
+          stdoutFormat: 'text',
+        }
       : buildRefusalResult(
           buildRefusal({ kind: 'no-store-folder' }),
           buildRefusalScope(args, input.cwd),
@@ -111,10 +116,16 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<Command
   };
 
   const result = await match(args.command)
-    .with('import', () => runImportCommand(context))
+    .with('import', async () => ({
+      ...(await runImportCommand(context)),
+      stdoutFormat: 'text' as const,
+    }))
     .when(
       (command) => sessionCommands.has(command),
-      () => runSessionCommand(context),
+      async () => ({
+        ...(await runSessionCommand(context)),
+        stdoutFormat: 'text' as const,
+      }),
     )
     .otherwise(() => runSessionBoundCommand(context));
 
@@ -262,12 +273,13 @@ function findHost(context: CommandContext): 'claude' | 'codex' | null {
   return findAgentID(context.env)?.harness ?? null;
 }
 
-function resolveWriteResult(written: RunWriteResult, args: ParsedArgs, cwd: string): CLIResult {
+function resolveWriteResult(written: RunWriteResult, args: ParsedArgs, cwd: string): CommandResult {
   return match(written)
     .with({ kind: 'replied' }, (replied) => ({
       exitCode: 0 as const,
       stdout: `${replied.reply}\n`,
       stderr: '',
+      stdoutFormat: 'text' as const,
     }))
     .with({ kind: 'refused' }, (refused) =>
       buildRefusalResult(refused.refusal, buildRefusalScope(args, cwd)),

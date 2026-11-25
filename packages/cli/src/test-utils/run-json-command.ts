@@ -1,11 +1,16 @@
 import { runCLI } from '../run-cli.ts';
 
 // Runs a read command with --json at 2026-03-10T11:43:00Z, as an agent outside a terminal, and
-// returns its exit code, the number of lines it printed, and the JSON it printed, parsed.
+// returns its exit code, the number of lines it printed, its stdout as printed, and the JSON it printed, parsed.
 export async function runJsonCommand(
   env: Readonly<Record<string, string | undefined>>,
   argv: readonly string[],
-): Promise<{ readonly exitCode: number; readonly lines: number; readonly value: unknown }> {
+): Promise<{
+  readonly exitCode: number;
+  readonly lines: number;
+  readonly stdout: string;
+  readonly value: unknown;
+}> {
   const result = await runCLI({
     argv: [...argv, '--json'],
     env,
@@ -17,6 +22,7 @@ export async function runJsonCommand(
   return {
     exitCode: result.exitCode,
     lines: result.stdout.split('\n').length - 1,
+    stdout: result.stdout,
     value: result.stdout === '' ? null : JSON.parse(result.stdout),
   };
 }

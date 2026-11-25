@@ -29,6 +29,7 @@ test('it runs a read with --json and parses the one line it prints', async () =>
   expect(result).toStrictEqual({
     exitCode: 0,
     lines: 1,
+    stdout: expect.stringMatching(/^\{"v":1,"rows":\[.*\]\}\n$/u),
     value: { ...jsonVersion, rows: expect.any(Array) },
   });
 });

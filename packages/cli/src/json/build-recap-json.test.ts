@@ -37,6 +37,23 @@ test('it holds null for the writes and both lists when the journal cannot be rea
   }).toStrictEqual({ writes: null, decidedSince: null, closedSince: null });
 });
 
+test.each([
+  { fromAt: '2026-03-09T11:43:00.000Z', since: '2026-03-09T11:43:00Z' },
+  { fromAt: '2026-03-09T11:43:00.001Z', since: '2026-03-09T11:43:01Z' },
+  { fromAt: '2026-03-09T11:43:00.500Z', since: '2026-03-09T11:43:01Z' },
+])('it reports the cutoff $fromAt as $since, the first second that keeps the same rows', (row) => {
+  const ctx = setupTest();
+
+  const recap = ctx.buildRecapJSON({
+    ...ctx.base,
+    session: buildMockSession({}),
+    rows: [],
+    fromMs: Date.parse(row.fromAt),
+  });
+
+  expect(recap.since).toBe(row.since);
+});
+
 test('it counts the writes of an agent and the owner and holds the decisions and closes whole', () => {
   const ctx = setupTest();
 

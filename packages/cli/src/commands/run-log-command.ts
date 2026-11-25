@@ -51,5 +51,10 @@ export async function runLogCommand(
     };
   }
 
-  return { exitCode: 0, stdout: renderLog(rows, store.session.started), stderr };
+  return {
+    exitCode: 0,
+    stdout: renderLog(rows, store.session.started),
+    stderr,
+    stdoutFormat: 'text',
+  };
 }
