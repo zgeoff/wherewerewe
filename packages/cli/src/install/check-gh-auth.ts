@@ -25,6 +25,7 @@ function probeSignedIn(gh: string, env: Readonly<Record<string, string | undefin
   try {
     const result = Bun.spawnSync([gh, 'auth', 'status'], {
       env: { ...env, GH_PROMPT_DISABLED: '1' },
+      cwd: '/',
       stdin: 'ignore',
       stdout: 'pipe',
       stderr: 'pipe',

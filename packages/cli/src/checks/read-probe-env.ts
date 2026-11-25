@@ -47,6 +47,7 @@ export function readProbeEnv(
 
   return {
     ...Object.fromEntries(passed),
+    ...readGlobalConfigEnv(env, cwd),
     PATH: path,
     GH_PROMPT_DISABLED: '1',
     GIT_TERMINAL_PROMPT: '0',
@@ -72,4 +73,23 @@ function readRealPath(path: string): string {
   } catch {
     return resolve(path);
   }
+}
+
+// git reads its global config from HOME or XDG_CONFIG_HOME when GIT_CONFIG_GLOBAL is unset, so a
+// HOME or XDG_CONFIG_HOME in the folder the command runs in gives git an agent's config: git gets
+// /dev/null as its global config in its place.
+function readGlobalConfigEnv(
+  env: Readonly<Record<string, string | undefined>>,
+  cwd: string,
+): Record<string, string> {
+  const folders = [env['HOME'], env['XDG_CONFIG_HOME']];
+
+  if (
+    env['GIT_CONFIG_GLOBAL'] === undefined &&
+    folders.some((folder) => folder !== undefined && readIsInFolder(folder, cwd))
+  ) {
+    return { GIT_CONFIG_GLOBAL: '/dev/null' };
+  }
+
+  return {};
 }

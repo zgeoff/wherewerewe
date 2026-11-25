@@ -1,5 +1,5 @@
-// Runs `codex execpolicy check` for the command `www` against one rules file, with no stdin and a
-// time limit, and returns what it printed. `null` when it fails to start, fails to run or exits
+// Runs `codex execpolicy check` for the command `www` against one rules file, from the root folder
+// so no project config applies, with no stdin and a time limit, and returns what it printed. `null` when it fails to start, fails to run or exits
 // non-zero.
 export function runExecpolicy(
   codex: string,
@@ -11,6 +11,7 @@ export function runExecpolicy(
       [codex, 'execpolicy', 'check', '--rules', rulesPath, '--', 'www'],
       {
         env: { ...env },
+        cwd: '/',
         stdin: 'ignore',
         stdout: 'pipe',
         stderr: 'pipe',

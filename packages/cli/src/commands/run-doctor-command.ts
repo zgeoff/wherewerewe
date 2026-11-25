@@ -15,6 +15,7 @@ import { findHomePaths } from '../install/find-home-paths.ts';
 import { formatDisplayPath } from '../install/format-display-path.ts';
 import { getPackageVersion } from '../install/get-package-version.ts';
 import { listEntryPaths } from '../install/list-entry-paths.ts';
+import { readChildEnv } from '../install/read-child-env.ts';
 import { readDoctorText } from '../install/read-doctor-text.ts';
 import { readSafeProgram } from '../install/read-safe-program.ts';
 import type { DoctorCheck } from '../install/types.ts';
@@ -88,7 +89,7 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
       shown: show(paths.codexRules),
       text: readDoctorText(paths.codexRules),
       codex: readSafeProgram('codex', context.env, context.cwd),
-      env: context.env,
+      env: readChildEnv(context.env, context.cwd),
     }),
     checkCodexConfig({
       user: { shown: show(paths.codexConfig), text: readDoctorText(paths.codexConfig) },
@@ -100,7 +101,10 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
       storeRoot,
     }),
     checkStoreWritable(storeRoot),
-    checkGhAuth(readSafeProgram('gh', context.env, context.cwd), context.env),
+    checkGhAuth(
+      readSafeProgram('gh', context.env, context.cwd),
+      readChildEnv(context.env, context.cwd),
+    ),
     checkDuplicateEntries('claude', [
       { shown: show(paths.claudeSettings), format: 'json', text: claudeText },
       ...projectLayers('.claude', ['settings.json', 'settings.local.json']),

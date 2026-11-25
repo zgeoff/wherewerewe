@@ -1,6 +1,7 @@
 import { accessSync, constants, realpathSync } from 'node:fs';
 import { isAbsolute, relative } from 'node:path';
 import { readProbeEnv } from '../checks/read-probe-env.ts';
+import { readProbePath } from '../checks/read-probe-path.ts';
 import { formatDisplayPath } from './format-display-path.ts';
 import { readSafeProgram } from './read-safe-program.ts';
 
@@ -121,7 +122,7 @@ function readVersionOutput(
 ): string {
   try {
     const result = Bun.spawnSync([git, '--version'], {
-      env: readProbeEnv(env, env['PATH'] ?? '', cwd),
+      env: readProbeEnv(env, readProbePath(env['PATH'] ?? '', cwd), cwd),
       stdin: 'ignore',
       stdout: 'pipe',
       stderr: 'ignore',

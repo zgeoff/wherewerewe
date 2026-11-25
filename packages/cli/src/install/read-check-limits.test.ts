@@ -121,3 +121,22 @@ test('it names each config folder in the environment that the user can write', (
     'GH_CONFIG_DIR names ~/gh-config, which you can write to, so a git or gh config an agent writes there is read by a check.',
   ]);
 });
+
+test('it runs git --version on the PATH a probe searches, so a wrapper finds nothing in the working folder', () => {
+  const ctx = setupTest();
+  const tools = join(ctx.work, 'tools');
+
+  mkdirSync(tools);
+
+  seedStubCommand(
+    ctx.bin,
+    'git',
+    'case "$PATH" in *work*) echo "git version 2.30.1" ;; *) echo "git version 2.55.0" ;; esac',
+  );
+
+  const lines = readCheckLimits({ PATH: `${tools}:${ctx.bin}` }, ctx.work, ctx.root).filter(
+    (line) => !line.includes('you can write') && !line.includes('inside the folder'),
+  );
+
+  expect(lines).toStrictEqual([ctx.race]);
+});

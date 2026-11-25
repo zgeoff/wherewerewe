@@ -671,3 +671,26 @@ test('it prints no value of a settings file beyond the lines it names', async ()
 
   expect(`${result.stdout}${result.stderr}`).not.toContain(secret.slice(0, 12));
 });
+
+test.each(['codex', 'gh'])(
+  'it runs %s with the probe environment, from the root folder, so no loader setting or project config reaches it',
+  async (name) => {
+    const ctx = await setupTest();
+
+    const seen = join(ctx.root, `${name}-saw`);
+    const decision = name === 'codex' ? `echo '{"decision":"allow"}'` : 'exit 0';
+    const codexHome = dirname(dirname(ctx.paths.codexRules));
+
+    seedStubCommand(ctx.bin, name, `{ pwd; export -p; } > ${seen}\n${decision}`);
+
+    await ctx.doctor({ LD_PRELOAD: '/work/hook.so', CODEX_HOME: codexHome });
+
+    const lines = readFileSync(seen, 'utf8').split('\n');
+
+    expect({
+      folder: lines[0],
+      preload: lines.some((line) => line.includes('LD_PRELOAD=')),
+      codexHome: lines.some((line) => line.includes(`CODEX_HOME="${codexHome}"`)),
+    }).toStrictEqual({ folder: '/', preload: false, codexHome: true });
+  },
+);
