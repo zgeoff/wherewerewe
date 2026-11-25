@@ -37,6 +37,7 @@ test.each([
       '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"wherewerewe: you pushed"}}',
     decision: 'context',
   },
+  { title: 'text that is not JSON', stdout: '{"decision":"block"}x', decision: 'other' },
 ] as const)('it reads $title as $decision', (row) => {
   const ctx = setupTest();
 

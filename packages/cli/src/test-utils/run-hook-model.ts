@@ -4,22 +4,21 @@ import { setImmediate } from 'node:timers/promises';
 import { createTempDir } from '@zgeoff/testing/fs';
 import type fc from 'fast-check';
 import { match } from 'ts-pattern';
-import { briefFooter } from '../brief/join-brief.ts';
 import { runHookCommand } from '../commands/run-hook-command.ts';
 import { parseGateFile } from '../hooks/parse-gate-file.ts';
-import { readInjection } from '../hooks/read-injection.ts';
 import { stepGate } from '../hooks/step-gate.ts';
 import type { GateEvent, GateFile, Harness } from '../hooks/types.ts';
 import { runCLI } from '../run-cli.ts';
 import { readBinding } from '../sessions/read-binding.ts';
 import { buildHookContext } from './build-hook-context.ts';
 import { buildHookPayload } from './build-hook-payload.ts';
-import type { HookPayloadSpec } from './build-hook-payload.ts';
 import { formatExpectedHookOutput } from './format-expected-hook-output.ts';
+import { readExpectedInjection } from './read-expected-injection.ts';
 import { readGateLine } from './read-gate-line.ts';
 import { seedHookStore } from './seed-hook-store.ts';
 import { toHookDecision } from './to-hook-decision.ts';
 import type { HookDecision } from './to-hook-decision.ts';
+import { toHookModelSpec } from './to-hook-model-spec.ts';
 
 export type HookModelPayload =
   | 'start-startup'
@@ -52,6 +51,12 @@ export type HookModelOp =
   | { readonly kind: 'attach' }
   | { readonly kind: 'together'; readonly first: HookModelCall; readonly second: HookModelCall };
 
+// The two commands the model runs, given so a test can change what either replies.
+export interface HookModelRunners {
+  readonly runCLI: typeof runCLI;
+  readonly runHookCommand: typeof runHookCommand;
+}
+
 interface ModelState {
   readonly file: GateFile | null;
 
@@ -60,14 +65,16 @@ interface ModelState {
 }
 
 const agent = { id: '9e1f-trial', unbound: 'ffff-unbound' };
+const realRunners: HookModelRunners = { runCLI, runHookCommand };
 
-// Runs the operations through the real hook command over a temp store root and through a model that
-// advances the same step function, and returns each place they or an invariant disagree. Each
-// stdout must be the model's output whole. Two hooks run together in the scheduler's order.
+// Runs the operations through the real hook command and a model of the same step function, and
+// returns each place they or an invariant disagree. Each command's stdout must be the design's
+// reply whole. Two hooks run together in the scheduler's order.
 export async function runHookModel(
   harness: Harness,
   ops: readonly HookModelOp[],
   scheduler: fc.Scheduler,
+  runners: HookModelRunners = realRunners,
 ): Promise<readonly string[]> {
   const home = createTempDir('hook-model').path;
   const root = join(home, 'wherewerewe');
@@ -77,15 +84,11 @@ export async function runHookModel(
   await seedHookStore(root, { harness, id: 'eeee-other' }, 'docs-move');
 
   const problems: string[] = [];
+  const briefRun = { harness, root, now: context.now(), runCLI: runners.runCLI };
 
   const injections = {
-    'tide-alerts': await readInjection(
-      join(root, 'tide-alerts'),
-      'tide-alerts',
-      harness,
-      context.now(),
-    ),
-    'docs-move': await readInjection(join(root, 'docs-move'), 'docs-move', harness, context.now()),
+    'tide-alerts': await readExpectedInjection(briefRun, 'tide-alerts', problems),
+    'docs-move': await readExpectedInjection(briefRun, 'docs-move', problems),
   };
 
   let state: ModelState = { file: null, binding: 'tide-alerts' };
@@ -102,7 +105,7 @@ export async function runHookModel(
     const prior = state.file;
 
     const outcome = await runOp(
-      { harness, root, context, op, scheduler, injections },
+      { harness, root, context, op, scheduler, injections, runners },
       state,
       problems,
       label,
@@ -140,8 +143,9 @@ interface OpRun {
   readonly op: HookModelOp;
   readonly scheduler: fc.Scheduler;
 
-  // what a SessionStart prints for each store, read from the store as the brief is
-  readonly injections: Readonly<Record<string, string | null>>;
+  // what a SessionStart prints for each store: the brief's GOAL and GRANT lines and the reason
+  readonly injections: Readonly<Record<string, string>>;
+  readonly runners: HookModelRunners;
 }
 
 interface Outcome {
@@ -152,7 +156,7 @@ interface Outcome {
 function runOp(run: OpRun, state: ModelState, problems: string[], label: string): Promise<Outcome> {
   return match(run.op)
     .with({ kind: 'attach' }, async (): Promise<Outcome> => {
-      const attach = await runCLI({
+      const attach = await run.runners.runCLI({
         argv: ['attach', 'docs-move'],
         env: {
           XDG_STATE_HOME: dirname(run.root),
@@ -165,7 +169,7 @@ function runOp(run: OpRun, state: ModelState, problems: string[], label: string)
         terminal: { stdin: false, stdout: false },
       });
 
-      const result = await runHookCommand(
+      const result = await run.runners.runHookCommand(
         run.harness,
         buildHookPayload(run.harness, agent.id, {
           event: 'PostToolUse',
@@ -177,9 +181,19 @@ function runOp(run: OpRun, state: ModelState, problems: string[], label: string)
 
       const bound = await readBinding(run.root, { harness: run.harness, id: agent.id });
 
-      if (attach.exitCode !== 0 || result.stdout !== '' || bound !== 'docs-move') {
+      const isAttachReplied =
+        attach.exitCode === 0 &&
+        attach.stderr === '' &&
+        attach.stdout === formatAttachReply(run.harness, 'docs-move');
+
+      if (
+        !isAttachReplied ||
+        !isQuietExit(result) ||
+        result.stdout !== '' ||
+        bound !== 'docs-move'
+      ) {
         problems.push(
-          `${label}: the attach exited ${String(attach.exitCode)} with ${attach.stderr}, the hook printed ${result.stdout} and bound ${String(bound)}`,
+          `${label}: the attach printed ${JSON.stringify(attach)}, the hook printed ${JSON.stringify(result)} and bound ${String(bound)}`,
         );
       }
 
@@ -190,6 +204,10 @@ function runOp(run: OpRun, state: ModelState, problems: string[], label: string)
 
       const expected = advance(state, call, run);
       const decision = toHookDecision(stdout.stdout);
+
+      if (!isQuietExit(stdout)) {
+        problems.push(`${label}: the hook exited ${JSON.stringify(stdout)}`);
+      }
 
       if (stdout.stdout !== expected.stdout) {
         problems.push(
@@ -221,6 +239,11 @@ function runOp(run: OpRun, state: ModelState, problems: string[], label: string)
       const firstThenSecond = advanceBoth(state, together, run, 'first-first');
       const secondThenFirst = advanceBoth(state, together, run, 'second-first');
       const seen = [firstOut.stdout, secondOut.stdout];
+
+      if (!isQuietExit(firstOut) || !isQuietExit(secondOut)) {
+        problems.push(`${label}: a hook exited ${JSON.stringify([firstOut, secondOut])}`);
+      }
+
       const actual = parseGateFile(readGateLine(run.root, `${run.harness}-${agent.id}`) ?? '');
 
       const chosen = [firstThenSecond, secondThenFirst].find(
@@ -241,81 +264,31 @@ function runOp(run: OpRun, state: ModelState, problems: string[], label: string)
     .exhaustive();
 }
 
-function runCall(
-  run: OpRun,
-  call: HookModelCall,
-  context: OpRun['context'],
-): Promise<{ stdout: string }> {
-  const sessionID = call.from === 'unbound' ? agent.unbound : agent.id;
-  const spec = toSpec(call);
-
-  return runHookCommand(run.harness, buildHookPayload(run.harness, sessionID, spec), context);
+// The reply commands.md gives attach, in the harness's own name.
+function formatAttachReply(harness: Harness, name: string): string {
+  return `Bound this ${harness === 'claude' ? 'Claude Code' : 'Codex'} session to ${name}.\n`;
 }
 
-function toSpec(call: HookModelCall): HookPayloadSpec {
-  const agentID = call.from === 'subagent' ? 'sub-1' : undefined;
-  const withAgent = agentID === undefined ? {} : { agentID };
-  const whole = `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · no checks\nGOAL  Ship it\n${briefFooter}\n`;
+interface HookRun {
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
+}
 
-  return match(call.payload)
-    .with('start-startup', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'startup' }))
-    .with('start-resume', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'resume' }))
-    .with('start-clear', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'clear' }))
-    .with('start-compact', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'compact' }))
-    .with('start-fork', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'fork' }))
-    .with('subagent-start', (): HookPayloadSpec => ({ event: 'SubagentStart' }))
-    .with('pre-brief', (): HookPayloadSpec => ({
-      event: 'PreToolUse',
-      command: 'www',
-      ...withAgent,
-    }))
-    .with('pre-brief-session', (): HookPayloadSpec => ({
-      event: 'PreToolUse',
-      command: 'www --session tide-alerts',
-      ...withAgent,
-    }))
-    .with('pre-www-list', (): HookPayloadSpec => ({
-      event: 'PreToolUse',
-      command: 'www list rules',
-      ...withAgent,
-    }))
-    .with('pre-www-pipe', (): HookPayloadSpec => ({
-      event: 'PreToolUse',
-      command: 'www | tail -1',
-      ...withAgent,
-    }))
-    .with('pre-ls', (): HookPayloadSpec => ({ event: 'PreToolUse', command: 'ls', ...withAgent }))
-    .with('pre-mcp', (): HookPayloadSpec => ({
-      event: 'PreToolUse',
-      command: null,
-      toolName: 'mcp__tides__lookup',
-      ...withAgent,
-    }))
-    .with('end-whole', (): HookPayloadSpec => ({
-      event: 'PostToolUse',
-      command: 'www',
-      output: whole,
-      ...withAgent,
-    }))
-    .with('end-cut', (): HookPayloadSpec => ({
-      event: 'PostToolUse',
-      command: 'www',
-      output: whole.replace('GOAL', '…3000 tokens truncated…\nGOAL'),
-      ...withAgent,
-    }))
-    .with('end-failed', (): HookPayloadSpec => ({
-      event: 'PostToolUse',
-      command: 'www',
-      output: 'www: command not found',
-      ...withAgent,
-    }))
-    .with('stop', (): HookPayloadSpec => ({ event: 'Stop', ...withAgent }))
-    .with('stop-active', (): HookPayloadSpec => ({
-      event: 'Stop',
-      stopHookActive: true,
-      ...withAgent,
-    }))
-    .exhaustive();
+// A hook always exits 0 and never writes to stderr.
+function isQuietExit(result: HookRun): boolean {
+  return result.exitCode === 0 && result.stderr === '';
+}
+
+function runCall(run: OpRun, call: HookModelCall, context: OpRun['context']): Promise<HookRun> {
+  const sessionID = call.from === 'unbound' ? agent.unbound : agent.id;
+  const spec = toHookModelSpec(call);
+
+  return run.runners.runHookCommand(
+    run.harness,
+    buildHookPayload(run.harness, sessionID, spec),
+    context,
+  );
 }
 
 // What the model expects a call to print and to leave in the gate file.
@@ -417,7 +390,7 @@ async function runScheduled(
   run: OpRun,
   call: HookModelCall,
   context: OpRun['context'],
-): Promise<{ stdout: string }> {
+): Promise<HookRun> {
   await run.scheduler.schedule(Promise.resolve());
 
   return runCall(run, call, context);

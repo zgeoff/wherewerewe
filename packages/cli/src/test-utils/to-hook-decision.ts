@@ -21,7 +21,7 @@ export function toHookDecision(stdout: string): HookDecision {
     return 'inject';
   }
 
-  const parsed: unknown = JSON.parse(stdout);
+  const parsed = parseJSONOrNull(stdout);
   const output = isRecord(parsed) ? parsed['hookSpecificOutput'] : undefined;
 
   if (isRecord(parsed) && parsed['decision'] === 'block') {
@@ -45,4 +45,12 @@ export function toHookDecision(stdout: string): HookDecision {
   }
 
   return context.includes('printed no whole brief') ? 'pass+line' : 'context';
+}
+
+function parseJSONOrNull(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
