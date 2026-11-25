@@ -9,6 +9,7 @@ import { estimateTokens } from '../brief/estimate-tokens.ts';
 import { pickBriefLimit } from '../brief/pick-brief-limit.ts';
 import { itemCaps, lessonCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
 import { runCLI } from '../run-cli.ts';
+import { formatOwnerFile } from '../store/format-owner-file.ts';
 import { formatPrsFile } from '../store/format-prs-file.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
@@ -31,6 +32,7 @@ import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { seedWorstCaseStore } from '../test-utils/seed-worst-case-store.ts';
+import { toSortedBy } from '../test-utils/to-sorted-by.ts';
 import { readBriefFigure } from '../writes/read-brief-figure.ts';
 
 function setupTest() {
@@ -565,15 +567,16 @@ test('it starts the probes with the item in focus, then the newest tasks, not in
   seedStubCommand(
     ctx.bin,
     'gh',
-    `echo "$LAUNCH $3" >> "${log}"\n/bin/sleep 0.3\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
+    `echo "$USER $3" >> "${log}"\n/bin/sleep 0.3\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
   );
 
   const launches = { count: 0 };
 
-  // each command's env is copied just before it starts, so the getter numbers the launches in order
+  // each command's env is copied just before it starts, so the getter numbers the launches in order;
+  // USER is one of the few variables a probe passes on
   const env = {
     ...ctx.agentEnv,
-    get LAUNCH(): string {
+    get USER(): string {
       launches.count += 1;
 
       return String(launches.count);
@@ -894,6 +897,15 @@ test.each([
           ),
         ),
       );
+
+      seedStoreFile(
+        join(ctx.stateRoot, name),
+        'owner.tsv',
+        formatOwnerFile([
+          { id: 'o-1', text: 'Keep the chart colours', said: '2026-03-10T09:10:00Z', on: null },
+          { id: 'o-2', text: 'Ask before the merge', said: '2026-03-10T09:20:00Z', on: 'w-o' },
+        ]),
+      );
     };
 
     await createCopy(textCtx);
@@ -937,46 +949,45 @@ test.each([
       isTextCut: /^ {2}and \d+ more/mu.test(printedText.stdout),
       limit: brief.limit,
       estimate: brief.estimate,
-      open: Object.fromEntries(brief.open.map((shown) => [shown.row.id, shown])),
-      lessons: Object.fromEntries(brief.lessons.map((entry) => [entry.id, entry])),
-      promises: Object.fromEntries(brief.promises.map((entry) => [entry.id, entry])),
-      words: Object.fromEntries(brief.words.map((entry) => [entry.id, entry])),
-      decisions: Object.fromEntries(brief.decisions.map((entry) => [entry.id, entry])),
-      ownerNotes: Object.fromEntries(brief.ownerNotes.map((entry) => [entry.id, entry])),
-      changed: Object.fromEntries(brief.changed.map((entry) => [entry.id, entry])),
-      prs: Object.fromEntries(brief.prs.map((entry) => [entry.ref, entry])),
+      open: toSortedBy(brief.open, (shown) => shown.row.id),
+      lessons: toSortedBy(brief.lessons, (entry) => entry.id),
+      promises: toSortedBy(brief.promises, (entry) => entry.id),
+      words: toSortedBy(brief.words, (entry) => entry.id),
+      decisions: toSortedBy(brief.decisions, (entry) => entry.id),
+      ownerNotes: toSortedBy(brief.ownerNotes, (entry) => entry.id),
+      changed: brief.changed,
+      prs: toSortedBy(brief.prs, (entry) => entry.ref),
     }).toStrictEqual({
       exitCodes: [0, 0],
       stderr: printedText.stderr,
       isTextCut: true,
       limit: pickBriefLimit(row.limit),
       estimate: figure.tokens,
-      open: Object.fromEntries(
-        stored.store.items.map((item) => [
-          item.id,
-          {
-            kind: item.kind,
-            row: item,
-            note: stored.store.notes.find((note) => note.id === item.id) ?? null,
-          },
-        ]),
+      open: toSortedBy(
+        stored.store.items.map((item) => ({
+          kind: item.kind,
+          row: item,
+          note: stored.store.notes.find((note) => note.id === item.id) ?? null,
+        })),
+        (shown) => shown.row.id,
       ),
-      lessons: Object.fromEntries(stored.store.lessons.map((entry) => [entry.id, entry])),
-      promises: Object.fromEntries(stored.store.promises.map((entry) => [entry.id, entry])),
-      words: Object.fromEntries(stored.store.words.map((entry) => [entry.id, entry])),
-      decisions: Object.fromEntries(decided.map((entry) => [entry.id, entry])),
-      ownerNotes: Object.fromEntries(stored.store.ownerNotes.map((entry) => [entry.id, entry])),
-      changed: {},
-      prs: Object.fromEntries(
-        pullRequestRefs.map((ref, index) => [
+      lessons: toSortedBy(stored.store.lessons, (entry) => entry.id),
+      promises: toSortedBy(stored.store.promises, (entry) => entry.id),
+      words: toSortedBy(stored.store.words, (entry) => entry.id),
+      decisions: toSortedBy(decided, (entry) => entry.id),
+      ownerNotes: [
+        { id: 'o-1', text: 'Keep the chart colours', said: '2026-03-10T09:10:00Z', on: null },
+        { id: 'o-2', text: 'Ask before the merge', said: '2026-03-10T09:20:00Z', on: 'w-o' },
+      ],
+      changed: [],
+      prs: toSortedBy(
+        pullRequestRefs.map((ref, index) => ({
           ref,
-          {
-            ref,
-            opened: '2026-03-10T08:43:00Z',
-            state: 'OPEN',
-            seen: index < 6 ? '2026-03-10T09:00:00Z' : '2026-03-10T11:43:00Z',
-          },
-        ]),
+          opened: '2026-03-10T08:43:00Z',
+          state: 'OPEN',
+          seen: index < 6 ? '2026-03-10T09:00:00Z' : '2026-03-10T11:43:00Z',
+        })),
+        (entry) => entry.ref,
       ),
     });
   },

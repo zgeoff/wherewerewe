@@ -12,7 +12,7 @@ The last `Run:` line of a refusal of any command other than the five reads, `www
 - Agents using the tool read a refused write as if it had happened, and one brief stayed stale for five hours.
 - An agent that reads only the last line of a refusal sees the fix and not the fact that nothing changed. Putting the fact on that line puts it where the agent reads.
 - A sentence such as "Nothing was written." before the `Run:` line leaves the last line holding only the fix.
-- A comment after the command keeps the line one that runs as printed. The parser removes that exact suffix before it checks the line, so the check does not read `#` and the words after it as arguments.
+- A comment after the command keeps the line one that runs as printed.
 
 ## Rejected alternatives
 
@@ -25,4 +25,5 @@ The last `Run:` line of a refusal of any command other than the five reads, `www
 ## Consequences
 
 - A refused write changes nothing ([commands.md](../design/wherewerewe/commands.md#constraints)), so every exit code takes the comment.
-- `www` fills and parses a `Run:` line without the comment, and a test strips only that exact suffix, so a `#` inside a quoted value stays a word.
+- Before it prints a `Run:` line, `www` fills and parses it without the comment, so its parser never reads `#` and the words after it as arguments. A test strips only that exact suffix, so a `#` inside a quoted value stays a word.
+- The printed form of each refusal is in [commands.md](../design/wherewerewe/commands.md#refusals).

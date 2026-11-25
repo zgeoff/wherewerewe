@@ -111,7 +111,7 @@ The five read commands take `--json`: the brief (`www --json`, with or without `
 - `open` holds the items of `items.tsv` in the order their sections print in the text brief, each with its note. Lessons, promises and the owner's words are in their own arrays, so no row appears twice.
 - Each item's `last` is the result this read got, as the text brief's tag shows it, whether or not the read could save it. `changed` holds every changed row whole. `next` is `null` whenever the text brief hides the next step.
 - `www show grant` with no grant prints one subject, `{ kind: 'grant', row: null }`, with `journal` holding every `grant` row. A closed item, an id with journal rows only, and an id with no row print `"subjects":[]`.
-- A recap whose journal cannot be read holds `null` for `writes`, `decidedSince` and `closedSince`, and stderr gives the text form's reason.
+- A recap whose journal cannot be read holds `null` for `writes`, `decidedSince` and `closedSince`, and the text form's reason goes to stderr.
 - Each string value, an object key included, passes the credential redaction before it is encoded, so the output is always valid JSON.
 - Each value carries `v: 1`. A new field keeps the version, and a removed or renamed field raises it.
 - `www --json` is a `www` command for the gate, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)). The header and footer contract of [brief.md](brief.md) covers the text form only.
