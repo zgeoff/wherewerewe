@@ -662,7 +662,9 @@ test.each(['claude', 'codex'] as const)(
       output: 'pushed',
     });
 
-    expect({ ...result, stdout: JSON.parse(result.stdout) }).toStrictEqual({
+    const stdout: unknown = JSON.parse(result.stdout);
+
+    expect({ ...result, stdout }).toStrictEqual({
       exitCode: 0,
       stderr: '',
       stdout: {

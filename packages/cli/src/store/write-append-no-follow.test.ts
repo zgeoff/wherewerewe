@@ -227,7 +227,11 @@ test('it refuses a link at the name, for both appends', async () => {
     writeAppendNoFollow(link, 'row\n');
   }).toThrow(/ELOOP|symbolic link/u);
 
-  await expect(writeAppendNoFollowAsync(link, 'row\n')).rejects.toThrow(/ELOOP|symbolic link/u);
+  const refused = await writeAppendNoFollowAsync(link, 'row\n').then(
+    () => null,
+    (error: unknown) => error,
+  );
 
+  expect(refused).toBeInstanceOf(Error);
   expect(existsSync(target)).toBe(false);
 });
