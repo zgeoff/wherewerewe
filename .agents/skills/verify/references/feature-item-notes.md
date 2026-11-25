@@ -19,7 +19,7 @@ bun verify www run --line 'www --session trial-item-notes' --expect ' · owed]'
 bun verify www run --line 'www --session trial-item-notes now t-kiln "Read the sensor range from its spec sheet"' --expect 'now: t-kiln, with its owed note ('
 bun verify www run --line 'www --session trial-item-notes' --expect '    Switch the kiln simulator off before this closes: the studio shares it on Fridays.'
 bun verify www run --line 'www --session trial-item-notes show t-kiln' --expect '  owed note ('
-bun verify www refuse --line 'www --session trial-item-notes done t-kiln --evidence "commit 4c1d2e0"' --expect 'www: refused: t-kiln has an owed note (' --run 'www --session trial-item-notes set t-kiln --no-note'
+bun verify www refuse --line 'www --session trial-item-notes done t-kiln --evidence "commit 4c1d2e0"' --expect 'www: refused: t-kiln has an owed note (' --run 'www --session trial-item-notes set t-kiln --note "<detail>"  # nothing was written'
 bun verify www run --line 'www --session trial-item-notes set t-kiln --no-note' --expect 't-kiln  note cleared. Brief: 181 of 20000 tokens.'
 bun verify www run --line 'www --session trial-item-notes done t-kiln --evidence "commit 4c1d2e0"' --expect 't-kiln  done. Off the brief, kept in the journal. Brief: 140 of 20000 tokens.'
 bun verify www run --line 'www --session trial-item-notes log --op note --id t-kiln' --expect 'owed: Switch the kiln simulator off'
@@ -36,7 +36,8 @@ bun verify www run --line 'www --session trial-item-notes' --expect 'NOW  none. 
   journal, and the journal shows the owed note and its clearing. Each fails with `check-failed` when
   `www` exits other than 0 or prints other text.
 - `bun verify www refuse` exits 0: `www` refused `done` while the note was owed, with exit 3, and
-  printed the `Run:` line that clears it.
+  printed two `Run:` lines. The check reads the last: it replaces the note, and ends with the
+  comment that says nothing was written.
 - When a command fails, follow its row in [Exit codes](exit-codes.md) (step 4 of
   [Check a change](../SKILL.md#check-a-change)). When the end state does not match, follow step 5 of
   Check a change.
