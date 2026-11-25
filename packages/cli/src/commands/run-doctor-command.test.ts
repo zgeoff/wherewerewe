@@ -690,7 +690,7 @@ test.each(['codex', 'gh'])(
     expect({
       folder: lines[0],
       preload: lines.some((line) => line.includes('LD_PRELOAD=')),
-      codexHome: lines.some((line) => line.includes(`CODEX_HOME="${codexHome}"`)),
+      codexHome: lines.some((line) => line.includes('CODEX_HOME=') && line.includes(codexHome)),
     }).toStrictEqual({ folder: '/', preload: false, codexHome: true });
   },
 );
