@@ -3,8 +3,9 @@ interface ChainTexts {
   readonly note: string | null;
 }
 
-// The line a write adds when its claim or its note chains three or more clauses with semicolons. It
-// states a fact about the row, and the write goes ahead either way.
+// The line a write adds when its claim or its note chains three or more clauses with semicolons, each
+// clause holding more than blank space. It states a fact about the row, and the write goes ahead
+// either way.
 export function formatChainLine(id: string, texts: ChainTexts): string | null {
   const chained = (
     [
@@ -12,7 +13,7 @@ export function formatChainLine(id: string, texts: ChainTexts): string | null {
       ['note', texts.note],
     ] as const
   )
-    .filter(([, text]) => text !== null && text.split(';').length > 2)
+    .filter(([, text]) => text !== null && countClauses(text) > 2)
     .map(([label]) => `the ${label}`);
 
   if (chained.length === 0) {
@@ -22,4 +23,8 @@ export function formatChainLine(id: string, texts: ChainTexts): string | null {
   const verb = chained.length === 1 ? 'chains' : 'chain';
 
   return `${id}: ${chained.join(' and ')} ${verb} clauses with semicolons, and a row holds one fact, so each clause fits a row of its own.`;
+}
+
+function countClauses(text: string): number {
+  return text.split(';').filter((clause) => clause.trim() !== '').length;
 }

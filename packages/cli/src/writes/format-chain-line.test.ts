@@ -9,6 +9,13 @@ function setupTest() {
 test.each([
   { title: 'no semicolon', claim: 'Ship the chart', note: null, line: null },
   { title: 'one semicolon', claim: 'Ship the chart; then the key', note: null, line: null },
+  { title: 'one clause and two empty ones', claim: 'The parser passed;;', note: null, line: null },
+  {
+    title: 'two clauses and a blank one',
+    claim: 'Ship the chart; ; draw the key',
+    note: null,
+    line: null,
+  },
   {
     title: 'a claim of three clauses',
     claim: 'Ship the chart; draw the key; add the tide table',

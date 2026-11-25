@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { itemCaps, lessonCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import { formatLessonsFile } from '../store/format-lessons-file.ts';
 import { formatNotesFile } from '../store/format-notes-file.ts';
 import { formatPromisesFile } from '../store/format-promises-file.ts';
@@ -136,7 +137,7 @@ export async function seedWorstCaseStore(
       buildMockIDs('word', wordsCap).map((id) => ({
         id,
         words: text('c'.repeat(300)),
-        where: text('w'.repeat(16)),
+        where: text('w'.repeat(textLimits.wordsWhere)),
         written: '2026-03-10T09:00:00Z',
         by: 'owner' as const,
       })),
