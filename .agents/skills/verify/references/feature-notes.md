@@ -15,7 +15,7 @@ bun verify www run --line 'www init trial-notes --goal "Ship the parser with its
 bun verify www run --line 'www --session trial-notes task t-parser "Write the parser"' --expect 't-parser  task, open, no check. Brief: 158 of 20000 tokens.'
 bun verify www run --line 'www --session trial-notes set t-parser "Parser reads its flags; tests pass"' --expect 't-parser  task, open, no check. Brief: 164 of 20000 tokens.'
 bun verify www run --line 'www --session trial-notes' --expect '  t-parser    Parser reads its flags; tests pass  [no check · '
-bun verify www refuse --line 'www --session trial-notes done t-parser' --expect 'www: refused: done needs evidence' --run 'www --session trial-notes done t-parser --evidence "<PR, commit or test run>"'
+bun verify www refuse --line 'www --session trial-notes done t-parser' --expect 'www: refused: done needs evidence' --run 'www --session trial-notes done t-parser --evidence "<PR, commit or test run>"  # nothing was written'
 bun verify www run --line 'www --session trial-notes done t-parser --evidence "commit 4c1d2e0"' --expect 't-parser  done. Off the brief, kept in the journal. Brief: 136 of 20000 tokens.'
 bun verify www run --line 'www --session trial-notes' --expect 'NOW  none. Run: www now <id> "<next step>"'
 ```

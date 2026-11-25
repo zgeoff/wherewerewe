@@ -23,7 +23,7 @@ bun verify www run --host codex --line 'www --session trial-kinds' --expect '  d
 bun verify www run --host claude --line 'www --session trial-kinds' --expect '  l-cache     Clear the chart cache before the screenshot tests  [why: A cached tile made the screenshot test pass on a broken build]'
 bun verify www run --line 'www --session trial-kinds list rules' --expect '  r-units     Show depths in metres; the chart API sends feet'
 bun verify www run --line 'www --session trial-kinds recap' --expect 'PROMISED (1, max 5)'
-bun verify www refuse --line 'www --session trial-kinds done l-cache --evidence "cleared"' --expect 'www: refused: l-cache is a lesson, and a lesson closes with drop.' --run 'www --session trial-kinds drop l-cache --why "<reason>"'
+bun verify www refuse --line 'www --session trial-kinds done l-cache --evidence "cleared"' --expect 'www: refused: l-cache is a lesson, and a lesson closes with drop.' --run 'www --session trial-kinds drop l-cache --why "<reason>"  # nothing was written'
 bun verify www run --line 'www --session trial-kinds done due-demo --evidence "demo build 41 shared in chat"' --expect 'due-demo  done. Off the brief, kept in the journal. Brief: '
 bun verify www run --line 'www --session trial-kinds drop l-cache --why "the cache is gone from the test setup"' --expect 'l-cache  dropped. Off the brief, kept in the journal. Brief: '
 bun verify www run --host codex --line 'www --session trial-kinds' --expect 'WORDS (1, max 8)'

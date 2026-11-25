@@ -244,6 +244,11 @@ export function createVerifyRegistry(): Wringer {
         "Write a lesson, a promise and the owner's words, read them in the brief and the recap, list the rules, and close each",
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
+    .feature({
+      name: 'json',
+      summary: 'Read the brief and a list as JSON, and print the grant as a /goal text',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
     .shared(
       'scripts/verify/**',
       'package.json',
