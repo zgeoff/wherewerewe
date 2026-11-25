@@ -74,7 +74,7 @@ words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 3b but for two lines, with the caps of decision records 0009, 0011 and 0016 to 0019, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff and the limits' diff below are what each changed up to slice 2d, so each shows the caps of its own slice, and the last diff adds the two lines slice 3b leaves. The caps in the block above, from slice 3b, replace the caps those diffs show. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 3b but for two lines, with the caps of decision records 0009, 0011 and 0016 to 0019, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff and the limits' diff below are what each changed up to slice 2d, and each shows the caps of its own slice. The last diff adds the two lines slice 3b leaves. The caps in the block above, from slice 3b, replace the caps those diffs show. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
