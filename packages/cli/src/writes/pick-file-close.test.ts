@@ -29,7 +29,15 @@ test.each([
     journal: {
       closed: new Map([['l-seed', '2026-03-02T10:00:00Z']]),
       closeRows: new Map([
-        ['l-seed', { ts: '2026-03-02T10:00:00Z', op: 'done', text: 'An old task of the same id' }],
+        [
+          'l-seed',
+          {
+            ts: '2026-03-02T10:00:00Z',
+            op: 'done',
+            text: 'An old task of the same id',
+            kind: null,
+          },
+        ],
       ]),
     },
   },
@@ -44,6 +52,41 @@ test.each([
             ts: '2026-03-08T10:00:00Z',
             op: 'done',
             text: 'Reseed the staging alerts table before alerts-e2e',
+            kind: 'lesson',
+          },
+        ],
+      ]),
+    },
+  },
+  {
+    title: 'a task of the same id and text was dropped after the lesson was written',
+    journal: {
+      closed: new Map([['l-seed', '2026-03-08T10:00:00Z']]),
+      closeRows: new Map([
+        [
+          'l-seed',
+          {
+            ts: '2026-03-08T10:00:00Z',
+            op: 'drop',
+            text: 'Reseed the staging alerts table before alerts-e2e',
+            kind: null,
+          },
+        ],
+      ]),
+    },
+  },
+  {
+    title: 'a promise of the same id and text was dropped after the lesson was written',
+    journal: {
+      closed: new Map([['l-seed', '2026-03-08T10:00:00Z']]),
+      closeRows: new Map([
+        [
+          'l-seed',
+          {
+            ts: '2026-03-08T10:00:00Z',
+            op: 'drop',
+            text: 'Reseed the staging alerts table before alerts-e2e',
+            kind: 'promise',
           },
         ],
       ]),
@@ -72,7 +115,7 @@ test.each([
           by: 'agent',
           text: lesson.text,
           why: 'the table is gone',
-          extra: null,
+          extra: 'kind=lesson',
         },
       ],
     },
@@ -93,7 +136,9 @@ test('it adds no second journal row when its own interrupted close left the less
 
   const picked = ctx.pickDrop([lesson], {
     closed: new Map([['l-seed', '2026-03-08T10:00:00Z']]),
-    closeRows: new Map([['l-seed', { ts: '2026-03-08T10:00:00Z', op: 'drop', text: lesson.text }]]),
+    closeRows: new Map([
+      ['l-seed', { ts: '2026-03-08T10:00:00Z', op: 'drop', text: lesson.text, kind: 'lesson' }],
+    ]),
   });
 
   expect(picked).toStrictEqual({

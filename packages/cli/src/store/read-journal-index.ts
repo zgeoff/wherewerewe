@@ -12,7 +12,12 @@ const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
 
 export async function readJournalIndex(folder: string): Promise<JournalIndex> {
   const closed = new Map<string, string>();
-  const closeRows = new Map<string, { ts: string; op: string; text: string | null }>();
+
+  const closeRows = new Map<
+    string,
+    { ts: string; op: string; text: string | null; kind: string | null }
+  >();
+
   const decisions = new Map<string, { readonly who: 'owner' | 'agent' | null }>();
 
   const decideRows: JournalRow[] = [];
@@ -32,7 +37,15 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
 
       if (closingOps.has(op)) {
         closed.set(id, ts);
-        closeRows.set(id, { ts, op, text: readCell(line.split('\t')[4]) });
+
+        const cells = line.split('\t');
+
+        closeRows.set(id, {
+          ts,
+          op,
+          text: readCell(cells[4]),
+          kind: findExtraValue(readCell(cells[6]), 'kind'),
+        });
       }
 
       if (op === 'say') {

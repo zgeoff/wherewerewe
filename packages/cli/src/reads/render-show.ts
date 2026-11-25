@@ -12,6 +12,13 @@ import type { Item, JournalRow, LessonRow, PromiseRow, Store, WordsRow } from '.
 import { collectOpenIDs } from '../writes/collect-id-holders.ts';
 import { cutRedactedLine } from './cut-redacted-line.ts';
 
+interface CheckNow {
+  readonly result: string;
+
+  // the names of the checks that failed, from GitHub, after `OPEN failing`
+  readonly failing: readonly string[];
+}
+
 export interface ShowInput {
   readonly id: string;
   readonly store: Store;
@@ -22,13 +29,8 @@ export interface ShowInput {
   readonly closed: ReadonlyMap<string, string>;
   readonly nowMs: number;
 
-  // what the item's probe found just now; null for an item with no check
-  readonly checkNow: {
-    readonly result: string;
-
-    // the names of the checks that failed, from GitHub, after `OPEN failing`
-    readonly failing: readonly string[];
-  } | null;
+  // what each item row with the id found just now, in file order; null for an item with no check
+  readonly checkNows: readonly (CheckNow | null)[];
 }
 
 const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
@@ -38,11 +40,12 @@ export function renderShow(input: ShowInput): string {
     return renderGrant(input);
   }
 
-  const item = input.store.items.find((candidate) => candidate.id === input.id);
-
-  // A store the older tool wrote can hold one id in two files: each row prints, so none hides.
+  // A store the older tool wrote can hold one id in two files, or twice in one: each row prints,
+  // so none hides.
   const open = [
-    ...(item === undefined ? [] : [renderOpenItem(input, item)]),
+    ...input.store.items
+      .filter((candidate) => candidate.id === input.id)
+      .map((item, index) => renderOpenItem(input, item, input.checkNows[index] ?? null)),
     ...collectFileRows(input.store, input.id).map((found) => renderFileRow(input, found)),
   ];
 
@@ -134,7 +137,7 @@ function getDay(store: Store, timeMs: number): number {
   return getSessionDay(store.session.started, timeMs);
 }
 
-function renderOpenItem(input: ShowInput, item: Item): string {
+function renderOpenItem(input: ShowInput, item: Item, checkNow: CheckNow | null): string {
   const store = input.store;
   const first = input.rows.find((row) => row.id === item.id);
   const startedAt = first === undefined ? item.written : first.ts;
@@ -154,7 +157,7 @@ function renderOpenItem(input: ShowInput, item: Item): string {
     `  ${getClaimWord(item)} (${age}): ${item.claim}`,
     ...formatNoteLines(input, item),
     ...(item.kind === 'ok' ? [formatApprovalLine(item)] : []),
-    ...(item.check === null ? [] : [formatCheckNowLine(input, item)]),
+    ...(item.check === null ? [] : [formatCheckNowLine(checkNow, item)]),
     ...formatDecisionLines(input),
     ...formatHistoryLines(input),
   ];
@@ -206,8 +209,8 @@ function formatApprovalLine(item: Item): string {
 // become spaces. The line then passes the redaction and the 100 character cut again.
 const outsideSeparator = /[\s\p{Cc}\p{Cf}]/u;
 
-function formatCheckNowLine(input: ShowInput, item: Item): string {
-  const now = input.checkNow ?? { result: 'unchecked', failing: [] };
+function formatCheckNowLine(checkNow: CheckNow | null, item: Item): string {
+  const now = checkNow ?? { result: 'unchecked', failing: [] };
 
   const names = now.failing
     .map((name) =>

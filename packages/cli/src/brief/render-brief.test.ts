@@ -1248,14 +1248,23 @@ test('it holds the never-cut lines at their widest under 9,000 bytes, and under 
 
 test('it starts the header with the session name and day, and ends with the footer, for every store', () => {
   const ctx = setupTest();
+  const cutStore = buildCutOrderStore();
 
   const briefs = [
     ctx.render(buildMockBriefInput({})),
+    ctx.render(cutStore.input),
+    ctx.render(cutStore.input, 1),
     ...(['claude', 'codex', null] as const).flatMap((host) => [
       ctx.render(buildWorstCaseBriefInput({ host, taskCount: 30 })),
+      ctx.render(buildWorstCaseBriefInput({ host, taskCount: 30, nowHidden: { kind: 'changed' } })),
+      ctx.render(buildWorstCaseBriefInput({ host, taskCount: 30, results: 'unchecked' })),
+      ctx.render(buildWorstCaseBriefInput({ host, taskCount: 30 }), 1),
       ctx.render(buildThreeByteCutInput(host)),
+      ctx.render(buildThreeByteCutInput(host), 1),
+      ctx.render(buildThreeByteCutInput(host), 100),
+      ctx.render(buildNeverCutInput(host)),
+      ctx.render(buildNeverCutInput(host), 1),
     ]),
-    ctx.render(buildThreeByteCutInput(null), 100),
   ];
 
   expect(

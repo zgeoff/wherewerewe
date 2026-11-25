@@ -29,6 +29,7 @@ import { buildSampleRunArgv } from './test-utils/build-sample-run-argv.ts';
 import { buildShortOpsValue } from './test-utils/build-short-ops-value.ts';
 import { buildSpacedText } from './test-utils/build-spaced-text.ts';
 import { collectBriefSection } from './test-utils/collect-brief-section.ts';
+import { collectPrintRows } from './test-utils/collect-print-rows.ts';
 import { getSteeringWords } from './test-utils/get-steering-words.ts';
 import { readBriefFigure } from './test-utils/read-brief-figure.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
@@ -3079,26 +3080,45 @@ test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as cons
       });
     }
 
+    const indented = /^ {2}(?!and )\S/u;
+    const dayRow = /^day /u;
+    const decisionRow = /^(?!DECISIONS)\S/u;
+
     const reads = [
-      { site: 'the WORDS rows of the brief', argv: [], heading: 'WORDS (' },
-      { site: 'the PROMISED rows of the brief', argv: [], heading: 'PROMISED (' },
-      { site: 'the LESSONS rows of the brief', argv: [], heading: 'LESSONS (' },
-      { site: 'the DECISIONS rows of the brief', argv: [], heading: 'DECISIONS (' },
-      { site: 'list lessons', argv: ['list', 'lessons'], heading: '' },
-      { site: 'list promises', argv: ['list', 'promises'], heading: '' },
-      { site: 'list words', argv: ['list', 'words'], heading: '' },
-      { site: 'list decisions', argv: ['list', 'decisions'], heading: '' },
-      { site: 'show of a lesson', argv: ['show', 'l-1'], heading: '' },
-      { site: 'show of a lesson across the wrap', argv: ['show', 'l-2'], heading: '' },
-      { site: 'show of a promise', argv: ['show', 'p-3'], heading: '' },
-      { site: 'show of owner words', argv: ['show', 'w-2'], heading: '' },
-      { site: 'show of a decision', argv: ['show', 'd-2'], heading: '' },
-      { site: 'show of a decision across the cut', argv: ['show', 'd-4'], heading: '' },
-      { site: 'log of lesson rows', argv: ['log', '--op', 'lesson'], heading: '' },
-      { site: 'log of promise rows', argv: ['log', '--op', 'promise'], heading: '' },
-      { site: 'log of words rows', argv: ['log', '--op', 'words'], heading: '' },
-      { site: 'log of decide rows', argv: ['log', '--op', 'decide'], heading: '' },
-      { site: 'the PROMISED rows of the recap', argv: ['recap'], heading: 'PROMISED (' },
+      { site: 'the WORDS rows of the brief', argv: [], heading: 'WORDS (', start: indented },
+      { site: 'the PROMISED rows of the brief', argv: [], heading: 'PROMISED (', start: indented },
+      { site: 'the LESSONS rows of the brief', argv: [], heading: 'LESSONS (', start: indented },
+      {
+        site: 'the DECISIONS rows of the brief',
+        argv: [],
+        heading: 'DECISIONS (',
+        start: indented,
+      },
+      { site: 'list lessons', argv: ['list', 'lessons'], heading: '', start: indented },
+      { site: 'list promises', argv: ['list', 'promises'], heading: '', start: indented },
+      { site: 'list words', argv: ['list', 'words'], heading: '', start: indented },
+      { site: 'list decisions', argv: ['list', 'decisions'], heading: '', start: decisionRow },
+      { site: 'show of a lesson', argv: ['show', 'l-1'], heading: '', start: null },
+      { site: 'show of a lesson across the wrap', argv: ['show', 'l-2'], heading: '', start: null },
+      { site: 'show of a promise', argv: ['show', 'p-3'], heading: '', start: null },
+      { site: 'show of owner words', argv: ['show', 'w-2'], heading: '', start: null },
+      { site: 'show of a decision', argv: ['show', 'd-2'], heading: '', start: null },
+      {
+        site: 'show of a decision across the cut',
+        argv: ['show', 'd-4'],
+        heading: '',
+        start: null,
+      },
+      { site: 'log of lesson rows', argv: ['log', '--op', 'lesson'], heading: '', start: dayRow },
+      { site: 'log of promise rows', argv: ['log', '--op', 'promise'], heading: '', start: dayRow },
+      { site: 'log of words rows', argv: ['log', '--op', 'words'], heading: '', start: dayRow },
+      { site: 'log of decide rows', argv: ['log', '--op', 'decide'], heading: '', start: dayRow },
+      {
+        site: 'the PROMISED rows of the recap',
+        argv: ['recap'],
+        heading: 'PROMISED (',
+        start: indented,
+      },
     ];
 
     const fourGrams = Array.from({ length: credential.tail.length - 3 }, (_value, at) =>
@@ -3118,17 +3138,35 @@ test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as cons
       results.push({
         site: read.site,
         exitCode: output.exitCode,
-        hasPlaceholder: text.includes('<where the secret lives>'),
-        leaks: fourGrams.filter((gram) => text.includes(gram)),
+        rows: collectPrintRows(text, read.start).map((row) => ({
+          hasPlaceholder: row.includes('<where the secret lives>'),
+          leaks: fourGrams.filter((gram) => row.includes(gram)),
+        })),
       });
     }
+
+    // The recap cuts a line at 100 characters after it redacts, so its second promise, whose
+    // redacted text starts at column 94, ends inside the placeholder.
+    const rowCounts: Readonly<Record<string, number>> = {
+      'the DECISIONS rows of the brief': 3,
+      'list decisions': 4,
+      'log of decide rows': 4,
+      'show of a lesson': 1,
+      'show of a lesson across the wrap': 1,
+      'show of a promise': 1,
+      'show of owner words': 1,
+      'show of a decision': 1,
+      'show of a decision across the cut': 1,
+    };
 
     expect(results).toStrictEqual(
       reads.map((read) => ({
         site: read.site,
         exitCode: 0,
-        hasPlaceholder: true,
-        leaks: [],
+        rows: Array.from({ length: rowCounts[read.site] ?? 3 }, (_row, index) => ({
+          hasPlaceholder: !(read.argv[0] === 'recap' && index === 1),
+          leaks: [],
+        })),
       })),
     );
   },
@@ -3301,15 +3339,21 @@ test('it refuses every write that names an id two files hold, prints both rows o
     ]),
   );
 
-  const lessonsBefore = readFileSync(join(folder, 'lessons.tsv'), 'utf8');
-  const itemsBefore = readFileSync(join(folder, 'items.tsv'), 'utf8');
-
-  const refusals = [
-    await ctx.run(['set', 'l-seed', 'New claim']),
-    await ctx.run(['done', 'l-seed', '--evidence', 'merged']),
-    await ctx.run(['now', 'l-seed', 'go on']),
-    await ctx.run(['lesson', 'l-seed', 'A lesson', '--why', 'A mistake']),
+  const refusedArgvs = [
+    ['set', 'l-seed', 'New claim'],
+    ['done', 'l-seed', '--evidence', 'merged'],
+    ['now', 'l-seed', 'go on'],
+    ['lesson', 'l-seed', 'A lesson', '--why', 'A mistake'],
   ];
+
+  const refusals = [];
+
+  for (const argv of refusedArgvs) {
+    const before = await ctx.readTree();
+    const result = await ctx.run(argv);
+
+    refusals.push({ result, before, after: await ctx.readTree() });
+  }
 
   const other = await ctx.run(['task', 't-other', 'Another task']);
   const brief = await ctx.run([]);
@@ -3319,22 +3363,22 @@ test('it refuses every write that names an id two files hold, prints both rows o
     'www: tide-alerts holds l-seed twice, as a task in items.tsv and as a lesson in lessons.tsv. Rename one of them by hand; the journal keeps both.\n';
 
   expect({
-    refusals: refusals.map((result) => [result.exitCode, result.stderr.includes(' twice, as ')]),
+    refusals: refusals.map((refusal) => [
+      refusal.result.exitCode,
+      refusal.result.stderr.includes(' twice, as '),
+    ]),
+    trees: refusals.map((refusal) => refusal.after),
     other: other.exitCode,
     briefHasBoth: [
       brief.stdout.includes('  l-seed      A task'),
       listed.stdout.includes('A lesson'),
     ],
     briefStderr: brief.stderr.startsWith(twice),
-    unchanged: [
-      readFileSync(join(folder, 'lessons.tsv'), 'utf8'),
-      readFileSync(join(folder, 'items.tsv'), 'utf8').startsWith(itemsBefore.split('\n')[0] ?? ''),
-    ],
   }).toStrictEqual({
     refusals: refusals.map(() => [3, true]),
+    trees: refusals.map((refusal) => refusal.before),
     other: 0,
     briefHasBoth: [true, true],
     briefStderr: true,
-    unchanged: [lessonsBefore, true],
   });
 });

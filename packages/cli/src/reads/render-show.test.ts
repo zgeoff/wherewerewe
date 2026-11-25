@@ -6,12 +6,14 @@ import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
 import type { Grant, Item, JournalRow, Note, SessionFile, Store } from '../types.ts';
 import { renderShow } from './render-show.ts';
+import type { ShowInput } from './render-show.ts';
 
 interface ShowOptions {
   readonly closed?: ReadonlyMap<string, string>;
   readonly notes?: readonly Note[];
   readonly grant?: Grant;
   readonly checkNow?: { readonly result: string; readonly failing: readonly string[] };
+  readonly checkNows?: ShowInput['checkNows'];
   readonly store?: Partial<Store>;
 }
 
@@ -60,7 +62,7 @@ function setupTest() {
         rows,
         closed: options.closed ?? new Map(),
         nowMs: Date.parse('2026-03-10T11:43:00Z'),
-        checkNow: options.checkNow ?? null,
+        checkNows: options.checkNows ?? [options.checkNow ?? null],
       }),
   };
 }
@@ -1186,5 +1188,47 @@ test('it prints both rows of an id that a task and a lesson hold, the task first
   expect(text.split('\n').filter((line) => line.startsWith('l-seed  '))).toStrictEqual([
     'l-seed  task, open since day 7, by agent',
     'l-seed  lesson, open since day 7, by agent',
+  ]);
+});
+
+test('it prints every item row of an id that items.tsv holds twice, with each claim', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    't-a',
+    [
+      buildMockItem({ id: 't-a', claim: 'First claim of the id' }),
+      buildMockItem({ id: 't-a', claim: 'Second claim of the id' }),
+    ],
+    [buildMockJournalRow({ ts: '2026-03-08T10:00:00Z', op: 'task', id: 't-a' })],
+  );
+
+  expect(text.split('\n').filter((line) => line.includes(' claim '))).toStrictEqual([
+    '  claim (1h): First claim of the id',
+    '  claim (1h): Second claim of the id',
+  ]);
+});
+
+test('it prints the check now of each item row of an id that items.tsv holds twice', () => {
+  const ctx = setupTest();
+
+  const text = ctx.show(
+    't-a',
+    [
+      buildMockItem({ id: 't-a', claim: 'First claim of the id', check: 'pr:acme/api#1' }),
+      buildMockItem({ id: 't-a', claim: 'Second claim of the id', check: 'pr:acme/api#2' }),
+    ],
+    [],
+    {
+      checkNows: [
+        { result: 'MERGED', failing: [] },
+        { result: 'OPEN failing', failing: ['lint'] },
+      ],
+    },
+  );
+
+  expect(text.split('\n').filter((line) => line.startsWith('  checked now: '))).toStrictEqual([
+    '  checked now: MERGED · at write: not checked yet',
+    '  checked now: OPEN failing (lint) · at write: not checked yet',
   ]);
 });

@@ -8,6 +8,7 @@ import { createGitCommit, runGit } from '@zgeoff/testing/git';
 import { estimateTokens } from '../brief/estimate-tokens.ts';
 import { itemCaps, lessonCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
 import { runCLI } from '../run-cli.ts';
+import { formatPrsFile } from '../store/format-prs-file.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
@@ -21,6 +22,7 @@ import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
+import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { seedWorstCaseStore } from '../test-utils/seed-worst-case-store.ts';
 
@@ -679,15 +681,25 @@ test.each([
     host: 'claude',
     variable: 'CLAUDE_CODE_SESSION_ID',
     id: 'a1b2-test',
-    kinds: ['waits', 'promises', 'lessons', 'decisions', 'where'],
+    kinds: ['show', 'waits', 'promises', 'lessons', 'decisions', 'where', 'prs'],
   },
-  { host: 'codex', variable: 'CODEX_SESSION_ID', id: 'c9-test', kinds: ['promises', 'where'] },
+  {
+    host: 'codex',
+    variable: 'CODEX_SESSION_ID',
+    id: 'c9-test',
+    kinds: ['show', 'promises', 'where', 'prs'],
+  },
 ] as const)(
   'it runs the command of each cut line of a 3-byte store as printed for $host with --session, and lists every row of its kind',
   async (row) => {
     const ctx = setupTest();
     const name = 'n'.repeat(24);
     const env = { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: '', [row.variable]: row.id };
+
+    const pullRequestRefs = Array.from(
+      { length: 12 },
+      (_, index) => `bosunhq/bosun-api#${String(100 + index)}`,
+    );
 
     const rowIDs: Readonly<Record<string, readonly string[]>> = {
       waits: buildMockIDs('wait', itemCaps.wait),
@@ -697,6 +709,8 @@ test.each([
       where: buildMockIDs('here', itemCaps.where),
       words: buildMockIDs('word', wordsCap),
       decisions: ['d-1', 'd-2', 'd-3'],
+      prs: pullRequestRefs,
+      show: buildMockIDs('task', 30),
     };
 
     await seedWorstCaseStore((argv) => ctx.run(argv, ctx.agentEnv), ctx.stateRoot, name, {
@@ -704,13 +718,28 @@ test.each([
       isThreeByte: true,
     });
 
+    seedStoreFile(
+      join(ctx.stateRoot, name),
+      'prs.tsv',
+      formatPrsFile(
+        pullRequestRefs.map((ref) => ({
+          ref,
+          opened: '2026-03-10T08:43:00Z',
+          state: 'OPEN' as const,
+          seen: '2026-03-10T09:00:00Z',
+        })),
+      ),
+    );
+
     await ctx.run(['attach', name], env);
 
     const brief = await ctx.run(['--session', name], env);
 
     const cutLines = brief.stdout
       .split('\n')
-      .filter((line) => /^ {2}and \d+ more: www --session \S+ list \S+$/u.test(line));
+      .filter((line) =>
+        /^ {2}and \d+ more(?: open tasks)?: www --session \S+ (?:list \S+|show)$/u.test(line),
+      );
 
     const listed = await Promise.all(
       cutLines.map(async (line) => {

@@ -32,7 +32,7 @@ test('it finds each id that a done, drop or use row closed, with the ts of that 
   );
 });
 
-test('it keeps the latest close row of an id, with its op and text', async () => {
+test('it keeps the latest close row of an id, with its op, text and kind', async () => {
   const ctx = setupTest();
 
   await seedSessionStore(ctx.root, 'tide-alerts');
@@ -54,7 +54,29 @@ test('it keeps the latest close row of an id, with its op and text', async () =>
   const index = await readJournalIndex(ctx.folder);
 
   expect(index.closeRows).toStrictEqual(
-    new Map([['l-seed', { ts: '2026-03-08T08:00:00Z', op: 'drop', text: null }]]),
+    new Map([['l-seed', { ts: '2026-03-08T08:00:00Z', op: 'drop', text: null, kind: null }]]),
+  );
+});
+
+test('it reads the kind of the close row of a lesson', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-08T08:00:00Z',
+    op: 'drop',
+    id: 'l-seed',
+    text: 'Pin the clock',
+    extra: 'kind=lesson',
+  });
+
+  const index = await readJournalIndex(ctx.folder);
+
+  expect(index.closeRows).toStrictEqual(
+    new Map([
+      ['l-seed', { ts: '2026-03-08T08:00:00Z', op: 'drop', text: 'Pin the clock', kind: 'lesson' }],
+    ]),
   );
 });
 

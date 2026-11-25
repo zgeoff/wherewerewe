@@ -43,7 +43,7 @@ export function pickFileClose(
       ...(row.kind === 'words' ? { words: store.words.filter((words) => words.id !== id) } : {}),
       journal: isRetry
         ? []
-        : [{ ts, op: command, id, by: 'agent', text: row.text, why, extra: null }],
+        : [{ ts, op: command, id, by: 'agent', text: row.text, why, extra: `kind=${row.kind}` }],
     },
     reply: (figure) =>
       `${id}  ${verb}. Off the brief, kept in the journal. ${formatBriefLine(figure)}`,
@@ -101,8 +101,8 @@ function pickFileCloseRefusal(
 }
 
 // An interrupted close wrote its journal row and left the row in its file, so the retry adds no
-// second journal row. Only a close of the same op, with the row's text, after the row was written,
-// counts: an earlier close of another row under the same id, such as a task's, is not this row's.
+// second journal row. Only a close of the same op, kind and text, after the row was written, counts:
+// a close of another row under the same id, such as a task's, is not this row's.
 function isRetryOfClose(
   input: WriteInput,
   command: 'done' | 'drop' | 'use',
@@ -114,6 +114,7 @@ function isRetryOfClose(
   return (
     earlier !== undefined &&
     earlier.op === command &&
+    earlier.kind === row.kind &&
     earlier.text === row.text &&
     Date.parse(earlier.ts) >= Date.parse(row.written)
   );

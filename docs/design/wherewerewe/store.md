@@ -218,7 +218,7 @@ interface JournalRow {
   by: 'agent' | 'owner' | 'hook' | 'import';
   text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's bullets and scope, a lesson's instruction, a promise's text, the owner's words, or "<old> -> <new>" for changed; '-' when none
   why: string; // the reason (decide, ruled-out, drop, lesson), the evidence (done), what it was used for (use), or the grant's reading (grant); '-' when none
-  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1, where=chat, or to=<who>;by=<when> for a promise
+  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1, where=chat, to=<who>;by=<when> for a promise, or kind=lesson, kind=promise or kind=words on the `done` or `drop` row that closes one
 }
 
 type Op =

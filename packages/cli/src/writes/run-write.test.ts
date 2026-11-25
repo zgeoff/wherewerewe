@@ -304,6 +304,11 @@ test.each(
         { title: 'rule', setup: [], argv: ['rule', 'r-new', 'Run from the repo root'] },
         { title: 'where', setup: [], argv: ['where', 'wh-new', 'A second worktree'] },
         { title: 'set claim', setup: [], argv: ['set', 't-a', 'Write the timer again'] },
+        {
+          title: 'set claim with note',
+          setup: [],
+          argv: ['set', 't-a', 'Write the timer again', '--note', 'Start with the parser'],
+        },
         { title: 'set note', setup: [], argv: ['set', 't-b', '--note', 'Start with the parser'] },
         {
           title: 'set no-note',
