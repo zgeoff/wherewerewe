@@ -2,10 +2,11 @@ import { join } from 'node:path';
 import { match } from 'ts-pattern';
 import { helpText } from './args/help-text.ts';
 import { isWriteArgv, parseCLIArgs } from './args/parse-cli-args.ts';
-import { getSessionDay } from './brief/get-session-day.ts';
 import { formatDuplicateNotes } from './commands/format-duplicate-notes.ts';
 import { formatSessionLines } from './commands/format-session-lines.ts';
+import { refuseNoSession } from './commands/refuse-no-session.ts';
 import { runBriefCommand } from './commands/run-brief-command.ts';
+import { runGoalPasteCommand } from './commands/run-goal-paste-command.ts';
 import { runImportCommand } from './commands/run-import-command.ts';
 import { runListCommand } from './commands/run-list-command.ts';
 import { runLogCommand } from './commands/run-log-command.ts';
@@ -23,7 +24,6 @@ import { isOwnerTerminal } from './rules/is-owner-terminal.ts';
 import { isSessionName } from './rules/is-session-name.ts';
 import { redactCredentialWords } from './rules/redact-credential-words.ts';
 import { findAgentID } from './sessions/find-agent-id.ts';
-import { readSessionSummaries } from './sessions/read-session-summaries.ts';
 import { resolveSession } from './sessions/resolve-session.ts';
 import { findStoreRoot } from './store/find-store-root.ts';
 import { readStore } from './store/read-store.ts';
@@ -137,6 +137,10 @@ async function runSessionBoundCommand(context: CommandContext): Promise<CLIResul
 const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'recap', 'list']);
 
 async function runNamedSession(context: CommandContext, name: string): Promise<CLIResult> {
+  if (context.args.command === 'goal' && context.args.values.paste === true) {
+    return runGoalPasteCommand(context, name);
+  }
+
   const folder = join(context.root, name);
 
   const read = isSessionName(name)
@@ -269,19 +273,4 @@ function resolveWriteResult(written: RunWriteResult, args: ParsedArgs, cwd: stri
       buildRefusalResult(refused.refusal, buildRefusalScope(args, cwd)),
     )
     .exhaustive();
-}
-
-async function refuseNoSession(context: CommandContext, named: string | null): Promise<CLIResult> {
-  const summaries = await readSessionSummaries(context.root);
-
-  const refusal = buildRefusal({
-    kind: 'no-session',
-    named,
-    sessions: summaries.map((summary) => ({
-      name: summary.name,
-      day: summary.started === null ? null : getSessionDay(summary.started, context.nowMs),
-    })),
-  });
-
-  return buildRefusalResult(refusal, buildRefusalScope(context.args, context.cwd));
 }

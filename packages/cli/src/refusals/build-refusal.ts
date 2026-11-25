@@ -104,17 +104,15 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'text-has-mark' },
       (found) => buildApprovalRefusal(found),
     )
-    .with({ kind: 'no-grant-to-print' }, (found) =>
-      refuse(`www: refused: ${found.name} has no grant to print.`, [
-        'grant',
-        '--may',
-        grantPlaceholders.may,
-        '--where',
-        toPlaceholder('<where>'),
-        '--reading',
-        grantPlaceholders.reading,
-      ]),
-    )
+    .with({ kind: 'no-grant-to-print' }, (found) => ({
+      exitCode: 3 as const,
+      lines: [`www: refused: ${found.name} has no grant to print.`],
+      runs: [
+        {
+          usage: `grant --may "${grantPlaceholders.may.placeholder}" --where <where> --reading "${grantPlaceholders.reading.placeholder}"`,
+        },
+      ],
+    }))
     .with({ kind: 'decide-needs-why' }, (found) =>
       refuse(
         'www: refused: a decision needs its reason.',
