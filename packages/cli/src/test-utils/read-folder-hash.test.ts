@@ -22,14 +22,28 @@ test('it gives the same hash for the same folder twice', () => {
 test.each([
   {
     title: 'a changed byte',
-    change: (folder: string) => writeFileSync(join(folder, 'a', 'one'), 'y'),
+    change: (folder: string) => {
+      writeFileSync(join(folder, 'a', 'one'), 'y');
+    },
   },
-  { title: 'a new file', change: (folder: string) => writeFileSync(join(folder, 'two'), '') },
+  {
+    title: 'a new file',
+    change: (folder: string) => {
+      writeFileSync(join(folder, 'two'), '');
+    },
+  },
   {
     title: 'a changed mode',
-    change: (folder: string) => chmodSync(join(folder, 'a', 'one'), 0o600),
+    change: (folder: string) => {
+      chmodSync(join(folder, 'a', 'one'), 0o600);
+    },
   },
-  { title: 'a new folder', change: (folder: string) => mkdirSync(join(folder, 'b')) },
+  {
+    title: 'a new folder',
+    change: (folder: string) => {
+      mkdirSync(join(folder, 'b'));
+    },
+  },
 ])('it gives another hash after $title', (row) => {
   const ctx = setupTest();
   const before = readFolderHash(ctx.folder);

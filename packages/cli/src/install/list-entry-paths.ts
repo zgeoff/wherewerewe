@@ -23,7 +23,8 @@ export function listEntryPaths(text: string | null, harness: Harness): string[] 
 
 function unquote(path: string): string {
   const isQuoted =
-    path.length > 1 && (path[0] === '"' || path[0] === "'") && path.at(-1) === path[0];
+    path.length > 1 &&
+    ((path.startsWith('"') && path.endsWith('"')) || (path.startsWith("'") && path.endsWith("'")));
 
   return isQuoted ? path.slice(1, -1) : path;
 }

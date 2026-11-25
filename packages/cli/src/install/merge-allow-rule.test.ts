@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { isSubsequence } from '../test-utils/is-subsequence.ts';
+import { parseSettingsJson } from '../test-utils/parse-settings-json.ts';
 import { mergeAllowRule } from './merge-allow-rule.ts';
 
 function setupTest() {
@@ -31,7 +32,8 @@ test.each([
     isAdded: merge.kind === 'merged' && merge.isAdded,
     isKept: merge.kind === 'merged' && isSubsequence(row.text, merge.text),
     holdsRule:
-      merge.kind === 'merged' && JSON.parse(merge.text).permissions.allow.includes('Bash(www *)'),
+      merge.kind === 'merged' &&
+      parseSettingsJson(merge.text).permissions.allow?.includes('Bash(www *)'),
   }).toStrictEqual({ isAdded: true, isKept: true, holdsRule: true });
 });
 
@@ -46,7 +48,9 @@ test('it adds the rule once and changes no byte on a second run', () => {
 test('it writes no deny or ask rule', () => {
   const ctx = setupTest();
   const merge = ctx.merge('{}');
-  const keys = merge.kind === 'merged' ? Object.keys(JSON.parse(merge.text).permissions) : [];
+
+  const keys =
+    merge.kind === 'merged' ? Object.keys(parseSettingsJson(merge.text).permissions) : [];
 
   expect(keys).toStrictEqual(['allow']);
 });

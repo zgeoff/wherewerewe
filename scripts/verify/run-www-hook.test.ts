@@ -46,11 +46,14 @@ test('it puts the whole brief that www prints into the payload as the text of a 
   await runWWWHook(ctx.exec, ctx.root, 'codex', '{"tool_response":"{brief:trial-hooks}"}');
 
   const hook = ctx.calls.at(-1);
-  const parsed = JSON.parse(String(hook?.[4]));
+  const parsed: unknown = JSON.parse(String(hook?.[4]));
 
   expect({
     calls: ctx.calls.length,
-    response: parsed.tool_response,
+    response:
+      typeof parsed === 'object' && parsed !== null && 'tool_response' in parsed
+        ? parsed.tool_response
+        : null,
     briefTail: ctx.calls[0]?.slice(-2),
   }).toStrictEqual({
     calls: 2,

@@ -56,8 +56,12 @@ async function setupTest() {
 
       return handle;
     },
-    holdFault: () => writeFileSync(join(root, 'hook-fault'), 'hold\n'),
-    clearFault: () => rmSync(join(root, 'hook-fault'), { force: true }),
+    holdFault: () => {
+      writeFileSync(join(root, 'hook-fault'), 'hold\n');
+    },
+    clearFault: () => {
+      rmSync(join(root, 'hook-fault'), { force: true });
+    },
     readHeld: () => existsSync(join(root, 'hook-held')),
   };
 }

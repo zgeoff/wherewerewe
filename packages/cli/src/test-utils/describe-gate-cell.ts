@@ -36,7 +36,7 @@ function describeGo(cell: Extract<GateCell, { kind: 'go' }>): string {
     .with('refuse', () => 'refused')
     .with('pass', () => (state === null ? 'passes' : `${state}; passes`))
     .with('pass-with-line', () => `${state ?? ''}; passes with the line`)
-    .with('none', () => (state === null ? 'no change' : state))
+    .with('none', () => state ?? 'no change')
     .with('block', () => '?')
     .with('inject', () => '?')
     .exhaustive();

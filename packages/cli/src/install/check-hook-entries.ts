@@ -57,13 +57,16 @@ export function checkHookEntries(input: HookEntriesInput): DoctorCheck {
 }
 
 function describeProblem(input: HookEntriesInput, groups: unknown, entry: HookEntry): string[] {
-  const ours = (Array.isArray(groups) ? groups : []).flatMap((group: unknown) =>
-    isRecord(group) && Array.isArray(group['hooks'])
-      ? group['hooks']
-          .filter((handler) => isOurHandler(handler, input.harness))
-          .map((handler) => ({ group, handler }))
-      : [],
-  );
+  const list: unknown[] = Array.isArray(groups) ? groups : [];
+
+  const ours = list.flatMap((group) => {
+    const handlers: unknown[] =
+      isRecord(group) && Array.isArray(group['hooks']) ? group['hooks'] : [];
+
+    return handlers
+      .filter((handler) => isOurHandler(handler, input.harness))
+      .map((handler) => ({ group, handler }));
+  });
 
   if (ours.length === 0) {
     return [

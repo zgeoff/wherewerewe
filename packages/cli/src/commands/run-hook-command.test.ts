@@ -504,7 +504,7 @@ test('it behaves the same with no fault file as without the switch', async () =>
 test('it ends the log at 200 lines', async () => {
   const ctx = await setupTest('claude');
 
-  writeFileSync(join(ctx.root, 'hook-errors.log'), `${'old line\n'.repeat(250)}`);
+  writeFileSync(join(ctx.root, 'hook-errors.log'), 'old line\n'.repeat(250));
   writeFileSync(join(ctx.root, '.bindings', `claude-${ctx.sessionID}`), 'name=gone-away\n');
 
   await ctx.run(ctx.steps.start);

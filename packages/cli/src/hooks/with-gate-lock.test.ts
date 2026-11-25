@@ -99,9 +99,15 @@ test('it reports busy when the lock is held past the wait', async () => {
 test('it frees the lock when the callback throws', async () => {
   const ctx = setupTest();
 
-  await expect(
-    withGateLock(ctx.gatePath, () => Promise.reject(new Error('stopped')), ctx.options),
-  ).rejects.toThrow('stopped');
+  const thrown = await withGateLock(
+    ctx.gatePath,
+    () => {
+      throw new Error('stopped');
+    },
+    ctx.options,
+  ).catch((error: unknown) => error);
+
+  expect(thrown).toStrictEqual(new Error('stopped'));
 
   const after = await withGateLock(ctx.gatePath, () => Promise.resolve(1), ctx.options);
 

@@ -14,6 +14,7 @@ import { buildHookEntries } from '../install/build-hook-entries.ts';
 import { renderSkill } from '../skill/render-skill.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { isSubsequence } from '../test-utils/is-subsequence.ts';
+import { parseSettingsJson } from '../test-utils/parse-settings-json.ts';
 import { readFolderHash } from '../test-utils/read-folder-hash.ts';
 import { seedInstallFixture } from '../test-utils/seed-install-fixture.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
@@ -42,8 +43,8 @@ test('it writes the hook entries, the allow rules and the skills of a fresh home
 
   const result = await ctx.install();
 
-  const claude = JSON.parse(ctx.read(ctx.paths.claudeSettings));
-  const codex = JSON.parse(ctx.read(ctx.paths.codexHooks));
+  const claude = parseSettingsJson(ctx.read(ctx.paths.claudeSettings));
+  const codex = parseSettingsJson(ctx.read(ctx.paths.codexHooks));
 
   expect({
     exitCode: result.exitCode,
@@ -91,9 +92,9 @@ test('it names each hook entry path as the binary on the PATH, with no runtime',
   await ctx.install();
 
   const entries = buildHookEntries('claude', join(ctx.bin, 'wherewerewe'));
-  const settings = JSON.parse(ctx.read(ctx.paths.claudeSettings));
+  const settings = parseSettingsJson(ctx.read(ctx.paths.claudeSettings));
 
-  expect(settings.hooks.Stop[0].hooks[0].command).toBe(entries[5]?.command);
+  expect(settings.hooks.Stop?.[0]?.hooks[0]?.command).toBe(entries[5]?.command);
 });
 
 test('it prints the lines that config.toml needs, with the store root as an absolute path, and never edits it', async () => {
@@ -153,7 +154,7 @@ test('it replaces an older entry that ran bun on the bin, where it stands', asyn
 
   await ctx.install();
 
-  expect(JSON.parse(ctx.read(ctx.paths.claudeSettings)).hooks.Stop).toStrictEqual([
+  expect(parseSettingsJson(ctx.read(ctx.paths.claudeSettings)).hooks.Stop).toStrictEqual([
     { hooks: [{ type: 'command', command: `${ctx.bin}/wherewerewe hook claude`, timeout: 3 }] },
   ]);
 });
@@ -276,7 +277,7 @@ test('it keeps both writes when the file changes between its read and its rename
     },
   });
 
-  const written = JSON.parse(ctx.read(ctx.paths.claudeSettings));
+  const written = parseSettingsJson(ctx.read(ctx.paths.claudeSettings));
 
   expect({
     exitCode: result.exitCode,

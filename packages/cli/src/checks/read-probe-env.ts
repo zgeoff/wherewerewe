@@ -37,7 +37,7 @@ export function readProbeEnv(
   path: string,
   cwd: string,
 ): Record<string, string> {
-  const passed = Object.entries(env).flatMap(([name, value]) => {
+  const passed = Object.entries(env).flatMap(([name, value]): [string, string][] => {
     if (!passedNames.has(name) || value === undefined) {
       return [];
     }

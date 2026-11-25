@@ -11,6 +11,7 @@ import {
 import { dirname, join } from 'node:path';
 import { renderSkill } from '../skill/render-skill.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
+import { parseSettingsJson } from '../test-utils/parse-settings-json.ts';
 import { readFolderHash } from '../test-utils/read-folder-hash.ts';
 import { seedInstallFixture } from '../test-utils/seed-install-fixture.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
@@ -80,7 +81,7 @@ test('it names the event and the fix for a Claude Code entry that is missing', a
   const ctx = await setupTest();
 
   ctx.edit(ctx.paths.claudeSettings, (text) => {
-    const settings = JSON.parse(text);
+    const settings = parseSettingsJson(text);
 
     delete settings.hooks.Stop;
 
@@ -161,7 +162,7 @@ test('it reports a missing allow rule with the install line', async () => {
   const ctx = await setupTest();
 
   ctx.edit(ctx.paths.claudeSettings, (text) => {
-    const settings = JSON.parse(text);
+    const settings = parseSettingsJson(text);
 
     settings.permissions.allow = [];
 
@@ -185,7 +186,7 @@ test.each([
     const ctx = await setupTest();
 
     ctx.edit(ctx.paths.claudeSettings, (text) => {
-      const settings = JSON.parse(text);
+      const settings = parseSettingsJson(text);
 
       settings.permissions[row.list] = ['Bash(ls)', row.rule];
 
@@ -206,7 +207,7 @@ test('it does not count a deny rule for another program', async () => {
   const ctx = await setupTest();
 
   ctx.edit(ctx.paths.claudeSettings, (text) => {
-    const settings = JSON.parse(text);
+    const settings = parseSettingsJson(text);
 
     settings.permissions.deny = ['Bash(rm *)', 'Bash(wwwx *)'];
 
@@ -426,9 +427,9 @@ test('it fails the check of one entry per event for a second wherewerewe hook in
   const ctx = await setupTest();
 
   ctx.edit(ctx.paths.claudeSettings, (text) => {
-    const settings = JSON.parse(text);
+    const settings = parseSettingsJson(text);
 
-    settings.hooks.Stop.push({
+    settings.hooks.Stop?.push({
       hooks: [{ type: 'command', command: '/other/wherewerewe hook claude' }],
     });
 
@@ -544,7 +545,7 @@ test('it names the allow rule as missing after a user removes it', async () => {
   const ctx = await setupTest();
 
   ctx.edit(ctx.paths.claudeSettings, (text) => {
-    const settings = JSON.parse(text);
+    const settings = parseSettingsJson(text);
 
     settings.permissions = {};
 
@@ -562,7 +563,7 @@ test('it prints no value of a settings file beyond the lines it names', async ()
   const secret = buildCredentialSamples()[0]?.sample ?? '';
 
   ctx.edit(ctx.paths.claudeSettings, (text) => {
-    const settings = JSON.parse(text);
+    const settings = parseSettingsJson(text);
 
     settings.env = { API_TOKEN: secret };
     settings.permissions.ask = [`Bash(curl -H "Authorization: ${secret}" *)`];
