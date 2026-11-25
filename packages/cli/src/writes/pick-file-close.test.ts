@@ -130,6 +130,8 @@ test.each([
 ] as const)(
   'it records every $kind row it removes or replaces, over generated writes, closes and interrupted closes',
   async (row) => {
+    setupTest();
+
     // a close stops after its journal row, and a replacement of the same text in the same second
     // reopens the id: the next close records the replacement's close
     const replacedInTheSameSecond: CloseModelStep[] = [

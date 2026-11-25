@@ -93,6 +93,9 @@ function setupTest() {
         CLAUDE_CODE_SESSION_ID: 'a1b2-test',
       };
 
+      // say and ack are the owner's: they run from a terminal outside any agent
+      const isOwner = argv[0] === 'say' || argv[0] === 'ack';
+      const ownerEnv = { HOME: storeRoot, XDG_STATE_HOME: storeRoot };
       const terminal = { stdin: false, stdout: false };
 
       await runCLI({
@@ -105,7 +108,30 @@ function setupTest() {
 
       await seedRedactionStore(join(storeRoot, 'wherewerewe', 'tide-alerts'), values);
 
-      return runCLI({ argv, env, cwd: '/work', terminal, now: () => fixedMs });
+      if (!isOwner) {
+        return runCLI({ argv, env, cwd: '/work', terminal, now: () => fixedMs });
+      }
+
+      const ownerTerminal = { stdin: true, stdout: true };
+      const scoped = ['--session', 'tide-alerts'];
+
+      if (argv[0] === 'ack') {
+        await runCLI({
+          argv: [...scoped, 'say', 'Plain words please'],
+          env: ownerEnv,
+          cwd: '/work',
+          terminal: ownerTerminal,
+          now: () => fixedMs,
+        });
+      }
+
+      return runCLI({
+        argv: [...scoped, ...argv],
+        env: ownerEnv,
+        cwd: '/work',
+        terminal: ownerTerminal,
+        now: () => fixedMs,
+      });
     },
     pickGrantLines: (stdout: string) =>
       stdout.split('\n').filter((line) => /^ {2}(?:may|not|never) /u.test(line)),
@@ -146,6 +172,14 @@ test.each([
   [
     ['task', 't-a'],
     `www: task takes <id> "<claim>".\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,
+  ],
+  [
+    ['list'],
+    'www: list takes tasks, waits, approvals, rules, where, lessons, promises, words, notes, decisions or prs.\nRun: www list tasks\n',
+  ],
+  [
+    ['list', 'bogus'],
+    'www: list takes tasks, waits, approvals, rules, where, lessons, promises, words, notes, decisions or prs.\nRun: www list tasks\n',
   ],
   [['recap', 'x'], 'www: recap takes no arguments.\nRun: www recap [--since <t>]\n'],
   [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www show [<id>]\n'],
@@ -3090,6 +3124,18 @@ test.each(
     });
   },
 );
+
+test.each(
+  buildPrintSites(['l-1'])
+    .filter((site) => ['say', 'ack', 'grant'].includes(site.argv[0] ?? ''))
+    .map((site) => ({ title: site.title, argv: site.argv })),
+)('it exits 0 for $title in the redaction store, so its reply is checked', async (site) => {
+  const ctx = setupTest();
+
+  const result = await ctx.runInRedactionStore({}, site.argv);
+
+  expect(result.exitCode).toBe(0);
+});
 
 test.each(buildRedactionFields())(
   'it prints the $name field as one placeholder in www show of its row, and no credential, when only that field holds one',

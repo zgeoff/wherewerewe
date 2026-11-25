@@ -48,7 +48,7 @@ export function buildPrintSites(ids: readonly string[]): PrintSite[] {
     return choices.flatMap((picked) =>
       idValues.map((id) => {
         const choiceFill = picked === null || choice === undefined ? {} : { [choice]: picked };
-        const keeps = id === null ? [] : ['<id>', '--id'];
+        const keeps = id === null ? ['--may'] : ['--may', '<id>', '--id'];
 
         return buildUsageRunArgv(
           `Run: www ${shape.line}`.trimEnd(),
