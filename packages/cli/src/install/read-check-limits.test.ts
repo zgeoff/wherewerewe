@@ -74,5 +74,7 @@ test('it names a PATH entry the user can write, and one inside the working folde
 test('it names nothing when no git is on PATH and no entry can be written', () => {
   const ctx = setupTest();
 
-  expect(readCheckLimits({ PATH: '/nonexistent-folder' }, ctx.work, ctx.root)).toStrictEqual([]);
+  expect(
+    readCheckLimits({ PATH: join(ctx.root, 'no-such-folder') }, ctx.work, ctx.root),
+  ).toStrictEqual([]);
 });
