@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { buildHookEntries } from '../install/build-hook-entries.ts';
+import type { InstallWriteSeam } from '../install/write-installed-file.ts';
 import { renderSkill } from '../skill/render-skill.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { isSubsequence } from '../test-utils/is-subsequence.ts';
@@ -22,6 +23,7 @@ import { runInstallCommand } from './run-install-command.ts';
 
 function setupTest() {
   const fixture = seedInstallFixture();
+  const events: string[] = [];
 
   return {
     ...fixture,
@@ -34,6 +36,19 @@ function setupTest() {
     mode: (path: string) => statSync(path).mode % 0o1000,
     hash: () => readFolderHash(fixture.root),
     install: (flags: readonly string[] = []) => fixture.run(['install', ...flags]),
+    events,
+    runWith: (seam: InstallWriteSeam) =>
+      runInstallCommand({
+        env: fixture.env,
+        cwd: fixture.work,
+        isPrinting: false,
+        isReplacingSkill: false,
+        version: '0.0.1',
+        emit: (text) => {
+          events.push(text);
+        },
+        seam,
+      }),
     skill: renderSkill('0.0.1'),
   };
 }
@@ -262,18 +277,11 @@ test('it keeps both writes when the file changes between its read and its rename
 
   ctx.place(ctx.paths.claudeSettings, '{\n  "model": "opus"\n}\n');
 
-  const result = runInstallCommand({
-    env: ctx.env,
-    cwd: ctx.work,
-    isPrinting: false,
-    isReplacingSkill: false,
-    version: '0.0.1',
-    seam: {
-      afterRead: (path) => {
-        if (path === ctx.paths.claudeSettings) {
-          writeFileSync(path, '{\n  "model": "opus",\n  "theme": "dark"\n}\n');
-        }
-      },
+  const result = ctx.runWith({
+    beforeRename: (path) => {
+      if (path === ctx.paths.claudeSettings) {
+        writeFileSync(path, '{\n  "model": "opus",\n  "theme": "dark"\n}\n');
+      }
     },
   });
 
@@ -287,6 +295,101 @@ test('it keeps both writes when the file changes between its read and its rename
     exitCode: 0,
     theme: 'dark',
     hasHooks: true,
+  });
+});
+
+test('it says what it adds and the limits that apply before it makes the first write', () => {
+  const ctx = setupTest();
+
+  ctx.runWith({
+    beforeRename: (path) => {
+      ctx.events.push(`write ${path}`);
+    },
+  });
+
+  const firstWrite = ctx.events.findIndex((event) => event.startsWith('write '));
+  const before = ctx.events.slice(0, firstWrite);
+
+  expect(before).toStrictEqual([
+    expect.stringContaining('with the allow rules, a check runs git and gh with no prompt'),
+    'www install: adding "Bash(www *)" to permissions.allow in ~/.claude/settings.json\n',
+  ]);
+});
+
+test('it has printed the limits when a later file changes while it runs, and the refusal names the earlier write', () => {
+  const ctx = setupTest();
+  let count = 0;
+
+  const result = ctx.runWith({
+    beforeRename: (path) => {
+      if (path === ctx.paths.codexHooks) {
+        count += 1;
+
+        writeFileSync(path, `{ "hooks": {}, "touched": ${String(count)} }\n`);
+      }
+    },
+  });
+
+  expect({
+    exitCode: result.exitCode,
+    printed: ctx.events.some((event) => event.includes('a check runs git and gh with no prompt')),
+    stderr: result.stderr.split('\n')[0],
+    claudeWritten: existsSync(ctx.paths.claudeSettings),
+  }).toStrictEqual({
+    exitCode: 3,
+    printed: true,
+    stderr: 'www: ~/.codex/hooks.json changed while install ran, so it changes nothing there.',
+    claudeWritten: true,
+  });
+});
+
+test('it refuses a settings file it cannot read, and writes nothing', async () => {
+  const ctx = setupTest();
+
+  ctx.place(ctx.paths.claudeSettings, '{}\n');
+
+  const before = ctx.hash();
+  const mode = ctx.mode(ctx.paths.claudeSettings);
+
+  chmodSync(ctx.paths.claudeSettings, 0o000);
+
+  const result = await ctx.install();
+
+  chmodSync(ctx.paths.claudeSettings, mode);
+
+  expect({
+    exitCode: result.exitCode,
+    stderr: result.stderr.split('\n')[0],
+    unchanged: ctx.hash() === before,
+  }).toStrictEqual({
+    exitCode: 3,
+    stderr: 'www: install cannot read ~/.claude/settings.json, so it changes nothing there.',
+    unchanged: true,
+  });
+});
+
+test('it fails when a file turns invalid between the preflight and the write', () => {
+  const ctx = setupTest();
+
+  ctx.place(ctx.paths.claudeSettings, '{}\n');
+
+  const result = ctx.runWith({
+    beforeRename: (path) => {
+      if (path === ctx.paths.claudeSettings) {
+        writeFileSync(path, '{ "hooks": ');
+      }
+    },
+  });
+
+  expect({
+    exitCode: result.exitCode,
+    stderr: result.stderr.split('\n')[0],
+    text: ctx.read(ctx.paths.claudeSettings),
+  }).toStrictEqual({
+    exitCode: 3,
+    stderr:
+      'www: install cannot read ~/.claude/settings.json as JSON settings, so it changes nothing.',
+    text: '{ "hooks": ',
   });
 });
 
@@ -508,6 +611,7 @@ test('it prints the limits of the checks that apply here before the config lines
     '- git 2.30.1 is older than 2.45, so a check leans on GIT_ALLOW_PROTOCOL alone to stop a lazy fetch.',
     '- git 2.30.1 is older than 2.36, so it reads core.fsmonitor=false as the name of a helper program.',
     `- ${ctx.bin} is on PATH and you can write to it, so a git or gh an agent plants there runs from a check.`,
+    '- HOME names ~, which you can write to, so a git or gh config an agent writes there is read by a check.',
   ]);
 });
 

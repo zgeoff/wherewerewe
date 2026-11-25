@@ -1,8 +1,8 @@
 import { isRecord } from '../hooks/is-record.ts';
 import { addJSONItem } from './add-json-item.ts';
+import { findJSONMember } from './find-json-member.ts';
 import { parseJSONSettings } from './parse-json-settings.ts';
 import { parseJSONSpans } from './parse-json-spans.ts';
-import type { JSONNode } from './parse-json-spans.ts';
 
 export type AllowMerge =
   | { readonly kind: 'unreadable' }
@@ -47,7 +47,7 @@ function isAllowShape(read: ReturnType<typeof parseJSONSettings>): boolean {
 
 function addRule(text: string, rule: string): AllowMerge {
   const root = parseJSONSpans(text);
-  const permissions = findMember(root, 'permissions');
+  const permissions = findJSONMember(root, 'permissions');
 
   if (permissions === undefined) {
     return {
@@ -57,7 +57,7 @@ function addRule(text: string, rule: string): AllowMerge {
     };
   }
 
-  const allow = findMember(permissions, 'allow');
+  const allow = findJSONMember(permissions, 'allow');
 
   if (allow === undefined) {
     return { kind: 'merged', text: addJSONItem(text, permissions, 'allow', [rule]), isAdded: true };
@@ -70,10 +70,4 @@ function addRule(text: string, rule: string): AllowMerge {
   }
 
   return { kind: 'merged', text: addJSONItem(text, allow, null, rule), isAdded: true };
-}
-
-function findMember(node: JSONNode, key: string): JSONNode | undefined {
-  return node.kind === 'object'
-    ? node.members.find((member) => member.key === key)?.value
-    : undefined;
 }

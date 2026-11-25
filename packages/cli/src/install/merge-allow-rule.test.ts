@@ -65,3 +65,13 @@ test.each([
 
   expect(ctx.merge(row.text)).toStrictEqual({ kind: 'unreadable' });
 });
+
+test('it adds the rule to the later permissions of a file that has the key twice', () => {
+  const ctx = setupTest();
+  const merge = ctx.merge('{"permissions":{"allow":[]},"permissions":{"allow":[]}}');
+
+  expect({
+    isAdded: merge.kind === 'merged' && merge.isAdded,
+    allow: merge.kind === 'merged' ? parseSettingsJson(merge.text).permissions.allow : null,
+  }).toStrictEqual({ isAdded: true, allow: ['Bash(www *)'] });
+});

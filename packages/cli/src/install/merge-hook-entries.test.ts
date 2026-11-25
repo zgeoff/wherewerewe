@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { isRecord } from '../hooks/is-record.ts';
 import { isSubsequence } from '../test-utils/is-subsequence.ts';
 import { buildHookEntries } from './build-hook-entries.ts';
+import { checkHookEntries } from './check-hook-entries.ts';
 import { mergeHookEntries } from './merge-hook-entries.ts';
 import type { HookMerge } from './merge-hook-entries.ts';
 
@@ -29,6 +30,7 @@ function setupTest() {
 
   return {
     bin,
+    hooksOf,
     other: '{ "type": "command", "command": "~/bin/format-on-write.sh", "timeout": 10 }',
     merge,
     mergedText,
@@ -117,7 +119,7 @@ test('it replaces an older entry that ran bun on the bin, where it stands', () =
   const ctx = setupTest();
 
   const old =
-    '{ "type": "command", "command": "/home/sam/.bun/bin/bun /usr/local/bin/wherewerewe hook claude", "timeout": 3 }';
+    '{ "type": "command", "command": "/people/sam/.bun/bin/bun /usr/local/bin/wherewerewe hook claude", "timeout": 3 }';
 
   const text = `{\n  "hooks": {\n    "Stop": [\n      {\n        "hooks": [\n          ${old}\n        ]\n      },\n      { "hooks": [${ctx.other}] }\n    ]\n  }\n}\n`;
 
@@ -139,6 +141,40 @@ test('it replaces only the handler when one group holds ours beside another hook
       ],
     },
   ]);
+});
+
+test('it moves its handler out of a group whose matcher is narrower than the entry, so reinstall repairs it', () => {
+  const ctx = setupTest();
+  const text = `{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[${ctx.other},{"type":"command","command":"/old/wherewerewe hook claude","timeout":3}]}]}}`;
+  const first = ctx.mergedText(text);
+  const groups = ctx.hooksOf(first)['PreToolUse'];
+
+  expect({
+    groups,
+    isCheckOk: checkHookEntries({
+      harness: 'claude',
+      shown: 'settings.json',
+      text: first,
+      entries: buildHookEntries('claude', ctx.bin),
+      bin: ctx.bin,
+    }).isOk,
+    isSecondRunSame: ctx.mergedText(first) === first,
+  }).toStrictEqual({
+    groups: [
+      { matcher: 'Bash', hooks: [JSON.parse(ctx.other)] },
+      { hooks: [{ type: 'command', command: `${ctx.bin} hook claude`, timeout: 3 }] },
+    ],
+    isCheckOk: true,
+    isSecondRunSame: true,
+  });
+});
+
+test('it edits the later value of a key that appears twice, the one the host reads', () => {
+  const ctx = setupTest();
+  const text = '{"hooks":{"Stop":[]},"hooks":{"Stop":[]}}';
+  const merged = ctx.mergedText(text);
+
+  expect(ctx.stopCommands(merged)).toStrictEqual([`${ctx.bin} hook claude`]);
 });
 
 test('it removes a second wherewerewe entry of one event and keeps one', () => {

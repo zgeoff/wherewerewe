@@ -8,32 +8,32 @@ function setupTest() {
 test('it puts each file under the home folder by default', () => {
   const ctx = setupTest();
 
-  expect(ctx.paths({ HOME: '/home/sam' })).toStrictEqual({
-    home: '/home/sam',
-    claudeSettings: '/home/sam/.claude/settings.json',
-    claudeSkill: '/home/sam/.claude/skills/www/SKILL.md',
-    codexHome: '/home/sam/.codex',
-    codexHooks: '/home/sam/.codex/hooks.json',
-    codexRules: '/home/sam/.codex/rules/wherewerewe.rules',
-    codexConfig: '/home/sam/.codex/config.toml',
-    codexSkill: '/home/sam/.agents/skills/www/SKILL.md',
+  expect(ctx.paths({ HOME: '/people/sam' })).toStrictEqual({
+    home: '/people/sam',
+    claudeSettings: '/people/sam/.claude/settings.json',
+    claudeSkill: '/people/sam/.claude/skills/www/SKILL.md',
+    codexHome: '/people/sam/.codex',
+    codexHooks: '/people/sam/.codex/hooks.json',
+    codexRules: '/people/sam/.codex/rules/wherewerewe.rules',
+    codexConfig: '/people/sam/.codex/config.toml',
+    codexSkill: '/people/sam/.agents/skills/www/SKILL.md',
   });
 });
 
 test('it moves the Claude Code files, skill included, with CLAUDE_CONFIG_DIR', () => {
   const ctx = setupTest();
-  const paths = ctx.paths({ HOME: '/home/sam', CLAUDE_CONFIG_DIR: '/data/claude' });
+  const paths = ctx.paths({ HOME: '/people/sam', CLAUDE_CONFIG_DIR: '/data/claude' });
 
   expect([paths?.claudeSettings, paths?.claudeSkill, paths?.codexHooks]).toStrictEqual([
     '/data/claude/settings.json',
     '/data/claude/skills/www/SKILL.md',
-    '/home/sam/.codex/hooks.json',
+    '/people/sam/.codex/hooks.json',
   ]);
 });
 
 test('it moves the Codex files with CODEX_HOME and keeps the Codex skill under the home folder', () => {
   const ctx = setupTest();
-  const paths = ctx.paths({ HOME: '/home/sam', CODEX_HOME: '/data/codex' });
+  const paths = ctx.paths({ HOME: '/people/sam', CODEX_HOME: '/data/codex' });
 
   expect([
     paths?.codexHooks,
@@ -44,7 +44,7 @@ test('it moves the Codex files with CODEX_HOME and keeps the Codex skill under t
     '/data/codex/hooks.json',
     '/data/codex/rules/wherewerewe.rules',
     '/data/codex/config.toml',
-    '/home/sam/.agents/skills/www/SKILL.md',
+    '/people/sam/.agents/skills/www/SKILL.md',
   ]);
 });
 

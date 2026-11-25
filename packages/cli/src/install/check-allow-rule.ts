@@ -4,30 +4,41 @@ import { parseJSONSettings } from './parse-json-settings.ts';
 import { allowRule } from './types.ts';
 import type { DoctorCheck } from './types.ts';
 
-// Checks that `permissions.allow` holds the rule for www, and that no deny or ask rule matches
-// www, since a matching ask rule prompts even when an allow rule matches the same call. A rule is
-// never printed, only its place: a rule can hold anything the user typed.
-export function checkAllowRule(text: string | null, shown: string): DoctorCheck {
-  const read = parseJSONSettings(text ?? '');
+export interface PermissionLayer {
+  readonly shown: string;
 
-  const permissions =
-    read.kind === 'object' && isRecord(read.value['permissions']) ? read.value['permissions'] : {};
+  // `null` for a file that does not exist
+  readonly text: string | null;
+}
 
-  const allow: unknown[] = Array.isArray(permissions['allow']) ? permissions['allow'] : [];
+// Checks that a layer of Claude Code settings allows www, and that no layer has a deny or ask rule
+// that matches www, since either stops the allow rule. The first layer is the user file, which
+// names the fix. A rule is never printed, only its place: it can hold anything the user typed.
+export function checkAllowRule(layers: readonly PermissionLayer[]): DoctorCheck {
+  const shown = layers[0]?.shown ?? '';
 
-  const blockers = ['deny', 'ask'].flatMap((list) => {
-    const rules: unknown[] = Array.isArray(permissions[list]) ? permissions[list] : [];
+  const parsed = layers.map((layer) => ({
+    shown: layer.shown,
+    permissions: readPermissions(layer),
+  }));
 
-    return rules.flatMap((rule, at) =>
-      typeof rule === 'string' && isRuleForWww(rule)
-        ? [
-            `www doctor: rule ${String(at + 1)} of permissions.${list} in ${shown} matches www, so Claude Code does not run it without asking.`,
-          ]
-        : [],
-    );
-  });
+  const isAllowed = parsed.some((layer) =>
+    readRules(layer.permissions, 'allow').includes(allowRule),
+  );
 
-  const missing = allow.includes(allowRule)
+  const blockers = parsed.flatMap((layer) =>
+    ['deny', 'ask'].flatMap((list) =>
+      readRules(layer.permissions, list).flatMap((rule, at) =>
+        typeof rule === 'string' && isRuleForWww(rule)
+          ? [
+              `www doctor: rule ${String(at + 1)} of permissions.${list} in ${layer.shown} matches www, so Claude Code does not run it without asking.`,
+            ]
+          : [],
+      ),
+    ),
+  );
+
+  const missing = isAllowed
     ? []
     : [
         `www doctor: no allow rule for www in ${shown}, so Claude Code asks before each www call.`,
@@ -41,9 +52,28 @@ export function checkAllowRule(text: string | null, shown: string): DoctorCheck 
   return { isOk: true, lines: [`ok: ${shown} allows ${allowRule}`] };
 }
 
-// Whether a Claude Code Bash rule matches the bare command `www`: its pattern is `www`, a glob
-// that reaches it, or a `www *` that the docs say matches the bare command too.
+function readPermissions(layer: PermissionLayer): Readonly<Record<string, unknown>> {
+  const read = parseJSONSettings(layer.text ?? '');
+
+  return read.kind === 'object' && isRecord(read.value['permissions'])
+    ? read.value['permissions']
+    : {};
+}
+
+function readRules(permissions: Readonly<Record<string, unknown>>, list: string): unknown[] {
+  const rules = permissions[list];
+
+  return Array.isArray(rules) ? rules : [];
+}
+
+// Whether a Claude Code Bash rule matches the bare command `www`: the rule `Bash` alone, whose
+// pattern is every command, or a pattern that is `www`, a glob that reaches it, or a `www *` that
+// the docs say matches the bare command too.
 function isRuleForWww(rule: string): boolean {
+  if (rule === 'Bash') {
+    return true;
+  }
+
   const inner = /^Bash\((?<pattern>.*)\)$/u.exec(rule)?.groups?.['pattern'];
 
   if (inner === undefined) {

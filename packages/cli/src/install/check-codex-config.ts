@@ -1,4 +1,6 @@
+import { isRecord } from '../hooks/is-record.ts';
 import { buildFailedCheck } from './build-failed-check.ts';
+import { parseTOMLConfig } from './parse-toml-config.ts';
 import type { DoctorCheck } from './types.ts';
 
 // Checks `config.toml`: it does not turn hooks off (a missing `hooks` line passes, since hooks are
@@ -8,16 +10,27 @@ export function checkCodexConfig(
   shown: string,
   storeRoot: string,
 ): DoctorCheck {
-  const config = text ?? '';
+  const config = parseTOMLConfig(text ?? '');
+
+  if (config === null) {
+    return buildFailedCheck([
+      `www doctor: ${shown} is not TOML that doctor can read.`,
+      'Run: www install --print',
+    ]);
+  }
+
+  const features = config['features'];
+  const sandbox = config['sandbox_workspace_write'];
+  const roots = isRecord(sandbox) ? sandbox['writable_roots'] : undefined;
 
   const problems = [
-    ...(/^\s*hooks\s*=\s*false\s*(?:#.*)?$/mu.test(featuresSection(config))
+    ...(isRecord(features) && features['hooks'] === false
       ? [
           `www doctor: ${shown} turns hooks off with hooks = false.`,
           `Set hooks = true under [features] in ${shown}.`,
         ]
       : []),
-    ...(config.includes(JSON.stringify(storeRoot)) && /^\s*writable_roots\s*=/mu.test(config)
+    ...(Array.isArray(roots) && roots.includes(storeRoot)
       ? []
       : [
           `www doctor: ${shown} does not list ${storeRoot} in writable_roots, so a Codex write to the store fails in the sandbox.`,
@@ -30,17 +43,4 @@ export function checkCodexConfig(
   }
 
   return { isOk: true, lines: [`ok: ${shown} leaves hooks on and lists the store root`] };
-}
-
-function featuresSection(config: string): string {
-  const start = /^\[features\]\s*$/mu.exec(config);
-
-  if (start === null) {
-    return '';
-  }
-
-  const rest = config.slice(start.index + start[0].length);
-  const next = /^\[/mu.exec(rest);
-
-  return next === null ? rest : rest.slice(0, next.index);
 }

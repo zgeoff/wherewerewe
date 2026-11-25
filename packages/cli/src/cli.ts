@@ -11,6 +11,9 @@ const result = await runCLI({
   now: Date.now,
   terminal: { stdin: isatty(0), stdout: isatty(1) },
   stdin: argv[0] === 'hook' ? await Bun.stdin.text() : undefined,
+  emit: (text) => {
+    process.stdout.write(text);
+  },
 });
 
 process.stdout.write(result.stdout);

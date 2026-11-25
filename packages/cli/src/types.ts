@@ -308,6 +308,10 @@ export interface CLIInput {
 
   // the text of stdin, read by cli.ts for `hook` alone
   readonly stdin?: string | undefined;
+
+  // prints text at once, which `install` uses to say what it will write before it writes; without
+  // it that text comes first in the result's stdout
+  readonly emit?: (text: string) => void;
 }
 
 export interface CLIResult {

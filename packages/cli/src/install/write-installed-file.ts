@@ -1,7 +1,8 @@
-import { chmodSync, copyFileSync, existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { writeFileAtomic } from '../store/write-file-atomic.ts';
 import { readTextOrNull } from './read-text-or-null.ts';
+import type { FilePlan } from './types.ts';
 
 export interface InstalledFileRequest {
   readonly path: string;
@@ -9,23 +10,28 @@ export interface InstalledFileRequest {
   // the mode of a file that does not exist yet; an existing file keeps its own
   readonly newMode: number;
 
-  // the new text for the old text, or `null` when the file stays as it is
-  readonly plan: (before: string | null) => string | null;
+  // what the file becomes for its old text, or a refusal
+  readonly plan: (before: string | null) => FilePlan;
+
+  // called with the plan just before the file is backed up and written, never for an unchanged file
+  readonly announce?: (plan: FilePlan) => void;
 }
 
 export interface InstallWriteSeam {
-  // called after the old text was read and the new text planned, before the file is read again
-  readonly afterRead?: (path: string) => void;
+  // called after the backup and the replacement are written, just before the file is read for the
+  // last time and the rename
+  readonly beforeRename?: (path: string) => void;
 }
 
 export type InstalledFileResult =
   | { readonly kind: 'unchanged' }
   | { readonly kind: 'written'; readonly backup: string | null }
-  | { readonly kind: 'changed' };
+  | { readonly kind: 'changed' }
+  | { readonly kind: 'refused' };
 
 // Writes the planned text over the file through a temporary file and a rename, onto a link's
-// target so the link survives, after it copies the old bytes and mode to `<file>.www-backup`. A
-// change between the read and the rename plans again once, then reports `changed`.
+// target, after it copies the old bytes to `<file>.www-backup`. It reads the file again just before
+// the rename, and when it differs from what was planned from, plans again once, then reports it.
 export function writeInstalledFile(
   request: InstalledFileRequest,
   seam: InstallWriteSeam,
@@ -34,42 +40,64 @@ export function writeInstalledFile(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const before = readTextOrNull(target);
-    const after = request.plan(before);
+    const plan = request.plan(before);
 
-    if (after === null || after === before) {
+    if (plan.kind === 'refused') {
+      return { kind: 'refused' };
+    }
+
+    if (plan.text === before) {
       return { kind: 'unchanged' };
     }
 
-    seam.afterRead?.(request.path);
+    if (attempt === 0) {
+      request.announce?.(plan);
+    }
 
-    if (readTextOrNull(target) === before) {
-      return {
-        kind: 'written',
-        backup: replaceFile(target, after, request.newMode, before !== null),
-      };
+    const written = replaceFile(target, plan.text, {
+      before,
+      newMode: request.newMode,
+      probeUnchangedSincePlan: () => {
+        seam.beforeRename?.(request.path);
+
+        return readTextOrNull(target) === before;
+      },
+    });
+
+    if (written !== null) {
+      return { kind: 'written', backup: written.backup };
     }
   }
 
   return { kind: 'changed' };
 }
 
+interface Replacement {
+  readonly before: string | null;
+  readonly newMode: number;
+  readonly probeUnchangedSincePlan: () => boolean;
+}
+
 function replaceFile(
   target: string,
   text: string,
-  newMode: number,
-  isReplacing: boolean,
-): string | null {
+  replacement: Replacement,
+): { readonly backup: string | null } | null {
+  const before = replacement.before;
+
   mkdirSync(dirname(target), { recursive: true });
 
-  const mode = isReplacing ? statSync(target).mode % 0o1000 : newMode;
-  const backup = isReplacing ? `${target}.www-backup` : null;
+  const mode = before === null ? replacement.newMode : statSync(target).mode % 0o1000;
+  const backup = before === null ? null : `${target}.www-backup`;
 
-  if (backup !== null) {
-    copyFileSync(target, backup);
-    chmodSync(backup, mode);
+  if (backup !== null && before !== null) {
+    // a temporary file renamed over the backup path replaces a link there, and never follows it
+    writeFileAtomic(backup, before, mode);
   }
 
-  writeFileAtomic(target, text, mode);
+  const isWritten = writeFileAtomic(target, text, mode, {
+    isStillValid: replacement.probeUnchangedSincePlan,
+  });
 
-  return backup;
+  return isWritten ? { backup } : null;
 }

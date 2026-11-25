@@ -178,13 +178,28 @@ async function runSetup(input: CLIInput, args: ParsedArgs): Promise<CommandResul
     import('./install/get-package-version.ts'),
   ]);
 
-  return installModule.runInstallCommand({
+  const streamed: string[] = [];
+
+  const emit = (text: string): void => {
+    const redacted = redactCredentialWords(text);
+
+    if (input.emit === undefined) {
+      streamed.push(redacted);
+    } else {
+      input.emit(redacted);
+    }
+  };
+
+  const result = installModule.runInstallCommand({
+    emit,
     env: input.env,
     cwd: input.cwd,
     isPrinting: args.values.print === true,
     isReplacingSkill: args.values['replace-skill'] === true,
     version: versionModule.getPackageVersion(),
   });
+
+  return { ...result, stdout: `${streamed.join('')}${result.stdout}` };
 }
 
 async function runSessionBoundCommand(context: CommandContext): Promise<CommandResult> {

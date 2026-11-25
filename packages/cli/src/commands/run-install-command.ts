@@ -10,7 +10,7 @@ import { formatConfigLines } from '../install/format-config-lines.ts';
 import { formatDisplayPath } from '../install/format-display-path.ts';
 import { formatInstallPrint } from '../install/format-install-print.ts';
 import { readCheckLimits } from '../install/read-check-limits.ts';
-import { readTextOrNull } from '../install/read-text-or-null.ts';
+import { InstallReadError, readTextOrNull } from '../install/read-text-or-null.ts';
 import { refuseInstall } from '../install/refuse-install.ts';
 import type { FilePlan } from '../install/types.ts';
 import { writeInstalledFile } from '../install/write-installed-file.ts';
@@ -28,6 +28,9 @@ export interface InstallContext {
 
   // the version `www --version` prints, which the skill's mark names
   readonly version: string;
+
+  // prints text at once, so the limits and each rule's notice come before the write they describe
+  readonly emit: (text: string) => void;
   readonly seam?: InstallWriteSeam;
 }
 
@@ -72,25 +75,30 @@ export function runInstallCommand(context: InstallContext): CommandResult {
     return text(`${formatInstallPrint(items, shownConfig, storeRoot)}\n${limits}`);
   }
 
-  const refused = items.find((item) => item.plan(readTextOrNull(item.path)).kind === 'refused');
+  try {
+    const refused = items.find((item) => item.plan(readTextOrNull(item.path)).kind === 'refused');
 
-  if (refused !== undefined) {
-    return refuseItem(context, refused, readTextOrNull(refused.path));
+    if (refused !== undefined) {
+      return refuseItem(context, refused, refused.plan(readTextOrNull(refused.path)));
+    }
+
+    context.emit(limits);
+
+    return writeItems(context, items, formatConfigLines(shownConfig, storeRoot));
+  } catch (error) {
+    if (error instanceof InstallReadError) {
+      return refuseUnreadable(context, items, error);
+    }
+
+    throw error;
   }
-
-  return writeItems(context, items, `${limits}${formatConfigLines(shownConfig, storeRoot)}`);
 }
 
 function text(stdout: string): CommandResult {
   return { exitCode: 0, stdout, stderr: '', stdoutFormat: 'text' };
 }
 
-function refuseItem(
-  context: InstallContext,
-  item: InstallItem,
-  before: string | null,
-): CommandResult {
-  const plan = item.plan(before);
+function refuseItem(context: InstallContext, item: InstallItem, plan: FilePlan): CommandResult {
   const reason = plan.kind === 'refused' ? plan.reason : 'unreadable';
 
   if (reason === 'foreign-rules') {
@@ -126,9 +134,7 @@ function writeItems(
   const lines: string[] = [];
 
   for (const item of items) {
-    const moved = moveForeignSkill(context, item);
-
-    lines.push(...moved);
+    moveForeignSkill(context, item);
 
     let used: FilePlan = { kind: 'refused', reason: 'unreadable' };
 
@@ -139,7 +145,14 @@ function writeItems(
         plan: (before) => {
           used = item.plan(before);
 
-          return planText(used);
+          return used;
+        },
+        announce: (plan) => {
+          if (plan.kind === 'text') {
+            for (const notice of plan.notices) {
+              context.emit(`${notice}\n`);
+            }
+          }
         },
       },
       context.seam ?? {},
@@ -156,6 +169,13 @@ function writeItems(
       };
     }
 
+    if (result.kind === 'refused') {
+      return {
+        ...refuseItem(context, item, used),
+        stdout: lines.map((line) => `${line}\n`).join(''),
+      };
+    }
+
     lines.push(...describeWrite(used, item, result));
   }
 
@@ -164,17 +184,17 @@ function writeItems(
 
 // With --replace-skill, a skill file that this tool did not write, or one edited since, moves to
 // `SKILL.md.replaced` in its folder, over an older one, before the new file goes in.
-function moveForeignSkill(context: InstallContext, item: InstallItem): string[] {
+function moveForeignSkill(context: InstallContext, item: InstallItem): void {
   const before = readTextOrNull(item.path);
 
   if (!context.isReplacingSkill || item.kind !== 'skill' || before === null) {
-    return [];
+    return;
   }
 
   const mark = readSkillMark(before);
 
   if (mark?.bodyMatches === true) {
-    return [];
+    return;
   }
 
   const replaced = `${item.path}.replaced`;
@@ -183,13 +203,9 @@ function moveForeignSkill(context: InstallContext, item: InstallItem): string[] 
     rmSync(replaced, { force: true });
   }
 
+  context.emit(`www install: moved ${item.shown} to ${item.shown}.replaced\n`);
+
   renameSync(item.path, replaced);
-
-  return [`www install: moved ${item.shown} to ${item.shown}.replaced`];
-}
-
-function planText(plan: FilePlan): string | null {
-  return plan.kind === 'text' ? plan.text : null;
 }
 
 function describeWrite(
@@ -210,5 +226,19 @@ function describeWrite(
       ? ` The old file is kept at ${item.shown}.www-backup.`
       : '';
 
-  return [...plan.notices, `${plan.changedLine}${backup}`];
+  return [`${plan.changedLine}${backup}`];
+}
+
+function refuseUnreadable(
+  context: InstallContext,
+  items: readonly InstallItem[],
+  error: InstallReadError,
+): CommandResult {
+  const shown = items.find((item) => item.path === error.path)?.shown ?? error.path;
+
+  return refuseInstall(
+    context.cwd,
+    [`www: install cannot read ${shown}, so it changes nothing there.`],
+    [{ www: ['install', '--print'] }],
+  );
 }

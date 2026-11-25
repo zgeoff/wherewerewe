@@ -180,6 +180,7 @@ test.each([
   { list: 'deny', rule: 'Bash(www *)' },
   { list: 'ask', rule: 'Bash(*)' },
   { list: 'ask', rule: 'Bash(www)' },
+  { list: 'deny', rule: 'Bash' },
 ])(
   'it reports a $list rule $rule that matches www by its place, never by its text',
   async (row) => {
@@ -317,6 +318,48 @@ test('it never runs a gh that a relative PATH entry holds', async () => {
 });
 
 test.each([
+  { folder: '.claude', file: 'settings.json', shown: '.claude/settings.json' },
+  { folder: '.claude', file: 'settings.local.json', shown: '.claude/settings.local.json' },
+])('it reports a deny rule for www in the project file $shown', async (row) => {
+  const ctx = await setupTest();
+
+  ctx.place(join(ctx.work, row.folder, row.file), '{"permissions":{"deny":["Bash(www *)"]}}');
+
+  const result = await ctx.doctor();
+
+  expect(result.stdout).toContain(
+    `www doctor: rule 1 of permissions.deny in ${row.shown} matches www, so Claude Code does not run it without asking.\n`,
+  );
+});
+
+test('it reports hooks turned off and a store root that only a comment names', async () => {
+  const ctx = await setupTest();
+
+  ctx.place(
+    ctx.paths.codexConfig,
+    `[features] # toggles\nhooks = false\n\n[sandbox_workspace_write]\nwritable_roots = [] # "${ctx.storeRoot}"\n`,
+  );
+
+  const result = await ctx.doctor();
+
+  expect(result.stdout).toContain(
+    `www doctor: ~/.codex/config.toml turns hooks off with hooks = false.\nSet hooks = true under [features] in ~/.codex/config.toml.\nwww doctor: ~/.codex/config.toml does not list ${ctx.storeRoot} in writable_roots, so a Codex write to the store fails in the sandbox.\nRun: www install --print\n`,
+  );
+});
+
+test('it reports a config.toml that is not TOML', async () => {
+  const ctx = await setupTest();
+
+  ctx.place(ctx.paths.codexConfig, 'hooks = [');
+
+  const result = await ctx.doctor();
+
+  expect(result.stdout).toContain(
+    'www doctor: ~/.codex/config.toml is not TOML that doctor can read.\nRun: www install --print\n',
+  );
+});
+
+test.each([
   {
     title: 'hooks turned off',
     text: '[features]\nhooks = false\n\n[sandbox_workspace_write]\nwritable_roots = ["ROOT"]\n',
@@ -449,6 +492,21 @@ test('it fails the check of one entry per event for a Codex hook in a config.tom
   ctx.place(
     join(ctx.work, '.codex', 'config.toml'),
     '[[hooks.Stop]]\n[[hooks.Stop.hooks]]\ntype = "command"\ncommand = "/other/wherewerewe hook codex"\n',
+  );
+
+  const result = await ctx.doctor();
+
+  expect(result.stdout).toContain(
+    'www doctor: Stop runs wherewerewe hook codex 2 times: ~/.codex/hooks.json, .codex/config.toml.\n',
+  );
+});
+
+test('it counts a Codex hook whose command a config.toml writes as a single-quoted string', async () => {
+  const ctx = await setupTest();
+
+  ctx.place(
+    join(ctx.work, '.codex', 'config.toml'),
+    "[[hooks.Stop]]\n[[hooks.Stop.hooks]]\ntype = 'command'\ncommand = '/other/wherewerewe hook codex'\n",
   );
 
   const result = await ctx.doctor();

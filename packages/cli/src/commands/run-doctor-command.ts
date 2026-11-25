@@ -15,8 +15,8 @@ import { findHomePaths } from '../install/find-home-paths.ts';
 import { formatDisplayPath } from '../install/format-display-path.ts';
 import { getPackageVersion } from '../install/get-package-version.ts';
 import { listEntryPaths } from '../install/list-entry-paths.ts';
+import { readDoctorText } from '../install/read-doctor-text.ts';
 import { readSafeProgram } from '../install/read-safe-program.ts';
-import { readTextOrNull } from '../install/read-text-or-null.ts';
 import type { DoctorCheck } from '../install/types.ts';
 import { renderSkill } from '../skill/render-skill.ts';
 import { findStoreRoot } from '../store/find-store-root.ts';
@@ -48,15 +48,15 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
   const storeRoot =
     findStoreRoot(context.env) ?? join(paths.home, '.local', 'state', 'wherewerewe');
 
-  const claudeText = readTextOrNull(paths.claudeSettings);
-  const codexText = readTextOrNull(paths.codexHooks);
+  const claudeText = readDoctorText(paths.claudeSettings);
+  const codexText = readDoctorText(paths.codexHooks);
   const rendered = renderSkill(getPackageVersion());
 
   const projectLayers = (folder: string, files: readonly string[]) =>
     files.map((file) => ({
       shown: `${folder}/${file}`,
       format: file.endsWith('.toml') ? ('toml' as const) : ('json' as const),
-      text: readTextOrNull(join(context.cwd, folder, file)),
+      text: readDoctorText(join(context.cwd, folder, file)),
     }));
 
   const checks = [
@@ -79,15 +79,18 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
       [...listEntryPaths(claudeText, 'claude'), ...listEntryPaths(codexText, 'codex')],
       bin,
     ),
-    checkAllowRule(claudeText, show(paths.claudeSettings)),
+    checkAllowRule([
+      { shown: show(paths.claudeSettings), text: claudeText },
+      ...projectLayers('.claude', ['settings.json', 'settings.local.json']),
+    ]),
     checkCodexRules({
       path: paths.codexRules,
       shown: show(paths.codexRules),
-      text: readTextOrNull(paths.codexRules),
+      text: readDoctorText(paths.codexRules),
       codex: readSafeProgram('codex', context.env, context.cwd),
       env: context.env,
     }),
-    checkCodexConfig(readTextOrNull(paths.codexConfig), show(paths.codexConfig), storeRoot),
+    checkCodexConfig(readDoctorText(paths.codexConfig), show(paths.codexConfig), storeRoot),
     checkStoreWritable(storeRoot),
     checkGhAuth(readSafeProgram('gh', context.env, context.cwd), context.env),
     checkDuplicateEntries('claude', [
@@ -96,11 +99,11 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
     ]),
     checkDuplicateEntries('codex', [
       { shown: show(paths.codexHooks), format: 'json', text: codexText },
-      { shown: show(paths.codexConfig), format: 'toml', text: readTextOrNull(paths.codexConfig) },
+      { shown: show(paths.codexConfig), format: 'toml', text: readDoctorText(paths.codexConfig) },
       ...projectLayers('.codex', ['hooks.json', 'config.toml']),
     ]),
-    checkSkillFile(readTextOrNull(paths.claudeSkill), rendered, show(paths.claudeSkill)),
-    checkSkillFile(readTextOrNull(paths.codexSkill), rendered, show(paths.codexSkill)),
+    checkSkillFile(readDoctorText(paths.claudeSkill), rendered, show(paths.claudeSkill)),
+    checkSkillFile(readDoctorText(paths.codexSkill), rendered, show(paths.codexSkill)),
   ];
 
   return report(checks);

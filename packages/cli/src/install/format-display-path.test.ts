@@ -6,11 +6,12 @@ function setupTest() {
 }
 
 test.each([
-  { path: '/home/sam/.claude/settings.json', shown: '~/.claude/settings.json' },
+  { path: '/people/sam/.claude/settings.json', shown: '~/.claude/settings.json' },
+  { path: '/people/sam', shown: '~' },
   { path: '/data/claude/settings.json', shown: '/data/claude/settings.json' },
-  { path: '/home/samuel/x', shown: '/home/samuel/x' },
+  { path: '/people/samuel/x', shown: '/people/samuel/x' },
 ])('it shows $path as $shown', (row) => {
   const ctx = setupTest();
 
-  expect(ctx.show(row.path, '/home/sam')).toBe(row.shown);
+  expect(ctx.show(row.path, '/people/sam')).toBe(row.shown);
 });
