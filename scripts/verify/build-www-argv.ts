@@ -3,9 +3,9 @@ import { match } from 'ts-pattern';
 
 export const cliPath = join(import.meta.dir, '..', '..', 'packages', 'cli', 'src', 'cli.ts');
 
-// The argv that runs the real `www` with HOME, XDG_STATE_HOME and PATH inside the run's folder,
-// so a journey never touches the owner's stores, and with only the given host's session variable.
-// It runs in <run>/cwd, beside <run>/bin, because a probe skips each PATH entry inside its folder.
+// The argv that runs the real `www` with HOME, XDG_STATE_HOME and PATH inside the run's folder, the
+// agent config folders unset, and only the given host's session variable. It runs in <run>/cwd,
+// beside <run>/bin, because a probe skips each PATH entry inside its folder.
 export function buildWWWArgv(
   stateRoot: string,
   argv: readonly string[],
@@ -28,6 +28,10 @@ export function buildWWWArgv(
     'CODEX_THREAD_ID',
     '-u',
     'WHEREWEREWE_SESSION',
+    '-u',
+    'CLAUDE_CONFIG_DIR',
+    '-u',
+    'CODEX_HOME',
     ...hostVariables,
     `HOME=${join(stateRoot, 'home')}`,
     `XDG_STATE_HOME=${join(stateRoot, 'state')}`,

@@ -19,6 +19,7 @@ function setupTest() {
   const agentEnv = { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
 
   return {
+    shapes: listCommandShapes(),
     stateRoot: join(root, 'wherewerewe'),
     agentEnv,
     ownerEnv: { HOME: root, XDG_STATE_HOME: root },
@@ -368,8 +369,10 @@ test.each(
 });
 
 test('it holds www sessions and each write command in the table the --json refusals run over', () => {
+  const ctx = setupTest();
+
   const commands = new Set(
-    listCommandShapes()
+    ctx.shapes
       .filter((shape) => !isReadCommand(shape.command) || shape.command === 'sessions')
       .map((shape) => shape.command),
   );

@@ -46,9 +46,10 @@ test.each(['claude', 'codex'] as const)('it gives every %s entry one command', (
 });
 
 test('it quotes a bin path that holds a space as one shell word', () => {
-  const [entry] = buildHookEntries('claude', "/opt/my tools/it's/wherewerewe");
+  const ctx = setupTest();
+  const [entry] = buildHookEntries('claude', `${ctx.bin} dir/it's/wherewerewe`);
 
-  expect(entry?.command).toBe(`"/opt/my tools/it's/wherewerewe" hook claude`);
+  expect(entry?.command).toBe(`"${ctx.bin} dir/it's/wherewerewe" hook claude`);
 });
 
 test('it builds a group with the matcher first and one command handler', () => {

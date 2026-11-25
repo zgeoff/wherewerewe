@@ -8,6 +8,7 @@ function setupTest() {
 
   return {
     whole,
+    sortEvent: (input: HookInput) => sortBriefEnd(input, 'tide-alerts'),
     sort: (harness: Harness, change: Partial<Extract<HookInput, { event: 'PostToolUse' }>>) =>
       sortBriefEnd(
         {
@@ -55,39 +56,34 @@ test.each([
 });
 
 test('it gives null for an event that is not an end', () => {
-  const sorted = sortBriefEnd(
-    {
-      event: 'PreToolUse',
-      harness: 'claude',
-      sessionID: '9e1f-trial',
-      agentID: null,
-      toolName: 'Bash',
-      command: 'www',
-    },
-    'tide-alerts',
-  );
+  const ctx = setupTest();
+
+  const sorted = ctx.sortEvent({
+    event: 'PreToolUse',
+    harness: 'claude',
+    sessionID: '9e1f-trial',
+    agentID: null,
+    toolName: 'Bash',
+    command: 'www',
+  });
 
   expect(sorted).toBeNull();
 });
 
-test.each(['claude', 'codex'] as const)(
-  'it sorts a PostToolUseFailure of the brief command as failed on %s',
-  (harness) => {
-    const sorted = sortBriefEnd(
-      {
-        event: 'PostToolUseFailure',
-        harness: 'claude',
-        sessionID: '9e1f-trial',
-        agentID: null,
-        toolName: 'Bash',
-        command: 'www',
-      },
-      'tide-alerts',
-    );
+test('it sorts a PostToolUseFailure of the brief command as failed', () => {
+  const ctx = setupTest();
 
-    expect({ harness, sorted }).toStrictEqual({ harness, sorted: 'failed' });
-  },
-);
+  const sorted = ctx.sortEvent({
+    event: 'PostToolUseFailure',
+    harness: 'claude',
+    sessionID: '9e1f-trial',
+    agentID: null,
+    toolName: 'Bash',
+    command: 'www',
+  });
+
+  expect(sorted).toBe('failed');
+});
 
 test.each(['claude', 'codex'] as const)(
   'it sorts a brief that breaks one clause as failed on %s',
