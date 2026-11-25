@@ -3323,12 +3323,18 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     exitCodes: outputs.map((output) => output.exitCode),
     steering: getSteeringWords(text),
     help: getSteeringWords(newHelpLines.join('\n')),
-    helpLines: newHelpLines.length > 5,
+    jsonLine: newHelpLines.filter((line) => line.includes('take --json')),
+    pasteLine: newHelpLines.filter((line) => line.includes('www goal --paste')),
   }).toStrictEqual({
     exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2],
     steering: [],
     help: [],
-    helpLines: true,
+    jsonLine: [
+      'www, show, log, list and recap take --json: one JSON value for a script, in place of the text.',
+    ],
+    pasteLine: [
+      '  www goal --paste           print a /goal text of the grant, for the owner to paste',
+    ],
   });
 });
 

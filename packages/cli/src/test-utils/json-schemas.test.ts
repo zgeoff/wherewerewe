@@ -108,16 +108,19 @@ test.each([
   expect(result.error?.issues).toPartiallyContain(expect.objectContaining({ path: [row.field] }));
 });
 
-test.each([{ type: 'brief' as const }, { type: 'show' as const }, { type: 'log' as const }])(
-  'it rejects a field the $type type lacks',
-  (row) => {
-    const ctx = setupTest();
+test.each([
+  { type: 'brief' as const },
+  { type: 'show' as const },
+  { type: 'log' as const },
+  { type: 'list' as const },
+  { type: 'recap' as const },
+])('it rejects a field the $type type lacks', (row) => {
+  const ctx = setupTest();
 
-    const result = ctx.jsonSchemas[row.type].safeParse({
-      ...ctx.payloads[row.type],
-      extra: 'a new field',
-    });
+  const result = ctx.jsonSchemas[row.type].safeParse({
+    ...ctx.payloads[row.type],
+    extra: 'a new field',
+  });
 
-    expect(result.success).toBe(false);
-  },
-);
+  expect(result.success).toBe(false);
+});

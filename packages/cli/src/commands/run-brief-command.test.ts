@@ -24,6 +24,7 @@ import { seedExampleStartStore } from '../test-utils/seed-example-start-store.ts
 import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
+import { seedItems } from '../test-utils/seed-items.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
@@ -963,4 +964,49 @@ test('it prints the JSON brief and the stderr of the text brief when items.tsv s
     stderr: printedText.stderr,
     session: 'tide-alerts',
   });
+});
+
+test('it gives in the JSON brief the estimate of the store as the read saved it, results included', async () => {
+  const ctx = setupTest();
+  const watched = join(ctx.root, 'watched');
+
+  mkdirSync(watched);
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedItems(
+    ctx.folder,
+    buildMockIDs('task', 30).map((id) => ({
+      id,
+      check: `path:${watched}`,
+      atWrite: 'exists',
+      last: 'exists',
+    })),
+  );
+
+  const before = await readStore(ctx.folder);
+
+  rmSync(watched, { recursive: true });
+
+  const printed = await ctx.runFrozen(['--json']);
+  const after = await readStore(ctx.folder);
+
+  if (before.kind !== 'store' || after.kind !== 'store') {
+    throw new Error('the seeded store does not read');
+  }
+
+  const context = {
+    nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    sessionFlag: null,
+    host: 'claude' as const,
+  };
+
+  const saved = await readBriefFigure(ctx.folder, after.store, context);
+  const unsaved = await readBriefFigure(ctx.folder, before.store, context);
+
+  expect({
+    estimate: jsonSchemas.brief.parse(JSON.parse(printed.stdout)).estimate,
+    last: after.store.items.map((item) => item.last).toSorted()[0],
+    differsFromUnsaved: saved.tokens !== unsaved.tokens,
+  }).toStrictEqual({ estimate: saved.tokens, last: 'missing', differsFromUnsaved: true });
 });

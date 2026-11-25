@@ -1,8 +1,10 @@
 import { expect, test } from 'bun:test';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { buildMockBriefInput } from '../test-utils/build-mock-brief-input.ts';
+import { buildMockGrant } from '../test-utils/build-mock-grant.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
+import { buildMockSession } from '../test-utils/build-mock-session.ts';
 import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { runJsonCommand } from '../test-utils/run-json-command.ts';
 import { seedJsonShapesStore } from '../test-utils/seed-json-shapes-store.ts';
@@ -81,6 +83,101 @@ test('it shows the result this read got as the last result of a checked item', (
     { id: 't-a', last: 'MERGED' },
     { id: 't-b', last: 'stale' },
   ]);
+});
+
+test.each([
+  { title: 'the next step', nowHidden: null, next: 'run the tests' },
+  {
+    title: 'null when the next step hides as changed',
+    nowHidden: { kind: 'changed' as const },
+    next: null,
+  },
+  {
+    title: 'null when the next step hides as a reading',
+    nowHidden: { kind: 'reads' as const, result: 'MERGED' },
+    next: null,
+  },
+])('it holds $title in next and the item in focus in focus', (row) => {
+  const ctx = setupTest();
+
+  const brief = ctx.buildBriefJSON({
+    brief: buildMockBriefInput({
+      items: [buildMockItem({ id: 't-a' })],
+      session: buildMockSession({ now: 't-a', nowNext: 'run the tests' }),
+      nowHidden: row.nowHidden,
+    }),
+    prs: [],
+    decisionRows: [],
+    estimate: 0,
+  });
+
+  expect({ focus: brief.focus, next: brief.next }).toStrictEqual({ focus: 't-a', next: row.next });
+});
+
+test('it holds each changed item with its result at write and its result now', () => {
+  const ctx = setupTest();
+  const item = buildMockItem({ id: 't-a', check: 'pid:5', atWrite: 'alive', last: 'alive' });
+
+  const brief = ctx.buildBriefJSON({
+    brief: buildMockBriefInput({ items: [item], changed: [{ item, result: 'gone' }] }),
+    prs: [],
+    decisionRows: [],
+    estimate: 0,
+  });
+
+  expect(brief.changed).toStrictEqual([{ id: 't-a', was: 'alive', now: 'gone' }]);
+});
+
+test('it holds the open items in the order their sections print, tasks first', () => {
+  const ctx = setupTest();
+
+  const items = [
+    buildMockItem({ id: 'wh-a', kind: 'where' }),
+    buildMockItem({ id: 'r-a', kind: 'rule' }),
+    buildMockItem({ id: 'ok-a', kind: 'ok' }),
+    buildMockItem({ id: 'w-a', kind: 'wait' }),
+    buildMockItem({ id: 't-a', kind: 'task' }),
+  ];
+
+  const brief = ctx.buildBriefJSON({
+    brief: buildMockBriefInput({ items }),
+    prs: [],
+    decisionRows: [],
+    estimate: 0,
+  });
+
+  expect(brief.open.map((shown) => shown.row.id)).toStrictEqual([
+    't-a',
+    'w-a',
+    'ok-a',
+    'r-a',
+    'wh-a',
+  ]);
+});
+
+test.each([
+  { title: 'no grant', grant: null, expected: null },
+  {
+    title: 'a grant with no scope, which holds no scope key',
+    grant: buildMockGrant({ may: ['merge it'], scope: null }),
+    expected: { may: ['merge it'], where: 'chat', reading: 'covers it' },
+  },
+  {
+    title: 'a grant with a scope, in the key order of the type',
+    grant: buildMockGrant({ may: ['merge it'], scope: 'in the app' }),
+    expected: { may: ['merge it'], scope: 'in the app', where: 'chat', reading: 'covers it' },
+  },
+])('it holds $title as the grant', (row) => {
+  const ctx = setupTest();
+
+  const brief = ctx.buildBriefJSON({
+    brief: buildMockBriefInput({ session: buildMockSession({ grant: row.grant }) }),
+    prs: [],
+    decisionRows: [],
+    estimate: 0,
+  });
+
+  expect(JSON.stringify(brief.grant)).toBe(JSON.stringify(row.expected));
 });
 
 test('it holds the decide row of each decision in force, whole, two rows of one id included', () => {
