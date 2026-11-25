@@ -1061,6 +1061,35 @@ test('it refuses a new item on an id whose done reached the journal before the w
   });
 });
 
+test('it finds the interrupted close of a task whose id is the name of the session, and adds no second row', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 't-a');
+
+  await ctx.run(['init', 't-a', '--goal', 'x']);
+  await ctx.run(['--session', 't-a', 'task', 't-a', 'Write it']);
+
+  await seedJournalRow(folder, {
+    ts: '2026-03-10T11:43:02Z',
+    op: 'drop',
+    id: 't-a',
+    text: 'Write it',
+    why: 'again',
+  });
+
+  await ctx.run(['--session', 't-a', 'goal', 'Ship the parser']);
+
+  const dropped = await ctx.run(['--session', 't-a', 'drop', 't-a', '--why', 'again']);
+  const log = await ctx.run(['--session', 't-a', 'log', '--op', 'drop', '--id', 't-a']);
+
+  expect({
+    dropped: dropped.exitCode,
+    rows: log.stdout.split('\n').filter((line) => line.startsWith('day ')).length,
+  }).toStrictEqual({
+    dropped: 0,
+    rows: 1,
+  });
+});
+
 test('it prints show and log from a session written across three days', async () => {
   const ctx = setupTest();
   const dayMs = 86_400_000;

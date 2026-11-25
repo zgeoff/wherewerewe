@@ -9,6 +9,22 @@ import { journalHeader } from './constants.ts';
 import { parseJournalLine } from './parse-journal-line.ts';
 
 const closingOps: ReadonlySet<string> = new Set(['done', 'drop', 'use']);
+
+const rowWriteOps: ReadonlySet<string> = new Set([
+  'task',
+  'wait',
+  'ok',
+  'rule',
+  'where',
+  'set',
+  'lesson',
+  'promise',
+  'words',
+  'done',
+  'drop',
+  'use',
+]);
+
 const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
 
 export async function readJournalIndex(folder: string): Promise<JournalIndex> {
@@ -44,8 +60,9 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
         closed.set(id, ts);
       }
 
-      // a row a stopped append cut short is no row: it records no close and replaces no row
-      if (parseJournalLine(line) !== null) {
+      // a row a stopped append cut short is no row: it records no close and replaces no row; only an op
+      // that writes or closes a row of a file counts, so a goal row named like a task is not its row
+      if (rowWriteOps.has(op) && parseJournalLine(line) !== null) {
         lastRows[findRowFile(op, readCell(cells[6]))].set(id, { op, text: readCell(cells[4]) });
       }
 
