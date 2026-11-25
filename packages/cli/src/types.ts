@@ -305,10 +305,14 @@ export interface CLIInput {
 
   // whether file descriptors 0 and 1 are terminals, read once by cli.ts
   readonly terminal: { readonly stdin: boolean; readonly stdout: boolean };
+
+  // the text of stdin, read by cli.ts for `hook` alone
+  readonly stdin?: string | undefined;
 }
 
 export interface CLIResult {
-  readonly exitCode: 0 | 2 | 3 | 4 | 5;
+  // 1 only for a hook's fault switch, which fails on purpose
+  readonly exitCode: 0 | 1 | 2 | 3 | 4 | 5;
   readonly stdout: string;
   readonly stderr: string;
 }
@@ -368,6 +372,8 @@ interface ArgValues {
   readonly by?: string | undefined;
   readonly json?: boolean | undefined;
   readonly paste?: boolean | undefined;
+  readonly print?: boolean | undefined;
+  readonly 'replace-skill'?: boolean | undefined;
   readonly help?: boolean | undefined;
 }
 

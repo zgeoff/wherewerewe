@@ -62,7 +62,7 @@ Checks, one per item: --pr <owner>/<repo>#<n>  --branch <repo path>@<branch>  --
 Owner, from a terminal outside any agent:  www say "<text>" [--on <id>]   www ack o-<n>
 
 Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www import <name>
-Setup:   www install [--print]   www doctor
+Setup:   www install [--print] [--replace-skill]   www doctor
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
@@ -295,7 +295,7 @@ www.drop(id: ItemID, opts: { why: string });
 www.use(id: ItemID, opts: { for: string });
 www.say(text: string, opts: { on?: ItemID });     // owner-notes.md
 www.ack(id: OwnerNoteID);
-www.install(opts: { print?: boolean });           // sessions-and-hooks.md
+www.install(opts: { print?: boolean; replaceSkill?: boolean }); // sessions-and-hooks.md
 www.doctor();
 www.hook(harness: 'claude' | 'codex');            // reads the hook payload on stdin
 
@@ -335,7 +335,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - `www lesson`, `www promise` and `www words` write only their own file and the journal. A write with an id that holds a lesson, a promise or the owner's words of that kind replaces it. `done` refuses a lesson and the owner's words, and `drop` closes any of the three.
 - `www goal --paste` takes no argument, and a goal text beside it is refused ([www goal --paste](lists-and-json.md#www-goal---paste)).
 - `www import` takes the grant's flags and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
-- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install` and `doctor` are in the help, and they and `hook` exit 2 until slice 4 builds them; a bound session's `www` prints the same text, and the gate opens on the next call ([sessions-and-hooks.md](sessions-and-hooks.md)).
+- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. A bound session's `www` prints the same text, and the gate opens on the next call ([sessions-and-hooks.md](sessions-and-hooks.md)).
 
 ### Text limits
 
@@ -569,7 +569,7 @@ With counts of at most 4 digits where no cap applies, at most 62 open items in `
 
 ## Refusals
 
-Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, and ends with one or two `Run:` lines. The last `Run:` line of a refusal of any command other than the five reads, `www sessions`, `www help` and `www goal --paste` ends with two spaces and `# nothing was written`, such as `Run: www task t-e2e "<claim of at most 120 characters>"  # nothing was written`. A shell reads `#` there as the start of a comment, so the line still runs as printed, and the fix and the fact sit on one line. The table below leaves the comment out of its `Run:` lines, and `www` adds it to each one a write's refusal prints. An unknown command gets it too, and when a refusal prints two `Run:` lines, only the last does. The reason lines are unchanged, and every exit code takes the same rule, because a refused write changes nothing ([decision record 0021](../../decisions/0021-a-refused-write-says-so-on-its-run-line.md)).
+Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, and ends with one or two `Run:` lines. The last `Run:` line of a refusal of any command other than the five reads, `www sessions`, `www help`, `www doctor`, `www hook` and `www goal --paste` ends with two spaces and `# nothing was written`, such as `Run: www task t-e2e "<claim of at most 120 characters>"  # nothing was written`. A shell reads `#` there as the start of a comment, so the line still runs as printed, and the fix and the fact sit on one line. The table below leaves the comment out of its `Run:` lines, and `www` adds it to each one a write's refusal prints. An unknown command gets it too, and when a refusal prints two `Run:` lines, only the last does. The reason lines are unchanged, and every exit code takes the same rule, because a refused write changes nothing ([decision record 0021](../../decisions/0021-a-refused-write-says-so-on-its-run-line.md)).
 
 When the tool can fix the call, the `Run:` line is the refused command with each bad value replaced and each missing flag added, so it is complete. When it cannot, such as with no session, a hand-kept store or a decision number it cannot guess, the `Run:` line is the command that gets the agent what the fix needs. A value only the agent knows is a `<placeholder>` for what goes there. Every other value comes from the agent's command or the store, such as the oldest open task when a kind is full. The examples use the invented session.
 

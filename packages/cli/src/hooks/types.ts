@@ -106,3 +106,27 @@ export type GateCell =
 
   // wiped x Stop
   | { readonly kind: 'by-stop-active'; readonly inactive: GateCell; readonly active: GateCell };
+
+// A fault that a file named `hook-fault` in the store root makes each hook cause on purpose.
+export type HookFault = 'sleep' | 'exit' | 'garbage' | 'hold';
+
+export interface HookContext {
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly now: () => number;
+
+  // the store root
+  readonly root: string;
+
+  // the awaitable wait of the lock's polling and of the fault that sleeps
+  readonly sleep: (delayMs: number) => Promise<void>;
+
+  // how long the fault `sleep` waits: past the longest hook timeout
+  readonly faultSleepMs: number;
+  readonly fault: HookFault | null;
+}
+
+export interface HookResult {
+  readonly stdout: string;
+  readonly stderr: '';
+  readonly exitCode: 0 | 1;
+}

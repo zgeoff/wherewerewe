@@ -299,7 +299,10 @@ test.each(
       taken: shape.taken,
       flag: flag ?? '',
       argv: [...(shape.command === 'brief' ? [] : [shape.command]), `${flag ?? ''}=y`],
-      helpLine: shape.command === 'brief' ? '' : readHelpCommandLine(helpText, shape.command),
+      helpLine:
+        shape.command === 'brief'
+          ? ''
+          : (readHelpCommandLine(helpText, shape.command) ?? shape.line),
     })),
   ),
 )('it names the flags of $command and its help line in the refusal of $flag', async (row) => {
@@ -357,7 +360,7 @@ test.each(
   listCommandShapes()
     .filter((shape) => shape.command !== 'brief')
     .flatMap((shape) => {
-      const line = readHelpCommandLine(helpText, shape.command) ?? shape.command;
+      const line = readHelpCommandLine(helpText, shape.command) ?? shape.line;
       const fewest = Math.min(...shape.counts);
       const most = Math.max(...shape.counts);
 

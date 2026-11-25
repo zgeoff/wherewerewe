@@ -60,7 +60,6 @@ export function buildRefusalSamples(): RefusalSample[] {
   const samples: SamplesByKind = {
     'no-store-folder': [{ kind: 'no-store-folder' }],
     'unknown-command': [{ kind: 'unknown-command', command: 'frob' }],
-    'later-command': [{ kind: 'later-command', command: 'install' }],
     'flag-needs-value': [{ kind: 'flag-needs-value', flag: 'note' }],
     'flag-value-has-dash': [
       {

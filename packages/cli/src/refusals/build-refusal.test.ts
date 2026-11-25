@@ -1083,16 +1083,6 @@ test.each([
     fills: [{}],
   },
   {
-    title: 'a command of a later version',
-    setup: [],
-    files: [],
-    argv: ['doctor', 'tide-alerts'],
-    env: 'agent',
-    exitCode: 2,
-    stderr: 'www: "doctor" comes in a later version of www.\nRun: www help\n',
-    fills: [{}],
-  },
-  {
     title: 'an unknown flag',
     setup: [],
     files: [],

@@ -184,10 +184,7 @@ test.each([
   [['taks'], `www: unknown command "taks".\nRun: www help${nothingWrittenComment}\n`],
   [['brief'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
   [['brief', '--bogus'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
-  [
-    ['doctor', 'x'],
-    `www: "doctor" comes in a later version of www.\nRun: www help${nothingWrittenComment}\n`,
-  ],
+  [['doctor', 'x'], 'www: doctor takes no arguments.\nRun: www doctor\n'],
   [
     ['task', 't-a'],
     `www: task takes <id> "<claim>".\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,

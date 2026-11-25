@@ -7,7 +7,6 @@ type ArgvRefusalReason = Extract<
   {
     kind:
       | 'unknown-command'
-      | 'later-command'
       | 'flag-needs-value'
       | 'flag-value-has-dash'
       | 'flag-takes-no-value'
@@ -24,9 +23,6 @@ type ArgvRefusalReason = Extract<
 export function buildArgvRefusal(reason: ArgvRefusalReason): Refusal {
   return match(reason)
     .with({ kind: 'unknown-command' }, (found) => usage(`www: unknown command "${found.command}".`))
-    .with({ kind: 'later-command' }, (found) =>
-      usage(`www: "${found.command}" comes in a later version of www.`),
-    )
     .with({ kind: 'flag-needs-value' }, (found) => usage(`www: --${found.flag} needs a value.`))
     .with({ kind: 'flag-value-has-dash' }, (found) =>
       usage(
