@@ -44,7 +44,7 @@ export async function runShowCommand(
   );
 
   const checkNows = await Promise.all(
-    store.items.filter((item) => item.id === id).map((item) => runItemProbe(item, context.env)),
+    store.items.filter((item) => item.id === id).map((item) => runItemProbe(item, context)),
   );
 
   if (context.args.values.json === true) {
@@ -66,7 +66,7 @@ export async function runShowCommand(
 
 async function runItemProbe(
   item: Item,
-  env: Readonly<Record<string, string | undefined>>,
+  context: Pick<CommandContext, 'env' | 'cwd'>,
 ): Promise<ShowInput['checkNows'][number]> {
   const target = item.check === null ? null : parseCheckTarget(item.check);
 
@@ -78,7 +78,8 @@ async function runItemProbe(
 
   const probe = await probeCheck(target, {
     extra: item.extra,
-    run: (argv, timeoutMs) => runCommand(argv, { env, timeoutMs, kills }),
+    run: (argv, timeoutMs) =>
+      runCommand(argv, { env: context.env, cwd: context.cwd, timeoutMs, kills }),
   });
 
   return {

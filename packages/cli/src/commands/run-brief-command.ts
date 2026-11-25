@@ -51,6 +51,7 @@ export async function runBriefCommand(
   const run = await runChecks(order, store.items, store.prs, {
     deadlineMs: checkLimits.deadlineMs,
     env: context.env,
+    cwd: context.cwd,
     now: context.now,
   });
 

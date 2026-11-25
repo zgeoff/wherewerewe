@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
@@ -13,12 +13,17 @@ import { createKillSet, runCommand } from './run-command.ts';
 
 function setupTest() {
   const folder = createTempDir('run-command').path;
+  const work = join(folder, 'work');
+
+  mkdirSync(work);
 
   return {
     folder,
+    work,
     run: (name: string, timeoutMs: number, env: Record<string, string> | null = null) =>
       runCommand([name, 'arg one'], {
         env: env ?? { PATH: folder },
+        cwd: work,
         timeoutMs,
         kills: createKillSet(),
       }),
@@ -101,6 +106,7 @@ test('it fetches no missing object into a partial clone while git reads its stat
 
   await runCommand(['git', '--no-optional-locks', '-C', clone, 'status', '--porcelain'], {
     env: { PATH: ctx.folder },
+    cwd: ctx.work,
     timeoutMs: 5000,
     kills: createKillSet(),
   });
@@ -135,7 +141,7 @@ test('it kills a running command and its child when the process is interrupted',
   );
 
   const program = `import { createKillSet, runCommand } from ${JSON.stringify(join(import.meta.dir, 'run-command.ts'))};
-await runCommand(['gh'], { env: { PATH: ${JSON.stringify(ctx.folder)} }, timeoutMs: 60000, kills: createKillSet() });`;
+await runCommand(['gh'], { env: { PATH: ${JSON.stringify(ctx.folder)} }, cwd: ${JSON.stringify(ctx.work)}, timeoutMs: 60000, kills: createKillSet() });`;
 
   const cli = Bun.spawn([process.execPath, '-e', program], {
     env: { PATH: ctx.folder },
@@ -163,5 +169,32 @@ await runCommand(['gh'], { env: { PATH: ${JSON.stringify(ctx.folder)} }, timeout
 
   await waitFor(() => {
     expect(pids.map((pid) => readProcess(pid).kind)).toStrictEqual(['gone', 'gone']);
+  });
+});
+
+test.each([
+  {
+    title: 'a relative PATH entry',
+    entry: (folder: string) => relative(process.cwd(), join(folder, 'agent-bin')),
+  },
+  {
+    title: 'a PATH entry inside the working folder',
+    entry: (folder: string) => join(folder, 'work', 'agent-bin'),
+  },
+])('it never runs a git from $title, and runs the one after it', async (row) => {
+  const ctx = setupTest();
+  const marker = join(ctx.folder, 'agent-git-ran');
+  const agentBin = row.entry(ctx.folder);
+  const realBin = join(ctx.folder, 'real-bin');
+
+  seedStubCommand(join(ctx.folder, 'agent-bin'), 'git', `: > "${marker}"; echo agent`);
+  seedStubCommand(join(ctx.work, 'agent-bin'), 'git', `: > "${marker}"; echo agent`);
+  seedStubCommand(realBin, 'git', 'echo real');
+
+  const result = await ctx.run('git', 1000, { PATH: `${agentBin}:${realBin}` });
+
+  expect({ result, ran: existsSync(marker) }).toStrictEqual({
+    result: { kind: 'exit', code: 0, stdout: 'real\n', stderr: '' },
+    ran: false,
   });
 });

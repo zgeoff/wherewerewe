@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { toProbePath } from './to-probe-path.ts';
 import type { CommandResult } from './types.ts';
 
 // Stops each command a read started: its whole process group, so a child it started dies too.
@@ -29,6 +30,9 @@ export function createKillSet(): KillSet {
 export interface RunCommandOptions {
   // gh and git are found on its PATH, never on the PATH of this process
   readonly env: Readonly<Record<string, string | undefined>>;
+
+  // the folder the command was typed in, whose PATH entries a probe never uses
+  readonly cwd: string;
   readonly timeoutMs: number;
   readonly kills: KillSet;
 }
@@ -41,7 +45,7 @@ export function runCommand(
   options: RunCommandOptions,
 ): Promise<CommandResult> {
   const [name, ...args] = argv;
-  const path = Bun.which(name, { PATH: options.env['PATH'] ?? '' });
+  const path = Bun.which(name, { PATH: toProbePath(options.env['PATH'] ?? '', options.cwd) });
 
   if (path === null) {
     return Promise.resolve({ kind: 'missing' });

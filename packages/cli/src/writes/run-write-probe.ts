@@ -36,7 +36,8 @@ export async function runWriteProbe(input: WriteProbeInput): Promise<WriteProbe 
 
   const probe = await probeCheck(target, {
     extra: {},
-    run: (argv, timeoutMs) => runCommand(argv, { env: input.env, timeoutMs, kills }),
+    run: (argv, timeoutMs) =>
+      runCommand(argv, { env: input.env, cwd: input.cwd, timeoutMs, kills }),
   });
 
   return {

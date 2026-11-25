@@ -3,9 +3,9 @@ import { match } from 'ts-pattern';
 
 export const cliPath = join(import.meta.dir, '..', '..', 'packages', 'cli', 'src', 'cli.ts');
 
-// The argv that runs the real `www` as a process, with HOME and XDG_STATE_HOME inside the run's
-// state folder under .wringer/ and the agent's session variables unset, so a journey never touches
-// the owner's stores. PATH is the run's bin folder, which holds git and no gh. A host then sets its session variable, so the brief takes that host's budget.
+// The argv that runs the real `www` with HOME, XDG_STATE_HOME and PATH inside the run's folder,
+// so a journey never touches the owner's stores, and with only the given host's session variable.
+// It runs in <run>/cwd, beside <run>/bin, because a probe skips each PATH entry inside its folder.
 export function buildWWWArgv(
   stateRoot: string,
   argv: readonly string[],
@@ -18,6 +18,7 @@ export function buildWWWArgv(
     .exhaustive();
 
   return [
+    ...buildRunFolderStart(stateRoot),
     'env',
     '-u',
     'CLAUDE_CODE_SESSION_ID',
@@ -35,4 +36,9 @@ export function buildWWWArgv(
     cliPath,
     ...argv,
   ];
+}
+
+// The words that make the folder <run>/cwd and run the rest of the argv in it.
+export function buildRunFolderStart(stateRoot: string): readonly string[] {
+  return ['/bin/sh', '-c', 'mkdir -p "$0" && cd "$0" && exec "$@"', join(stateRoot, 'cwd')];
 }

@@ -1,10 +1,14 @@
 import { expect, test } from 'bun:test';
 import { buildWWWArgv } from './build-www-argv.ts';
 
-test('it runs www with the agent session variables unset and HOME and XDG_STATE_HOME inside the run folder', () => {
+test('it runs www in <run>/cwd with the agent session variables unset and HOME and XDG_STATE_HOME inside the run folder', () => {
   const argv = buildWWWArgv('/runs/r-1', ['help']);
 
-  expect(argv.slice(0, 13)).toStrictEqual([
+  expect(argv.slice(0, 17)).toStrictEqual([
+    '/bin/sh',
+    '-c',
+    'mkdir -p "$0" && cd "$0" && exec "$@"',
+    '/runs/r-1/cwd',
     'env',
     '-u',
     'CLAUDE_CODE_SESSION_ID',
@@ -30,7 +34,7 @@ test.each([
 ] as const)('it sets the session variable of the $host host after the unset words', (row) => {
   const argv = buildWWWArgv('/runs/r-1', ['help'], row.host);
 
-  expect(argv.slice(9, 12)).toStrictEqual([
+  expect(argv.slice(13, 16)).toStrictEqual([
     row.variable,
     'HOME=/runs/r-1/home',
     'XDG_STATE_HOME=/runs/r-1/state',

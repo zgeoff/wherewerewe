@@ -16,6 +16,7 @@ import { readStore } from '../store/read-store.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { countBriefLines } from '../test-utils/count-brief-lines.ts';
+import { getSteeringWords } from '../test-utils/get-steering-words.ts';
 import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
@@ -519,6 +520,29 @@ test('it names gh not logged in in the header when gh fails authentication', asy
     true,
     true,
   ]);
+});
+
+test('it names repo config in the header, with no steering word, when a checked repo defines a filter it cannot read', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  writeFileSync(join(repo.folder, '.git', 'config'), '[filter "a b"]\n\tclean = cat\n', {
+    flag: 'a',
+  });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['where', 'w-repo', 'the chart repo', '--path', join(repo.folder, 'kiln.txt')]);
+
+  const brief = await ctx.run([]);
+
+  const header = brief.stdout.split('\n')[0]?.replace(/ in [0-9.]+s/u, ' in <t>s') ?? '';
+
+  expect({ header, steering: getSteeringWords(header) }).toStrictEqual({
+    header:
+      'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · 1 checks in <t>s · 1 unchecked: repo config',
+    steering: [],
+  });
 });
 
 test('it starts the probes with the item in focus, then the newest tasks, not in the order of items.tsv', async () => {

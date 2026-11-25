@@ -1,11 +1,13 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { createGitCommit, runGit } from '@zgeoff/testing/git';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import type { SeededRepo } from '../test-utils/seed-git-repo.ts';
+import { hostileSettings, seedHostileRepo } from '../test-utils/seed-hostile-repo.ts';
+import type { HostileSetting } from '../test-utils/seed-hostile-repo.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { probeBranch } from './probe-branch.ts';
 import { createKillSet, runCommand } from './run-command.ts';
@@ -16,7 +18,16 @@ function setupTest() {
   const bin = join(root, 'bin');
 
   const run: RunProbeCommand = (argv, timeoutMs) =>
-    runCommand(argv, { env: { PATH: bin }, timeoutMs, kills: createKillSet() });
+    runCommand(argv, {
+      env: {
+        PATH: bin,
+        GIT_CONFIG_GLOBAL: join(root, 'global.gitconfig'),
+        GIT_CONFIG_NOSYSTEM: '1',
+      },
+      cwd: join(root, 'cwd'),
+      timeoutMs,
+      kills: createKillSet(),
+    });
 
   return {
     root,
@@ -26,6 +37,12 @@ function setupTest() {
       linkCommands(bin, ['git']);
 
       return seedGitRepo(root);
+    },
+    createHostileRepo: (setting: HostileSetting) => {
+      mkdirSync(bin, { recursive: true });
+      linkCommands(bin, ['git']);
+
+      return seedHostileRepo(root, setting);
     },
     probe: (repoPath: string, name: string) => probeBranch({ repoPath, name }, run),
     commit: (repo: SeededRepo, file: string) =>
@@ -185,3 +202,16 @@ esac`,
 
   expect(probe.result).toStrictEqual({ kind: 'unchecked', reason: 'git missing' });
 });
+
+test.each(hostileSettings)(
+  'it never starts a program that the repo names with %s, on a branch that tracks another',
+  async (setting) => {
+    const ctx = setupTest();
+
+    const repo = await ctx.createHostileRepo(setting);
+
+    await ctx.probe(repo.folder, 'main');
+
+    expect(existsSync(repo.marker)).toBe(false);
+  },
+);

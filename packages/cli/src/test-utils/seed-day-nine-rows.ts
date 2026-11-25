@@ -104,7 +104,7 @@ export async function seedDayNineRows(
     runCLI({
       argv,
       env,
-      cwd: root,
+      cwd: '/work',
       terminal: { stdin: false, stdout: false },
       now: () => Date.parse(at),
     });

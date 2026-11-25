@@ -8,6 +8,10 @@ test('it unsets the five agent variables and the session, then sets the given on
   });
 
   expect(argv).toStrictEqual([
+    '/bin/sh',
+    '-c',
+    'mkdir -p "$0" && cd "$0" && exec "$@"',
+    '/runs/r-1/cwd',
     'env',
     '-u',
     'CLAUDECODE',
