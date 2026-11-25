@@ -53,13 +53,14 @@ command exits 4, and never falls back to the only session on the machine. See
 ## Commands and refusals
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
-`rule`, `where`, `set`, `ok`, `grant`, `decide`, `done`, `drop`, `use`, `show`, `log`, `recap`,
-`import`, `say` and `ack`, and `www` alone prints the brief. A write answers in one line, except
-`now` and a close, which print the note of an item that has one. The reply of a write, such as
-`task`, `done`, `decide`, `say` or `ack`, names the item or note and ends with the brief's length;
-`init`, `attach`, `detach` and `import` say what they did, and `import` names the folder of the
-backup. Each refusal prints its text and a `Run:` line with the command that fixes it. See
-[the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
+`rule`, `where`, `lesson`, `promise`, `words`, `set`, `ok`, `grant`, `decide`, `done`, `drop`,
+`use`, `show`, `list`, `log`, `recap`, `import`, `say` and `ack`, and `www` alone prints the brief.
+A write answers in one line, except `now` and a close, which print the note of an item that has one.
+The reply of a write, such as `task`, `done`, `decide`, `say` or `ack`, names the item or note and
+ends with the brief's length; `init`, `attach`, `detach` and `import` say what they did, and
+`import` names the folder of the backup. Each refusal prints its text and a `Run:` line with the
+command that fixes it. See [the commands design](../design/wherewerewe/commands.md) for the replies
+and the refusals.
 
 `now` and every item write take `--note` and `--owed`, and `set` also takes `--no-note` and no
 claim. A note holds up to 400 characters, an item has at most one, and `--owed` marks a note that
@@ -189,9 +190,11 @@ table.
 tasks, waits, promises, the one-time approval, rules, lessons, decisions and where items, within the
 limit of the agent that reads it: 24,000 bytes on Claude Code, 30,000 on Codex and 60,000 with no
 known host, given as 8,000, 10,000 and 20,000 estimated tokens of 3 bytes each. A brief over its
-limit drops rows one at a time in a fixed cut order, and ends each section that lost rows with the
-`www list` command that prints the rest. It never cuts the header, the goal, the grant, the owner's
-notes, the changed rows, the item in focus with its step and note, or the footer.
+limit drops rows one at a time in a fixed cut order. Each section that lost rows ends with a line
+that counts them and names the `www list` command that prints every row of its kind. `OPEN` ends
+with its count line instead, which names `www show`, and `DECISIONS` can end with both its own count
+line and its cut line. It never cuts the header, the goal, the grant, the owner's notes, the changed
+rows, the item in focus with its step and note, or the footer.
 
 The host comes from the reader's environment, `CLAUDE_CODE_SESSION_ID` for Claude Code and
 `CODEX_SESSION_ID` or `CODEX_THREAD_ID` for Codex, never from the store. The open tasks print in the

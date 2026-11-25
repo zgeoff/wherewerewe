@@ -14,14 +14,14 @@ Run `bun verify up --restart` first, so `trial-item-notes` does not exist, then 
 ```bash
 bun verify use --feature item-notes
 bun verify www run --line 'www init trial-item-notes --goal "Ship the glaze timer in the pottery app"' --expect 'Started session trial-item-notes in '
-bun verify www run --line 'www --session trial-item-notes task t-kiln "Wire the kiln sensor to the glaze timer" --note "Switch the kiln simulator off before this closes: the studio shares it on Fridays." --owed' --expect 't-kiln  task, open, no check, note 82 of 400, owed. Brief: '
+bun verify www run --line 'www --session trial-item-notes task t-kiln "Wire the kiln sensor to the glaze timer" --note "Switch the kiln simulator off before this closes: the studio shares it on Fridays." --owed' --expect 't-kiln  task, open, no check, note 82 of 400, owed. Brief: 173 of 20000 tokens.'
 bun verify www run --line 'www --session trial-item-notes' --expect ' · owed]'
 bun verify www run --line 'www --session trial-item-notes now t-kiln "Read the sensor range from its spec sheet"' --expect 'now: t-kiln, with its owed note ('
 bun verify www run --line 'www --session trial-item-notes' --expect '    Switch the kiln simulator off before this closes: the studio shares it on Fridays.'
 bun verify www run --line 'www --session trial-item-notes show t-kiln' --expect '  owed note ('
 bun verify www refuse --line 'www --session trial-item-notes done t-kiln --evidence "commit 4c1d2e0"' --expect 'www: refused: t-kiln has an owed note (' --run 'www --session trial-item-notes set t-kiln --no-note'
-bun verify www run --line 'www --session trial-item-notes set t-kiln --no-note' --expect 't-kiln  note cleared. Brief: '
-bun verify www run --line 'www --session trial-item-notes done t-kiln --evidence "commit 4c1d2e0"' --expect 't-kiln  done. Off the brief, kept in the journal. Brief: '
+bun verify www run --line 'www --session trial-item-notes set t-kiln --no-note' --expect 't-kiln  note cleared. Brief: 181 of 20000 tokens.'
+bun verify www run --line 'www --session trial-item-notes done t-kiln --evidence "commit 4c1d2e0"' --expect 't-kiln  done. Off the brief, kept in the journal. Brief: 140 of 20000 tokens.'
 bun verify www run --line 'www --session trial-item-notes log --op note --id t-kiln' --expect 'owed: Switch the kiln simulator off'
 bun verify www run --line 'www --session trial-item-notes log --op note --id t-kiln' --expect 'note cleared'
 bun verify www run --line 'www --session trial-item-notes' --expect 'NOW  none. Run: www now <id> "<next step>"'
