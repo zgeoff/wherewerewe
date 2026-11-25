@@ -11,20 +11,20 @@ wherewerewe ships as one compiled binary per platform, for macOS and Linux on ar
 
 - The owner chose the tap and an install script, the channel of his other tools, over npm.
 - The binary needs no runtime on the machine, so an agent with no Bun runs it, and a hook whose `PATH` lacks Bun runs it.
-- A hook entry names one path. Homebrew's link in its `bin` folder and the script's replace in place keep that path across upgrades, so the entry text never changes, and Codex never asks for trust again.
+- A hook entry holds one path. Homebrew's link in its `bin` folder and the script's replace in place keep that path across upgrades, so the entry text never changes, and Codex never asks for trust again.
 - A compiled `www help` started in 8 to 10 ms on linux-x64, against 26 to 30 ms for the source run by Bun.
 
 ## Rejected alternatives
 
 | Option | Why not |
 | --- | --- |
-| TypeScript source on npm, run by Bun ([0006](0006-ship-typescript-source-run-by-bun.md)) | needs Bun on the machine, and a hook entry that names two paths |
+| TypeScript source on npm, run by Bun ([0006](0006-ship-typescript-source-run-by-bun.md)) | needs Bun on the machine, and a hook entry that holds two paths |
 | the resolved path of the binary in each hook entry | the Homebrew path changes on every upgrade, and a changed Codex entry waits for trust |
 | `www` and `wherewerewe` as two copies of the binary | two files of about 94 MB each |
 
 ## Consequences
 
 - Each release builds four binaries of about 94 MB each.
-- `www install` refuses when no `wherewerewe` is on `PATH`, and `www doctor` reports an entry whose path is gone or no longer the first `wherewerewe` on `PATH`.
-- A build agent installs a copy by compiling the binary and copying it out of the worktree.
-- The exit 5 line for a store newer than the tool names the command that upgrades the binary where it was installed.
+- `www install` refuses when no `wherewerewe` is on `PATH`, and `www doctor` reports an entry whose path is gone or no longer the first `wherewerewe` on `PATH`. See [sessions-and-hooks.md](../design/wherewerewe/sessions-and-hooks.md).
+- A build agent installs a copy by compiling the binary and copying it out of the worktree, with the commands in [shipping.md](../design/wherewerewe/shipping.md).
+- The exit 5 line for a store newer than the tool gives the command that upgrades the binary where it was installed.

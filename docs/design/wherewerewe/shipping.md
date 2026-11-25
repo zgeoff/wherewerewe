@@ -12,7 +12,7 @@ flowchart LR
   src[TypeScript source] --> npm["@wherewerewe/cli on npm"]
   npm -->|"bins: www, wherewerewe"| path[PATH]
   path -->|"#!/usr/bin/env bun"| bun[Bun 1.3+]
-  hooks[hook entries] -->|"absolute bun path + absolute bin path"| bun
+  hooks[hook entries] -->|"the path of the wherewerewe binary"| path
 ```
 
 ## Contracts
@@ -43,7 +43,7 @@ bun add -g "$PWD/wherewerewe-cli-<version>.tgz"
 
 - The repo is a Bun workspace with the one package in `packages/cli`, as the repo-standard skill sets up.
 - `src/cli.ts` starts with `#!/usr/bin/env bun` and is executable.
-- A hook entry runs `<path of the wherewerewe binary> hook <harness>`, the path taken from `command -v wherewerewe` at install and kept unresolved ([0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)). `www doctor` reports the path when it is gone or no longer first on `PATH`.
+- A hook entry runs `<bin> hook <harness>`, where `<bin>` is the path that `command -v wherewerewe` printed at install, kept as printed. The binary needs no runtime, so a hook whose `PATH` lacks Bun runs it. `www doctor` reports an entry whose path is gone or is no longer the first `wherewerewe` on `PATH`.
 - Code that only the brief needs, such as the checks and the renderer, loads lazily, so a hook for an unbound session meets the 150 ms limit in [sessions-and-hooks.md](sessions-and-hooks.md).
 - The tool needs `gh` only for `pr` checks, and `git` only for `branch` and `path` checks. Without them, those checks read `unchecked`.
 - Releases go to npm through release-please and OIDC trusted publishing, as the repo-standard skill sets up. The first publish is an owner step, through the npm-publish skill.
