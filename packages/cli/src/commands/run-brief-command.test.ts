@@ -196,7 +196,7 @@ test("it prints each write reply of commands.md's examples, figures included, fr
     'utf8',
   );
 
-  const section = text.slice(text.indexOf('Examples from the invented session:'));
+  const section = text.slice(text.indexOf('Examples from the invented session.'));
   const block = /```text\n(?<examples>.*?)```/su.exec(section)?.groups?.['examples'] ?? '';
 
   const examples = block

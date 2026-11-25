@@ -349,7 +349,7 @@ Each write prints the note lines or the older-note line in its row first and its
 | `import` of a hand-kept store   | `Imported <name>: <n> items, <m> journal rows. Originals in <folder>/import-backup/.`             |
 | `import` of a format 1 store    | `Upgraded <name> to format 2: grant <k> of 700 characters, <s> standing approvals folded into it, <o> one-time approval kept. Originals in <folder>/format-1-backup/.` or `no grant` in place of the grant part; then each removed note as `  <id> had a note: <note>` |
 
-Examples from the invented session:
+Examples from the invented session. They run in order on Claude Code, each on the store the one before saved, from the day 9 store of [brief.md](brief.md) without the rows these writes add, so each `Brief:` figure is the estimate of that store's brief:
 
 ```text
 $ www task t-e2e "Write alerts-e2e against staging"
