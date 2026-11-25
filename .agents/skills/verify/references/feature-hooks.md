@@ -3,9 +3,9 @@
 Check that the hooks of a bound session answer as the gate says, on each host, and that
 `www install` writes the hook entries, the allow rules and the skill. A user starts a session, binds
 a host's session id to it, starts that session again, and tries a tool call before and after reading
-the brief. The journey pipes each hook payload into the real `www hook <host>` as a process, and
-runs `www install` against the run's own home, with its home and state folders inside the run's
-folder under `.wringer/`, so it never touches your own settings or stores.
+the brief. Pipe each hook payload into the real `www hook <host>` as a process, and run
+`www install` against the run's own home. Its home and state folders sit inside the run's folder
+under `.wringer/`, so the journey never touches your own settings or stores.
 
 ## Journey
 
@@ -44,7 +44,7 @@ bun verify www hook --harness codex --empty --payload '{"session_id":"9e1f-trial
   and its whole output pass.
 - `www install` against the run's home writes the six Claude Code and five Codex entries, the allow
   rule and rules file, and the `www` skill for each host, all under the run's folder.
-- The run's folder sits under `.wringer/`, which `.gitignore` lists.
+- The run's folder sits under `.wringer/`, which is in `.gitignore`.
 - The journey repeats the claude steps for codex with the codex payload shapes, because Codex's
   `tool_response` is a string.
 - No expected text holds an age, which is real time.

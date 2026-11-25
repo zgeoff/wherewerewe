@@ -40,8 +40,8 @@ www --help
   `www set <id> --no-note` clears the note.
 - `www ok` records the owner's one-time approval, and `use` spends it.
 - `www grant` keeps the owner's words as bullets of what they allow, did not grant and ruled out,
-  with where they gave them and your reading of them; the brief prints them after the goal. A grant
-  needs one bullet in any of the three groups.
+  with where they gave them and your reading of them; the brief prints them after the goal. Give a
+  grant at least one bullet, in any of the three groups.
 - `www decide` records a decision, or an approach that was ruled out, and numbers it `d-<n>`.
 - `www lesson`, `promise` and `words` keep a lesson with the mistake behind it, a promise to the
   owner with its due time, and the owner's exact words; `done` closes a promise, and `drop` closes

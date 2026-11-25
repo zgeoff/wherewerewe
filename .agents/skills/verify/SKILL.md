@@ -30,8 +30,8 @@ report from the PR description, and fails a PR that changes a feature with no ve
 
 ## References
 
-- [Exit codes](references/exit-codes.md): when a command fails, what to do for its exit code and
-  `error.code`.
+- [Exit codes](references/exit-codes.md): when a command fails, find its exit code and `error.code`
+  there, and do what that row says.
 - [Edit the skill](references/edit-the-skill.md): before you edit this skill or a feature file.
 
 Read a feature's file before you run its journey.

@@ -125,7 +125,7 @@ A wrapped line holds at least 85 characters, so a line that carries a prefix of 
 - Grant reading, 200 characters behind `  reading: ` (11), then a 4-character indent: 2 lines carry at least 74 + 81 = 155, so 3 lines.
 - Note, 400 characters behind a 4-character indent: 4 lines carry at least 4 × 81 = 324, so 5 lines.
 
-A wrapped block's characters are its text plus each line's prefix; a dropped space only lowers the count. A test renders the ASCII worst case and pins each block's bytes below, with each newline and each multi-byte mark counted.
+A wrapped block's characters are its text plus each line's prefix; a dropped space only lowers the count. Test the ASCII worst case: render it and pin each block's bytes below, counting each newline and each multi-byte mark.
 
 | Block | Bytes |
 | --- | --- |
@@ -169,7 +169,7 @@ What raises each limit, and why `www install` sets neither:
 
 A whole brief reaches a Codex agent when the call passes `max_output_tokens: 10000`, and the model sets that parameter itself: it passed 1,000 to 6,000 when nothing named it. So the Codex refusal's `Run:` line and the `SessionStart` line end `(pass max_output_tokens 10000, so the whole brief reaches you)`, as [sessions-and-hooks.md](sessions-and-hooks.md#the-gate) gives them. In 5 of 5 Codex runs that put this wording in the prompt, the model called `www` with `max_output_tokens: 10000`, and a 30,073-byte brief arrived whole. The wording came as the user's message in those runs, so the open question below covers a tool result. Claude Code's Bash tool has no such parameter, so its refusal keeps `Run: www`. When a Codex read is cut anyway, the hook counts it as no whole read.
 
-The figures above are constants in the brief module, each with a comment naming the host version and the measurement behind it. The host comes from the reader's environment, never from the store: `CLAUDE_CODE_SESSION_ID` gives Claude Code, `CODEX_SESSION_ID` or `CODEX_THREAD_ID` gives Codex, and with both families set, Claude Code wins, as in [sessions-and-hooks.md](sessions-and-hooks.md). An agent variable that is empty counts as unset and names no host. A `--session` flag changes none of this. A test pins the three constants. The tool reads no host setting, so an owner who raises `bashOutputMaxChars` keeps the 8,000-token figure, and a later host version that cuts lower needs a change to its constant.
+The figures above are constants in the brief module, each with a comment naming the host version and the measurement behind it. The host comes from the reader's environment, never from the store: `CLAUDE_CODE_SESSION_ID` gives Claude Code, `CODEX_SESSION_ID` or `CODEX_THREAD_ID` gives Codex, and with both families set, Claude Code wins, as in [sessions-and-hooks.md](sessions-and-hooks.md). An agent variable that is empty counts as unset and names no host. A `--session` flag changes none of this. Pin the three constants in a test. The tool reads no host setting, so an owner who raises `bashOutputMaxChars` keeps the 8,000-token figure, and a later host version that cuts lower needs a change to its constant.
 
 The ASCII worst case above fits each host's limit:
 

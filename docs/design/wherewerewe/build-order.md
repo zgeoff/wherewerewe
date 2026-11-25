@@ -213,7 +213,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] The worst-case `SessionStart` injection reaches each host's context whole. Evidence: the hook's stdout measured against 10,000 characters, the Claude Code transcript of the compaction line above, and the rollout of a Codex session that starts on the worst-case store and shows the injection whole.
 - [ ] The tool writes no `classifierContext`. Evidence: a test over every hook output.
 - [ ] `www install` writes the `www` skill for each host from the text the binary carries, replaces only a skill it wrote and nobody edited, refuses any other file with a `Run: www install --replace-skill` line and writes nothing, and a second run changes nothing; `--print` shows the skill files. Evidence: install tests on fixture homes.
-- [ ] The skill names only commands and flags the parser takes, stays under 350 words, and `www doctor` reports a skill that differs from the binary's. Evidence: the skill test and doctor tests.
+- [ ] Every command and flag in the skill is one the parser takes, the skill stays under 350 words, and `www doctor` reports a skill that differs from the binary's. Evidence: the skill test and doctor tests.
 - [ ] `www doctor` exits 0 on the owner's machine. Evidence: its output, after the owner steps.
 - [ ] `www install`, `www doctor` and `www hook` never open `owner.tsv` for writing. Evidence: the read-only `owner.tsv` test from slice 2 runs each of the three, and finds the file's inode, mode and bytes unchanged.
 

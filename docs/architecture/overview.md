@@ -240,7 +240,7 @@ output and no write.
 hooks files, adds the allow rule `Bash(www *)` and a Codex rules file with the one `www` rule, and
 writes the `www` skill that the binary carries. It prints each known limit of the checks that
 applies on the machine first, edits only the bytes of its own entries and keeps a backup of each
-file it changes. `www doctor` checks each of them, and names what to fix. See
+file it changes. `www doctor` checks each entry and file, and names what to fix. See
 [sessions and hooks](../design/wherewerewe/sessions-and-hooks.md).
 
 ## Checks

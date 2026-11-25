@@ -256,7 +256,7 @@ A hook does this check, and `www` does not, because `www` sees neither case that
 
 ### Install and doctor
 
-`www install` merges the entries of the hooks table into `~/.claude/settings.json` and `~/.codex/hooks.json`, six for Claude Code and five for Codex, keeps every other hook, replaces an older entry whose command ends in `wherewerewe hook claude` or `wherewerewe hook codex`, and prints what it changed. `$CLAUDE_CONFIG_DIR` replaces `~/.claude` when it is set, and `$CODEX_HOME` replaces `~/.codex` when it is set. It also writes the allow rules below. It writes no other permission rule, no `onFailure`, no `additionalContextLimit` and no `bashOutputMaxChars`. Each command is exactly `<bin> hook claude` or `<bin> hook codex`, with no version, flag or timestamp, and the matcher and timeout are the table's: Codex records trust against the exact hook definition, so a changed field waits for the owner's trust again. A later version changes none of them without a decision record that says so. `www install --print` changes nothing and prints both JSON blocks, both rules, the skill files and the `config.toml` lines, for an owner who keeps those files in dotfiles. Neither ever edits `~/.codex/config.toml`; both print the lines that file needs:
+`www install` merges the entries of the hooks table into `~/.claude/settings.json` and `~/.codex/hooks.json`, six for Claude Code and five for Codex, keeps every other hook, replaces an older entry whose command ends in `wherewerewe hook claude` or `wherewerewe hook codex`, and prints what it changed. `$CLAUDE_CONFIG_DIR` replaces `~/.claude` when it is set, and `$CODEX_HOME` replaces `~/.codex` when it is set. It also writes the allow rules below. It writes no other permission rule, no `onFailure`, no `additionalContextLimit` and no `bashOutputMaxChars`. Each command is exactly `<bin> hook claude` or `<bin> hook codex`, with no version, flag or timestamp, and the matcher and timeout are the table's: Codex records trust against the exact hook definition, so a changed field waits for the owner's trust again. A later version changes none of them without a decision record that says so. `www install --print` changes nothing and prints both JSON blocks, both rules, the skill files and the `config.toml` lines, for an owner who keeps those files in dotfiles. Neither form of `www install` edits `~/.codex/config.toml`; each prints the lines that file needs:
 
 ```toml
 [features]
@@ -324,7 +324,7 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 - **Authority comes from the owner's own acts.** An allow rule that the owner installs and a `/goal` that the owner pastes carry it; injected context carries none. [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md)
 - **Hook entries name the binary's path, with no runtime.** The binary needs none, and the path survives an upgrade. [0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)
 - **The binary carries the `www` skill, and `www install` writes it.** The skill then matches the installed commands. [0023](../../decisions/0023-the-cli-ships-its-own-www-skill.md)
-- **The hooks have their own parser, not `@zgeoff/agent-hooks`.** [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
+- **The hooks have their own parser and do not build on `@zgeoff/agent-hooks`.** [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
 
 ## Builder decides
 
