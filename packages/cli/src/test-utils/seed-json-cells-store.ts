@@ -16,6 +16,9 @@ import { seedStoreFile } from './seed-store-file.ts';
 export const plainCells: Readonly<Record<string, string>> = {
   'task id': 't-a',
   'task claim': 'Write the parser',
+  'task check': 'path:/work/parser-notes',
+  'task blocked by': 'w-z',
+  'task pid start': '1700000000',
   note: 'Read the tests first',
   'wait claim': 'The staging key',
   'wait who': 'wren',
@@ -82,7 +85,13 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
   };
 
   const items = formatItemsFile([
-    item({ id: cell('task id'), kind: 'task', claim: cell('task claim') }),
+    item({
+      id: cell('task id'),
+      kind: 'task',
+      claim: cell('task claim'),
+      check: cell('task check'),
+      extra: { blocked_by: cell('task blocked by'), pid_start: cell('task pid start') },
+    }),
     item({ id: 'w-a', kind: 'wait', claim: cell('wait claim'), extra: { who: cell('wait who') } }),
     item({ id: 'ok-a', kind: 'ok', claim: cell('approval quote'), extra: approvalExtra }),
     item({ id: 'r-a', kind: 'rule', claim: cell('rule claim') }),

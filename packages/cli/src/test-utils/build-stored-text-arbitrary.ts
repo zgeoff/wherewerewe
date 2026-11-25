@@ -35,6 +35,6 @@ export function buildStoredTextArbitrary(
     .map((generated) => ({
       cell: generated.pair.found.cell,
       read: generated.pair.read,
-      value: `a${[...generated.fragments.join('')].slice(0, generated.pair.found.limit - 2).join('')}z`,
+      value: `${generated.pair.found.prefix}a${[...generated.fragments.join('')].slice(0, generated.pair.found.limit - generated.pair.found.prefix.length - 2).join('')}z`,
     }));
 }

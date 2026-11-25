@@ -10,11 +10,15 @@ export interface JsonRedactionRead {
   readonly path: readonly (string | number)[];
 }
 
-// A cell of seed-json-cells-store.ts: its name, the most characters the store holds in it, whether
-// it refuses ; and =, and each place the output prints it.
+// A cell of seed-json-cells-store.ts: its name, the most characters the store holds in it, the
+// prefix of each value, whether it refuses ; and =, and each place the output prints it.
 export interface JsonRedactionCase {
   readonly cell: string;
   readonly limit: number;
+
+  // the words every value of the cell starts with, ending in a space, so the store reads each value
+  // as a check ref; empty for a cell with no such rule
+  readonly prefix: string;
   readonly isSeparated: boolean;
   readonly reads: readonly JsonRedactionRead[];
 }
@@ -27,6 +31,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'task claim',
       limit: textLimits.claim,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('open', 0, 'row', 'claim'),
@@ -37,8 +42,45 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       ],
     },
     {
+      cell: 'task check',
+      limit: textLimits.claim,
+      prefix: 'path:/work/ ',
+      isSeparated: false,
+      reads: [
+        brief('open', 0, 'row', 'check'),
+        show('t-a', 'subjects', 0, 'row', 'check'),
+        list('tasks', 'rows', 0, 'row', 'check'),
+        recap('notes', 0, 'item', 'row', 'check'),
+      ],
+    },
+    {
+      cell: 'task blocked by',
+      limit: textLimits.idMax,
+      prefix: '',
+      isSeparated: true,
+      reads: [
+        brief('open', 0, 'row', 'extra', 'blocked_by'),
+        show('t-a', 'subjects', 0, 'row', 'extra', 'blocked_by'),
+        list('tasks', 'rows', 0, 'row', 'extra', 'blocked_by'),
+        recap('notes', 0, 'item', 'row', 'extra', 'blocked_by'),
+      ],
+    },
+    {
+      cell: 'task pid start',
+      limit: textLimits.idMax,
+      prefix: '',
+      isSeparated: true,
+      reads: [
+        brief('open', 0, 'row', 'extra', 'pid_start'),
+        show('t-a', 'subjects', 0, 'row', 'extra', 'pid_start'),
+        list('tasks', 'rows', 0, 'row', 'extra', 'pid_start'),
+        recap('notes', 0, 'item', 'row', 'extra', 'pid_start'),
+      ],
+    },
+    {
       cell: 'wait claim',
       limit: textLimits.claim,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('open', 1, 'row', 'claim'),
@@ -49,6 +91,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'wait who',
       limit: textLimits.waitWho,
+      prefix: '',
       isSeparated: true,
       reads: [
         brief('open', 1, 'row', 'extra', 'who'),
@@ -59,6 +102,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'approval quote',
       limit: textLimits.quote,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('open', 2, 'row', 'claim'),
@@ -69,6 +113,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'approval who',
       limit: textLimits.approvalWho,
+      prefix: '',
       isSeparated: true,
       reads: [
         brief('open', 2, 'row', 'extra', 'who'),
@@ -79,6 +124,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'approval where',
       limit: textLimits.approvalWhere,
+      prefix: '',
       isSeparated: true,
       reads: [
         brief('open', 2, 'row', 'extra', 'where'),
@@ -89,6 +135,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'approval scope',
       limit: textLimits.approvalScope,
+      prefix: '',
       isSeparated: true,
       reads: [
         brief('open', 2, 'row', 'extra', 'scope'),
@@ -99,6 +146,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'rule claim',
       limit: textLimits.claim,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('open', 3, 'row', 'claim'),
@@ -109,6 +157,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'where claim',
       limit: textLimits.claim,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('open', 4, 'row', 'claim'),
@@ -116,22 +165,31 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
         list('where', 'rows', 0, 'row', 'claim'),
       ],
     },
-    { cell: 'goal', limit: textLimits.goal, isSeparated: false, reads: [brief('goal')] },
+    {
+      cell: 'goal',
+      limit: textLimits.goal,
+      prefix: '',
+      isSeparated: false,
+      reads: [brief('goal')],
+    },
     {
       cell: 'next step',
       limit: textLimits.nextStep,
+      prefix: '',
       isSeparated: false,
       reads: [brief('next')],
     },
     {
       cell: 'owner note',
       limit: textLimits.ownerNote,
+      prefix: '',
       isSeparated: false,
       reads: [brief('ownerNotes', 0, 'text')],
     },
     {
       cell: 'lesson text',
       limit: textLimits.lesson,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('lessons', 0, 'text'),
@@ -142,6 +200,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'lesson why',
       limit: textLimits.lessonWhy,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('lessons', 0, 'why'),
@@ -152,6 +211,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'promise what',
       limit: textLimits.promise,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('promises', 0, 'what'),
@@ -163,6 +223,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'promise to',
       limit: textLimits.promiseTo,
+      prefix: '',
       isSeparated: true,
       reads: [
         brief('promises', 0, 'to'),
@@ -174,6 +235,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'promise by',
       limit: textLimits.promiseBy,
+      prefix: '',
       isSeparated: true,
       reads: [
         brief('promises', 0, 'byWhen'),
@@ -185,6 +247,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'words',
       limit: textLimits.words,
+      prefix: '',
       isSeparated: false,
       reads: [
         brief('words', 0, 'words'),
@@ -195,6 +258,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'words where',
       limit: textLimits.wordsWhere,
+      prefix: '',
       isSeparated: true,
       reads: [
         brief('words', 0, 'where'),
@@ -205,30 +269,35 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
     {
       cell: 'decision choice',
       limit: textLimits.decision,
+      prefix: '',
       isSeparated: false,
       reads: decisionReads('text'),
     },
     {
       cell: 'decision why',
       limit: textLimits.why,
+      prefix: '',
       isSeparated: false,
       reads: decisionReads('why'),
     },
     {
       cell: 'decision extra',
       limit: textLimits.why,
+      prefix: '',
       isSeparated: false,
       reads: decisionReads('extra'),
     },
     {
       cell: 'journal op',
       limit: textLimits.idMax,
+      prefix: '',
       isSeparated: true,
       reads: [log('rows', 1, 'op')],
     },
     {
       cell: 'journal id',
       limit: textLimits.idMax,
+      prefix: '',
       isSeparated: true,
       reads: [log('rows', 1, 'id')],
     },

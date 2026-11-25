@@ -38,10 +38,10 @@ test('it holds null for the writes and both lists when the journal cannot be rea
 });
 
 test.each([
-  { fromAt: '2026-03-09T11:43:00.000Z', since: '2026-03-09T11:43:00Z' },
-  { fromAt: '2026-03-09T11:43:00.001Z', since: '2026-03-09T11:43:01Z' },
-  { fromAt: '2026-03-09T11:43:00.500Z', since: '2026-03-09T11:43:01Z' },
-])('it reports the cutoff $fromAt as $since, the first second that keeps the same rows', (row) => {
+  { fromAt: '2026-03-09T11:43:00.000Z', since: '2026-03-09T11:43:00.000Z' },
+  { fromAt: '2026-03-09T11:43:00.001Z', since: '2026-03-09T11:43:00.001Z' },
+  { fromAt: '2026-03-09T11:43:00.500Z', since: '2026-03-09T11:43:00.500Z' },
+])('it reports the exact cutoff $fromAt, the one that picks the rows', (row) => {
   const ctx = setupTest();
 
   const recap = ctx.buildRecapJSON({
@@ -93,7 +93,7 @@ test('it counts the writes of an agent and the owner and holds the decisions and
     decidedSince: recap.decidedSince,
     closedSince: recap.closedSince,
   }).toStrictEqual({
-    since: '2026-03-09T11:43:00Z',
+    since: '2026-03-09T11:43:00.000Z',
     writes: 2,
     grant: { may: ['merge on green CI'], scope: 'in the app', where: 'chat', reading: 'covers it' },
     decidedSince: [decide],

@@ -1,5 +1,4 @@
 import { getSessionDay } from '../brief/get-session-day.ts';
-import { formatTimestamp } from '../format-timestamp.ts';
 import type { Item, JournalRow, Note, PromiseRow, SessionFile } from '../types.ts';
 import { buildGrantOpts } from './build-grant-opts.ts';
 import { buildShown } from './build-shown.ts';
@@ -44,7 +43,7 @@ export function buildRecapJSON(input: RecapJsonInput): RecapJson {
     ...jsonVersion,
     session: input.session.name,
     day: getSessionDay(input.session.started, input.nowMs),
-    since: formatTimestamp(Math.ceil(input.fromMs / 1000) * 1000),
+    since: new Date(input.fromMs).toISOString(),
     writes:
       input.rows === null
         ? null

@@ -32,7 +32,7 @@ function setupTest() {
     // the plain read with each plain text of the cell as the JSON string the cell now prints
     expectStdout: (plainStdout: string, cell: string, printed: string) =>
       plainStdout
-        .replaceAll(JSON.stringify(plainCells[cell]), JSON.stringify(printed))
+        .replaceAll(JSON.stringify(plainCells[cell]), () => JSON.stringify(printed))
         .replace(/"estimate":\d+/u, '"estimate":0'),
     readCells: (cells: Readonly<Record<string, string>>, argv: readonly string[]) =>
       runJsonCellRead(root, cells, argv),
@@ -155,6 +155,8 @@ test('it places each string field of each shape in the table, or leaves it out a
     'op',
     'focus',
     'note',
+    'last',
+    'checkedNow',
     '[]',
   ]);
 

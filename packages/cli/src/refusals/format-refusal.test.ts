@@ -4,6 +4,8 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { run } from '@zgeoff/testing/process';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
+import { buildArgvRefusal } from './build-argv-refusal.ts';
+import { buildRefusal } from './build-refusal.ts';
 import { formatRefusal, nothingWrittenComment } from './format-refusal.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
@@ -315,6 +317,70 @@ test.each([
       stdout: replayed.stdout,
       stderr: replayed.stderr,
     }).toStrictEqual({
+      exitCode: 0,
+      stdout: `${row.echoed.join('\n')}\n`,
+      stderr: '',
+    });
+  },
+);
+
+test.each([
+  {
+    title: 'a command that is not known',
+    refusal: buildArgvRefusal({ kind: 'unknown-command', command: 'frob' }),
+    echoed: ['www', 'help'],
+  },
+  {
+    title: 'a usage line with no placeholder',
+    refusal: buildArgvRefusal({ kind: 'goal-paste-with-text' }),
+    echoed: ['www', 'goal', '--paste'],
+  },
+  {
+    title: 'a flag that a command with no flags does not take',
+    refusal: buildArgvRefusal({
+      kind: 'flag-not-taken',
+      command: 'detach',
+      flag: '--on',
+      taken: [],
+      line: 'detach',
+    }),
+    echoed: ['www', 'detach'],
+  },
+  {
+    title: 'a list kind that is not known',
+    refusal: buildArgvRefusal({ kind: 'bad-list-kind' }),
+    echoed: ['www', 'list', 'tasks'],
+  },
+  {
+    title: 'a flag value that starts with a dash and holds shell characters',
+    refusal: buildArgvRefusal({
+      kind: 'flag-value-has-dash',
+      flag: 'note',
+      argv: ['now', 't-a', 'Go on', '--note=-costs $5 # "y"'],
+    }),
+    echoed: ['www', 'now', 't-a', 'Go on', '--note=-costs $5 # "y"'],
+  },
+  {
+    title: 'a since that does not parse',
+    refusal: buildRefusal({ kind: 'bad-since', command: 'recap' }),
+    echoed: ['www', 'recap', '--since', '24h'],
+  },
+])(
+  'it ends the Run line that a refusal builder prints with a comment that a POSIX shell reads as none: $title',
+  async (row) => {
+    const ctx = setupTest();
+    const text = ctx.formatRefusal(row.refusal, { sessionFlag: null, writes: true });
+    const last = text.trimEnd().split('\n').at(-1) ?? '';
+
+    const replayed = await ctx.runInShell(last.slice('Run: '.length));
+
+    expect({
+      endsWithComment: last.endsWith(nothingWrittenComment),
+      exitCode: replayed.exitCode,
+      stdout: replayed.stdout,
+      stderr: replayed.stderr,
+    }).toStrictEqual({
+      endsWithComment: true,
       exitCode: 0,
       stdout: `${row.echoed.join('\n')}\n`,
       stderr: '',

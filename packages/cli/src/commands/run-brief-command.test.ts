@@ -902,6 +902,11 @@ test.each([
 
     const brief = jsonSchemas.brief.parse(JSON.parse(printedJSON.stdout));
 
+    const decided = await readJournalRows(
+      join(jsonCtx.stateRoot, name),
+      (journalRow) => journalRow.op === 'decide',
+    );
+
     expect({
       exitCodes: [printedText.exitCode, printedJSON.exitCode],
       stderr: printedJSON.stderr,
@@ -914,6 +919,12 @@ test.each([
       words: brief.words.map((entry) => entry.id).toSorted(),
       decisions: brief.decisions.map((entry) => entry.id).toSorted(),
       prs: brief.prs.map((entry) => entry.ref).toSorted(),
+      openRows: Object.fromEntries(brief.open.map((shown) => [shown.row.id, shown.row])),
+      lessonRows: Object.fromEntries(brief.lessons.map((entry) => [entry.id, entry])),
+      promiseRows: Object.fromEntries(brief.promises.map((entry) => [entry.id, entry])),
+      wordsRows: Object.fromEntries(brief.words.map((entry) => [entry.id, entry])),
+      decisionRows: Object.fromEntries(brief.decisions.map((entry) => [entry.id, entry])),
+      prRows: Object.fromEntries(brief.prs.map((entry) => [entry.ref, entry.opened])),
     }).toStrictEqual({
       exitCodes: [0, 0],
       stderr: printedText.stderr,
@@ -926,6 +937,12 @@ test.each([
       words: stored.store.words.map((entry) => entry.id).toSorted(),
       decisions: ['d-1', 'd-2', 'd-3'],
       prs: pullRequestRefs.toSorted(),
+      openRows: Object.fromEntries(stored.store.items.map((entry) => [entry.id, entry])),
+      lessonRows: Object.fromEntries(stored.store.lessons.map((entry) => [entry.id, entry])),
+      promiseRows: Object.fromEntries(stored.store.promises.map((entry) => [entry.id, entry])),
+      wordsRows: Object.fromEntries(stored.store.words.map((entry) => [entry.id, entry])),
+      decisionRows: Object.fromEntries(decided.map((entry) => [entry.id, entry])),
+      prRows: Object.fromEntries(stored.store.prs.map((entry) => [entry.ref, entry.opened])),
     });
   },
 );

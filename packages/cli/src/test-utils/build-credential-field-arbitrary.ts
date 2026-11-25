@@ -20,8 +20,8 @@ export interface CredentialFieldCase {
 const wordCharacters = [...'abcdefghijklmnopqrstuvwxyz0123456789'];
 
 // A cell, a read that prints it, a credential sample, and the plain words around it: the sample is
-// a word of its own at the start, inside or at the end of the value, within the cell's limit. A cell
-// shorter than a sample takes the start of it that a pattern still matches.
+// a word of its own, within the cell's limit after its prefix. A cell shorter than a sample takes
+// the start of it that a pattern still matches.
 export function buildCredentialFieldArbitrary(
   cases: readonly JsonRedactionCase[],
   shape: JsonRedactionRead['shape'],
@@ -55,10 +55,11 @@ const placeholder = '<where the secret lives>';
 
 function buildCase(generated: Generated): CredentialFieldCase {
   const found = generated.pair.found;
+  const room = found.limit - found.prefix.length;
 
   const fitting = buildCredentialSamples(generated.rotation)
     .map((entry) => {
-      const sample = entry.sample.slice(0, found.limit);
+      const sample = entry.sample.slice(0, room);
 
       return { sample, tail: sample.slice(entry.sample.length - entry.tail.length) };
     })
@@ -74,7 +75,7 @@ function buildCase(generated: Generated): CredentialFieldCase {
   let used = credential.sample.length;
 
   for (const word of generated.words) {
-    if (used + word.length + 1 <= found.limit) {
+    if (used + word.length + 1 <= room) {
       kept.push(word);
 
       used += word.length + 1;
@@ -87,8 +88,8 @@ function buildCase(generated: Generated): CredentialFieldCase {
   return {
     cell: found.cell,
     read: generated.pair.read,
-    value: place(credential.sample),
-    expected: place(placeholder),
+    value: `${found.prefix}${place(credential.sample)}`,
+    expected: `${found.prefix}${place(placeholder)}`,
     tail: credential.tail,
   };
 }
