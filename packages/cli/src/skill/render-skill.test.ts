@@ -73,3 +73,13 @@ test('it holds no line that tells the agent to hold back, to ask or to act insid
 
   expect(ctx.body).not.toMatch(/\b(?:ask first|hold back|only inside|stay within|do not act)\b/iu);
 });
+
+test('it says that www holds what is true now, and shows a table in place of a run-on note', () => {
+  const ctx = setupTest();
+  const lines = ctx.body.split('\n');
+
+  expect({
+    stops: ctx.body.includes('`www` holds what is true now and where the rest lives.'),
+    table: lines.filter((line) => line.startsWith('|')).length >= 3,
+  }).toStrictEqual({ stops: true, table: true });
+});
