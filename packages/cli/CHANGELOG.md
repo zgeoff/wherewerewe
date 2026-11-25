@@ -2,14 +2,15 @@
 
 ## [0.2.0](https://github.com/zgeoff/wherewerewe/compare/@wherewerewe/cli@0.1.0...@wherewerewe/cli@0.2.0) (2026-11-25)
 
-
 ### ⚠ BREAKING CHANGES
 
-* the commands list, show, log, recap, say, ack, ok, use and import are gone, with checks, owner notes and row caps. www install replaces the 0.1 hook entries with two per host.
+- the commands list, show, log, recap, say, ack, ok, use and import are gone, with checks, owner
+  notes and row caps. www install replaces the 0.1 hook entries with two per host.
 
 ### Features
 
-* rebuild www as one table of labelled rows ([#50](https://github.com/zgeoff/wherewerewe/issues/50)) ([f010598](https://github.com/zgeoff/wherewerewe/commit/f010598b0ad2c14a2cdf10a9f5c58657aec51599))
+- rebuild www as one table of labelled rows ([#50](https://github.com/zgeoff/wherewerewe/issues/50))
+  ([f010598](https://github.com/zgeoff/wherewerewe/commit/f010598b0ad2c14a2cdf10a9f5c58657aec51599))
 
 ## [0.1.0](https://github.com/zgeoff/wherewerewe/compare/@wherewerewe/cli@0.0.1...@wherewerewe/cli@0.1.0) (2026-11-25)
 
