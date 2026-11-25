@@ -1,16 +1,49 @@
 import { realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
+import { readWorkTree } from './read-work-tree.ts';
 
-// The PATH a probe finds git and gh on, and hands them: each entry of the caller's PATH that is
-// absolute and outside the folder the command runs in, compared by real path, so neither a program
-// an agent writes into its workspace nor a link to one ever runs from a probe.
-export function readProbePath(path: string, cwd: string): string {
-  const folder = readRealPath(cwd);
+// The PATH a probe finds git and gh on: each absolute entry of the caller's PATH outside the folder
+// the command runs in, the work tree that holds it and the work tree of each folder a probe targets,
+// compared by real path, so no program an agent writes into a work tree, or links to, ever runs.
+export function readProbePath(path: string, cwd: string, targets: readonly string[] = []): string {
+  const guarded = readGuardedFolders(cwd, targets);
 
   return path
     .split(':')
-    .filter((entry) => entry !== '' && isAbsolute(entry) && !isInside(readRealPath(entry), folder))
+    .filter(
+      (entry) =>
+        entry !== '' &&
+        isAbsolute(entry) &&
+        !guarded.some((folder) => isInside(readRealPath(entry), folder)),
+    )
     .join(':');
+}
+
+// The first program of that name on the probe's PATH whose real path is outside each guarded
+// folder, so a link from a trusted folder to a file an agent wrote into a work tree never runs.
+export function readProbeProgram(
+  name: string,
+  probePath: string,
+  cwd: string,
+  targets: readonly string[] = [],
+): string | null {
+  const guarded = readGuardedFolders(cwd, targets);
+
+  for (const entry of probePath.split(':')) {
+    const found = Bun.which(name, { PATH: entry, cwd: '/' });
+
+    if (found !== null && !guarded.some((folder) => isInside(readRealPath(found), folder))) {
+      return found;
+    }
+  }
+
+  return null;
+}
+
+function readGuardedFolders(cwd: string, targets: readonly string[]): string[] {
+  const folders = [readRealPath(cwd), ...[cwd, ...targets].map((folder) => readWorkTree(folder))];
+
+  return [...new Set(folders.filter((folder): folder is string => folder !== null))];
 }
 
 // A path that does not exist keeps its lexical form: nothing can run from it.
@@ -20,22 +53,6 @@ function readRealPath(path: string): string {
   } catch {
     return resolve(path);
   }
-}
-
-// The first program of that name on the probe's PATH whose real path is outside the folder, so a
-// link from a trusted folder to a file an agent wrote into its workspace never runs either.
-export function readProbeProgram(name: string, probePath: string, cwd: string): string | null {
-  const folder = readRealPath(cwd);
-
-  for (const entry of probePath.split(':')) {
-    const found = Bun.which(name, { PATH: entry, cwd: '/' });
-
-    if (found !== null && !isInside(readRealPath(found), folder)) {
-      return found;
-    }
-  }
-
-  return null;
 }
 
 function isInside(entry: string, folder: string): boolean {

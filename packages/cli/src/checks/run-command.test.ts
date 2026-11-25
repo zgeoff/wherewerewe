@@ -304,3 +304,58 @@ test.each(['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM'])(
     ]);
   },
 );
+
+test.each([
+  {
+    title: 'from a subfolder of a work tree whose root holds the git',
+    plant: 'ws/bin',
+    cwd: 'ws/sub',
+    target: null,
+    link: false,
+  },
+  {
+    title: 'in the work tree of a repo only the probe targets',
+    plant: 'repo/bin',
+    cwd: 'elsewhere',
+    target: 'repo/sub',
+    link: false,
+  },
+  {
+    title: 'through a link in a clean folder that points into the work tree',
+    plant: 'ws/bin',
+    cwd: 'ws/sub',
+    target: null,
+    link: true,
+  },
+])('it never runs a git planted $title', async (row) => {
+  const ctx = setupTest();
+  const marker = join(ctx.folder, 'planted-git-ran');
+  const realBin = join(ctx.folder, 'real-bin');
+  const clean = join(ctx.folder, 'clean-bin');
+
+  for (const tree of ['ws', 'repo']) {
+    mkdirSync(join(ctx.folder, tree, '.git'), { recursive: true });
+    mkdirSync(join(ctx.folder, tree, 'sub'), { recursive: true });
+  }
+
+  mkdirSync(join(ctx.folder, 'elsewhere'));
+  seedStubCommand(join(ctx.folder, row.plant), 'git', `: > "${marker}"; echo planted`);
+  seedStubCommand(realBin, 'git', 'echo real');
+  mkdirSync(clean);
+  symlinkSync(join(ctx.folder, row.plant, 'git'), join(clean, 'git'));
+
+  const first = row.link ? clean : join(ctx.folder, row.plant);
+  const args = row.target === null ? ['status'] : ['-C', join(ctx.folder, row.target), 'status'];
+
+  const result = await runCommand(['git', ...args], {
+    env: { PATH: `${first}:${realBin}` },
+    cwd: join(ctx.folder, row.cwd),
+    timeoutMs: 1000,
+    kills: createKillSet(),
+  });
+
+  expect({ result, ran: existsSync(marker) }).toStrictEqual({
+    result: { kind: 'exit', code: 0, stdout: 'real\n', stderr: '' },
+    ran: false,
+  });
+});

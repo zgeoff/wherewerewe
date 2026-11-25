@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { resolve as resolvePath } from 'node:path';
 import { readProbeEnv } from './read-probe-env.ts';
 import { readProbePath, readProbeProgram } from './read-probe-path.ts';
 import type { CommandResult } from './types.ts';
@@ -46,8 +47,9 @@ export function runCommand(
   options: RunCommandOptions,
 ): Promise<CommandResult> {
   const [name, ...args] = argv;
-  const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd);
-  const path = readProbeProgram(name, probePath, options.cwd);
+  const targets = collectTargetFolders(args, options.cwd);
+  const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd, targets);
+  const path = readProbeProgram(name, probePath, options.cwd, targets);
 
   if (path === null) {
     return Promise.resolve({ kind: 'missing' });
@@ -121,6 +123,16 @@ export function runCommand(
         stderr: Buffer.concat(stderr).toString('utf8'),
       });
     });
+  });
+}
+
+// The folders a probe's git works in: each value after `-C`, read from the folder the command runs
+// in, so the work tree of the repo a probe targets is guarded as the workspace is.
+function collectTargetFolders(args: readonly string[], cwd: string): string[] {
+  return args.flatMap((arg, at) => {
+    const next = args[at + 1];
+
+    return arg === '-C' && next !== undefined ? [resolvePath(cwd, next)] : [];
   });
 }
 
