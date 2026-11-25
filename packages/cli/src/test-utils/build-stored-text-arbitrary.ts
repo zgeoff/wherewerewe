@@ -22,11 +22,16 @@ export function buildStoredTextArbitrary(
     found.reads.filter((read) => read.shape === shape).map((read) => ({ found, read })),
   );
 
+  const opsCharacter = fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz0123456789'.split(''));
+
   const fragment = fc.oneof(
     fc.constantFrom(...printable),
     fc.constantFrom('"', '\\', '/', '}', '{', ']', '\u{1F600}', '\u{10348}', 'é', '日本'),
     fc
-      .string({ unit: fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz0123456789'), maxLength: 19 })
+      .string({
+        unit: opsCharacter,
+        maxLength: 19,
+      })
       .map((rest) => `ops_${rest}`),
   );
 
@@ -35,6 +40,11 @@ export function buildStoredTextArbitrary(
     .map((generated) => ({
       cell: generated.pair.found.cell,
       read: generated.pair.read,
-      value: `${generated.pair.found.prefix}a${[...generated.fragments.join('')].slice(0, generated.pair.found.limit - generated.pair.found.prefix.length - 2).join('')}z`,
+      value: `${generated.pair.found.prefix}a${Array.from(
+        generated.fragments.join(''),
+        (character) => character,
+      )
+        .slice(0, generated.pair.found.limit - generated.pair.found.prefix.length - 2)
+        .join('')}z`,
     }));
 }

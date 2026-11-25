@@ -3402,7 +3402,10 @@ test.each(
   });
 
   expect(savedText).toBe(row.saved);
-  expect(() => (printedJSON.exitCode === 0 ? JSON.parse(printedJSON.stdout) : null)).not.toThrow();
+
+  expect((): unknown =>
+    printedJSON.exitCode === 0 ? JSON.parse(printedJSON.stdout) : null,
+  ).not.toThrow();
 });
 
 test.each([

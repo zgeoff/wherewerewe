@@ -147,7 +147,9 @@ test('it prints a value at every string field of every shape, and a row of every
     ctx.argvs.map(async (read) => {
       const result = await ctx.readCells({}, read.argv);
 
-      return { read, value: JSON.parse(result.stdout) };
+      const value: unknown = JSON.parse(result.stdout);
+
+      return { read, value };
     }),
   );
 
@@ -190,7 +192,9 @@ test('it places every string field of every shape in the table, a named row or a
     ctx.argvs.map(async (read) => {
       const result = await ctx.readCells({}, read.argv);
 
-      return { read, value: JSON.parse(result.stdout) };
+      const value: unknown = JSON.parse(result.stdout);
+
+      return { read, value };
     }),
   );
 
@@ -467,7 +471,7 @@ test.each(['brief', 'show', 'log', 'list', 'recap'] as const)(
           stdout: ctx.expectStdout(plain.stdout, generated.cell, redacted),
         });
 
-        expect(() => JSON.parse(printed.stdout)).not.toThrow();
+        expect((): unknown => JSON.parse(printed.stdout)).not.toThrow();
       }),
     );
   },

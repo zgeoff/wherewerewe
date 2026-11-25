@@ -16,6 +16,7 @@ import { readStore } from '../store/read-store.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { countBriefLines } from '../test-utils/count-brief-lines.ts';
+import { getJsonValue } from '../test-utils/get-json-value.ts';
 import { getSteeringWords } from '../test-utils/get-steering-words.ts';
 import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
@@ -1009,7 +1010,7 @@ test('it prints the JSON brief and the stderr of the text brief when items.tsv s
   expect({
     exitCode: printedJSON.exitCode,
     stderr: printedJSON.stderr,
-    session: JSON.parse(printedJSON.stdout).session,
+    session: getJsonValue(JSON.parse(printedJSON.stdout), ['session']),
   }).toStrictEqual({
     exitCode: printedText.exitCode,
     stderr: printedText.stderr,
@@ -1057,7 +1058,9 @@ test('it gives in the JSON brief the estimate of the store as the read saved it,
 
   expect({
     estimate: jsonSchemas.brief.parse(JSON.parse(printed.stdout)).estimate,
-    last: after.store.items.map((item) => item.last).toSorted()[0],
+    last: after.store.items
+      .map((item) => item.last ?? '')
+      .toSorted((first, second) => first.localeCompare(second))[0],
     differsFromUnsaved: saved.tokens !== unsaved.tokens,
   }).toStrictEqual({ estimate: saved.tokens, last: 'missing', differsFromUnsaved: true });
 });

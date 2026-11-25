@@ -9,7 +9,10 @@ import { makePath } from './make-path.ts';
 export function createFilterRepo(stateRoot: string, name: string): string {
   const folder = makePath(stateRoot, name);
   const marker = join(stateRoot, 'paths', `${name}-ran`);
-  const git = (args: readonly string[]) => runGit(folder, args);
+
+  const git = (args: readonly string[]): void => {
+    runGit(folder, args);
+  };
 
   git(['init', '--quiet', '-b', 'main']);
   writeFileSync(join(folder, '.gitattributes'), '*.txt filter=x\n');

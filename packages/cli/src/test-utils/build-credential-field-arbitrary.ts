@@ -17,7 +17,7 @@ export interface CredentialFieldCase {
   readonly tail: string;
 }
 
-const wordCharacters = [...'abcdefghijklmnopqrstuvwxyz0123456789'];
+const wordCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789'.split('');
 
 // A cell, a read that prints it, a credential sample, and the plain words around it: the sample is
 // a word of its own, within the cell's limit after its prefix. A cell shorter than a sample takes

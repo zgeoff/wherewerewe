@@ -22,7 +22,10 @@ test('it gives each cell a limit that holds its plain text', () => {
 
   expect(
     ctx.cases
-      .filter((found) => [...(plainCells[found.cell] ?? '')].length > found.limit)
+      .filter(
+        (found) =>
+          Array.from(plainCells[found.cell] ?? '', (character) => character).length > found.limit,
+      )
       .map((found) => found.cell),
   ).toStrictEqual([]);
 });

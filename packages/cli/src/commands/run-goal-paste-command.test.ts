@@ -254,7 +254,7 @@ test.each([
     expect({
       written: written.exitCode,
       exitCode: pasted.exitCode,
-      isWithinCodePoints: [...pasted.stdout].length <= 1100,
+      isWithinCodePoints: Array.from(pasted.stdout, (character) => character).length <= 1100,
       isWithinUnits: pasted.stdout.length <= 4000,
     }).toStrictEqual({ written: 0, exitCode: 0, isWithinCodePoints: true, isWithinUnits: true });
   },
@@ -281,7 +281,7 @@ test('it prints a grant of 700 astral characters in under 1,100 code points and 
   expect({
     written: written.exitCode,
     exitCode: pasted.exitCode,
-    isWithinCodePoints: [...pasted.stdout].length <= 1100,
+    isWithinCodePoints: Array.from(pasted.stdout, (character) => character).length <= 1100,
     isWithinUnits: pasted.stdout.length <= 4000,
   }).toStrictEqual({ written: 0, exitCode: 0, isWithinCodePoints: true, isWithinUnits: true });
 });

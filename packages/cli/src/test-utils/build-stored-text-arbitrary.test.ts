@@ -18,8 +18,9 @@ test('it builds a line within the limit of its cell, with no tab, line break, ; 
   });
 
   expect({
-    overLimit: generated.filter((one) => [...one.value].length > (limits.get(one.cell) ?? 0))
-      .length,
+    overLimit: generated.filter(
+      (one) => Array.from(one.value, (character) => character).length > (limits.get(one.cell) ?? 0),
+    ).length,
     broken: generated.filter((one) => /[\t\n\r;=]/u.test(one.value)).length,
     lone: generated.filter((one) => one.value.trim().length < 2).length,
   }).toStrictEqual({ overLimit: 0, broken: 0, lone: 0 });
