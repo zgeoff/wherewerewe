@@ -25,7 +25,7 @@ export const textLimits = {
   promiseTo: 16,
   promiseBy: 24,
   words: 300,
-  wordsWhere: 16,
+  wordsWhere: 40,
   sessionNameMin: 2,
   sessionNameMax: 24,
 } as const;

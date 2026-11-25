@@ -192,7 +192,7 @@ w-plain	Plain words in every reply; I would rather read three short sentences th
 interface WordsRow {
   id: ItemID;
   words: string; // 1–300 characters, one line: the owner's exact words; the credential test applies
-  where: string; // 1–16 characters, never ; or =: where the owner said them
+  where: string; // 1–40 characters, never ; or =: where the owner said them
   written: string;
   by: 'agent' | 'owner'; // owner when the terminal test of owner-notes.md passes, as for www grant
 }

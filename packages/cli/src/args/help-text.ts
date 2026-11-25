@@ -58,7 +58,7 @@ An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 
 --where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
 A lesson takes 120 with its --why 200, a promise 120 with --to 16 and --by 24, and the owner's
-words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
+words 300 with --where 40. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
 8 where items, 5 lessons, 5 promises, 8 owner's words and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 `;

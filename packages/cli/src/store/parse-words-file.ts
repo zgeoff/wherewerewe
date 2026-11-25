@@ -23,7 +23,7 @@ function parseWordsLine(cells: readonly string[]): WordsRow | string {
   }
 
   if (findTextProblem(where, textLimits.wordsWhere) !== null || /[;=]/u.test(where)) {
-    return 'the where is empty, longer than 16 characters, not one line or holds ; or =';
+    return `the where is empty, longer than ${String(textLimits.wordsWhere)} characters, not one line or holds ; or =`;
   }
 
   if (!isUTCTime(written)) {

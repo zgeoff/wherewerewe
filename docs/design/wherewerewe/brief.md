@@ -67,7 +67,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | wait                     | `  <id>  <claim>  [<who> · <result or age>[ · owed]]`                                         | 185    |
 | approval                 | `  <id>  "<quote>" · <scope>`, then `  [owed]` when it has an owed note                       | 193    |
 | rule                     | `  <id>  <claim>`, then `  [owed]` when it has an owed note                                   | 148    |
-| owner's words            | `  <id>  "<words>"  [<where> · <age>]`                                                          | 349    |
+| owner's words            | `  <id>  "<words>"  [<where> · <age>]`                                                          | 373    |
 | promise                  | `  <id>  <what>  [to <who> · by <when>]`                                                      | 193    |
 | lesson                   | `  <id>  <instruction>  [why: <why>]`                                                         | 349    |
 | decision                 | `  <d-n>  <choice>`, with a choice over 200 characters, such as one imported from a hand-kept journal, cut to 199 and `…`; the heading is `DECISIONS (<n> in force)` | 212    |
@@ -133,7 +133,7 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | goal | 219 |
 | grant | 1,228 |
 | owner notes | 452 |
-| owner's words (8) | 2,825 |
+| owner's words (8) | 3,017 |
 | changed | 521 |
 | now and its note | 610 |
 | open (30 tasks) | 5,988 |
@@ -146,7 +146,7 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | where (8) | 1,361 |
 | pull requests | 256 |
 | footer | 98 |
-| **Total** | **21,208 bytes, 7,070 estimated tokens** |
+| **Total** | **21,400 bytes, 7,134 estimated tokens** |
 
 ### The brief's limit
 
@@ -175,9 +175,9 @@ The ASCII worst case above fits each host's limit:
 
 | Host          | The tool's limit                      | ASCII worst case                     | Room left            |
 | ------------- | ------------------------------------- | ------------------------------------ | -------------------- |
-| Claude Code   | 24,000 bytes, 8,000 estimated tokens  | 21,208 bytes, 7,070 estimated tokens | 2,792 bytes, 11.6%   |
-| Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,792 bytes, 29.3%   |
-| no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,792 bytes, 64.7%  |
+| Claude Code   | 24,000 bytes, 8,000 estimated tokens  | 21,400 bytes, 7,134 estimated tokens | 2,600 bytes, 10.8%   |
+| Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,600 bytes, 28.7%   |
+| no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,600 bytes, 64.3%  |
 
 So the ASCII worst case cuts nothing on any host, and Claude Code's room is the smallest. A store whose stored texts are all in a 3-byte script takes more: the never-cut lines then take under 9,000 bytes, and with the owner's words under 17,000, so they fit the smallest limit and [the cut order](#the-cut-order) decides what else stays. The `--json` output of [lists-and-json.md](lists-and-json.md#--json) is outside this limit.
 

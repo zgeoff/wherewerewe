@@ -1,5 +1,6 @@
 import { match } from 'ts-pattern';
 import type { BriefInput } from '../brief/types.ts';
+import { textLimits } from '../rules/text-limits.ts';
 import { buildMockBriefInput } from './build-mock-brief-input.ts';
 import { buildMockIDs } from './build-mock-ids.ts';
 import { buildMockItem } from './build-mock-item.ts';
@@ -109,7 +110,7 @@ export function buildWorstCaseBriefInput(options: WorstCaseOptions): BriefInput 
     words: buildMockIDs('word', 8).map((id) => ({
       id,
       words: 'w'.repeat(300),
-      where: 'w'.repeat(16),
+      where: 'w'.repeat(textLimits.wordsWhere),
       written: '2026-03-04T09:00:00Z',
       by: 'owner' as const,
     })),
