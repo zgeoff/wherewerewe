@@ -61,7 +61,7 @@ Each session keeps one file, `rows.jsonl`, in `$XDG_STATE_HOME/wherewerewe/<name
 
 - A write appends one line. An edit appends the row again, and the last line for an id wins. A close appends the row with `closed` set.
 - The tool never rewrites the file and takes no lock, so two writers at once both land.
-- Before the tool makes an id, it creates an empty file named after that id in the session's `.ids/` folder. Two writers at once get two ids, because only one of them can create the file.
+- Before the tool makes an id, it creates an empty file named after that id in the session's `.ids/` folder. When two writers want the same id, only one can create its file, so the other gets the next id.
 - The tool skips a line it cannot read, and the brief's first line counts the skipped lines.
 
 The first read of a 0.1 store converts it: the tool writes `rows.jsonl` beside the old files, and leaves the old files as the backup.
