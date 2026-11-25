@@ -151,7 +151,6 @@ for its commands.
   `<run>/paths/<name>`, a folder for a `--path` check.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, and its stderr holds the text and `Run: <run line>`.
-
 - `bun verify terminal ...` drives `www` in a terminal
   ([feature-owner-notes.md](references/feature-owner-notes.md)).
 - When the `www-help` doctor check fails, fix `www` first.
