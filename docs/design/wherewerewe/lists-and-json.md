@@ -104,7 +104,7 @@ PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
 
 The read commands take `--json`: the bare brief (`www`, with or without `--session <name>`), `www show` and `www show <id>`, `www log`, `www list <kind>` and `www recap`. Text stays the default. Hooks and scripts read the JSON, and the agent reads the text, so the `www` skill and every `Run:` line use the text form. No write command takes `--json`.
 
-- A JSON read prints one JSON value and a newline on stdout, and nothing else.
+- A JSON read that succeeds prints one JSON value and a newline on stdout, and nothing else.
 - It runs the same checks, takes the same lock, and exits with the same code as its text form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.
 - The JSON brief is never cut and is outside the brief's limit, because no host puts it in front of a model: it holds every open row whole. The recap's JSON holds its rows whole, with no 100-character cut.
 - Each value carries `v: 1`. A new field keeps the version, and a removed or renamed field raises it.
