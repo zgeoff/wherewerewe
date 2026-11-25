@@ -101,28 +101,27 @@ test('it counts the writes of an agent and the owner and holds the decisions and
   });
 });
 
-test('it lists the notes owed first, then newest, and the open items with no note', () => {
+test('it lists each item with a note whole, owed first, then newest, and the open items with no note', () => {
   const ctx = setupTest();
   const noted = buildMockItem({ id: 't-a' });
   const owed = buildMockItem({ id: 't-b' });
   const plain = buildMockItem({ id: 't-c' });
+  const notedNote = buildMockNote({ id: 't-a', written: '2026-03-10T10:00:00Z' });
+  const owedNote = buildMockNote({ id: 't-b', owed: true, written: '2026-03-09T10:00:00Z' });
 
   const recap = ctx.buildRecapJSON({
     ...ctx.base,
     session: buildMockSession({}),
     items: [noted, owed, plain],
-    notes: [
-      buildMockNote({ id: 't-a', written: '2026-03-10T10:00:00Z' }),
-      buildMockNote({ id: 't-b', owed: true, written: '2026-03-09T10:00:00Z' }),
-    ],
+    notes: [notedNote, owedNote],
     rows: [],
   });
 
-  expect({
-    notes: recap.notes.map((entry) => entry.note.id),
-    otherOpen: recap.otherOpen,
-  }).toStrictEqual({
-    notes: ['t-b', 't-a'],
+  expect({ notes: recap.notes, otherOpen: recap.otherOpen }).toStrictEqual({
+    notes: [
+      { item: { kind: 'task', row: owed, note: owedNote }, note: owedNote },
+      { item: { kind: 'task', row: noted, note: notedNote }, note: notedNote },
+    ],
     otherOpen: ['t-c'],
   });
 });

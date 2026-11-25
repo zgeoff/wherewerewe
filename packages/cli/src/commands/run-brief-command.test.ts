@@ -862,12 +862,11 @@ test.each([
         join(ctx.stateRoot, name),
         'prs.tsv',
         formatPrsFile(
-          pullRequestRefs.map((ref) => ({
-            ref,
-            opened: '2026-03-10T08:43:00Z',
-            state: 'OPEN' as const,
-            seen: '2026-03-10T09:00:00Z',
-          })),
+          pullRequestRefs.map((ref, index) =>
+            index < 6
+              ? { ref, opened: '2026-03-10T08:43:00Z', state: 'OPEN', seen: '2026-03-10T09:00:00Z' }
+              : { ref, opened: '2026-03-10T08:43:00Z', state: null, seen: null },
+          ),
         ),
       );
     };
@@ -913,36 +912,47 @@ test.each([
       isTextCut: /^ {2}and \d+ more/mu.test(printedText.stdout),
       limit: brief.limit,
       estimate: brief.estimate,
-      open: brief.open.map((shown) => shown.row.id).toSorted(),
-      lessons: brief.lessons.map((entry) => entry.id).toSorted(),
-      promises: brief.promises.map((entry) => entry.id).toSorted(),
-      words: brief.words.map((entry) => entry.id).toSorted(),
-      decisions: brief.decisions.map((entry) => entry.id).toSorted(),
-      prs: brief.prs.map((entry) => entry.ref).toSorted(),
-      openRows: Object.fromEntries(brief.open.map((shown) => [shown.row.id, shown.row])),
-      lessonRows: Object.fromEntries(brief.lessons.map((entry) => [entry.id, entry])),
-      promiseRows: Object.fromEntries(brief.promises.map((entry) => [entry.id, entry])),
-      wordsRows: Object.fromEntries(brief.words.map((entry) => [entry.id, entry])),
-      decisionRows: Object.fromEntries(brief.decisions.map((entry) => [entry.id, entry])),
-      prRows: Object.fromEntries(brief.prs.map((entry) => [entry.ref, entry.opened])),
+      open: Object.fromEntries(brief.open.map((shown) => [shown.row.id, shown])),
+      lessons: Object.fromEntries(brief.lessons.map((entry) => [entry.id, entry])),
+      promises: Object.fromEntries(brief.promises.map((entry) => [entry.id, entry])),
+      words: Object.fromEntries(brief.words.map((entry) => [entry.id, entry])),
+      decisions: Object.fromEntries(brief.decisions.map((entry) => [entry.id, entry])),
+      ownerNotes: Object.fromEntries(brief.ownerNotes.map((entry) => [entry.id, entry])),
+      changed: Object.fromEntries(brief.changed.map((entry) => [entry.id, entry])),
+      prs: Object.fromEntries(brief.prs.map((entry) => [entry.ref, entry])),
     }).toStrictEqual({
       exitCodes: [0, 0],
       stderr: printedText.stderr,
       isTextCut: true,
       limit: pickBriefLimit(row.limit),
       estimate: figure.tokens,
-      open: stored.store.items.map((entry) => entry.id).toSorted(),
-      lessons: stored.store.lessons.map((entry) => entry.id).toSorted(),
-      promises: stored.store.promises.map((entry) => entry.id).toSorted(),
-      words: stored.store.words.map((entry) => entry.id).toSorted(),
-      decisions: ['d-1', 'd-2', 'd-3'],
-      prs: pullRequestRefs.toSorted(),
-      openRows: Object.fromEntries(stored.store.items.map((entry) => [entry.id, entry])),
-      lessonRows: Object.fromEntries(stored.store.lessons.map((entry) => [entry.id, entry])),
-      promiseRows: Object.fromEntries(stored.store.promises.map((entry) => [entry.id, entry])),
-      wordsRows: Object.fromEntries(stored.store.words.map((entry) => [entry.id, entry])),
-      decisionRows: Object.fromEntries(decided.map((entry) => [entry.id, entry])),
-      prRows: Object.fromEntries(stored.store.prs.map((entry) => [entry.ref, entry.opened])),
+      open: Object.fromEntries(
+        stored.store.items.map((item) => [
+          item.id,
+          {
+            kind: item.kind,
+            row: item,
+            note: stored.store.notes.find((note) => note.id === item.id) ?? null,
+          },
+        ]),
+      ),
+      lessons: Object.fromEntries(stored.store.lessons.map((entry) => [entry.id, entry])),
+      promises: Object.fromEntries(stored.store.promises.map((entry) => [entry.id, entry])),
+      words: Object.fromEntries(stored.store.words.map((entry) => [entry.id, entry])),
+      decisions: Object.fromEntries(decided.map((entry) => [entry.id, entry])),
+      ownerNotes: Object.fromEntries(stored.store.ownerNotes.map((entry) => [entry.id, entry])),
+      changed: {},
+      prs: Object.fromEntries(
+        pullRequestRefs.map((ref, index) => [
+          ref,
+          {
+            ref,
+            opened: '2026-03-10T08:43:00Z',
+            state: 'OPEN',
+            seen: index < 6 ? '2026-03-10T09:00:00Z' : '2026-03-10T11:43:00Z',
+          },
+        ]),
+      ),
     });
   },
 );

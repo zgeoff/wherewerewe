@@ -1,5 +1,7 @@
 import { expect, test } from 'bun:test';
 import { createTempDir } from '@zgeoff/testing/fs';
+import type { ListKind } from '../rules/list-kinds.ts';
+import { listKinds } from '../rules/list-kinds.ts';
 import { buildMockBriefInput } from '../test-utils/build-mock-brief-input.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
@@ -10,6 +12,7 @@ import { runJsonCommand } from '../test-utils/run-json-command.ts';
 import { seedJsonShapesStore } from '../test-utils/seed-json-shapes-store.ts';
 import { buildListJSON } from './build-list-json.ts';
 import { jsonVersion } from './json-version.ts';
+import type { ListJson } from './types.ts';
 
 function setupTest() {
   return {
@@ -33,6 +36,102 @@ test('it lists the open approvals, waits, rules and where rows, each of its own 
     { ...jsonVersion, kind: 'waits', rows: [{ kind: 'wait', row: wait, note: null }] },
     { ...jsonVersion, kind: 'rules', rows: [{ kind: 'rule', row: rule, note: null }] },
   ]);
+});
+
+test.each(listKinds)('it lists each row of %s whole, as its type holds it', (kind) => {
+  const ctx = setupTest();
+  const note = buildMockNote({ id: 't-a', owed: true });
+  const task = buildMockItem({ id: 't-a', check: 'pr:bosunhq/bosun-api#7', last: 'OPEN passing' });
+  const wait = buildMockItem({ id: 'w-a', kind: 'wait', extra: { who: 'wren' } });
+
+  const approval = buildMockItem({
+    id: 'ok-a',
+    kind: 'ok',
+    extra: { who: 'jo', where: 'slack', scope: 'in the app' },
+  });
+
+  const rule = buildMockItem({ id: 'r-a', kind: 'rule' });
+  const where = buildMockItem({ id: 'wh-a', kind: 'where', check: 'path:/srv/tide' });
+
+  const lesson = {
+    id: 'l-a',
+    text: 'Reseed the table',
+    why: 'A stale row passed',
+    written: '2026-03-09T10:00:00Z',
+    by: 'agent' as const,
+  };
+
+  const promise = {
+    id: 'p-a',
+    what: 'The cost table',
+    to: 'sam',
+    byWhen: 'Friday',
+    written: '2026-03-09T10:00:00Z',
+    by: 'owner' as const,
+  };
+
+  const words = {
+    id: 'w-b',
+    words: 'Keep PRs small',
+    where: 'chat',
+    written: '2026-03-09T10:00:00Z',
+    by: 'owner' as const,
+  };
+
+  const decision = buildMockJournalRow({
+    ts: '2026-03-09T10:00:00Z',
+    op: 'decide',
+    id: 'd-1',
+    text: 'Use UTC',
+    why: 'The feed sends UTC',
+    extra: 'on=t-a;who=agent',
+  });
+
+  const pullRequest = {
+    ref: 'bosunhq/bosun-app#9',
+    opened: '2026-03-10T08:43:00Z',
+    state: null,
+    seen: null,
+  };
+
+  const brief = buildMockBriefInput({
+    items: [task, wait, approval, rule, where],
+    notes: [note],
+    lessons: [lesson],
+    promises: [promise],
+    words: [words],
+    pullRequests: [{ ref: pullRequest.ref, opened: pullRequest.opened, result: 'OPEN passing' }],
+  });
+
+  const expected: { readonly [Kind in ListKind]: ListJson & { readonly kind: Kind } } = {
+    tasks: { ...jsonVersion, kind: 'tasks', rows: [{ kind: 'task', row: task, note }] },
+    waits: { ...jsonVersion, kind: 'waits', rows: [{ kind: 'wait', row: wait, note: null }] },
+    approvals: {
+      ...jsonVersion,
+      kind: 'approvals',
+      rows: [{ kind: 'ok', row: approval, note: null }],
+    },
+    rules: { ...jsonVersion, kind: 'rules', rows: [{ kind: 'rule', row: rule, note: null }] },
+    where: { ...jsonVersion, kind: 'where', rows: [{ kind: 'where', row: where, note: null }] },
+    lessons: {
+      ...jsonVersion,
+      kind: 'lessons',
+      rows: [{ kind: 'lesson', row: lesson, note: null }],
+    },
+    promises: {
+      ...jsonVersion,
+      kind: 'promises',
+      rows: [{ kind: 'promise', row: promise, note: null }],
+    },
+    words: { ...jsonVersion, kind: 'words', rows: [{ kind: 'words', row: words, note: null }] },
+    notes: { ...jsonVersion, kind: 'notes', rows: [note] },
+    decisions: { ...jsonVersion, kind: 'decisions', rows: [decision] },
+    prs: { ...jsonVersion, kind: 'prs', rows: [pullRequest] },
+  };
+
+  expect(
+    ctx.buildListJSON(kind, { brief, prs: [pullRequest], decisionRows: [decision] }),
+  ).toStrictEqual(expected[kind]);
 });
 
 test('it lists the notes of the open items, owed first, then the newest', () => {

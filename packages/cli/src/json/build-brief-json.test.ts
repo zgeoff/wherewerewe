@@ -4,6 +4,7 @@ import { buildMockBriefInput } from '../test-utils/build-mock-brief-input.ts';
 import { buildMockGrant } from '../test-utils/build-mock-grant.ts';
 import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockJournalRow } from '../test-utils/build-mock-journal-row.ts';
+import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildMockSession } from '../test-utils/build-mock-session.ts';
 import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { runJsonCommand } from '../test-utils/run-json-command.ts';
@@ -74,14 +75,9 @@ test('it shows the result this read got as the last result of a checked item', (
     estimate: 0,
   });
 
-  expect(
-    brief.open.map((shown) => ({
-      id: 'id' in shown.row ? shown.row.id : '',
-      last: 'last' in shown.row ? shown.row.last : null,
-    })),
-  ).toIncludeSameMembers([
-    { id: 't-a', last: 'MERGED' },
-    { id: 't-b', last: 'stale' },
+  expect(brief.open).toIncludeSameMembers([
+    { kind: 'task', row: { ...checked, last: 'MERGED' }, note: null },
+    { kind: 'task', row: plain, note: null },
   ]);
 });
 
@@ -128,30 +124,28 @@ test('it holds each changed item with its result at write and its result now', (
   expect(brief.changed).toStrictEqual([{ id: 't-a', was: 'alive', now: 'gone' }]);
 });
 
-test('it holds the open items in the order their sections print, tasks first', () => {
+test('it holds the open items whole, in the order their sections print, tasks first', () => {
   const ctx = setupTest();
-
-  const items = [
-    buildMockItem({ id: 'wh-a', kind: 'where' }),
-    buildMockItem({ id: 'r-a', kind: 'rule' }),
-    buildMockItem({ id: 'ok-a', kind: 'ok' }),
-    buildMockItem({ id: 'w-a', kind: 'wait' }),
-    buildMockItem({ id: 't-a', kind: 'task' }),
-  ];
+  const where = buildMockItem({ id: 'wh-a', kind: 'where' });
+  const rule = buildMockItem({ id: 'r-a', kind: 'rule' });
+  const approval = buildMockItem({ id: 'ok-a', kind: 'ok' });
+  const wait = buildMockItem({ id: 'w-a', kind: 'wait' });
+  const task = buildMockItem({ id: 't-a', kind: 'task' });
+  const note = buildMockNote({ id: 'w-a' });
 
   const brief = ctx.buildBriefJSON({
-    brief: buildMockBriefInput({ items }),
+    brief: buildMockBriefInput({ items: [where, rule, approval, wait, task], notes: [note] }),
     prs: [],
     decisionRows: [],
     estimate: 0,
   });
 
-  expect(brief.open.map((shown) => shown.row.id)).toStrictEqual([
-    't-a',
-    'w-a',
-    'ok-a',
-    'r-a',
-    'wh-a',
+  expect(brief.open).toStrictEqual([
+    { kind: 'task', row: task, note: null },
+    { kind: 'wait', row: wait, note },
+    { kind: 'ok', row: approval, note: null },
+    { kind: 'rule', row: rule, note: null },
+    { kind: 'where', row: where, note: null },
   ]);
 });
 
