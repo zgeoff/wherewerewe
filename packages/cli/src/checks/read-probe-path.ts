@@ -3,10 +3,10 @@ import { isAbsolute, relative, resolve } from 'node:path';
 import { readWorkTree } from './read-work-tree.ts';
 
 // The PATH a probe finds git and gh on: each absolute entry of the caller's PATH outside the folder
-// the command runs in, the work tree that holds it and the work tree of each folder a probe targets,
-// compared by real path, so no program an agent writes into a work tree, or links to, ever runs.
-export function readProbePath(path: string, cwd: string, targets: readonly string[] = []): string {
-  const guarded = readGuardedFolders(cwd, targets);
+// the command runs in and the work tree of each folder in `trees`, compared by real path, so no
+// program an agent writes into its workspace, or links to, ever runs.
+export function readProbePath(path: string, cwd: string, trees: readonly string[] = []): string {
+  const guarded = readGuardedFolders(cwd, trees);
 
   return path
     .split(':')
@@ -25,9 +25,9 @@ export function readProbeProgram(
   name: string,
   probePath: string,
   cwd: string,
-  targets: readonly string[] = [],
+  trees: readonly string[] = [],
 ): string | null {
-  const guarded = readGuardedFolders(cwd, targets);
+  const guarded = readGuardedFolders(cwd, trees);
 
   for (const entry of probePath.split(':')) {
     const found = Bun.which(name, { PATH: entry, cwd: '/' });
@@ -40,8 +40,8 @@ export function readProbeProgram(
   return null;
 }
 
-function readGuardedFolders(cwd: string, targets: readonly string[]): string[] {
-  const folders = [readRealPath(cwd), ...[cwd, ...targets].map((folder) => readWorkTree(folder))];
+function readGuardedFolders(cwd: string, trees: readonly string[]): string[] {
+  const folders = [readRealPath(cwd), ...trees.map((folder) => readWorkTree(folder))];
 
   return [...new Set(folders.filter((folder): folder is string => folder !== null))];
 }

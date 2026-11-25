@@ -47,9 +47,9 @@ export function runCommand(
   options: RunCommandOptions,
 ): Promise<CommandResult> {
   const [name, ...args] = argv;
-  const targets = collectTargetFolders(args, options.cwd);
-  const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd, targets);
-  const path = readProbeProgram(name, probePath, options.cwd, targets);
+  const trees = [options.cwd, ...collectTargetFolders(args, options.cwd)];
+  const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd, trees);
+  const path = readProbeProgram(name, probePath, options.cwd, trees);
 
   if (path === null) {
     return Promise.resolve({ kind: 'missing' });

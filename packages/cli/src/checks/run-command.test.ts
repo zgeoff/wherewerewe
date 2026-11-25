@@ -321,6 +321,13 @@ test.each([
     link: false,
   },
   {
+    title: 'beside a nested .git folder the agent made in a subfolder',
+    plant: 'ws/bin',
+    cwd: 'ws/sub/inner',
+    target: null,
+    link: false,
+  },
+  {
     title: 'through a link in a clean folder that points into the work tree',
     plant: 'ws/bin',
     cwd: 'ws/sub',
@@ -338,6 +345,7 @@ test.each([
     mkdirSync(join(ctx.folder, tree, 'sub'), { recursive: true });
   }
 
+  mkdirSync(join(ctx.folder, 'ws', 'sub', 'inner', '.git'), { recursive: true });
   mkdirSync(join(ctx.folder, 'elsewhere'));
   seedStubCommand(join(ctx.folder, row.plant), 'git', `: > "${marker}"; echo planted`);
   seedStubCommand(realBin, 'git', 'echo real');
