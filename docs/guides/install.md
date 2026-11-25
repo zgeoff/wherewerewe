@@ -36,10 +36,19 @@ any other `www`, such as another tool's, and says so.
 
 ## Set up the hooks
 
-Run `wherewerewe install` once per machine. It adds the hooks to Claude Code and Codex. In Codex,
-trust each new hook entry once, in its `/hooks` screen. Run `wherewerewe doctor` to check the
-result. See [Install and doctor](../design/wherewerewe/sessions-and-hooks.md#install-and-doctor) for
-what `wherewerewe install` writes.
+Run `wherewerewe install` once per machine, and again after each upgrade. It adds the hooks, the
+allow rules and the `www` skill to Claude Code and Codex. In Codex, trust each new hook entry once,
+in its `/hooks` screen. Run `wherewerewe doctor --human` to check the result. See
+[Install and doctor](../design/wherewerewe/README.md#install-and-doctor) for what
+`wherewerewe install` writes.
+
+Codex runs each command in a sandbox that cannot write outside the workspace. Add the store to its
+writable roots in `~/.codex/config.toml`, or a `www` write from Codex fails:
+
+```toml
+[sandbox_workspace_write]
+writable_roots = ["/home/<you>/.local/state/wherewerewe"]
+```
 
 ## Check which www comes first
 
@@ -62,15 +71,14 @@ command.
   the binary in place, so the path in the hook entries stays the same, and Codex asks for no new
   trust.
 
-When your store is newer than the binary, `www` exits 5 and prints the upgrade command for the way
-you installed it. When the script put the binary in a folder other than `~/.local/bin`, the command
-includes that folder.
+After an upgrade from 0.1, the first `www` in each session converts its store. It writes
+`rows.jsonl` beside the old files and leaves them as the backup.
 
 ## Remove
 
 1. Run `brew uninstall wherewerewe`, or remove `wherewerewe` from the install folder, and remove
    `www` there too when it is a link to `wherewerewe`.
 2. Remove what `wherewerewe install` wrote, following
-   [Install and doctor](../design/wherewerewe/sessions-and-hooks.md#install-and-doctor).
+   [Install and doctor](../design/wherewerewe/README.md#install-and-doctor).
 
 Your sessions stay in `~/.local/state/wherewerewe/`, because `www` never deletes a store.

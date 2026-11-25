@@ -38,21 +38,12 @@ Read a feature's file before you run its journey.
 
 <!-- wringer:features -->
 
-| Feature     | Summary                                                                                                               | File                                                                   |
-| ----------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| help        | Print the help text with `www help`                                                                                   | [references/feature-help.md](references/feature-help.md)               |
-| notes       | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www`                                   | [references/feature-notes.md](references/feature-notes.md)             |
-| import      | Convert a hand-kept store with `www import`, and read its brief                                                       | [references/feature-import.md](references/feature-import.md)           |
-| owner-notes | Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief                    | [references/feature-owner-notes.md](references/feature-owner-notes.md) |
-| item-notes  | Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close         | [references/feature-item-notes.md](references/feature-item-notes.md)   |
-| grant       | Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant              | [references/feature-grant.md](references/feature-grant.md)             |
-| recap       | Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines             | [references/feature-recap.md](references/feature-recap.md)             |
-| tasks       | Open 20 tasks, read them in the brief under each host, and list every open task with `www show`                       | [references/feature-tasks.md](references/feature-tasks.md)             |
-| checks      | Write an item with a --path check, remove the path, read the CHANGED row, and run the fix command it prints           | [references/feature-checks.md](references/feature-checks.md)           |
-| new-kinds   | Write a lesson, a promise and the owner's words, read them in the brief and the recap, list the rules, and close each | [references/feature-new-kinds.md](references/feature-new-kinds.md)     |
-| json        | Read the brief and a list as JSON, and print the grant as a /goal text                                                | [references/feature-json.md](references/feature-json.md)               |
-| hooks       | Pipe hook payloads through www hook for each host, and install the hooks into a temp home                             | [references/feature-hooks.md](references/feature-hooks.md)             |
-| package     | Build the binary for this machine, install it with install.sh, and run it as www and wherewerewe                      | [references/feature-package.md](references/feature-package.md)         |
+| Feature | Summary                                                                                          | File                                                           |
+| ------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| notes   | Write rows with `www init`, a label, `set` and `done`, and read them in the brief                | [references/feature-notes.md](references/feature-notes.md)     |
+| rows    | Read every open row and the whole history as JSON lines with `www rows`                          | [references/feature-rows.md](references/feature-rows.md)       |
+| hooks   | Install the hooks into a temp home, and pipe hook payloads through `www hook` for each host      | [references/feature-hooks.md](references/feature-hooks.md)     |
+| package | Build the binary for this machine, install it with install.sh, and run it as www and wherewerewe | [references/feature-package.md](references/feature-package.md) |
 
 <!-- /wringer:features -->
 
@@ -146,13 +137,13 @@ for its commands.
 - `bun verify www <command> ...` runs the real `www <command>`, with `HOME` and `XDG_STATE_HOME` in
   the run's folder.
 - `bun verify www run --line '<line>' --expect '<text>'` fails unless that `www` line exits 0 and
-  its stdout holds the text. Each `{run}` in either is the run's folder.
-- `bun verify www make-path --name <name>` and `remove-path --name <name>` make and remove
-  `<run>/paths/<name>`, a folder for a `--path` check.
-- `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
-  refuses the line with exit 3, and its stderr holds the text and `Run: <run line>`.
-- `bun verify terminal ...` drives `www` in a terminal
-  ([feature-owner-notes.md](references/feature-owner-notes.md)).
+  its stdout holds the text. Each `{run}` in either is the run's folder. Add `--host claude` or
+  `--host codex` to run the line as that host's session `verify-host`.
+- `bun verify www refuse --line '<line>' --expect '<text>'` fails unless `www` refuses the line with
+  exit 2 and its stderr holds the text.
+- `bun verify www hook --harness <host> --payload '<JSON>'` pipes the payload into
+  `www hook <host>`. It fails unless the output holds the `--expect` text, or is empty with
+  `--empty`.
 - When the `www-help` doctor check fails, fix `www` first.
 
 <!-- /repo -->

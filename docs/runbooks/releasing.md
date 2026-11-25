@@ -5,7 +5,7 @@ request open on `main`, and each releasable commit that lands updates its versio
 changelog. Merging it starts a run on `main` that tags `@wherewerewe/cli@<version>`, and a second
 run at the tag builds the four binaries, attaches them to the GitHub release with `SHA256SUMS`, and
 writes the formula in the Homebrew tap. For what a release holds, read
-[Shipping](../design/wherewerewe/shipping.md), and for how users install it, the
+[Shipping](../design/wherewerewe/README.md#shipping), and for how users install it, the
 [install guide](../guides/install.md).
 
 ```mermaid

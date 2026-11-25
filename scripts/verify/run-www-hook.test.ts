@@ -40,29 +40,7 @@ test('it pipes the payload into www hook with the run folders, through a shell t
   });
 });
 
-test('it puts the whole brief that www prints into the payload as the text of a JSON string', async () => {
-  const ctx = setupTest();
-
-  await runWWWHook(ctx.exec, ctx.root, 'codex', '{"tool_response":"{brief:trial-hooks}"}');
-
-  const hook = ctx.calls.at(-1);
-  const parsed: unknown = JSON.parse(String(hook?.[4]));
-
-  expect({
-    calls: ctx.calls.length,
-    response:
-      typeof parsed === 'object' && parsed !== null && 'tool_response' in parsed
-        ? parsed.tool_response
-        : null,
-    briefTail: ctx.calls[0]?.slice(-2),
-  }).toStrictEqual({
-    calls: 2,
-    response: 'GOAL line\nbrief "quoted"\n',
-    briefTail: ['--session', 'trial-hooks'],
-  });
-});
-
-test('it sets the host variable of the harness so the brief takes that host budget', async () => {
+test('it sets the host variable of the harness so www finds the binding of that host', async () => {
   const ctx = setupTest();
 
   await runWWWHook(ctx.exec, ctx.root, 'codex', '{}');

@@ -88,9 +88,6 @@ jobs:
       - name: Print the binary version
         run: '"$WHEREWEREWE_BIN" --version'
 
-      # Runs www and wherewerewe from the binary, and, with the hooks built, the gate lock on this
-      # platform.
+      # Writes a row and reads the brief with the binary, under both of its names.
       - name: Smoke test the compiled binary
-        run:
-          bun run test:e2e packages/cli/e2e/compiled-binary.test.ts
-          packages/cli/e2e/cli-hook-concurrent-gate.test.ts
+        run: bun run test:e2e packages/cli/e2e/compiled-binary.test.ts

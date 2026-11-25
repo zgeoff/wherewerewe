@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
 
-export const cliPath = join(import.meta.dir, '..', '..', 'packages', 'cli', 'src', 'cli.ts');
+const cliPath = join(import.meta.dir, '..', '..', 'packages', 'cli', 'src', 'cli.ts');
 
 // The argv that runs the real `www` with HOME, XDG_STATE_HOME and PATH inside the run's folder, the
 // agent config folders unset, and only the given host's session variable. It runs in <run>/cwd,
@@ -43,6 +43,6 @@ export function buildWWWArgv(
 }
 
 // The words that make the folder <run>/cwd and run the rest of the argv in it.
-export function buildRunFolderStart(stateRoot: string): readonly string[] {
+function buildRunFolderStart(stateRoot: string): readonly string[] {
   return ['/bin/sh', '-c', 'mkdir -p "$0" && cd "$0" && exec "$@"', join(stateRoot, 'cwd')];
 }

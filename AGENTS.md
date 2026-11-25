@@ -52,7 +52,7 @@ scripts/        the repo's CI step scripts and the dead-code check
 
 ## Verify before you hand off
 
-`bun verify` runs the real `www` and drives each feature, such as `help`, through its journey: the `bun verify` lines that stand for what a user types. When a feature's journey reaches its end state, `bun verify done` records a verdict for it. The `verify / gate` check fails a pull request that changes a feature with no verdict in its description.
+`bun verify` runs the real `www` and drives each feature, such as `notes`, through its journey: the `bun verify` lines that stand for what a user types. When a feature's journey reaches its end state, `bun verify done` records a verdict for it. The `verify / gate` check fails a pull request that changes a feature with no verdict in its description.
 
 After your last code change:
 

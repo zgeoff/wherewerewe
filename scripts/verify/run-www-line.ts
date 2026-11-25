@@ -1,6 +1,5 @@
 import { buildWWWArgv } from './build-www-argv.ts';
 import { fillRunFolder } from './fill-run-folder.ts';
-import { makeProbeBin } from './make-probe-bin.ts';
 import { parseWWWLine } from './parse-www-line.ts';
 import type { ProcessOutput } from './read-www-output.ts';
 
@@ -13,8 +12,6 @@ export async function runWWWLine(
   line: string,
   host?: 'claude' | 'codex',
 ): Promise<ProcessOutput> {
-  makeProbeBin(stateRoot);
-
   const output = await exec(
     buildWWWArgv(
       stateRoot,
