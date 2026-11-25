@@ -42,6 +42,7 @@ function scanValue(text: string, start: number): Scan {
 
 export interface JSONMember {
   readonly key: string;
+  readonly keyStart: number;
   readonly value: JSONNode;
 }
 
@@ -54,7 +55,7 @@ function scanObject(text: string, start: number): Scan {
     const key: unknown = JSON.parse(text.slice(at, keyEnd));
     const valueRead = scanValue(text, skipSpace(text, skipSpace(text, keyEnd) + 1));
 
-    members.push({ key: String(key), value: valueRead.node });
+    members.push({ key: String(key), keyStart: at, value: valueRead.node });
 
     at = skipSpace(text, valueRead.next);
     at = text[at] === ',' ? skipSpace(text, at + 1) : at;
