@@ -15,7 +15,7 @@ export function formatCommandLine(argv: readonly RunWord[]): string {
   ].join(' ');
 }
 
-const bareWords: ReadonlySet<string> = new Set([
+export const barePlaceholders: ReadonlySet<string> = new Set([
   '<new id>',
   '<open id>',
   '<id>',
@@ -30,7 +30,7 @@ const bareWords: ReadonlySet<string> = new Set([
 // a refusal tells the agent to type.
 export function formatRunArgument(argument: RunWord, isPositional: boolean): string {
   if (typeof argument !== 'string') {
-    return bareWords.has(argument.placeholder)
+    return barePlaceholders.has(argument.placeholder)
       ? argument.placeholder
       : quoteShellWord(argument.placeholder);
   }

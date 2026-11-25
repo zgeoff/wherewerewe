@@ -1,25 +1,46 @@
 import { expect, test } from 'bun:test';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { run } from '@zgeoff/testing/process';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
+import { buildRefusalReplay } from '../test-utils/build-refusal-replay.ts';
+import { buildRefusalSamples } from '../test-utils/build-refusal-samples.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
-import { buildArgvRefusal } from './build-argv-refusal.ts';
 import { buildRefusal } from './build-refusal.ts';
 import { formatRefusal, nothingWrittenComment } from './format-refusal.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
 function setupTest() {
-  const bin = join(createTempDir('format-refusal').path, 'bin');
+  const root = createTempDir('format-refusal').path;
+  const bin = join(root, 'bin');
+  const replayBin = join(root, 'replay-bin');
+  const cwd = join(root, 'cwd');
 
   seedStubCommand(bin, 'www', `printf 'www\\n'; printf '%s\\n' "$@"`);
   seedStubCommand(bin, 'less', `printf 'less\\n'; printf '%s\\n' "$@"`);
 
+  // each argument ends in a unit separator and each call in a record separator, so an argument can
+  // hold any character but those two
+  seedStubCommand(replayBin, 'www', String.raw`printf '%s\037' www "$@"; printf '\036'`);
+  seedStubCommand(replayBin, 'less', String.raw`printf '%s\037' less "$@"; printf '\036'`);
+  seedStubCommand(replayBin, 'bun', String.raw`printf '%s\037' bun "$@"; printf '\036'`);
+  mkdirSync(cwd);
+
   return {
     formatRefusal,
+    buildRefusalReplay,
     runInShell: (command: string) =>
       run(['bash', '--posix', '-c', command], {
         env: { PATH: `${bin}:/usr/bin:/bin` },
+        cwd,
+      }),
+    replayInShell: (script: string) =>
+      run(['bash', '--posix', '-c', script], {
+        env: { PATH: `${replayBin}:/usr/bin:/bin` },
+        cwd,
+        input: '',
+        timeoutMs: 4000,
       }),
   };
 }
@@ -324,66 +345,34 @@ test.each([
   },
 );
 
-test.each([
-  {
-    title: 'a command that is not known',
-    refusal: buildArgvRefusal({ kind: 'unknown-command', command: 'frob' }),
-    echoed: ['www', 'help'],
-  },
-  {
-    title: 'a usage line with no placeholder',
-    refusal: buildArgvRefusal({ kind: 'goal-paste-with-text' }),
-    echoed: ['www', 'goal', '--paste'],
-  },
-  {
-    title: 'a flag that a command with no flags does not take',
-    refusal: buildArgvRefusal({
-      kind: 'flag-not-taken',
-      command: 'detach',
-      flag: '--on',
-      taken: [],
-      line: 'detach',
-    }),
-    echoed: ['www', 'detach'],
-  },
-  {
-    title: 'a list kind that is not known',
-    refusal: buildArgvRefusal({ kind: 'bad-list-kind' }),
-    echoed: ['www', 'list', 'tasks'],
-  },
-  {
-    title: 'a flag value that starts with a dash and holds shell characters',
-    refusal: buildArgvRefusal({
-      kind: 'flag-value-has-dash',
-      flag: 'note',
-      argv: ['now', 't-a', 'Go on', '--note=-costs $5 # "y"'],
-    }),
-    echoed: ['www', 'now', 't-a', 'Go on', '--note=-costs $5 # "y"'],
-  },
-  {
-    title: 'a since that does not parse',
-    refusal: buildRefusal({ kind: 'bad-since', command: 'recap' }),
-    echoed: ['www', 'recap', '--since', '24h'],
-  },
-])(
-  'it ends the Run line that a refusal builder prints with a comment that a POSIX shell reads as none: $title',
+test.each(buildRefusalSamples())(
+  'it prints each Run line of $title so a POSIX shell hands its program the words, with --session as typed',
   async (row) => {
     const ctx = setupTest();
-    const text = ctx.formatRefusal(row.refusal, { sessionFlag: null, writes: true });
-    const last = text.trimEnd().split('\n').at(-1) ?? '';
 
-    const replayed = await ctx.runInShell(last.slice('Run: '.length));
+    const replay = ctx.buildRefusalReplay(buildRefusal(row.reason), [
+      { sessionFlag: null, writes: false },
+      { sessionFlag: null, writes: true },
+      { sessionFlag: 'tide$TAG;x`id`"q"\\ |&*#', writes: false },
+      { sessionFlag: 'tide$TAG;x`id`"q"\\ |&*#', writes: true },
+      { sessionFlag: "it's!(x)<y>[z]", writes: true },
+    ]);
+
+    const replayed = await ctx.replayInShell(replay.script);
 
     expect({
-      endsWithComment: last.endsWith(nothingWrittenComment),
       exitCode: replayed.exitCode,
-      stdout: replayed.stdout,
       stderr: replayed.stderr,
+      received: replayed.stdout
+        .split('\u001E')
+        .slice(0, -1)
+        .map((record) => record.split('\u001F').slice(0, -1)),
+      comments: replay.comments,
     }).toStrictEqual({
-      endsWithComment: true,
       exitCode: 0,
-      stdout: `${row.echoed.join('\n')}\n`,
       stderr: '',
+      received: replay.expected,
+      comments: replay.expectedComments,
     });
   },
 );
