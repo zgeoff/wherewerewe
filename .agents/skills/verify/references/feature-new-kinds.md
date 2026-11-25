@@ -36,7 +36,7 @@ bun verify www run --host codex --line 'www --session trial-kinds' --expect 'WOR
   shows `PROMISED`.
 - `done` on the lesson is refused with a `Run: www drop` line. `done` closes the promise and `drop`
   closes the lesson.
-- The journey adds `--session trial-kinds` to each command, because a journey runs with no binding.
+- Each command after `init` carries `--session trial-kinds`, because a journey runs with no binding.
   The command is otherwise as printed.
 - No expected text holds an age, which is real time.
 - When a command fails, follow its row in [Exit codes](exit-codes.md) (step 4 of

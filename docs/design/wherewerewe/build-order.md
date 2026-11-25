@@ -83,7 +83,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 - [ ] The `owner-notes` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `owner-notes`, and a green `verify / gate`.
 - [ ] `say` and `ack` refuse when stdin or stdout is not a terminal, and when any of the five agent variables is set. Evidence: tests that run each case, using `script` to give a terminal.
-- [ ] A note shows first after the goal until `ack`, and a third note is refused. Evidence: brief tests.
+- [ ] A note shows first after the goal and the grant until `ack`, and a third note is refused. Evidence: brief tests.
 - [ ] No agent command opens `owner.tsv` for writing. Evidence: a test that makes `owner.tsv` read-only and runs every agent write.
 
 ## Slice 2b: notes

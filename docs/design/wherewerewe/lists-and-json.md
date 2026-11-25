@@ -185,7 +185,7 @@ $ www list rules --json
 {"v":1,"kind":"rules","rows":[{"kind":"rule","row":{"id":"r-api-tests","kind":"rule","claim":"Run the API tests from api/; from the repo root the queue tests are skipped","check":null,"atWrite":null,"last":null,"written":"2026-03-03T10:20:00Z","by":"agent","extra":{}},"note":null},{"kind":"rule","row":{"id":"r-tk-fork","kind":"rule","claim":"tidekit is a fork here: pass -R tidal-org/tidekit to gh, or the PR opens on the fork","check":null,"atWrite":null,"last":null,"written":"2026-03-05T14:02:11Z","by":"agent","extra":{}},"note":null},{"kind":"rule","row":{"id":"r-sim-port","kind":"rule","claim":"Start the app simulator with PORT=8091; 8090 belongs to another session","check":null,"atWrite":null,"last":null,"written":"2026-03-09T08:12:40Z","by":"agent","extra":{}},"note":null}]}
 ```
 
-A schema test pins each type, so a field change fails until `v` changes with it.
+A schema test pins each type, so a removed or renamed field fails until `v` changes with it, and a new field fails until the schema adds it.
 
 ### www goal --paste
 

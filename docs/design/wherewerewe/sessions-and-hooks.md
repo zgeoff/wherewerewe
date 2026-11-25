@@ -284,7 +284,7 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 
 - Each time bound below runs from the start of the hook process to its exit.
 - A hook always exits 0, and writes any error to `hook-errors.log`, never to stdout or stderr. Only `PreToolUse` and `Stop` block, and only as [The gate](#the-gate) says.
-- For an agent session id with no binding, a hook prints nothing, writes nothing except the binding in `PostToolUse` step 1 and any error line in `hook-errors.log`, and returns in under 150 ms. A test measures the median of 20 runs. `PreToolUse` and `Stop` treat a bound id with no gate file the same way, and `PostToolUse` skips only step 0 for it.
+- For an agent session id with no binding, a hook prints nothing, writes nothing except the binding and its `bind` journal row in `PostToolUse` step 1 and any error line in `hook-errors.log`, and returns in under 150 ms. A test measures the median of 20 runs. `PreToolUse` and `Stop` treat a bound id with no gate file the same way, and `PostToolUse` skips only step 0 for it.
 - `PreToolUse` and `Stop` read at most the binding and the gate file, and return in under 150 ms for a bound or an unbound id, as the median of 20 runs. `PreToolUse` runs on every tool call that reaches a hook, in every session on the machine.
 - A `PostToolUse` hook for a bound session never runs a probe and never touches the network, and returns in under 300 ms.
 - A `SessionStart` hook reads only the binding, the `session` file and the gate file, runs no check, and returns in under 300 ms.
