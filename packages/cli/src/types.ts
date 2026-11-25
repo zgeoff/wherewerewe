@@ -321,6 +321,7 @@ export interface CLIInput {
   // prints text at once, which `install` uses to say what it will write before it writes; without
   // it that text comes first in the result's stdout
   readonly emit?: (text: string) => void;
+
   // the binary's own path and its real path, read once by cli.ts, which pick the channel that a
   // newer-store refusal tells the user to upgrade through; a path of neither Homebrew's gets the
   // install script
