@@ -12,6 +12,7 @@ import { buildNoteRefusal } from './build-note-refusal.ts';
 import { buildOwnerRefusal } from './build-owner-refusal.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
+import { buildTooLongRefusal } from './build-too-long-refusal.ts';
 import { buildUpgradeRefusal } from './build-upgrade-refusal.ts';
 import { formatList } from './format-list.ts';
 import { grantPlaceholders } from './grant-placeholders.ts';
@@ -38,7 +39,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'bad-list-kind' },
       (found) => buildArgvRefusal(found),
     )
-    .with({ kind: 'text-too-long' }, (found) => buildTooLong(found))
+    .with({ kind: 'text-too-long' }, (found) => buildTooLongRefusal(found))
     .with({ kind: 'text-not-one-line' }, (found) =>
       refuse(
         'www: refused: the text must be one line, with no tab or newline.',
@@ -327,36 +328,6 @@ function usage(exitCode: 2 | 4, line: string, argv: readonly RunWord[] = ['help'
 }
 
 type Found<Variant extends RefusalReason['kind']> = Extract<RefusalReason, { kind: Variant }>;
-
-function buildTooLong(found: Found<'text-too-long'>): Refusal {
-  if (found.target.label === 'note') {
-    return refuse(
-      `www: refused: the note is ${String(found.length)} characters, and the limit is ${String(found.limit)}. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.`,
-      replaceText(found.args, found.target, toPlaceholder('<note of at most 400 characters>')),
-    );
-  }
-
-  const placeholder = toPlaceholder(
-    `<${found.target.label} of at most ${String(found.limit)} characters>`,
-  );
-
-  const measured = `the ${found.target.label} is ${String(found.length)} characters, and the limit is ${String(found.limit)}.`;
-
-  const advice = match(found.target.label)
-    .with(
-      'claim',
-      'next step',
-      'quote',
-      () => 'Write what is true now, and put the detail in its note with --note.',
-    )
-    .with('reading', "grant's scope", () => null)
-    .otherwise(() => 'Write what is true now; the story belongs in a PR or a commit.');
-
-  return refuse(
-    `www: refused: ${advice === null ? measured : `${measured} ${advice}`}`,
-    replaceText(found.args, found.target, placeholder),
-  );
-}
 
 const grantLabels: ReadonlySet<string> = new Set(['bullet', "grant's scope", 'reading']);
 const itemWriteCommands: ReadonlySet<string> = new Set(['task', 'wait', 'rule', 'where', 'set']);

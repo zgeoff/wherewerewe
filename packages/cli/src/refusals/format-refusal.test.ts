@@ -6,6 +6,7 @@ import { run } from '@zgeoff/testing/process';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildRefusalReplay } from '../test-utils/build-refusal-replay.ts';
 import { buildRefusalSamples } from '../test-utils/build-refusal-samples.ts';
+import { getSteeringWords } from '../test-utils/get-steering-words.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { buildRefusal } from './build-refusal.ts';
 import { formatRefusal, nothingWrittenComment } from './format-refusal.ts';
@@ -373,6 +374,44 @@ test.each(buildRefusalSamples())(
       stderr: '',
       received: replay.expected,
       comments: replay.expectedComments,
+    });
+  },
+);
+
+test.each(buildRefusalSamples().filter((row) => row.reason.kind === 'text-too-long'))(
+  'it follows the reason of $title with what to do with the rest when the text states a fact',
+  (row) => {
+    // the texts an agent writes as a fact in a row; a name, a place, a date, the owner's own words
+    // and the grant's parts stay one line
+    const factLabels = [
+      'claim',
+      'next step',
+      'note',
+      'decision',
+      'reason',
+      'evidence',
+      'why',
+      'lesson',
+      'promise',
+      '--for text',
+    ];
+
+    const label = row.reason.kind === 'text-too-long' ? row.reason.target.label : '';
+    const lines = buildRefusal(row.reason).lines;
+    const rest = lines.slice(1);
+
+    expect({
+      first: lines[0]?.includes(' and the limit is '),
+      rest,
+      steering: getSteeringWords(lines.join('\n')),
+    }).toStrictEqual({
+      first: true,
+      rest: factLabels.includes(label)
+        ? [
+            'One row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.',
+          ]
+        : [],
+      steering: [],
     });
   },
 );

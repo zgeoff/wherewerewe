@@ -1,5 +1,5 @@
 import { listCommandShapes, parseCLIArgs } from '../args/parse-cli-args.ts';
-import type { RefusalReason, TextTarget } from '../types.ts';
+import type { ParsedArgs, RefusalReason, TextTarget } from '../types.ts';
 import { buildParsedArgs } from './build-parsed-args.ts';
 
 export interface RefusalSample {
@@ -81,6 +81,26 @@ export function buildRefusalSamples(): RefusalSample[] {
     ],
     'text-too-long': [
       { kind: 'text-too-long', args: task, target: claim, length: 152, limit: 120 },
+      ...collectTooLong([
+        [now, 'next step', { positional: 1 }, 120],
+        [set, 'note', { flag: 'note' }, 400],
+        [decide, 'decision', { positional: 0 }, 200],
+        [decide, 'reason', { flag: 'why' }, 200],
+        [drop, 'reason', { flag: 'why' }, 200],
+        [done, 'evidence', { flag: 'evidence' }, 200],
+        [lesson, 'lesson', { positional: 1 }, 120],
+        [lesson, 'why', { flag: 'why' }, 200],
+        [promise, 'promise', { positional: 1 }, 120],
+        [promise, '--to', { flag: 'to' }, 16],
+        [promise, '--by', { flag: 'by' }, 24],
+        [init, 'goal', { flag: 'goal' }, 200],
+        [wait, 'who', { flag: 'who' }, 16],
+        [words, 'where', { flag: 'where' }, 40],
+        [ok, 'quote', { flag: 'quote' }, 120],
+        [grant, 'reading', { flag: 'reading' }, 200],
+        [use, '--for text', { flag: 'for' }, 200],
+        [words, "owner's words", { positional: 1 }, 300],
+      ]),
     ],
     'text-not-one-line': [{ kind: 'text-not-one-line', args: task, target: claim }],
     'text-empty': [{ kind: 'text-empty', args: task, target: claim }],
@@ -224,6 +244,20 @@ function isKind<Kind extends RefusalKind>(
 
 function invariantSample(kind: RefusalKind): never {
   throw new Error(`the parser gave no ${kind} refusal`);
+}
+
+// A text-too-long reason for each label, one character over its limit, at the place its command
+// takes it.
+function collectTooLong(
+  rows: readonly (readonly [ParsedArgs, TextTarget['label'], TextTarget['place'], number])[],
+): Found<'text-too-long'>[] {
+  return rows.map(([args, label, place, limit]) => ({
+    kind: 'text-too-long',
+    args,
+    target: { label, place },
+    length: limit + 1,
+    limit,
+  }));
 }
 
 function buildTitle(reason: RefusalReason, at: number): string {

@@ -107,6 +107,7 @@ test.each([
     argv: ['lesson', 'l-seed', 'x'.repeat(121), '--why', 'A reason'],
     lines: [
       'www: refused: the lesson is 121 characters, and the limit is 120. Write what is true now; the story belongs in a PR or a commit.',
+      'One row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.',
     ],
     runs: [
       {
@@ -125,6 +126,7 @@ test.each([
     argv: ['lesson', 'l-seed', 'Reseed', '--why', 'y'.repeat(201)],
     lines: [
       'www: refused: the why is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.',
+      'One row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.',
     ],
     runs: [
       {
