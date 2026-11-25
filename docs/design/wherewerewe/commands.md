@@ -62,7 +62,7 @@ Checks, one per item: --pr <owner>/<repo>#<n>  --branch <repo path>@<branch>  --
 Owner, from a terminal outside any agent:  www say "<text>" [--on <id>]   www ack o-<n>
 
 Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www import <name>
-Setup:   www install [--print] [--replace-skill]   www doctor
+Setup:   www install [--print] [--replace-skill]   www doctor   www --version
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
@@ -297,6 +297,7 @@ www.say(text: string, opts: { on?: ItemID });     // owner-notes.md
 www.ack(id: OwnerNoteID);
 www.install(opts: { print?: boolean; replaceSkill?: boolean }); // sessions-and-hooks.md
 www.doctor();
+www.version();                                    // prints `wherewerewe <version>`
 www.hook(harness: 'claude' | 'codex');            // reads the hook payload on stdin
 
 // a grant has at least one bullet in may, not or never
@@ -483,7 +484,7 @@ day 9  11:51  done      pr-app-61  agent  Alert settings screen: in review
 - A `note` row with `owed=1` shows `owed: ` before its text, and a row with `cleared=1` shows `note cleared` as its text. A `note` row carried from a hand-kept store shows `import` as who.
 - `www show` with no id prints every open task in the brief's order, each row as the brief prints it and its note whole. It runs no check, so each tag shows the result saved by the last read.
 - `www show <id>` prints the item's note whole, as `note (<age>):` or `owed note (<age>):`, wrapped as the brief wraps a note, with each further line indented 4.
-- `www show <id>` for a lesson, a promise or the owner's words prints the row whole, with its journal days:
+- `www show <id>` for a lesson, a promise or the owner's words prints the row whole, with its journal days. These examples read a store that held all three rows before day 9:
 
 ```text
 $ www show l-seed
@@ -636,7 +637,7 @@ When the tool can fix the call, the `Run:` line is the refused command with each
 | No session (exit 4)                               | `www: no session for this agent. Sessions on this machine: tide-alerts (day 9), docs-move (day 2).` `Run: www attach <name>` `Run: www init <name> --goal "<what done means>"`                         |
 | The store is hand-kept (exit 5)                   | `www: tide-alerts is a hand-kept store (format 0-by-hand). Convert it first.` `Run: www import tide-alerts`                                                                                           |
 | The store is format 1 (exit 5)                    | `www: tide-alerts is format 1, and this www reads format 2. Upgrade it in place; the upgrade keeps a copy of each file it changes, and changes nothing when it refuses.` `Run: www import tide-alerts` |
-| The store's format is newer (exit 5)              | `www: tide-alerts is format 3, and this www reads format 2.` `Run: bun add -g @wherewerewe/cli@latest`                                                                                             |
+| The store's format is newer (exit 5) | `www: tide-alerts is format 3, and this www reads format 2.` Then `Run: brew upgrade wherewerewe` when the binary's path, or the path its link resolves to, holds `/Cellar/wherewerewe/`, and otherwise `Run: curl -fsSL https://raw.githubusercontent.com/zgeoff/wherewerewe/main/install.sh \| sh`, with `env WHEREWEREWE_INSTALL_DIR=<folder> sh` in place of `sh` when the binary named `wherewerewe` is in a folder other than `~/.local/bin`. A development run, whose path is Bun's, gets the script line. |
 | `import` of a store already in format 2           | `www: refused: tide-alerts is already format 2. Bind this agent session to it.` `Run: www attach tide-alerts`                                                                                          |
 | The upgrade finds standing approvals and no `--may` | `www: refused: tide-alerts holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.` then each approval as `  ok-merge  "merge the alert PRs yourself once CI is green" · bosun-api, bosun-app`, then `Run: www import tide-alerts --may "<what the owner allows, in their words>" --where chat --reading "<what they cover; what the owner kept back>"` |
 | The upgrade finds more than one one-time approval | `www: refused: tide-alerts holds 2 one-time approvals, and format 2 holds 1. Drop all but one.` then each as `  ok-wipe  "you can wipe the staging alerts table once" · staging alerts table  [5d]`, then `Run: www import tide-alerts --drop ok-wipe` |
@@ -673,9 +674,9 @@ When the tool can fix the call, the `Run:` line is the refused command with each
 
 ## Constraints
 
-- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log`, `list` and `recap` print what they can, even when every check fails. `www` and `show <id>` probe; `show` with no id, `log`, `list` and `recap` never do. A read with `--json` exits with the code its text form gives. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session and is never refused.
+- Once a session is found and its store is in format 2, a well-formed read is never refused for what it finds in the store or for a failed check: `www`, `show`, `log`, `list` and `recap` print what they can, even when every check fails. `www` and `show <id>` probe; `show` with no id, `log`, `list` and `recap` never do. A read with `--json` exits with the code its text form gives. A usage error, such as an unknown flag, still exits 2. A `session` file that does not parse is the one exception, because no read knows the session without it: each read refuses with the broken `session` text in [Refusals](#refusals). `sessions` needs no session, and a well-formed `www sessions` is never refused for what a store holds.
 - A changed check never makes `set` refuse, so the agent can always fix a stale claim.
-- `www` reads no `.env` file and no `bunfig.toml` from the folder it runs in: its first line starts Bun with `--no-env-file --config=/dev/null`. An agent can write both files in its workspace, and Bun would otherwise load the one into the environment and run the preload set in the other.
+- `www` reads no `.env` file and no `bunfig.toml` from the folder it runs in: the release binary is compiled with `.env` and `bunfig.toml` loading turned off, and a development run's first line starts Bun with `--no-env-file --config=/dev/null`. An agent can write both files in its workspace, and Bun would otherwise load the one into the environment and run the preload set in the other.
 - A write changes only its command's files in [store.md](store.md); a refused write changes nothing, and a refused upgrade writes nothing, its backup included.
 - Every refusal text and every `Run:` line is covered by a test that runs the refused command.
 - Each printed `Run:` line other than a usage line, with its placeholders filled in, passes every check its command runs before it reads the store, from the same functions the write calls. So a printed `Run:` line is never refused for its own words, such as an empty, over-length or credential-like claim or a bad id: a line that would be is replaced before it prints, as [Refusals](#refusals) says.

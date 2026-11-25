@@ -18,7 +18,7 @@ export async function runGoalPasteCommand(
   name: string,
 ): Promise<CommandResult> {
   const folder = join(context.root, name);
-  const scope = buildRefusalScope(context.args, context.cwd);
+  const scope = buildRefusalScope(context.args, context.cwd, context.upgradeRun);
   const read = isSessionName(name) ? await readSessionFile(folder) : { kind: 'missing' as const };
 
   return match(read)

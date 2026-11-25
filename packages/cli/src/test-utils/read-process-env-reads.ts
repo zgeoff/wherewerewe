@@ -4,8 +4,10 @@ import { listTypeScriptFiles } from './list-type-script-files.ts';
 import { parseSourceTokens } from './parse-source-tokens.ts';
 import type { SourceToken } from './parse-source-tokens.ts';
 
+// The compiled-binary test reads WHEREWEREWE_BIN, the binary that the smoke job hands it.
 const exemptFiles: ReadonlySet<string> = new Set([
   'src/cli.ts',
+  'e2e/compiled-binary.test.ts',
   'src/test-utils/read-process-env-reads.ts',
   'src/test-utils/read-process-env-reads.test.ts',
 ]);

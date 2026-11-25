@@ -53,6 +53,7 @@ const options = {
   paste: { type: 'boolean' },
   print: { type: 'boolean' },
   'replace-skill': { type: 'boolean' },
+  version: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -61,7 +62,7 @@ const flagTypes: ReadonlyMap<string, 'string' | 'boolean'> = new Map(
 );
 
 // Reads the argv once, with every command's options, then checks the command and its shape.
-// `-h`, `--help` and `help` alone give the command `help`.
+// `-h`, `--help` and `help` alone give the command `help`, and `--version` alone gives `version`.
 export function parseCLIArgs(argv: readonly string[]): ParseResult {
   try {
     return checkArgs(argv);
@@ -315,15 +316,20 @@ function checkArgs(argv: readonly string[]): ParseResult {
 
   const [first, ...rest] = positionals;
   const isHelp = first === undefined && flags.length === 1 && parsed.values.help === true;
-  const command = isHelp ? 'help' : (first ?? 'brief');
+  const isVersion = parsed.tokens.length === 1 && parsed.values.version === true;
+  const command = (isHelp ? 'help' : null) ?? (isVersion ? 'version' : null) ?? first ?? 'brief';
 
   const args: ParsedArgs = {
     command,
     positionals: rest,
     values: parsed.values,
     sessionFlag: parsed.values.session ?? null,
-    flags: isHelp ? [] : flags,
+    flags: isHelp || isVersion ? [] : flags,
   };
+
+  if (isVersion) {
+    return { kind: 'args', args };
+  }
 
   const shape = commandShapes.get(command);
 

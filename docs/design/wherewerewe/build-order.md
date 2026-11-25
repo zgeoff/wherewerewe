@@ -63,13 +63,13 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] Two sessions bound to two agent session ids never read or write each other's store. Evidence: a test with two `CLAUDE_CODE_SESSION_ID` values.
 - [ ] `www import` converts a fixture laid out like the hand-kept store, with invented content, following the table in store.md, keeps the originals in `import-backup/`, and refuses with one line per bad row when a row breaks a rule. Evidence: import tests for both cases.
 - [ ] Ten writes started at once all land, and none corrupts a file. Evidence: a concurrency test.
-- [ ] A copy installed from a packed tarball runs as `www` and as `wherewerewe` after the worktree is removed. Evidence: a CI step that packs, installs with `bun add -g`, deletes the source folder, and runs `www help`.
+- [ ] A compiled binary, copied out of its build folder, runs as `www` and as `wherewerewe` after the build folder is removed. Evidence: the end-to-end test that compiles the binary for the host, copies it to a folder as `wherewerewe` with a `www` link, removes the build folder and runs `www help` and `wherewerewe help`. Slice 5 adds `www --version` to that test, and the binaries check runs that test on each platform's own runner.
 - [ ] The `notes` and `import` journeys reach their end states. Evidence: the wringer report block in the pull request, with a claim for each, and a green `verify / gate`.
 - [ ] The orchestrating agent's hand-kept store converts. Evidence: after the agent fixes the rows that `www import` refuses, `www import build` exits 0, and `www --session build` prints its brief.
 
 **Pull requests.** Build slice 1 as three pull requests, and start each one after the one before it merges:
 
-- 1a, [#11](https://github.com/zgeoff/wherewerewe/issues/11): the store in format 1, session finding, the brief, and `www`, `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`, `rule`, `where`, `set`, `done` and `drop`, with the `notes` feature. It carries the evidence for the worst-case, two-session, concurrency, packed-tarball and `notes` journey lines, and for the write and refusal lines of its commands.
+- 1a, [#11](https://github.com/zgeoff/wherewerewe/issues/11): the store in format 1, session finding, the brief, and `www`, `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`, `rule`, `where`, `set`, `done` and `drop`, with the `notes` feature. It carries the evidence for the worst-case, two-session, concurrency, packaged-binary and `notes` journey lines, and for the write and refusal lines of its commands.
 - 1b, [#12](https://github.com/zgeoff/wherewerewe/issues/12): `ok`, `use`, `decide`, `show` and `log`. It carries the evidence for the write and refusal lines of its commands.
 - 1c, [#13](https://github.com/zgeoff/wherewerewe/issues/13): `www import`, with the `import` feature. It carries the evidence for the import, `import` journey and hand-kept store lines, and for the hand-kept refusal's `Run:` line.
 
@@ -219,15 +219,16 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 ## Slice 5: first release
 
-**Delivers.** `@wherewerewe/cli` on npm, with bins `www` and `wherewerewe`. The wringer feature `package`, with a journey that installs the published version into a temporary global folder with `bun add -g` and runs `www help` and `wherewerewe help`.
+**Delivers.** The first GitHub release, with four binaries and `SHA256SUMS`, and `Formula/wherewerewe.rb` in the owner's Homebrew tap. `install.sh`, `www --version`, the exit 5 line for the channel the binary came from, and the scripts that build the binaries, attach them to the release and write the formula. The wringer feature `package`, with a journey that builds the binary for the host, runs `install.sh` from a local release folder into a temporary folder, and runs `www help`, `wherewerewe help` and `www --version`.
 
-**Depends on.** Slice 4, and the owner's first publish by hand, a step only the owner can do, through the npm-publish skill, which hands the owner one command. Later releases go through release-please and OIDC.
+**Depends on.** Slice 4, the owner's check that the release GitHub App can reach `wherewerewe` and the tap, and the repo variables `HOMEBREW_TAP` and `RELEASE_ENABLED`.
 
 **Acceptance.**
 
 - [ ] The `package` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `package`, and a green `verify / gate`.
-- [ ] `bun add -g @wherewerewe/cli` on a machine with only Bun installs both bins. Evidence: `www help` output in a clean container.
-- [ ] The second release publishes from CI with provenance. Evidence: the npm page's provenance badge for that version.
+- [ ] The first release has four binaries and `SHA256SUMS`, and the tap holds `Formula/wherewerewe.rb`. Evidence: `gh release view` of the release, and the tap's log.
+- [ ] `install.sh` on a clean container with only `curl` installs both names, and `brew install zgeoff/tap/wherewerewe` followed by `brew test wherewerewe` passes on macOS. Evidence: `www help` output in the container, and the brew output.
+- [ ] The second release ships with no hand step. Merge the next release pull request that release-please opens after the first release: its runs build the binaries, attach them and write the formula with nothing set by hand. Evidence, posted on the release issue: its release assets, and the tap commit `wherewerewe <version>` by the Actions bot.
 
 ## Slice 6: skills
 
@@ -248,7 +249,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - From slice 0b on, each pull request in this repo publishes the wringer report with `bun verify publish` after its last push, and every feature whose files it changed has a claim at the current fingerprint.
 - The registry is named `wherewerewe-verify`, never `www` or `wherewerewe`: gunshi reads a command group named like the program as the program itself, so the registry's name and its `www` command group must differ.
 - A journey runs `www` with `XDG_STATE_HOME` and `HOME` pointed at folders under `.wringer/`, so it never reads or writes the owner's stores or agent settings.
-- From the end of slice 1, the orchestrating agent writes its own notes only through `www`, and installs each merged slice with the commands in shipping.md.
+- From the end of slice 1, the orchestrating agent writes its own notes only through `www`, and installs each merged slice with the development install commands in shipping.md.
 - A slice changes no contract in another part's doc without changing that doc in the same pull request.
 
 ## Builder decides

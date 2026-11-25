@@ -277,13 +277,22 @@ export type PlaceholderShape = 'id' | 'path' | 'branch' | 'pr' | 'pid' | 'who';
 
 export type RunWord = string | Placeholder;
 
+// The Run line that upgrades this www: a shell command, or commands piped into each other.
+export type UpgradeRun =
+  | { readonly shell: readonly string[] }
+  | { readonly pipeline: readonly (readonly string[])[] };
+
 // A shell Run line holds the words of a command other than www, each quoted as it prints.
 export type RunLine =
   | { readonly www: readonly RunWord[] }
-  | { readonly shell: readonly string[] }
+  | UpgradeRun
 
   // a usage line: the text of a command's help line after `www`, printed as it stands
-  | { readonly usage: string };
+  | { readonly usage: string }
+
+  // the line that upgrades this www, which the scope of the refusal picks by the channel the
+  // binary came from
+  | { readonly upgrade: true };
 
 export interface Refusal {
   readonly exitCode: 2 | 3 | 4 | 5;
@@ -312,6 +321,10 @@ export interface CLIInput {
   // prints text at once, which `install` uses to say what it will write before it writes; without
   // it that text comes first in the result's stdout
   readonly emit?: (text: string) => void;
+  // the binary's own path and its real path, read once by cli.ts, which pick the channel that a
+  // newer-store refusal tells the user to upgrade through; a path of neither Homebrew's gets the
+  // install script
+  readonly binaryPath?: { readonly execPath: string; readonly realPath: string };
 }
 
 export interface CLIResult {
@@ -378,6 +391,7 @@ interface ArgValues {
   readonly paste?: boolean | undefined;
   readonly print?: boolean | undefined;
   readonly 'replace-skill'?: boolean | undefined;
+  readonly version?: boolean | undefined;
   readonly help?: boolean | undefined;
 }
 

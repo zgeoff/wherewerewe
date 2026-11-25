@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { z } from 'zod';
 import { helpText } from './args/help-text.ts';
 import { listCommandShapes } from './args/parse-cli-args.ts';
 import { formatGateFile } from './hooks/format-gate-file.ts';
@@ -189,6 +190,53 @@ test.each([[['help']], [['--help']], [['-h']]])(
     expect(actual).toStrictEqual({ exitCode: 0, stdout: helpBlock, stderr: '' });
   },
 );
+
+test('it prints the package version for --version alone, and exits 0', async () => {
+  const ctx = setupTest();
+
+  const manifestJSON: unknown = await Bun.file(join(import.meta.dir, '..', 'package.json')).json();
+
+  const manifest = z.object({ version: z.string() }).parse(manifestJSON);
+
+  const result = await ctx.run(['--version'], {});
+
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: `wherewerewe ${manifest.version}\n`,
+    stderr: '',
+  });
+});
+
+test('it refuses --version beside a command as a flag that command does not take', async () => {
+  const ctx = setupTest();
+
+  const result = await ctx.run(['task', 't-a', 'A task', '--version'], {});
+
+  expect(result).toStrictEqual({
+    exitCode: 2,
+    stdout: '',
+    stderr: `www: task takes no --version flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,
+  });
+});
+
+test.each([
+  {
+    title: '--session beside it',
+    argv: ['--session', 'tide-alerts', '--version'],
+    run: 'www --session tide-alerts',
+  },
+  { title: '-- beside it', argv: ['--version', '--'], run: 'www' },
+])('it refuses --version with $title as a flag the brief does not take', async (row) => {
+  const ctx = setupTest();
+
+  const result = await ctx.run(row.argv, {});
+
+  expect(result).toStrictEqual({
+    exitCode: 2,
+    stdout: '',
+    stderr: `www: the brief takes no --version flag. It takes --json.\nRun: ${row.run}\n`,
+  });
+});
 
 test.each([
   [['taks'], `www: unknown command "taks".\nRun: www help${nothingWrittenComment}\n`],
@@ -3314,6 +3362,7 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     await ctx.run(['recap', '--bogus']),
     await ctx.run(['goal', 'Ship it', '--bogus']),
     await ctx.run(['task', 't-a', 'A task', '--json']),
+    await ctx.run(['--version']),
   ];
 
   const text = outputs.map((output) => `${output.stdout}${output.stderr}`).join('\n');
@@ -3321,7 +3370,7 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
   const newHelpLines = helpText
     .split('\n')
     .filter((line) =>
-      /www list|every row of one kind|www lesson|www promise|www words|one screen for the owner|work on now|A lesson or the owner's words close|take --json|www goal --paste/u.test(
+      /www list|every row of one kind|www lesson|www promise|www words|one screen for the owner|work on now|A lesson or the owner's words close|take --json|www goal --paste|^Setup:/u.test(
         line,
       ),
     );
@@ -3332,8 +3381,9 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     help: getSteeringWords(newHelpLines.join('\n')),
     jsonLine: newHelpLines.filter((line) => line.includes('take --json')),
     pasteLine: newHelpLines.filter((line) => line.includes('www goal --paste')),
+    setupLine: newHelpLines.filter((line) => line.startsWith('Setup:')),
   }).toStrictEqual({
-    exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0],
     steering: [],
     help: [],
     jsonLine: [
@@ -3342,6 +3392,7 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     pasteLine: [
       '  www goal --paste           print a /goal text of the grant, for the owner to paste',
     ],
+    setupLine: ['Setup:   www install [--print]   www doctor   www --version'],
   });
 });
 

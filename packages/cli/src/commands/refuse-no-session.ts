@@ -21,5 +21,8 @@ export async function refuseNoSession(
     })),
   });
 
-  return buildRefusalResult(refusal, buildRefusalScope(context.args, context.cwd));
+  return buildRefusalResult(
+    refusal,
+    buildRefusalScope(context.args, context.cwd, context.upgradeRun),
+  );
 }

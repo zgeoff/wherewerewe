@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { dispatchPublish } from './dispatch-publish.ts';
+import { dispatchShip } from './dispatch-ship.ts';
 
 function setupTest() {
   const commands: string[][] = [];
@@ -9,7 +9,7 @@ function setupTest() {
     commands,
     errors,
     dispatch: (releaseOutputsText: string) =>
-      dispatchPublish({
+      dispatchShip({
         releaseOutputsText,
         repository: 'acme/notes',
         runCommand: (argv) => {
@@ -24,7 +24,7 @@ function setupTest() {
   };
 }
 
-test('it starts main.yml at the release tag with the released folder', async () => {
+test('it starts main.yml at the release tag', async () => {
   const ctx = setupTest();
 
   const code = await ctx.dispatch(
@@ -37,18 +37,7 @@ test('it starts main.yml at the release tag with the released folder', async () 
   expect({ code, commands: ctx.commands }).toStrictEqual({
     code: 0,
     commands: [
-      [
-        'gh',
-        'workflow',
-        'run',
-        'main.yml',
-        '--repo',
-        'acme/notes',
-        '--ref',
-        '@acme/cli@0.2.0',
-        '-f',
-        'republish_paths=["packages/cli"]',
-      ],
+      ['gh', 'workflow', 'run', 'main.yml', '--repo', 'acme/notes', '--ref', '@acme/cli@0.2.0'],
     ],
   });
 });

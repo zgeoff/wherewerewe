@@ -122,7 +122,10 @@ async function runInit(context: CommandContext): Promise<CLIResult> {
 }
 
 function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
-  return buildRefusalResult(refusal, buildRefusalScope(context.args, context.cwd));
+  return buildRefusalResult(
+    refusal,
+    buildRefusalScope(context.args, context.cwd, context.upgradeRun),
+  );
 }
 
 // The refusal of a format 1 store names its upgrade, which the session-exists refusal's own Run

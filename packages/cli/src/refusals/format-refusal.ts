@@ -2,8 +2,9 @@ import { findCredentialMatch } from '../rules/find-credential-match.ts';
 import { lineBreakPattern } from '../rules/line-break-pattern.ts';
 import { noSecretPlaceholder } from '../rules/redact-credential.ts';
 import { redactJoinedCredentials } from '../rules/redact-joined-credentials.ts';
-import type { Refusal, RunLine } from '../types.ts';
+import type { Refusal, RunLine, UpgradeRun } from '../types.ts';
 import { formatCommandLine } from './format-command-line.ts';
+import { pickUpgradeRun } from './pick-upgrade-run.ts';
 import { quoteShellWord } from './quote-shell-word.ts';
 import { toPrintedWords } from './to-printed-words.ts';
 
@@ -12,6 +13,10 @@ export interface RefusalScope {
 
   // whether the refused command writes, so its last Run line says that nothing was written
   readonly writes: boolean;
+
+  // the line that upgrades this www, for a run of the kind `upgrade`; the install script's when
+  // the scope holds none
+  readonly upgradeRun?: UpgradeRun;
 }
 
 export const nothingWrittenComment = '  # nothing was written';
@@ -30,8 +35,16 @@ export function formatRefusal(refusal: Refusal, scope: RefusalScope): string {
 }
 
 function formatRun(run: RunLine, scope: RefusalScope): string {
+  if ('upgrade' in run) {
+    return formatRun(scope.upgradeRun ?? pickUpgradeRun('', '', ''), scope);
+  }
+
   if ('shell' in run) {
-    return run.shell.map((word) => formatShellWord(word)).join(' ');
+    return formatShellWords(run.shell);
+  }
+
+  if ('pipeline' in run) {
+    return run.pipeline.map((words) => formatShellWords(words)).join(' | ');
   }
 
   if ('usage' in run) {
@@ -41,6 +54,10 @@ function formatRun(run: RunLine, scope: RefusalScope): string {
   }
 
   return formatCommandLine(toPrintedWords(run.www, scope.sessionFlag));
+}
+
+function formatShellWords(words: readonly string[]): string {
+  return words.map((word) => formatShellWord(word)).join(' ');
 }
 
 // A word whose quoted form the credential test matches prints as the quoted placeholder, so the

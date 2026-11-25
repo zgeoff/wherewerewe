@@ -1,15 +1,15 @@
 type RunCommand = (argv: readonly string[]) => Promise<number>;
 
-export interface DispatchPublishOptions {
+export interface DispatchShipOptions {
   readonly releaseOutputsText: string;
   readonly repository: string;
   readonly runCommand: RunCommand;
   readonly writeError: (text: string) => void;
 }
 
-// npm provenance names the run's own commit as the source, so the publish runs in a second run of
-// main.yml, dispatched at the release tag, whose commit is the tagged one.
-export function dispatchPublish(options: DispatchPublishOptions): Promise<number> {
+// The ship runs in a second run of main.yml, dispatched at the release tag, so it checks out and
+// builds exactly the tagged commit.
+export function dispatchShip(options: DispatchShipOptions): Promise<number> {
   const outputs = readRecord(JSON.parse(options.releaseOutputsText));
   const pathsValue = outputs['paths_released'];
   const paths: unknown = typeof pathsValue === 'string' ? JSON.parse(pathsValue) : pathsValue;
@@ -37,8 +37,6 @@ export function dispatchPublish(options: DispatchPublishOptions): Promise<number
     options.repository,
     '--ref',
     tag,
-    '-f',
-    `republish_paths=${JSON.stringify(paths)}`,
   ]);
 }
 
@@ -47,7 +45,7 @@ function readRecord(value: unknown): Readonly<Record<string, unknown>> {
 }
 
 if (import.meta.main) {
-  process.exitCode = await dispatchPublish({
+  process.exitCode = await dispatchShip({
     releaseOutputsText: process.env['RELEASE_OUTPUTS'] ?? '{}',
     repository: process.env['GITHUB_REPOSITORY'] ?? '',
     runCommand: (argv) => Bun.spawn([...argv], { stdio: ['ignore', 'inherit', 'inherit'] }).exited,
