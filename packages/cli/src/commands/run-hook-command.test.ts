@@ -537,8 +537,14 @@ test('it still wipes the gate at SessionStart when the session file cannot be re
 
   chmodSync(session, 0o600);
 
-  expect({ stdout: result.stdout, exitCode: result.exitCode, gate: ctx.gate() }).toStrictEqual({
+  expect({
+    stdout: result.stdout,
+    stderr: result.stderr,
+    exitCode: result.exitCode,
+    gate: ctx.gate(),
+  }).toStrictEqual({
     stdout: '',
+    stderr: '',
     exitCode: 0,
     gate: 'state=wiped session=tide-alerts reads=0 spare=1',
   });

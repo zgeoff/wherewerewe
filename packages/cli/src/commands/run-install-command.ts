@@ -84,6 +84,8 @@ export function runInstallCommand(context: InstallContext): CommandResult {
 
     context.emit(limits);
 
+    announceItems(context, items);
+
     return writeItems(context, items, formatConfigLines(shownConfig, storeRoot));
   } catch (error) {
     if (error instanceof InstallReadError) {
@@ -126,6 +128,35 @@ function refuseItem(context: InstallContext, item: InstallItem, plan: FilePlan):
   );
 }
 
+// Says each change before the first write, so a notice never follows a file already on disk.
+function announceItems(context: InstallContext, items: readonly InstallItem[]): void {
+  for (const item of items) {
+    if (probeMovingForeignSkill(context, item)) {
+      context.emit(`www install: moved ${item.shown} to ${item.shown}.replaced\n`);
+    }
+
+    const before = readTextOrNull(item.path);
+    const plan = item.plan(before);
+
+    if (plan.kind === 'text' && plan.text !== before) {
+      for (const notice of plan.notices) {
+        context.emit(`${notice}\n`);
+      }
+    }
+  }
+}
+
+function probeMovingForeignSkill(context: InstallContext, item: InstallItem): boolean {
+  const before = readTextOrNull(item.path);
+
+  return (
+    context.isReplacingSkill &&
+    item.kind === 'skill' &&
+    before !== null &&
+    readSkillMark(before)?.bodyMatches !== true
+  );
+}
+
 function writeItems(
   context: InstallContext,
   items: readonly InstallItem[],
@@ -146,13 +177,6 @@ function writeItems(
           used = item.plan(before);
 
           return used;
-        },
-        announce: (plan) => {
-          if (plan.kind === 'text') {
-            for (const notice of plan.notices) {
-              context.emit(`${notice}\n`);
-            }
-          }
         },
       },
       context.seam ?? {},
@@ -185,15 +209,7 @@ function writeItems(
 // With --replace-skill, a skill file that this tool did not write, or one edited since, moves to
 // `SKILL.md.replaced` in its folder, over an older one, before the new file goes in.
 function moveForeignSkill(context: InstallContext, item: InstallItem): void {
-  const before = readTextOrNull(item.path);
-
-  if (!context.isReplacingSkill || item.kind !== 'skill' || before === null) {
-    return;
-  }
-
-  const mark = readSkillMark(before);
-
-  if (mark?.bodyMatches === true) {
+  if (!probeMovingForeignSkill(context, item)) {
     return;
   }
 
@@ -202,8 +218,6 @@ function moveForeignSkill(context: InstallContext, item: InstallItem): void {
   if (existsSync(replaced)) {
     rmSync(replaced, { force: true });
   }
-
-  context.emit(`www install: moved ${item.shown} to ${item.shown}.replaced\n`);
 
   renameSync(item.path, replaced);
 }

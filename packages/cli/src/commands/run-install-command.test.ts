@@ -298,22 +298,34 @@ test('it keeps both writes when the file changes between its read and its rename
   });
 });
 
-test('it says what it adds and the limits that apply before it makes the first write', () => {
+test('it says what it adds and the limits that apply before it changes any file', () => {
   const ctx = setupTest();
 
-  ctx.runWith({
-    beforeRename: (path) => {
-      ctx.events.push(`write ${path}`);
+  ctx.place(ctx.paths.claudeSettings, '{\n  "model": "opus"\n}\n');
+
+  const startHash = ctx.hash();
+  const hashesAtEmit: string[] = [];
+
+  runInstallCommand({
+    env: ctx.env,
+    cwd: ctx.work,
+    isPrinting: false,
+    isReplacingSkill: false,
+    version: '0.0.1',
+    emit: (text) => {
+      ctx.events.push(text);
+      hashesAtEmit.push(ctx.hash());
     },
   });
 
-  const firstWrite = ctx.events.findIndex((event) => event.startsWith('write '));
-  const before = ctx.events.slice(0, firstWrite);
-
-  expect(before).toStrictEqual([
-    expect.stringContaining('with the allow rules, a check runs git and gh with no prompt'),
-    'www install: adding "Bash(www *)" to permissions.allow in ~/.claude/settings.json\n',
-  ]);
+  expect({ events: ctx.events, hashesAtEmit }).toStrictEqual({
+    events: [
+      expect.stringContaining('with the allow rules, a check runs git and gh with no prompt'),
+      'www install: adding "Bash(www *)" to permissions.allow in ~/.claude/settings.json\n',
+      'www install: adding prefix_rule(pattern = ["www"], decision = "allow") to ~/.codex/rules/wherewerewe.rules\n',
+    ],
+    hashesAtEmit: [startHash, startHash, startHash],
+  });
 });
 
 test('it has printed the limits when a later file changes while it runs, and the refusal names the earlier write', () => {

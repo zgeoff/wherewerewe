@@ -20,9 +20,9 @@ test('it replaces the file and leaves no temporary file behind', () => {
   expect(readdirSync(ctx.folder)).toStrictEqual(['items.tsv']);
 });
 
-test('it makes the temporary file with the requested mode, whatever the umask, before any text', () => {
+test('it creates the temporary file with the requested mode, with no wider mode at any moment, before any text', () => {
   const ctx = setupTest();
-  const before = process.umask(0o022);
+  const before = process.umask(0);
 
   onTestFinished(() => {
     process.umask(before);
@@ -40,6 +40,19 @@ test('it makes the temporary file with the requested mode, whatever the umask, b
 
   expect(seen).toStrictEqual([{ mode: 0o600, size: 0 }]);
   expect(statSync(ctx.path).mode % 0o1000).toBe(0o600);
+});
+
+test('it gives the file the requested mode even when the umask would narrow it', () => {
+  const ctx = setupTest();
+  const before = process.umask(0o077);
+
+  onTestFinished(() => {
+    process.umask(before);
+  });
+
+  writeFileAtomic(ctx.path, 'shared', 0o644);
+
+  expect(statSync(ctx.path).mode % 0o1000).toBe(0o644);
 });
 
 test('it keeps the old file and drops the temporary file when the check before the rename fails', () => {

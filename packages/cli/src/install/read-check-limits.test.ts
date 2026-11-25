@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync } from 'node:fs';
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
@@ -83,6 +83,23 @@ test('it names the race and the unknown version when git prints no version it ca
   const ctx = setupTest();
 
   expect(ctx.readWithGit('unreadable')).toStrictEqual([
+    ctx.race,
+    'the version of git could not be read, so a git older than 2.45 may lean on GIT_ALLOW_PROTOCOL alone to stop a lazy fetch, and one older than 2.36 reads core.fsmonitor=false as the name of a helper program.',
+  ]);
+});
+
+test('it names the unknown version when git is found but fails to start', () => {
+  const ctx = setupTest();
+
+  mkdirSync(ctx.bin);
+  writeFileSync(join(ctx.bin, 'git'), '#!/no/such/interpreter\n');
+  chmodSync(join(ctx.bin, 'git'), 0o755);
+
+  expect(
+    readCheckLimits({ PATH: ctx.bin }, ctx.work, ctx.root).filter(
+      (line) => !line.includes('you can write'),
+    ),
+  ).toStrictEqual([
     ctx.race,
     'the version of git could not be read, so a git older than 2.45 may lean on GIT_ALLOW_PROTOCOL alone to stop a lazy fetch, and one older than 2.36 reads core.fsmonitor=false as the name of a helper program.',
   ]);

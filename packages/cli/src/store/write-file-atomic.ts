@@ -2,7 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { closeSync, fchmodSync, fsyncSync, openSync, renameSync, rmSync, writeSync } from 'node:fs';
 
 export interface AtomicWriteSeam {
-  // called with the temporary file just after it is made, before any text is written
+  // called with the temporary file just after it is made, before its mode is set and before any text
+  // is written
   readonly afterOpen?: (temporaryPath: string) => void;
 
   // called last before the rename; `false` drops the temporary file and keeps the old one
@@ -22,11 +23,12 @@ export function writeFileAtomic(
   const handle = openSync(temporaryPath, 'wx', mode ?? 0o666);
 
   try {
+    seam.afterOpen?.(temporaryPath);
+
     if (mode !== undefined) {
       fchmodSync(handle, mode);
     }
 
-    seam.afterOpen?.(temporaryPath);
     writeSync(handle, text);
     fsyncSync(handle);
   } catch (error) {

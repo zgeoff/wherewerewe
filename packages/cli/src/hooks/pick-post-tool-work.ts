@@ -36,11 +36,22 @@ export function pickPostToolWork(
   };
 }
 
-// `gh pr <verb>`, run as a command: `gh` first, then `pr` and the verb, with any `-R repo` before.
-function isGhPullRequest(words: readonly string[], verb: string): boolean {
-  const at = words.indexOf('pr');
+const ghOptionsWithValue: ReadonlySet<string> = new Set(['-R', '--repo', '--hostname']);
 
-  return findProgramName(words) === 'gh' && at > 0 && words[at + 1] === verb;
+// `gh pr <verb>`, run as a command: `gh`, any options and their values, then `pr` and the verb.
+// A word after the verb, or a `pr` further on, is an argument and never the subcommand.
+function isGhPullRequest(words: readonly string[], verb: string): boolean {
+  if (findProgramName(words) !== 'gh') {
+    return false;
+  }
+
+  let at = 1;
+
+  while (words[at]?.startsWith('-') === true) {
+    at += ghOptionsWithValue.has(words[at] ?? '') ? 2 : 1;
+  }
+
+  return words[at] === 'pr' && words[at + 1] === verb;
 }
 
 function findProgramName(words: readonly string[]): string | undefined {

@@ -12,9 +12,6 @@ export interface InstalledFileRequest {
 
   // what the file becomes for its old text, or a refusal
   readonly plan: (before: string | null) => FilePlan;
-
-  // called with the plan just before the file is backed up and written, never for an unchanged file
-  readonly announce?: (plan: FilePlan) => void;
 }
 
 export interface InstallWriteSeam {
@@ -48,10 +45,6 @@ export function writeInstalledFile(
 
     if (plan.text === before) {
       return { kind: 'unchanged' };
-    }
-
-    if (attempt === 0) {
-      request.announce?.(plan);
     }
 
     const written = replaceFile(target, plan.text, {

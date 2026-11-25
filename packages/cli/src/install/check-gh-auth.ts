@@ -14,17 +14,25 @@ export function checkGhAuth(
     ]);
   }
 
-  const result = Bun.spawnSync([gh, 'auth', 'status'], {
-    env: { ...env, GH_PROMPT_DISABLED: '1' },
-    stdin: 'ignore',
-    stdout: 'pipe',
-    stderr: 'pipe',
-    timeout: 10_000,
-  });
-
-  if (result.exitCode !== 0) {
+  if (!probeSignedIn(gh, env)) {
     return buildFailedCheck(['www doctor: gh is not signed in.', 'Run: gh auth login']);
   }
 
   return { isOk: true, lines: ['ok: gh is signed in'] };
+}
+
+function probeSignedIn(gh: string, env: Readonly<Record<string, string | undefined>>): boolean {
+  try {
+    const result = Bun.spawnSync([gh, 'auth', 'status'], {
+      env: { ...env, GH_PROMPT_DISABLED: '1' },
+      stdin: 'ignore',
+      stdout: 'pipe',
+      stderr: 'pipe',
+      timeout: 10_000,
+    });
+
+    return result.exitCode === 0;
+  } catch {
+    return false;
+  }
 }

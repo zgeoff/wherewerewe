@@ -14,8 +14,8 @@ export interface HookTimingCase {
   readonly spec: HookPayloadSpec;
 }
 
-// The cases of the design's timing bounds, on both harnesses: an unbound id and a bound PreToolUse
-// or Stop under 150 ms, and a bound PostToolUse or SessionStart under 300 ms.
+// The cases of the design's timing bounds, on both harnesses: an unbound PreToolUse or Stop and a
+// bound PreToolUse or Stop under 150 ms, and a bound PostToolUse or SessionStart under 300 ms.
 export function buildHookTimingCases(): readonly HookTimingCase[] {
   const whole = `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · no checks\nGOAL  Ship it\n${briefFooter}\n`;
 
@@ -33,6 +33,13 @@ export function buildHookTimingCases(): readonly HookTimingCase[] {
       id: boundHookID,
       limitMs: 150,
       spec: { event: 'PreToolUse', command: 'ls' },
+    },
+    {
+      harness,
+      title: 'an unbound Stop',
+      id: '7c2d-stranger',
+      limitMs: 150,
+      spec: { event: 'Stop' },
     },
     { harness, title: 'a bound Stop', id: boundHookID, limitMs: 150, spec: { event: 'Stop' } },
     {

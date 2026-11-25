@@ -66,9 +66,9 @@ function readRules(permissions: Readonly<Record<string, unknown>>, list: string)
   return Array.isArray(rules) ? rules : [];
 }
 
-// Whether a Claude Code Bash rule matches the bare command `www`: the rule `Bash` alone, whose
-// pattern is every command, or a pattern that is `www`, a glob that reaches it, or a `www *` that
-// the docs say matches the bare command too.
+// Whether a Claude Code Bash rule matches `www` bare or with arguments: `Bash` alone, a pattern
+// that is `www` or a glob that reaches it, `www *`, which the docs say matches the bare command
+// too, or any pattern that starts `www ` and so blocks some www command, such as `www list *`.
 function isRuleForWww(rule: string): boolean {
   if (rule === 'Bash') {
     return true;
@@ -83,5 +83,10 @@ function isRuleForWww(rule: string): boolean {
   const bare = inner.endsWith(' *') ? inner.slice(0, -2) : inner;
   const source = bare.replaceAll(/[.+?^${}()|[\]\\]/gu, String.raw`\$&`).replaceAll('*', '.*');
 
-  return new RegExp(`^${source}$`, 'u').test('www') || inner === 'www:*';
+  return (
+    new RegExp(`^${source}$`, 'u').test('www') ||
+    inner === 'www:*' ||
+    inner.startsWith('www ') ||
+    inner.startsWith('www:')
+  );
 }

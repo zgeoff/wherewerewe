@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { setImmediate } from 'node:timers/promises';
 import { createTempDir } from '@zgeoff/testing/fs';
 import type fc from 'fast-check';
@@ -10,6 +10,7 @@ import { parseGateFile } from '../hooks/parse-gate-file.ts';
 import { readInjection } from '../hooks/read-injection.ts';
 import { stepGate } from '../hooks/step-gate.ts';
 import type { GateEvent, GateFile, Harness } from '../hooks/types.ts';
+import { runCLI } from '../run-cli.ts';
 import { readBinding } from '../sessions/read-binding.ts';
 import { buildHookContext } from './build-hook-context.ts';
 import { buildHookPayload } from './build-hook-payload.ts';
@@ -68,7 +69,8 @@ export async function runHookModel(
   ops: readonly HookModelOp[],
   scheduler: fc.Scheduler,
 ): Promise<readonly string[]> {
-  const root = createTempDir('hook-model').path;
+  const home = createTempDir('hook-model').path;
+  const root = join(home, 'wherewerewe');
   const context = buildHookContext(root);
 
   await seedHookStore(root, { harness, id: agent.id }, 'tide-alerts');
@@ -150,20 +152,35 @@ interface Outcome {
 function runOp(run: OpRun, state: ModelState, problems: string[], label: string): Promise<Outcome> {
   return match(run.op)
     .with({ kind: 'attach' }, async (): Promise<Outcome> => {
+      const attach = await runCLI({
+        argv: ['attach', 'docs-move'],
+        env: {
+          XDG_STATE_HOME: dirname(run.root),
+          ...(run.harness === 'claude'
+            ? { CLAUDE_CODE_SESSION_ID: agent.id }
+            : { CODEX_SESSION_ID: agent.id }),
+        },
+        cwd: dirname(run.root),
+        now: () => run.context.now(),
+        terminal: { stdin: false, stdout: false },
+      });
+
       const result = await runHookCommand(
         run.harness,
         buildHookPayload(run.harness, agent.id, {
           event: 'PostToolUse',
           command: 'www attach docs-move',
-          output: 'attached',
+          output: attach.stdout,
         }),
         run.context,
       );
 
       const bound = await readBinding(run.root, { harness: run.harness, id: agent.id });
 
-      if (result.stdout !== '' || bound !== 'docs-move') {
-        problems.push(`${label}: the attach printed ${result.stdout} and bound ${String(bound)}`);
+      if (attach.exitCode !== 0 || result.stdout !== '' || bound !== 'docs-move') {
+        problems.push(
+          `${label}: the attach exited ${String(attach.exitCode)} with ${attach.stderr}, the hook printed ${result.stdout} and bound ${String(bound)}`,
+        );
       }
 
       return { state: { ...state, binding: 'docs-move' }, decision: 'pass' };

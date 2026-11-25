@@ -181,6 +181,7 @@ test.each([
   { list: 'ask', rule: 'Bash(*)' },
   { list: 'ask', rule: 'Bash(www)' },
   { list: 'deny', rule: 'Bash' },
+  { list: 'deny', rule: 'Bash(www list *)' },
 ])(
   'it reports a $list rule $rule that matches www by its place, never by its text',
   async (row) => {
@@ -345,6 +346,43 @@ test('it reports hooks turned off and a store root that only a comment names', a
   expect(result.stdout).toContain(
     `www doctor: ~/.codex/config.toml turns hooks off with hooks = false.\nSet hooks = true under [features] in ~/.codex/config.toml.\nwww doctor: ~/.codex/config.toml does not list ${ctx.storeRoot} in writable_roots, so a Codex write to the store fails in the sandbox.\nRun: www install --print\n`,
   );
+});
+
+test.each([
+  {
+    title: 'hooks = false',
+    project: '[features]\nhooks = false\n',
+    expected: 'www doctor: .codex/config.toml turns hooks off with hooks = false.\n',
+  },
+  {
+    title: 'an empty writable_roots',
+    project: '[sandbox_workspace_write]\nwritable_roots = []\n',
+    expected: 'www doctor: .codex/config.toml does not list ROOT in writable_roots',
+  },
+])('it reports a trusted project config.toml with $title over a valid user file', async (row) => {
+  const ctx = await setupTest();
+
+  ctx.edit(
+    ctx.paths.codexConfig,
+    (text) => `${text}\n[projects."${ctx.work}"]\ntrust_level = "trusted"\n`,
+  );
+
+  ctx.place(join(ctx.work, '.codex', 'config.toml'), row.project);
+
+  const result = await ctx.doctor();
+
+  expect(result.exitCode).toBe(3);
+  expect(result.stdout).toContain(row.expected.replaceAll('ROOT', ctx.storeRoot));
+});
+
+test('it ignores a project config.toml in a folder the user file does not trust', async () => {
+  const ctx = await setupTest();
+
+  ctx.place(join(ctx.work, '.codex', 'config.toml'), '[features]\nhooks = false\n');
+
+  const result = await ctx.doctor();
+
+  expect(result.exitCode).toBe(0);
 });
 
 test('it reports a config.toml that is not TOML', async () => {

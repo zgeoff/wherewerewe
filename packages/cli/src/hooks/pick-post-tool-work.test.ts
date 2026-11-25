@@ -40,6 +40,9 @@ test.each([
   { command: 'gh -R bosunhq/bosun-api pr merge 12', nudge: true },
   { command: 'git -c core.pager=cat push', nudge: true },
   { command: 'gh pr view 12', nudge: false },
+  { command: 'gh search repos pr create', nudge: false },
+  { command: 'gh issue list pr merge', nudge: false },
+  { command: 'gh --repo bosunhq/bosun-api pr create', nudge: true },
 ])('it marks $command as a nudge command: $nudge', (row) => {
   const ctx = setupTest();
 
@@ -78,4 +81,13 @@ test('it reads a command in a Codex wrapper', () => {
     name: 'tide-alerts',
     verb: 'attach',
   });
+});
+
+test('it reads no pull request address when pr create is only an argument of another gh command', () => {
+  const ctx = setupTest();
+
+  expect(
+    ctx.pick('gh search repos pr create', 'https://github.com/bosunhq/bosun-api/pull/77', 'claude')
+      .prRef,
+  ).toBeNull();
 });

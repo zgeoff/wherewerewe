@@ -96,16 +96,8 @@ function readGitVersion(
     return null;
   }
 
-  const result = Bun.spawnSync([git, '--version'], {
-    env: readProbeEnv(env, env['PATH'] ?? '', cwd),
-    stdin: 'ignore',
-    stdout: 'pipe',
-    stderr: 'ignore',
-  });
-
-  const match = /git version (?<text>(?<major>\d+)\.(?<minor>\d+)[^\s]*)/u.exec(
-    result.stdout.toString(),
-  );
+  const output = readVersionOutput(git, env, cwd);
+  const match = /git version (?<text>(?<major>\d+)\.(?<minor>\d+)[^\s]*)/u.exec(output);
 
   if (match?.groups === undefined) {
     return { version: null };
@@ -118,6 +110,27 @@ function readGitVersion(
       minor: Number(match.groups['minor']),
     },
   };
+}
+
+// A git that is found but fails to start, such as a script whose interpreter is gone, prints no
+// version.
+function readVersionOutput(
+  git: string,
+  env: Readonly<Record<string, string | undefined>>,
+  cwd: string,
+): string {
+  try {
+    const result = Bun.spawnSync([git, '--version'], {
+      env: readProbeEnv(env, env['PATH'] ?? '', cwd),
+      stdin: 'ignore',
+      stdout: 'pipe',
+      stderr: 'ignore',
+    });
+
+    return result.stdout.toString();
+  } catch {
+    return '';
+  }
 }
 
 function readPathEntries(env: Readonly<Record<string, string | undefined>>): string[] {

@@ -90,7 +90,15 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
       codex: readSafeProgram('codex', context.env, context.cwd),
       env: context.env,
     }),
-    checkCodexConfig(readDoctorText(paths.codexConfig), show(paths.codexConfig), storeRoot),
+    checkCodexConfig({
+      user: { shown: show(paths.codexConfig), text: readDoctorText(paths.codexConfig) },
+      project: {
+        shown: '.codex/config.toml',
+        text: readDoctorText(join(context.cwd, '.codex', 'config.toml')),
+      },
+      cwd: context.cwd,
+      storeRoot,
+    }),
     checkStoreWritable(storeRoot),
     checkGhAuth(readSafeProgram('gh', context.env, context.cwd), context.env),
     checkDuplicateEntries('claude', [
