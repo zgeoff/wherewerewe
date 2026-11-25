@@ -1,20 +1,15 @@
 # Runs the shared Bun checks on every push to main, with the script list that the
-# BUN_CHECK_SCRIPTS repo variable sets for pull requests too, then releases @wherewerewe/cli through the
-# shared release-please job and publishes each release to npm through OIDC.
+# BUN_CHECK_SCRIPTS repo variable sets for pull requests too, then releases wherewerewe through the
+# shared release-please job, and ships each release as compiled binaries on its GitHub release and
+# a formula in the Homebrew tap.
 name: Main
 
 on:
   push:
     branches: [main]
-  # The publish run, which a push run dispatches at the release tag, and the recovery path for a
-  # release that tagged but failed to publish: it skips the release job and publishes the given
-  # package folders after the checks pass. A version npm holds already is skipped.
+  # The ship run, which a push run dispatches at the release tag, and the way to ship a tagged
+  # release again: run it at the tag.
   workflow_dispatch:
-    inputs:
-      republish_paths:
-        description: 'JSON array of package folders to publish, e.g. ["packages/cli"]'
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -42,11 +37,11 @@ jobs:
   # A release takes two runs:
   # - Run 1, after a releasable commit lands on main: the shared release-please job opens or
   #   updates the release pull request. A person merges it, so merge stays off, and the run of that
-  #   merge's push tags the release. The dispatch-publish job then starts run 2.
-  # - Run 2, dispatched at the tag: the publish job ships the package to npm through OIDC, after
-  #   the checks of the tagged commit pass.
-  # The release waits for its one-time setup and the first publish by hand, which the
-  # RELEASE_ENABLED repo variable marks done. Its queue keeps every waiting run.
+  #   merge's push tags the release. The dispatch-ship job then starts run 2.
+  # - Run 2, dispatched at the tag: the ship job attaches the binaries to the release and writes the
+  #   formula, after the checks and the binaries of the tagged commit pass.
+  # The release waits for its one-time setup, which the RELEASE_ENABLED repo variable marks done.
+  # Its queue keeps every waiting run.
   release:
     if: github.event_name == 'push' && vars.RELEASE_ENABLED == 'true'
     concurrency:
@@ -63,16 +58,15 @@ jobs:
     secrets:
       app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
-  # npm provenance names the run's own commit, so a push run never publishes: the run at the tag
-  # has the tagged commit as its github.sha.
-  dispatch-publish:
-    name: Dispatch the release publish
+  # The ship run checks out the tag, so it builds and ships exactly the tagged commit.
+  dispatch-ship:
+    name: Dispatch the release ship
     needs: release
     if: needs.release.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: dispatch-publish
+      group: dispatch-ship
       cancel-in-progress: false
       queue: max
     permissions:
@@ -85,25 +79,77 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
-      - name: Dispatch publish at the release tag
+      - name: Dispatch the ship at the release tag
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_OUTPUTS: ${{ needs.release.outputs.release-outputs }}
-        run: bun run --silent ci:dispatch-publish
+        run: bun run --silent ci:dispatch-ship
 
-  # npm checks the caller's workflow file for the trusted publisher, so this job grants the OIDC
-  # token. No npm token exists in this repo.
-  publish:
-    name: Publish the release
-    needs: checks
-    if: github.event_name == 'workflow_dispatch'
+  # Only a dispatch at a release tag, with the release turned on, builds and ships; the scripts
+  # check the tag again.
+  # A newer dispatch at the same tag cancels this build, so this run's ship never starts; the newer
+  # run builds and ships the tag.
+  binaries:
+    if:
+      github.event_name == 'workflow_dispatch' && startsWith(github.ref,
+      'refs/tags/@wherewerewe/cli@') && vars.RELEASE_ENABLED == 'true'
     concurrency:
-      group: publish
+      group: main-binaries-${{ github.ref }}
+      cancel-in-progress: true
+    uses: ./.github/workflows/binaries.yml
+
+  # A newer ship waits for this one to end, and queue: max keeps every waiting run. A ship is never
+  # cancelled: one cut off halfway leaves a release with some of its assets.
+  ship:
+    name: Ship the release
+    needs: [checks, binaries]
+    if:
+      github.event_name == 'workflow_dispatch' && startsWith(github.ref,
+      'refs/tags/@wherewerewe/cli@') && vars.RELEASE_ENABLED == 'true'
+    concurrency:
+      group: ship
       cancel-in-progress: false
       queue: max
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
-      contents: read
-      id-token: write
-    uses: zgeoff/tools/.github/workflows/npm-publish.yml@a8c62d5e90a66cbee12cf64573fd0169d44bbe2c # main
-    with:
-      paths: ${{ inputs.republish_paths }}
+      contents: write
+    steps:
+      - name: Check out the release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download binaries
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: binaries
+          path: dist
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Attach binaries to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun run --silent ci:release-upload
+
+      # The tap is a second repository, so the release App has to be installed on it as well and
+      # HOMEBREW_TAP set to its name (docs/runbooks/releasing.md). With either missing, the formula
+      # is left alone.
+      - name: Mint tap token
+        id: tap-token
+        if: vars.RELEASE_APP_ID != '' && vars.HOMEBREW_TAP != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ vars.HOMEBREW_TAP }}
+      - name: Update the Homebrew formula
+        if: steps.tap-token.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
+          TAP: ${{ github.repository_owner }}/${{ vars.HOMEBREW_TAP }}
+        run: bun run --silent ci:formula-update

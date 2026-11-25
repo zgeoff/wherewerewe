@@ -1,0 +1,17 @@
+name: Binaries PR
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Required checks: binaries / build and binaries / smoke <target>. No path filter, because a
+  # required check that never runs blocks the merge.
+  binaries:
+    uses: ./.github/workflows/binaries.yml

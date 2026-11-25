@@ -1,0 +1,96 @@
+name: Binaries
+
+# Compiles the wherewerewe binary for each platform and proves each one on its own platform. The
+# pull-request workflow calls this as a required check; the main workflow calls it to build the
+# assets of a release.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LEFTHOOK: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # Every target cross-compiles from this one runner; the smoke job is where each binary meets
+      # its own platform.
+      - name: Build binaries
+        run: bun run build:binaries
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: binaries
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  smoke:
+    name: smoke ${{ matrix.target }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: linux-x64
+          - runner: ubuntu-24.04-arm
+            target: linux-arm64
+          - runner: macos-15
+            target: darwin-arm64
+          - runner: macos-15-intel
+            target: darwin-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      LEFTHOOK: 0
+      WHEREWEREWE_BIN: ${{ github.workspace }}/dist/wherewerewe-${{ matrix.target }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Download binaries
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: binaries
+          path: dist
+
+      - name: Mark the binary executable
+        run: chmod +x "$WHEREWEREWE_BIN"
+
+      - name: Print the binary version
+        run: '"$WHEREWEREWE_BIN" --version'
+
+      # Runs www and wherewerewe from the binary, and, with the hooks built, the gate lock on this
+      # platform.
+      - name: Smoke test the compiled binary
+        run:
+          bun run test:e2e packages/cli/e2e/compiled-binary.test.ts
+          packages/cli/e2e/cli-hook-concurrent-gate.test.ts
