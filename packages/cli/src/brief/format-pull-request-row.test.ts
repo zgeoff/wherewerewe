@@ -23,7 +23,7 @@ test.each([
   },
   {
     title: 'a ref of 61 characters',
-    ref: `${'p'.repeat(61)}`,
+    ref: 'p'.repeat(61),
     line: `  ${'p'.repeat(59)}…  opened 3h ago  [OPEN pending]`,
   },
 ])('it formats $title for the brief', (row) => {

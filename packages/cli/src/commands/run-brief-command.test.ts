@@ -164,7 +164,7 @@ test('it prints each www list example of lists-and-json.md, character for charac
   const examples = block
     .split('\n\n')
     .map((chunk) => chunk.trimEnd().split('\n'))
-    .filter((lines) => lines[0]?.startsWith('$ www list '));
+    .filter((lines) => lines[0]?.startsWith('$ www list ') === true);
 
   const env = { ...store.env, CLAUDE_CODE_SESSION_ID: '', WHEREWEREWE_SESSION: 'tide-alerts' };
   const actual: { command: string; stdout: string }[] = [];
@@ -202,7 +202,7 @@ test("it prints each write reply of commands.md's examples, figures included, fr
   const examples = block
     .split('\n\n')
     .map((chunk) => chunk.trimEnd().split('\n'))
-    .filter((lines) => lines[0]?.startsWith('$ www '));
+    .filter((lines) => lines[0]?.startsWith('$ www ') === true);
 
   const actual: { command: string; reply: string }[] = [];
 

@@ -8,7 +8,9 @@ export function hasSecondArgument(text: string, name: string): boolean {
     .some((rest) => {
       let depth = 1;
 
-      for (const [index, character] of [...rest].entries()) {
+      for (let index = 0; index < rest.length; index += 1) {
+        const character = rest.charAt(index);
+
         depth += '([{'.includes(character) ? 1 : 0;
         depth -= ')]}'.includes(character) ? 1 : 0;
 
