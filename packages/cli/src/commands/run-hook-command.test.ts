@@ -648,3 +648,30 @@ test.each(['claude', 'codex'] as const)(
     ).toStrictEqual([]);
   },
 );
+
+test.each(['claude', 'codex'] as const)(
+  'it prints the whole nudge after a push of a bound session on %s',
+  async (harness) => {
+    const ctx = await setupTest(harness);
+
+    await ctx.run(ctx.steps.start);
+
+    const result = await ctx.run({
+      event: 'PostToolUse',
+      command: 'git push origin tide-fix',
+      output: 'pushed',
+    });
+
+    expect({ ...result, stdout: JSON.parse(result.stdout) }).toStrictEqual({
+      exitCode: 0,
+      stderr: '',
+      stdout: {
+        hookSpecificOutput: {
+          hookEventName: 'PostToolUse',
+          additionalContext:
+            'wherewerewe: you pushed or merged, and the last write to tide-alerts was 8d ago. Record it: www set <id> "<claim>" or www done <id> --evidence "<PR or commit>"',
+        },
+      },
+    });
+  },
+);
