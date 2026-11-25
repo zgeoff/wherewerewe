@@ -3,10 +3,10 @@ import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
-import { findBinPath } from './find-bin-path.ts';
+import { readBinPath } from './read-bin-path.ts';
 
 function setupTest() {
-  const root = createTempDir('find-bin-path').path;
+  const root = createTempDir('read-bin-path').path;
   const work = join(root, 'work');
 
   mkdirSync(work, { recursive: true });
@@ -23,13 +23,13 @@ test('it gives the path of a link on the PATH, not the link target', () => {
   mkdirSync(links);
   symlinkSync(target, join(links, 'wherewerewe'));
 
-  expect(findBinPath({ PATH: links }, ctx.work)).toBe(join(links, 'wherewerewe'));
+  expect(readBinPath({ PATH: links }, ctx.work)).toBe(join(links, 'wherewerewe'));
 });
 
 test('it gives null when no wherewerewe is on the PATH', () => {
   const ctx = setupTest();
 
-  expect(findBinPath({ PATH: join(ctx.root, 'empty') }, ctx.work)).toBeNull();
+  expect(readBinPath({ PATH: join(ctx.root, 'empty') }, ctx.work)).toBeNull();
 });
 
 test('it never names a wherewerewe in a relative entry or under the working folder', () => {
@@ -37,5 +37,5 @@ test('it never names a wherewerewe in a relative entry or under the working fold
 
   seedStubCommand(join(ctx.work, 'bin'), 'wherewerewe', 'echo planted');
 
-  expect(findBinPath({ PATH: ['bin', join(ctx.work, 'bin')].join(':') }, ctx.work)).toBeNull();
+  expect(readBinPath({ PATH: ['bin', join(ctx.work, 'bin')].join(':') }, ctx.work)).toBeNull();
 });

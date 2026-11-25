@@ -1,8 +1,8 @@
 import { accessSync, constants, realpathSync } from 'node:fs';
 import { isAbsolute, relative } from 'node:path';
 import { readProbeEnv } from '../checks/read-probe-env.ts';
-import { findSafeProgram } from './find-safe-program.ts';
 import { formatDisplayPath } from './format-display-path.ts';
+import { readSafeProgram } from './read-safe-program.ts';
 
 // The known limits of the checks that apply on this machine, one line each, for `www install` to
 // print before it adds an allow rule: the probes run `git` and `gh` on the PATH it holds, and an
@@ -58,7 +58,7 @@ function readGitVersion(
   env: Readonly<Record<string, string | undefined>>,
   cwd: string,
 ): GitVersion | null {
-  const git = findSafeProgram('git', env, cwd);
+  const git = readSafeProgram('git', env, cwd);
 
   if (git === null) {
     return null;

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { findBinPath } from '../hooks/find-bin-path.ts';
+import { readBinPath } from '../hooks/read-bin-path.ts';
 import { buildHookEntries } from '../install/build-hook-entries.ts';
 import { checkAllowRule } from '../install/check-allow-rule.ts';
 import { checkBinPath } from '../install/check-bin-path.ts';
@@ -12,10 +12,10 @@ import { checkHookEntries } from '../install/check-hook-entries.ts';
 import { checkSkillFile } from '../install/check-skill-file.ts';
 import { checkStoreWritable } from '../install/check-store-writable.ts';
 import { findHomePaths } from '../install/find-home-paths.ts';
-import { findSafeProgram } from '../install/find-safe-program.ts';
 import { formatDisplayPath } from '../install/format-display-path.ts';
 import { getPackageVersion } from '../install/get-package-version.ts';
 import { listEntryPaths } from '../install/list-entry-paths.ts';
+import { readSafeProgram } from '../install/read-safe-program.ts';
 import { readTextOrNull } from '../install/read-text-or-null.ts';
 import type { DoctorCheck } from '../install/types.ts';
 import { renderSkill } from '../skill/render-skill.ts';
@@ -42,7 +42,7 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
     ]);
   }
 
-  const bin = findBinPath(context.env, context.cwd);
+  const bin = readBinPath(context.env, context.cwd);
   const show = (path: string): string => formatDisplayPath(path, paths.home);
 
   const storeRoot =
@@ -84,12 +84,12 @@ export function runDoctorCommand(context: DoctorContext): CommandResult {
       path: paths.codexRules,
       shown: show(paths.codexRules),
       text: readTextOrNull(paths.codexRules),
-      codex: findSafeProgram('codex', context.env, context.cwd),
+      codex: readSafeProgram('codex', context.env, context.cwd),
       env: context.env,
     }),
     checkCodexConfig(readTextOrNull(paths.codexConfig), show(paths.codexConfig), storeRoot),
     checkStoreWritable(storeRoot),
-    checkGhAuth(findSafeProgram('gh', context.env, context.cwd), context.env),
+    checkGhAuth(readSafeProgram('gh', context.env, context.cwd), context.env),
     checkDuplicateEntries('claude', [
       { shown: show(paths.claudeSettings), format: 'json', text: claudeText },
       ...projectLayers('.claude', ['settings.json', 'settings.local.json']),

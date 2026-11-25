@@ -1,6 +1,6 @@
 import { existsSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { findBinPath } from '../hooks/find-bin-path.ts';
+import { readBinPath } from '../hooks/read-bin-path.ts';
 import { buildHookEntries } from '../install/build-hook-entries.ts';
 import { buildInstallItems } from '../install/build-install-items.ts';
 import type { InstallItem } from '../install/build-install-items.ts';
@@ -36,7 +36,7 @@ export interface InstallContext {
 // refusal leaves every file as it was.
 export function runInstallCommand(context: InstallContext): CommandResult {
   const paths = findHomePaths(context.env);
-  const bin = findBinPath(context.env, context.cwd);
+  const bin = readBinPath(context.env, context.cwd);
 
   if (paths === null) {
     return refuseInstall(

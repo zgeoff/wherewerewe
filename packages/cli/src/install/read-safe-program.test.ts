@@ -3,10 +3,10 @@ import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
-import { findSafeProgram } from './find-safe-program.ts';
+import { readSafeProgram } from './read-safe-program.ts';
 
 function setupTest() {
-  const root = createTempDir('find-safe-program').path;
+  const root = createTempDir('read-safe-program').path;
   const work = join(root, 'work');
   const real = join(root, 'real-bin');
 
@@ -17,7 +17,7 @@ function setupTest() {
     root,
     work,
     real,
-    locateIn: (path: string) => findSafeProgram('codex', { PATH: path }, work),
+    locateIn: (path: string) => readSafeProgram('codex', { PATH: path }, work),
   };
 }
 
@@ -70,4 +70,15 @@ test('it finds nothing when only planted folders hold the program', () => {
   seedStubCommand(join(ctx.work, 'bin'), 'codex', 'echo planted');
 
   expect(ctx.locateIn(['bin', join(ctx.work, 'bin')].join(':'))).toBeNull();
+});
+
+test('it skips a program in a trusted folder that links to a file under the working folder', () => {
+  const ctx = setupTest();
+  const links = join(ctx.root, 'trusted-links');
+
+  mkdirSync(links);
+  seedStubCommand(join(ctx.work, 'tools'), 'codex', 'echo planted');
+  symlinkSync(join(ctx.work, 'tools', 'codex'), join(links, 'codex'));
+
+  expect(ctx.locateIn([links, ctx.real].join(':'))).toBe(join(ctx.real, 'codex'));
 });
