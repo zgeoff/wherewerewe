@@ -4,7 +4,8 @@ import { createInterface } from 'node:readline';
 import { collectDecisionsInForce } from '../brief/collect-decisions-in-force.ts';
 import { collectReplacedIDs } from '../brief/collect-replaced-ids.ts';
 import { findExtraValue } from '../rules/find-extra-value.ts';
-import type { JournalIndex, JournalRow } from '../types.ts';
+import type { JournalIndex, JournalRow, LastJournalRow, RowFile } from '../types.ts';
+import { journalHeader } from './constants.ts';
 import { parseJournalLine } from './parse-journal-line.ts';
 
 const closingOps: ReadonlySet<string> = new Set(['done', 'drop', 'use']);
@@ -13,10 +14,12 @@ const decisionOps: ReadonlySet<string> = new Set(['decide', 'ruled-out']);
 export async function readJournalIndex(folder: string): Promise<JournalIndex> {
   const closed = new Map<string, string>();
 
-  const closeRows = new Map<
-    string,
-    { ts: string; op: string; text: string | null; kind: string | null }
-  >();
+  const lastRows = {
+    items: new Map<string, LastJournalRow>(),
+    lesson: new Map<string, LastJournalRow>(),
+    promise: new Map<string, LastJournalRow>(),
+    words: new Map<string, LastJournalRow>(),
+  };
 
   const decisions = new Map<string, { readonly who: 'owner' | 'agent' | null }>();
 
@@ -31,22 +34,17 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
     for await (const line of createInterface({ input: stream, crlfDelay: Infinity })) {
       const [ts, op, id] = line.split('\t', 3);
 
-      if (ts === undefined || op === undefined || id === undefined) {
+      if (line === journalHeader || ts === undefined || op === undefined || id === undefined) {
         continue;
       }
 
+      const cells = line.split('\t');
+
       if (closingOps.has(op)) {
         closed.set(id, ts);
-
-        const cells = line.split('\t');
-
-        closeRows.set(id, {
-          ts,
-          op,
-          text: readCell(cells[4]),
-          kind: findExtraValue(readCell(cells[6]), 'kind'),
-        });
       }
+
+      lastRows[findRowFile(op, readCell(cells[6]))].set(id, { op, text: readCell(cells[4]) });
 
       if (op === 'say') {
         lastOwnerNoteNumber = Math.max(lastOwnerNoteNumber, readNumber(id, 'o') ?? 0);
@@ -76,13 +74,21 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
 
   return {
     closed,
-    closeRows,
+    lastRows,
     decisions,
     replaced: collectReplacedIDs(decideRows),
     inForce: collectDecisionsInForce(decideRows),
     lastDecisionNumber,
     lastOwnerNoteNumber,
   };
+}
+
+// A lesson, promise or words write is in its own file, and so is a close whose kind= names one of
+// them. Every other row, the closes of the tool before those files included, is in items.tsv.
+function findRowFile(op: string, extra: string | null): RowFile {
+  const kind = closingOps.has(op) ? findExtraValue(extra, 'kind') : op;
+
+  return kind === 'lesson' || kind === 'promise' || kind === 'words' ? kind : 'items';
 }
 
 function readCell(cell: string | undefined): string | null {

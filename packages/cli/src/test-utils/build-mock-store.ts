@@ -28,7 +28,12 @@ export function buildMockStore(fields: Partial<Store>): Store {
 export function buildMockJournalIndex(fields: Partial<JournalIndex>): JournalIndex {
   return {
     closed: new Map(),
-    closeRows: new Map(),
+    lastRows: {
+      items: new Map(),
+      lesson: new Map(),
+      promise: new Map(),
+      words: new Map(),
+    },
     decisions: new Map(),
     replaced: new Set(),
     inForce: [],

@@ -45,7 +45,12 @@ function setupTest() {
         },
         journal: {
           closed: new Map(),
-          closeRows: new Map(),
+          lastRows: {
+            items: new Map(),
+            lesson: new Map(),
+            promise: new Map(),
+            words: new Map(),
+          },
           decisions: new Map(),
           lastDecisionNumber: 0,
           replaced: new Set(),

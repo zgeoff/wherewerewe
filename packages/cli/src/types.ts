@@ -3,6 +3,14 @@ export type Kind = 'task' | 'wait' | 'ok' | 'rule' | 'where';
 // The kinds a session holds beside the items of items.tsv, each in a file of its own.
 export type FileKind = 'lesson' | 'promise' | 'words';
 
+// The file that holds a row: items.tsv, or the file of one of the three kinds.
+export type RowFile = 'items' | FileKind;
+
+export interface LastJournalRow {
+  readonly op: string;
+  readonly text: string | null;
+}
+
 type Author = 'agent' | 'owner' | 'import';
 
 // pr:<owner>/<repo>#<n> | branch:<absolute path>@<branch> | path:<absolute path> | pid:<n>
@@ -213,17 +221,10 @@ export interface JournalIndex {
   // id -> ts of its done, drop or use row
   readonly closed: ReadonlyMap<string, string>;
 
-  // id -> the latest done, drop or use row of the id, with its ts, op and text, and the kind= that
-  // a close of a lesson, a promise or the owner's words carries; null for any other close
-  readonly closeRows: ReadonlyMap<
-    string,
-    {
-      readonly ts: string;
-      readonly op: string;
-      readonly text: string | null;
-      readonly kind: string | null;
-    }
-  >;
+  // row file -> id -> the newest journal row of the id in that file. A lesson, promise or words
+  // row, or a close whose kind= names one, is in that file; any other row is in items.tsv. The
+  // journal's order is the identity of a close, which a replacing write cannot share (store.md).
+  readonly lastRows: Readonly<Record<RowFile, ReadonlyMap<string, LastJournalRow>>>;
 
   // d-<n> -> its who=, from the extra of its decide or ruled-out row
   readonly decisions: ReadonlyMap<string, { readonly who: 'owner' | 'agent' | null }>;

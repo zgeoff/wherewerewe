@@ -4,11 +4,12 @@ import { buildMockItem } from '../test-utils/build-mock-item.ts';
 import { buildMockNote } from '../test-utils/build-mock-note.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
 import { getPickedWrite } from '../test-utils/get-picked-write.ts';
-import type { Item, Note, SessionFile } from '../types.ts';
+import type { Item, LastJournalRow, Note, SessionFile } from '../types.ts';
 import { pickClose } from './pick-close.ts';
 
 interface PickOptions {
   readonly closed?: ReadonlyMap<string, string>;
+  readonly lastItemRows?: ReadonlyMap<string, LastJournalRow>;
   readonly notes?: readonly Note[];
 }
 
@@ -54,7 +55,12 @@ function setupTest() {
         },
         journal: {
           closed: options.closed ?? new Map(),
-          closeRows: new Map(),
+          lastRows: {
+            items: options.lastItemRows ?? new Map(),
+            lesson: new Map(),
+            promise: new Map(),
+            words: new Map(),
+          },
           decisions: new Map(),
           lastDecisionNumber: 0,
           replaced: new Set(),
@@ -305,7 +311,10 @@ test('it finishes the rewrite of an approval whose use row is already in the jou
       }),
     ],
     null,
-    { closed: new Map([['ok-wipe', '2026-03-10T11:40:00Z']]) },
+    {
+      closed: new Map([['ok-wipe', '2026-03-10T11:40:00Z']]),
+      lastItemRows: new Map([['ok-wipe', { op: 'use', text: 'wipe the staging tmp dir' }]]),
+    },
   );
 
   expect(picked).toStrictEqual({
@@ -392,7 +401,11 @@ test('it removes the note row when it finishes a close the journal already holds
       ['done', 't-a', '--evidence', 'commit 4c1d2e0'],
       [buildMockItem({ id: 't-a' })],
       null,
-      { notes: [buildMockNote({ id: 't-a' })], closed: new Map([['t-a', '2026-03-10T11:00:00Z']]) },
+      {
+        notes: [buildMockNote({ id: 't-a' })],
+        closed: new Map([['t-a', '2026-03-10T11:00:00Z']]),
+        lastItemRows: new Map([['t-a', { op: 'done', text: 'Write the parser' }]]),
+      },
     ),
     6,
   );
@@ -445,4 +458,46 @@ test('it refuses use on an owed note after its own checks', () => {
   expect(picked.kind === 'refused' && picked.refusal.lines[0]).toBe(
     'www: refused: ok-wipe has an owed note (1h). Clear it once the work is done, or replace it with a note that is not owed.',
   );
+});
+
+test.each([
+  {
+    title: 'a task write of the id followed its interrupted done',
+    lastItemRows: new Map([['t-a', { op: 'task', text: 'Write the parser' }]]),
+  },
+  {
+    title: 'the done of the id closed a lesson, not this task',
+    lastItemRows: new Map<string, LastJournalRow>(),
+  },
+  {
+    title: 'its newest close of the id is a drop',
+    lastItemRows: new Map([['t-a', { op: 'drop', text: 'Write the parser' }]]),
+  },
+])('it records the done of a task whose id the journal closed when $title', (row) => {
+  const ctx = setupTest();
+
+  const picked = getPickedWrite(
+    ctx.pick(
+      ['done', 't-a', '--evidence', 'commit 4c1d2e0'],
+      [buildMockItem({ id: 't-a' })],
+      null,
+      {
+        closed: new Map([['t-a', '2026-03-10T11:43:00Z']]),
+        lastItemRows: row.lastItemRows,
+      },
+    ),
+    6,
+  );
+
+  expect(picked.change.journal).toStrictEqual([
+    {
+      ts: '2026-03-10T11:43:00Z',
+      op: 'done',
+      id: 't-a',
+      by: 'agent',
+      text: 'Write the parser',
+      why: 'commit 4c1d2e0',
+      extra: null,
+    },
+  ]);
 });

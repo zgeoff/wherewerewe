@@ -2,12 +2,13 @@ import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import type { FileKind, RefusalReason, Store } from '../types.ts';
 import { formatBriefLine } from './format-brief-line.ts';
+import { isOwnCloseRetry } from './is-own-close-retry.ts';
 import { pickBrokenFileRefusal } from './pick-broken-file-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
 // A done, drop or use on an id that holds a lesson, a promise or the owner's words, or null when
 // the id holds none. A lesson and the owner's words close with drop only. The row leaves its file,
-// and one journal row keeps its text and the reason.
+// and one journal row keeps its text and reason, unless isOwnCloseRetry finds the row's own close.
 export function pickFileClose(
   input: WriteInput,
   command: 'done' | 'drop' | 'use',
@@ -28,7 +29,7 @@ export function pickFileClose(
   }
 
   const ts = formatTimestamp(input.nowMs);
-  const isRetry = isRetryOfClose(input, command, id, row);
+  const isRetry = isOwnCloseRetry(input.journal.lastRows[row.kind].get(id), command, row.text);
   const verb = command === 'done' ? 'done' : 'dropped';
 
   return {
@@ -53,7 +54,6 @@ export function pickFileClose(
 interface FileRow {
   readonly kind: FileKind;
   readonly text: string;
-  readonly written: string;
 }
 
 function findFileRow(store: Store, id: string): FileRow | null {
@@ -62,14 +62,14 @@ function findFileRow(store: Store, id: string): FileRow | null {
   const words = store.words.find((row) => row.id === id);
 
   if (lesson !== undefined) {
-    return { kind: 'lesson', text: lesson.text, written: lesson.written };
+    return { kind: 'lesson', text: lesson.text };
   }
 
   if (promise !== undefined) {
-    return { kind: 'promise', text: promise.what, written: promise.written };
+    return { kind: 'promise', text: promise.what };
   }
 
-  return words === undefined ? null : { kind: 'words', text: words.words, written: words.written };
+  return words === undefined ? null : { kind: 'words', text: words.words };
 }
 
 // An id open in no file may be the row a broken file left out, so a store with a broken file of
@@ -98,24 +98,4 @@ function pickFileCloseRefusal(
   }
 
   return pickBrokenFileRefusal(store, kind);
-}
-
-// An interrupted close wrote its journal row and left the row in its file, so the retry adds no
-// second journal row. Only a close of the same op, kind and text, after the row was written, counts:
-// a close of another row under the same id, such as a task's, is not this row's.
-function isRetryOfClose(
-  input: WriteInput,
-  command: 'done' | 'drop' | 'use',
-  id: string,
-  row: FileRow,
-): boolean {
-  const earlier = input.journal.closeRows.get(id);
-
-  return (
-    earlier !== undefined &&
-    earlier.op === command &&
-    earlier.kind === row.kind &&
-    earlier.text === row.text &&
-    Date.parse(earlier.ts) >= Date.parse(row.written)
-  );
 }
