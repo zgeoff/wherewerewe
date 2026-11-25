@@ -3,8 +3,9 @@
 `wherewerewe` keeps the notes of one long coding agent session, and prints them back as one short
 brief when the agent runs `www`. It has the store, the writes, approvals, the grant, decisions, the
 three history reads, `show`, `log` and `recap`, the import of a hand-kept store and the upgrade of a
-format 1 store, the owner's notes and the brief. A command it does not have exits 2. Read this
-before you change the package, then open the design doc that the section you change links.
+format 1 store, the owner's notes, the brief, and the hooks that gate a bound session until it reads
+its brief. A command it does not have exits 2. Read this before you change the package, then open
+the design doc that the section you change links.
 
 ## The package
 
@@ -54,13 +55,13 @@ command exits 4, and never falls back to the only session on the machine. See
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
 `rule`, `where`, `lesson`, `promise`, `words`, `set`, `ok`, `grant`, `decide`, `done`, `drop`,
-`use`, `show`, `list`, `log`, `recap`, `import`, `say` and `ack`, and `www` alone prints the brief.
-`www show`, `log`, `list`, `recap` and the brief take `--json`, and `www goal --paste` prints the
-grant as a `/goal` text. A write answers in one line, except `now` and a close, which print the note
-of an item that has one. The reply of a write, such as `task`, `done`, `decide`, `say` or `ack`,
-names the item or note and ends with the brief's length; `init`, `attach`, `detach` and `import` say
-what they did, and `import` names the folder of the backup. Each refusal prints its text and a
-`Run:` line with the command that fixes it. See
+`use`, `show`, `list`, `log`, `recap`, `import`, `say`, `ack`, `install`, `doctor` and `hook`, and
+`www` alone prints the brief. `www show`, `log`, `list`, `recap` and the brief take `--json`, and
+`www goal --paste` prints the grant as a `/goal` text. A write answers in one line, except `now` and
+a close, which print the note of an item that has one. The reply of a write, such as `task`, `done`,
+`decide`, `say` or `ack`, names the item or note and ends with the brief's length; `init`, `attach`,
+`detach` and `import` say what they did, and `import` names the folder of the backup. Each refusal
+prints its text and a `Run:` line with the command that fixes it. See
 [the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
 
 `now` and every item write take `--note` and `--owed`, and `set` also takes `--no-note` and no
@@ -223,6 +224,24 @@ A task or where item with no check reads `no check · <age>`, and a wait with no
 ` · <result>` when it has a check. When a row of `items.tsv` does not parse, `www` still prints the
 rows that do, and names the broken row on stderr. See
 [the brief design](../design/wherewerewe/brief.md) for the layout.
+
+## The hooks and the gate
+
+After a start, a resume or a compaction of a bound session, the hooks put the goal and the grant in
+context and refuse the agent's other tool calls until it reads its brief whole with `www`. They fail
+open: a hook that cannot run, an error, or a `www` that never finishes opens the gate by the end of
+the turn. `wherewerewe hook claude` and `wherewerewe hook codex` are the one command that every hook
+entry runs, and it reads the event on stdin. It keeps a gate file for each agent session in
+`.gate/`, takes an exclusive `flock` on a lock file beside it, and writes only that file, the
+binding, the pull request record and the nudge's timestamp. An agent session with no binding gets no
+output and no write.
+
+`www install` merges the six Claude Code and five Codex hook entries into the user's settings and
+hooks files, adds the allow rule `Bash(www *)` and a Codex rules file with the one `www` rule, and
+writes the `www` skill that the binary carries. It prints each known limit of the checks that
+applies on the machine first, edits only the bytes of its own entries and keeps a backup of each
+file it changes. `www doctor` checks each of them, and names what to fix. See
+[sessions and hooks](../design/wherewerewe/sessions-and-hooks.md).
 
 ## Checks
 

@@ -60,6 +60,8 @@ www --help
 - `--json` on `www`, `show`, `log`, `list` and `recap` prints one JSON value for a script, in place
   of the text.
 - `www goal --paste` prints the grant as a `/goal` text for the owner to paste.
+- `www install` and `www doctor` set up and check the hooks that hold an agent's other tool calls
+  until it reads its brief after a compaction, with the allow rules and the `www` skill.
 
 ## Documentation
 

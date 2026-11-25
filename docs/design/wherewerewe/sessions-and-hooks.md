@@ -1,7 +1,7 @@
 # Sessions and hooks
 
 - **Status:** agreed
-- **Decision records:** [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md), [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md), [0014](../../decisions/0014-the-gate-fails-open.md), [0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md)
+- **Decision records:** [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md), [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md), [0014](../../decisions/0014-the-gate-fails-open.md), [0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md), [0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md), [0023](../../decisions/0023-the-cli-ships-its-own-www-skill.md)
 
 The owner runs several agent sessions on one machine, and each can keep its own wherewerewe session. A binding file maps an agent session's id to the wherewerewe session it writes to. A command finds the id in its environment, and a hook finds it in its stdin. See [store.md](store.md) for the file formats, [brief.md](brief.md) for the brief `www` prints, and [commands.md](commands.md) for the commands and refusal texts named here. After each start, resume and compaction of a bound session, the hooks put the goal and the grant in context and refuse the agent's tool calls, other than `www` commands, until it reads the brief whole with `www` or the gate fails open, as [The gate's states](#the-gates-states) says. The hooks are installed once for the machine and print nothing for an agent session with no binding. Build session finding, the bindings, the hooks, `www install` and `www doctor` from this doc, in the slice given in [build-order.md](build-order.md).
 
@@ -70,7 +70,7 @@ The design works whichever way the unknowns fall:
 
 ### The hooks
 
-One command handles every event, so the hook entries never change between versions and Codex never asks for trust again: `<bun> <bin> hook claude` or `<bun> <bin> hook codex`. `<bun>` and `<bin>` are the absolute paths that `command -v bun` and `command -v wherewerewe` printed at install: stable links that upgrades keep, and that work when a hook's `PATH` lacks Bun.
+One command handles every event, so the hook entries never change between versions and Codex never asks for trust again: `<bin> hook claude` or `<bin> hook codex`. `<bin>` is the path that `command -v wherewerewe` printed at install, kept as printed: Homebrew's link and the install script's file, which upgrades keep in place ([0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)). When no `wherewerewe` is on `PATH`, `www install` refuses.
 
 | Event           | Claude Code entry                          | Codex entry                                | What a bound session gets                                                                                       |
 | --------------- | ------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
@@ -256,7 +256,7 @@ A hook does this check, and `www` does not, because `www` sees neither case that
 
 ### Install and doctor
 
-`www install` merges the entries of the hooks table into `~/.claude/settings.json` and `~/.codex/hooks.json`, six for Claude Code and five for Codex, keeps every other hook, replaces an older entry whose command ends in `wherewerewe hook claude` or `wherewerewe hook codex`, and prints what it changed. It also writes the allow rules below. It writes no other permission rule, no `onFailure`, no `additionalContextLimit` and no `bashOutputMaxChars`. `www install --print` changes nothing and prints both JSON blocks and both rules, for an owner who keeps those files in dotfiles. Neither ever edits `~/.codex/config.toml`; both print the lines that file needs:
+`www install` merges the entries of the hooks table into `~/.claude/settings.json` and `~/.codex/hooks.json`, six for Claude Code and five for Codex, keeps every other hook, replaces an older entry whose command ends in `wherewerewe hook claude` or `wherewerewe hook codex`, and prints what it changed. `$CLAUDE_CONFIG_DIR` replaces `~/.claude` when it is set, and `$CODEX_HOME` replaces `~/.codex` when it is set. It also writes the allow rules below. It writes no other permission rule, no `onFailure`, no `additionalContextLimit` and no `bashOutputMaxChars`. Each command is exactly `<bin> hook claude` or `<bin> hook codex`, with no version, flag or timestamp, and the matcher and timeout are the table's: Codex records trust against the exact hook definition, so a changed field waits for the owner's trust again. A later version changes none of them without a decision record that says so. `www install --print` changes nothing and prints both JSON blocks, both rules, the skill files and the `config.toml` lines, for an owner who keeps those files in dotfiles. Neither ever edits `~/.codex/config.toml`; both print the lines that file needs:
 
 ```toml
 [features]
@@ -266,7 +266,19 @@ hooks = true
 writable_roots = ["/home/sam/.local/state/wherewerewe"]   # the store root, as an absolute path
 ```
 
-`www doctor` checks each of these and prints one line per check, `ok` or the exact fix: `wherewerewe` on `PATH`; the six Claude Code entries and the five Codex entries, and the Bun and bin paths each entry names; the allow rules below; `hooks = true` and the store root in `writable_roots` in the Codex config; that the store root is writable from this shell, by writing and removing a probe file; and `gh auth status`. It exits 0 when every check passes, and 3 otherwise.
+A write of a settings file keeps every byte outside the entries and the one rule that it adds, the key order and the file's mode, creates a new file with mode `0600`, and keeps the old bytes in `<path>.www-backup` with that mode. It writes through a temporary file and a rename, to the target of a symbolic link, so a dotfiles link survives. It refuses, writes nothing in either home and exits 3, when a settings file is not JSON that it can edit (a comment, a trailing comma, a top level that is not an object, or a `hooks`, event list, `permissions` or `permissions.allow` of the wrong type), with `www install --print` as the fix; when `~/.codex/rules/wherewerewe.rules` holds anything but the one rule; or when a file changed between its read and its rename a second time. It never prints a value of a settings file's `env`.
+
+`www install` also writes the `www` skill, from the text the binary carries, to `~/.claude/skills/www/SKILL.md` and `~/.agents/skills/www/SKILL.md`, with `metadata` naming the version that wrote it and a hash of its body. It replaces a skill it wrote, of any version, when nobody edited it, and refuses, writing nothing, when the file there has no such mark or an edited body; `www install --replace-skill` moves that file to `SKILL.md.replaced` and installs. Neither host asks for trust when a skill file changes, so the skill, unlike a hook entry, changes with each version. [0023](../../decisions/0023-the-cli-ships-its-own-www-skill.md)
+
+Before it adds an allow rule, `www install` prints each known limit of the checks that applies on the machine (the [probes' known limits](checks.md#known-limits-of-the-probes)), because an allowed `www` runs `git` and `gh` with no prompt, and on Codex outside the sandbox.
+
+`www doctor` checks each of these and prints one line per check, `ok` or the exact fix: `wherewerewe` on `PATH`; the six Claude Code entries and the five Codex entries, and the path each entry names: it exists, it is executable, and it is the path `command -v wherewerewe` prints now; that each entry's command is exactly the text `www install` writes now, so a changed command, which Codex would skip until trusted again, is reported with `Run: www install` and the note that Codex then asks for trust in `/hooks`; that no event holds a second `wherewerewe hook` command in a file it can read (below); the allow rules below; that `config.toml` does not turn hooks off (a missing `hooks` line passes, and `[features] hooks = false` fails) and holds the store root in `writable_roots`; the `www` skill of each host, equal to this binary's; that the store root is writable from this shell, by writing and removing a probe file; and `gh auth status`. It exits 0 when every check passes, and 3 otherwise. When `codex` is not on `PATH`, it prints `www doctor: codex is not on PATH, so the Codex rule is not checked.` as a failed check. It finds `codex`, `gh` and `wherewerewe` the way a probe finds `git`, so a program in a relative `PATH` entry or in the folder it runs in never runs.
+
+A second `wherewerewe hook` command on an event counts each brief command twice, so the gate stays `reading` until `Stop`. `www doctor` reads each file that can hold one, and names each file that holds the second command. For Claude Code those are the user file and the current folder's `.claude/settings.json` and `.claude/settings.local.json`, and for Codex `hooks.json` and `config.toml` under `$CODEX_HOME` and the current folder's `.codex/hooks.json` and `.codex/config.toml`.
+
+When the file at an entry's path starts with `#!`, `www doctor` prints `www doctor: the hooks run <path>, a script that needs its interpreter on the hook's PATH.` and `Run: www install` after a binary is first on `PATH`; it counts as a failed check.
+
+To remove what `www install` wrote, delete each hook entry whose command ends in `wherewerewe hook claude` or `wherewerewe hook codex`, the `Bash(www *)` rule, `~/.codex/rules/wherewerewe.rules`, the two `www` skill folders and any `.www-backup` file. `www doctor` then reports each as missing. No command removes them, because that choice is the owner's.
 
 #### The allow rules
 
@@ -290,6 +302,7 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 - A `SessionStart` hook reads only the binding, the `session` file and the gate file, runs no check, and returns in under 300 ms.
 - A hook reads only `session_id`, `hook_event_name`, `source`, `tool_name`, `tool_input.command`, `tool_response`, `agent_id` and `stop_hook_active` from its stdin, and on Codex `tool_input.max_output_tokens`. It ignores any other field.
 - The tool never writes `classifierContext`.
+- A file named `hook-debug` in the store root makes each hook append one line per event to `hook-errors.log`: the time, the harness, the event, `session_id`, `agent_id`, the sorted call or end, for an end the character count of the output it read and whether it held a truncation marker, the output's kind and the gate file line it wrote. A debug line never holds the output's text. A file named `hook-fault` holding `sleep`, `exit` or `garbage` makes each hook sleep past its timeout, exit 1, or print `{` and exit 0, so a trusted entry can fail on purpose with no change to its text. With neither file, a hook behaves as every other line of this document says. An agent that can write the store root can already rewrite the gate file, so neither opens anything new.
 - `install` is idempotent: a second run changes nothing and says so.
 - A hook never creates a session or a store. Only `init` and `import` do.
 
@@ -309,6 +322,8 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 - **The gate fails open.** An agent that is stopped or looping is the failure to avoid, and a separate permission check polices actions. [0014](../../decisions/0014-the-gate-fails-open.md)
 - **A `PostToolUse` hook marks the brief read, and only on a whole read by the main agent.** `www` cannot see a piped read or a subagent's read. [0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md)
 - **Authority comes from the owner's own acts.** An allow rule that the owner installs and a `/goal` that the owner pastes carry it; injected context carries none. [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md)
+- **Hook entries name the binary's path, with no runtime.** The binary needs none, and the path survives an upgrade. [0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)
+- **The binary carries the `www` skill, and `www install` writes it.** The skill then matches the installed commands. [0023](../../decisions/0023-the-cli-ships-its-own-www-skill.md)
 - **The hooks have their own parser, not `@zgeoff/agent-hooks`.** [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
 
 ## Builder decides
@@ -316,10 +331,12 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 - The regular expressions that spot `gh pr create`, `git push`, `gh pr merge` and the `www` commands in a command line.
 - How `install` writes JSON: key order and indentation, as long as every other hook survives.
 - How a hook takes the gate lock and how long it waits for it, as long as the operating system releases the lock when the hook exits and the wait ends before the hook's timeout.
+  - The build takes an exclusive `flock(2)` on `<gate file>.lock`, through `bun:ffi`, and polls it for at most 2 s for `PreToolUse` and `Stop` and 4 s for the other events. A hook that cannot load `flock` logs it and lets the call run.
 
 ## Open questions
 
 - **Does a Codex subagent's shell carry the parent's `CODEX_SESSION_ID`, do `SessionStart` and `SubagentStart` fire inside a Codex subagent, and does Codex add a `SubagentStart` hook's `additionalContext`?** Run a live test in the hooks slice to settle all three. Until then, a Codex subagent passes `--session`.
+- **Does Codex run the call when a command hook times out, exits non-zero or cannot start?** The Codex hooks page says only that an unsupported output field marks the hook failed and the call continues, and that exit 0 with no output is success. Its sentence that a `PreToolUse` error, timeout or malformed response can let the tool run sits under cloud MCP hooks. Prove it on a real Codex session with the `hook-fault` file.
 - **Does the gate work on Codex?** Prove it in slice 4 on a real Codex session: the refusal, the whole read, the compaction source, and `tool_response`. Until then, every Codex claim in [The gate](#the-gate) rests on the docs.
 - **Does each host report a `www` it kills at its shell timeout as a failed call?** Invariant 3 assumes it does. In slice 4, record the hook log of a session whose `www` passes the shell timeout, on both hosts.
 - **Does a goal's periodic re-injection carry a permission across a compaction?** A `/goal` condition was blocked in 2 of 2 runs after a compaction and allowed in 1 of 1 before one, and those runs did not test the goal's re-injection. Run the scripted auto mode sessions with a pasted `www goal --paste` text, a compaction, and enough turns for the goal to re-inject, and count the classifier's allows and blocks. Until then, the paste carries authority after a compaction only when the agent's summary restates the grant.

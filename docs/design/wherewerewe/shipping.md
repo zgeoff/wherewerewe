@@ -1,7 +1,7 @@
 # Shipping
 
 - **Status:** agreed
-- **Decision records:** [0006](../../decisions/0006-ship-typescript-source-run-by-bun.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
+- **Decision records:** [0006](../../decisions/0006-ship-typescript-source-run-by-bun.md), [0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md)
 
 The tool ships as its TypeScript source, with a Bun shebang on the command file, as the repo-standard skill sets up for a CLI that does not need Node. Bun runs it with no build step, and a small TypeScript command starts in a few milliseconds. An agent with no Bun installs it with one command, or reads the store's plain text files until then. A build agent reads this doc to build the package and its install, in the slice [build-order.md](build-order.md) names.
 
@@ -43,7 +43,7 @@ bun add -g "$PWD/wherewerewe-cli-<version>.tgz"
 
 - The repo is a Bun workspace with the one package in `packages/cli`, as the repo-standard skill sets up.
 - `src/cli.ts` starts with `#!/usr/bin/env bun` and is executable.
-- A hook entry runs `<absolute path of bun> <absolute path of the wherewerewe bin> hook <harness>`, both paths taken from `command -v` at install. A hook's `PATH` may lack Bun, so the entry never relies on the shebang. `www doctor` reports either path that is gone.
+- A hook entry runs `<path of the wherewerewe binary> hook <harness>`, the path taken from `command -v wherewerewe` at install and kept unresolved ([0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)). `www doctor` reports the path when it is gone or no longer first on `PATH`.
 - Code that only the brief needs, such as the checks and the renderer, loads lazily, so a hook for an unbound session meets the 150 ms limit in [sessions-and-hooks.md](sessions-and-hooks.md).
 - The tool needs `gh` only for `pr` checks, and `git` only for `branch` and `path` checks. Without them, those checks read `unchecked`.
 - Releases go to npm through release-please and OIDC trusted publishing, as the repo-standard skill sets up. The first publish is an owner step, through the npm-publish skill.
