@@ -1,5 +1,13 @@
 import { expect, test } from 'bun:test';
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { briefFooter } from '../brief/join-brief.ts';
@@ -454,6 +462,108 @@ test('it writes no debug line without a hook-debug file, and one per event with 
     line: true,
   });
 });
+
+test.each(['claude', 'codex'] as const)(
+  'it writes one debug line, labelled with its event, for each kind of event on %s',
+  async (harness) => {
+    const ctx = await setupTest(harness);
+
+    const failure = { event: 'PostToolUseFailure', command: 'www' } satisfies HookPayloadSpec;
+
+    writeFileSync(join(ctx.root, 'hook-debug'), '');
+
+    const specs = [
+      ctx.steps.start,
+      { event: 'SubagentStart' },
+      ctx.steps.brief,
+      ctx.steps.whole,
+      ctx.steps.ls,
+      ctx.steps.stop,
+      ...(harness === 'claude' ? [failure] : [ctx.steps.failed]),
+    ] satisfies HookPayloadSpec[];
+
+    for (const spec of specs) {
+      await ctx.run(spec);
+    }
+
+    const labels = readFileSync(join(ctx.root, 'hook-errors.log'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => line.split(' ').slice(1, 3).join(' '));
+
+    expect(labels).toStrictEqual([
+      `${harness} SessionStart`,
+      `${harness} SubagentStart`,
+      `${harness} PreToolUse`,
+      `${harness} PostToolUse`,
+      `${harness} PreToolUse`,
+      `${harness} Stop`,
+      harness === 'claude' ? 'claude PostToolUseFailure' : 'codex PostToolUse',
+    ]);
+  },
+);
+
+test('it writes a debug line for an unbound id and for a post-tool event that is no end', async () => {
+  const ctx = await setupTest('claude');
+
+  writeFileSync(join(ctx.root, 'hook-debug'), '');
+  rmSync(join(ctx.root, '.bindings', `claude-${ctx.sessionID}`));
+
+  await ctx.run(ctx.steps.ls);
+  await ctx.run({ event: 'PostToolUse', command: 'ls', output: 'a.txt' });
+
+  const lines = readFileSync(join(ctx.root, 'hook-errors.log'), 'utf8').trim().split('\n');
+
+  expect(
+    lines.map((line) => line.split(' ').slice(2).join(' ').split(' output=')[0]),
+  ).toStrictEqual([
+    'PreToolUse debug session=9e1f-trial agent=- sorted=unbound',
+    'PostToolUse debug session=9e1f-trial agent=- sorted=unbound',
+  ]);
+});
+
+test('it still wipes the gate at SessionStart when the session file cannot be read', async () => {
+  const ctx = await setupTest('claude');
+
+  await ctx.run(ctx.steps.start);
+  await ctx.run(ctx.steps.brief);
+  await ctx.run(ctx.steps.whole);
+
+  const session = join(ctx.root, 'tide-alerts', 'session');
+
+  chmodSync(session, 0o000);
+
+  const result = await ctx.run(ctx.steps.start);
+
+  chmodSync(session, 0o600);
+
+  expect({ stdout: result.stdout, exitCode: result.exitCode, gate: ctx.gate() }).toStrictEqual({
+    stdout: '',
+    exitCode: 0,
+    gate: 'state=wiped session=tide-alerts reads=0 spare=1',
+  });
+});
+
+test.each(['claude', 'codex'] as const)(
+  'it runs as it would with no fault when the hook-fault file cannot be read, on %s',
+  async (harness) => {
+    const ctx = await setupTest(harness);
+
+    mkdirSync(join(ctx.root, 'hook-fault'));
+
+    const result = await ctx.run(ctx.steps.start);
+
+    expect({
+      exitCode: result.exitCode,
+      stderr: result.stderr,
+      hasInjection: result.stdout !== '',
+    }).toStrictEqual({
+      exitCode: 0,
+      stderr: '',
+      hasInjection: true,
+    });
+  },
+);
 
 test('it never writes the text of an output into a debug line', async () => {
   const ctx = await setupTest('claude');

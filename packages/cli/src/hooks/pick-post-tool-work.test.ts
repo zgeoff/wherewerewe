@@ -29,6 +29,16 @@ test.each([
   { command: 'gh pr merge 12 --squash', nudge: true },
   { command: 'git status', nudge: false },
   { command: 'echo "git push"', nudge: false },
+  { command: 'echo gh pr create', nudge: false },
+  { command: 'echo git push', nudge: false },
+  { command: 'git commit -m push', nudge: false },
+  { command: 'grep "gh pr merge" notes.txt', nudge: false },
+  { command: "cat <<'EOF'\ngit push\nEOF", nudge: false },
+  { command: 'git add . && git commit -m x && git push', nudge: true },
+  { command: 'cd app; gh pr create --fill', nudge: true },
+  { command: 'FOO=1 gh pr create', nudge: true },
+  { command: 'gh -R bosunhq/bosun-api pr merge 12', nudge: true },
+  { command: 'git -c core.pager=cat push', nudge: true },
   { command: 'gh pr view 12', nudge: false },
 ])('it marks $command as a nudge command: $nudge', (row) => {
   const ctx = setupTest();
@@ -43,6 +53,14 @@ test('it finds the first pull request address in the output of gh pr create', ()
     'Creating pull request\nhttps://github.com/bosunhq/bosun-api/pull/77\nsee https://github.com/other/repo/pull/3';
 
   expect(ctx.pick('gh pr create --fill', response, 'claude').prRef).toBe('bosunhq/bosun-api#77');
+});
+
+test('it reads no pull request address from a command that only names gh pr create', () => {
+  const ctx = setupTest();
+
+  expect(
+    ctx.pick('echo gh pr create', 'https://github.com/example/repo/pull/7', 'claude'),
+  ).toStrictEqual({ bind: null, prRef: null, isNudgeCommand: false });
 });
 
 test('it reads no pull request address when the command is not gh pr create', () => {

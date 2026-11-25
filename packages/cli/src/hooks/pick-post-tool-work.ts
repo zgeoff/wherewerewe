@@ -1,4 +1,5 @@
 import { isSessionName } from '../rules/is-session-name.ts';
+import { collectSimpleCommands } from './collect-simple-commands.ts';
 import { scanShellCommand } from './scan-shell-command.ts';
 import { stripLineContinuations } from './strip-line-continuations.ts';
 import type { Harness } from './types.ts';
@@ -23,15 +24,44 @@ export function pickPostToolWork(
   harness: Harness,
 ): PostToolWork {
   const text = harness === 'codex' ? unwrapShell(command.trim()) : command;
-  const isPrCreate = /(?:^|[\s;&|(])gh\s+pr\s+create(?:\s|$)/u.test(text);
-  const isPrMerge = /(?:^|[\s;&|(])gh\s+pr\s+merge(?:\s|$)/u.test(text);
-  const isPush = /(?:^|[\s;&|(])git(?:\s+-\S+(?:\s+\S+)?)*\s+push(?:\s|$)/u.test(text);
+  const commands = collectSimpleCommands(stripLineContinuations(text));
+  const isPrCreate = commands.some((words) => isGhPullRequest(words, 'create'));
+  const isPrMerge = commands.some((words) => isGhPullRequest(words, 'merge'));
+  const isPush = commands.some((words) => isGitSubcommand(words, 'push'));
 
   return {
     bind: findBind(text),
     prRef: isPrCreate ? findPullRequestRef(response) : null,
     isNudgeCommand: isPrCreate || isPrMerge || isPush,
   };
+}
+
+// `gh pr <verb>`, run as a command: `gh` first, then `pr` and the verb, with any `-R repo` before.
+function isGhPullRequest(words: readonly string[], verb: string): boolean {
+  const at = words.indexOf('pr');
+
+  return findProgramName(words) === 'gh' && at > 0 && words[at + 1] === verb;
+}
+
+function findProgramName(words: readonly string[]): string | undefined {
+  return words[0]?.split('/').at(-1);
+}
+
+const gitOptionsWithValue: ReadonlySet<string> = new Set(['-C', '-c', '--git-dir', '--work-tree']);
+
+// `git <subcommand>`, run as a command, after any global options and their values.
+function isGitSubcommand(words: readonly string[], subcommand: string): boolean {
+  if (findProgramName(words) !== 'git') {
+    return false;
+  }
+
+  let at = 1;
+
+  while (words[at]?.startsWith('-') === true) {
+    at += gitOptionsWithValue.has(words[at] ?? '') ? 2 : 1;
+  }
+
+  return words[at] === subcommand;
 }
 
 const bindVerbs: ReadonlySet<string> = new Set(['init', 'attach', 'import']);

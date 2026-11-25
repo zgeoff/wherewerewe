@@ -26,6 +26,16 @@ import { readBinding } from '../sessions/read-binding.ts';
 
 const empty: HookResult = { stdout: '', stderr: '', exitCode: 0 };
 
+// What a debug line says of an event, filled in by its handler.
+interface Trace {
+  sorted: string;
+
+  // for an end, the character count of the output read and whether it held a truncation marker
+  detail: string;
+  output: string;
+  gate: string;
+}
+
 // Handles one event of one harness: parses the payload, reads the binding of the agent session
 // id, and runs the event's handler. A hook exits 0 and logs its errors, except under the fault
 // switch. It never creates a session or a store.
@@ -59,32 +69,36 @@ export async function runHookCommand(
     return empty;
   }
 
+  const trace: Trace = { sorted: 'none', detail: '', output: 'none', gate: '-' };
+
   try {
     const name = await readBoundName(context, input);
-    const stdout = await runEvent({ ...context, fault }, input, name);
+    const stdout = await runEvent({ ...context, fault }, input, { name, trace });
+
+    writeDebug(context, input, trace);
 
     return { ...empty, stdout };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'failed';
 
     writeHookLog(context, harness, input.event, message);
+    writeDebug(context, input, { ...trace, output: 'error' });
 
     return empty;
   }
 }
 
+// A fault file that cannot be read is no fault: the hook runs as it would without the switch.
 function readFault(root: string): HookFault | null {
-  const path = join(root, 'hook-fault');
+  try {
+    const value = readFileSync(join(root, 'hook-fault'), 'utf8').trim();
 
-  if (!existsSync(path)) {
+    return value === 'sleep' || value === 'exit' || value === 'garbage' || value === 'hold'
+      ? value
+      : null;
+  } catch {
     return null;
   }
-
-  const value = readFileSync(path, 'utf8').trim();
-
-  return value === 'sleep' || value === 'exit' || value === 'garbage' || value === 'hold'
-    ? value
-    : null;
 }
 
 function readBoundName(context: HookContext, input: HookInput): Promise<string | null> {
@@ -95,8 +109,18 @@ function readBoundName(context: HookContext, input: HookInput): Promise<string |
   return readBinding(context.root, { harness: input.harness, id: input.sessionID });
 }
 
-function runEvent(context: HookContext, input: HookInput, name: string | null): Promise<string> {
-  if (name === null && input.event !== 'PostToolUse') {
+interface EventRun {
+  readonly name: string | null;
+  readonly trace: Trace;
+}
+
+function runEvent(context: HookContext, input: HookInput, run: EventRun): Promise<string> {
+  const name = run.name;
+  const trace = run.trace;
+
+  if (name === null && input.event !== 'PostToolUse' && input.event !== 'PostToolUseFailure') {
+    trace.sorted = 'unbound';
+
     return Promise.resolve('');
   }
 
@@ -107,13 +131,16 @@ function runEvent(context: HookContext, input: HookInput, name: string | null): 
   };
 
   return match(input)
-    .with({ event: 'SessionStart' }, () => runSessionStart(context, target))
-    .with({ event: 'PreToolUse' }, (pre) => runPreToolUse(context, target, pre))
+    .with({ event: 'SessionStart' }, () => runSessionStart(context, target, trace))
+    .with({ event: 'PreToolUse' }, (pre) => runPreToolUse(context, target, { input: pre, trace }))
     .with({ event: 'PostToolUse' }, { event: 'PostToolUseFailure' }, (post) =>
-      runPostToolUse(context, { ...target, name }, post),
+      runPostToolUse(context, { ...target, name }, { input: post, trace }),
     )
-    .with({ event: 'SubagentStart' }, () =>
-      Promise.resolve(
+    .with({ event: 'SubagentStart' }, () => {
+      trace.sorted = 'subagent-start';
+      trace.output = 'pass-with-line';
+
+      return Promise.resolve(
         formatHookOutput({
           output: { kind: 'pass' },
           event: 'SubagentStart',
@@ -121,19 +148,18 @@ function runEvent(context: HookContext, input: HookInput, name: string | null): 
           name: target.name,
           text: gateTexts.subagentLine(target.name),
         }),
-      ),
-    )
-    .with({ event: 'Stop' }, (stop) => runStop(context, target, stop))
+      );
+    })
+    .with({ event: 'Stop' }, (stop) => runStop(context, target, { input: stop, trace }))
     .exhaustive();
 }
 
-async function runSessionStart(context: HookContext, target: GateTarget): Promise<string> {
-  const injection = await readInjection(
-    join(context.root, target.name),
-    target.name,
-    target.harness,
-    context.now(),
-  );
+async function runSessionStart(
+  context: HookContext,
+  target: GateTarget,
+  trace: Trace,
+): Promise<string> {
+  const injection = await readInjectionOrNull(context, target);
 
   const run = await runGateStep(
     context,
@@ -141,6 +167,8 @@ async function runSessionStart(context: HookContext, target: GateTarget): Promis
     { kind: 'session-start' },
     { isStart: true, waitMs: 4000 },
   );
+
+  traceRun(trace, run, 'session-start');
 
   if (injection === null) {
     writeHookLog(
@@ -162,12 +190,45 @@ async function runSessionStart(context: HookContext, target: GateTarget): Promis
     : '';
 }
 
+// A store whose `session` file cannot be read has no injection, and the wipe goes ahead: an old
+// read state never survives a start or a compaction.
+async function readInjectionOrNull(
+  context: HookContext,
+  target: GateTarget,
+): Promise<string | null> {
+  try {
+    return await readInjection(
+      join(context.root, target.name),
+      target.name,
+      target.harness,
+      context.now(),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function traceRun(trace: Trace, run: GateRun, sorted: string): void {
+  trace.sorted = sorted;
+  trace.output = run.kind === 'ran' ? run.output.kind : run.kind;
+  trace.gate = run.kind === 'ran' ? (run.line?.trim() ?? 'unchanged') : '-';
+}
+
+interface PreToolUseRun {
+  readonly input: Extract<HookInput, { event: 'PreToolUse' }>;
+  readonly trace: Trace;
+}
+
 async function runPreToolUse(
   context: HookContext,
   target: GateTarget,
-  input: Extract<HookInput, { event: 'PreToolUse' }>,
+  pre: PreToolUseRun,
 ): Promise<string> {
+  const input = pre.input;
+
   if (input.agentID !== null) {
+    pre.trace.sorted = 'subagent';
+
     return '';
   }
 
@@ -189,29 +250,15 @@ async function runPreToolUse(
     { isStart: false, waitMs: 2000 },
   );
 
-  return finishRun(context, target, 'PreToolUse', { run, sorted: call, agentID: null });
+  traceRun(pre.trace, run, call);
+
+  return formatRun(target, 'PreToolUse', run);
 }
 
-interface RunReport {
-  readonly run: GateRun;
-  readonly sorted: string;
-  readonly agentID: string | null;
-
-  // for an end, the character count of the output read and whether it held a truncation marker
-  readonly detail?: string;
-}
-
-function finishRun(
-  context: HookContext,
-  target: GateTarget,
-  event: 'PreToolUse' | 'Stop',
-  report: RunReport,
-): string {
-  writeDebug(context, target, event, report);
-
-  return report.run.kind === 'ran'
+function formatRun(target: GateTarget, event: 'PreToolUse' | 'Stop', run: GateRun): string {
+  return run.kind === 'ran'
     ? formatHookOutput({
-        output: report.run.output,
+        output: run.output,
         event,
         harness: target.harness,
         name: target.name,
@@ -220,42 +267,17 @@ function finishRun(
     : '';
 }
 
-interface DebugTarget {
-  readonly harness: Harness;
-  readonly sessionID: string;
-}
-
-// One line per event when a file named `hook-debug` is in the store root: the sorted call or end,
-// the kind of the output and the gate file line, and never the output's text.
-function writeDebug(
-  context: HookContext,
-  target: DebugTarget,
-  event: string,
-  report: RunReport,
-): void {
-  if (!existsSync(join(context.root, 'hook-debug'))) {
-    return;
-  }
-
-  const output = report.run.kind === 'ran' ? report.run.output.kind : report.run.kind;
-  const line = report.run.kind === 'ran' ? (report.run.line?.trim() ?? 'unchanged') : '-';
-
-  writeHookLog(
-    context,
-    target.harness,
-    event,
-    `debug session=${target.sessionID} agent=${report.agentID ?? '-'} sorted=${report.sorted} ${report.detail ?? ''} output=${output} gate=${line}`.replace(
-      '  ',
-      ' ',
-    ),
-  );
+interface PostToolUseRun {
+  readonly input: Extract<HookInput, { event: 'PostToolUse' | 'PostToolUseFailure' }>;
+  readonly trace: Trace;
 }
 
 async function runPostToolUse(
   context: HookContext,
   target: PostToolTarget,
-  input: Extract<HookInput, { event: 'PostToolUse' | 'PostToolUseFailure' }>,
+  post: PostToolUseRun,
 ): Promise<string> {
+  const input = post.input;
   const end = target.name === null ? null : sortBriefEnd(input, target.name);
 
   if (target.name !== null && end !== null) {
@@ -266,12 +288,11 @@ async function runPostToolUse(
       { isStart: false, waitMs: 4000 },
     );
 
-    writeDebug(context, target, 'PostToolUse', {
-      run,
-      sorted: end,
-      agentID: null,
-      detail: describeResponse(input),
-    });
+    traceRun(post.trace, run, end);
+
+    post.trace.detail = describeResponse(input);
+  } else {
+    post.trace.sorted = target.name === null ? 'unbound' : 'other-call';
   }
 
   const isSuccess =
@@ -286,6 +307,10 @@ async function runPostToolUse(
     target,
     pickPostToolWork(input.command, input.response, target.harness),
   );
+
+  if (nudge !== null) {
+    post.trace.output = 'nudge';
+  }
 
   return nudge === null
     ? ''
@@ -309,18 +334,43 @@ function describeResponse(input: HookInput): string {
   return `chars=${String(input.response.length)} marker=${String(hasMarker)}`;
 }
 
-async function runStop(
-  context: HookContext,
-  target: GateTarget,
-  input: Extract<HookInput, { event: 'Stop' }>,
-): Promise<string> {
-  if (input.agentID !== null) {
+interface StopRun {
+  readonly input: Extract<HookInput, { event: 'Stop' }>;
+  readonly trace: Trace;
+}
+
+async function runStop(context: HookContext, target: GateTarget, stop: StopRun): Promise<string> {
+  if (stop.input.agentID !== null) {
+    stop.trace.sorted = 'subagent';
+
     return '';
   }
 
-  const event: GateEvent = { kind: 'stop', stopHookActive: input.stopHookActive };
+  const event: GateEvent = { kind: 'stop', stopHookActive: stop.input.stopHookActive };
 
   const run = await runGateStep(context, target, event, { isStart: false, waitMs: 2000 });
 
-  return finishRun(context, target, 'Stop', { run, sorted: 'stop', agentID: null });
+  const sorted = stop.input.stopHookActive ? 'stop-active' : 'stop';
+
+  traceRun(stop.trace, run, sorted);
+
+  return formatRun(target, 'Stop', run);
+}
+
+// One line per event when a file named `hook-debug` is in the store root: the event, the sorted
+// call or end, the kind of the output and the gate file line, and never the output's text.
+function writeDebug(context: HookContext, input: HookInput, trace: Trace): void {
+  if (!existsSync(join(context.root, 'hook-debug'))) {
+    return;
+  }
+
+  const agentID = 'agentID' in input ? input.agentID : null;
+  const detail = trace.detail === '' ? '' : `${trace.detail} `;
+
+  writeHookLog(
+    context,
+    input.harness,
+    input.event,
+    `debug session=${input.sessionID} agent=${agentID ?? '-'} sorted=${trace.sorted} ${detail}output=${trace.output} gate=${trace.gate}`,
+  );
 }
