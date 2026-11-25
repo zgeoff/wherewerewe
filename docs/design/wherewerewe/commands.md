@@ -648,6 +648,7 @@ When the tool can fix the call, the `Run:` line is the refused command with each
 | `decide` with a `--who` other than `owner` or `agent` | `www: refused: --who on a decision is owner or agent.` `Run: www decide "Retry a 503 3 times" --why "The feed flaps" --who "<owner or agent>"` |
 | `install` finds no `wherewerewe` on `PATH` | `www: install finds no wherewerewe on PATH, and each hook entry runs it by its path.` `Run: brew install zgeoff/tap/wherewerewe` |
 | `install` finds a settings file it cannot edit as JSON | `www: install cannot read ~/.claude/settings.json as JSON settings, so it changes nothing.` `Run: www install --print` |
+| `install` finds a file that exists and cannot be read | `www: install cannot read ~/.claude/settings.json, so it changes nothing there.` `Run: www install --print` |
 | `install` finds a rules file it did not write | `www: ~/.codex/rules/wherewerewe.rules holds rules that www install did not write, so install leaves it.` `Run: www install --print` |
 | `install` finds a `www` skill it did not write, or one edited since | `www: ~/.claude/skills/www/SKILL.md holds a www skill that www install did not write, or one edited since, so install leaves it.` `Run: www install --replace-skill` |
 | a settings file changes twice while `install` runs | `www: ~/.claude/settings.json changed while install ran, so it changes nothing there.` `Run: www install` |
