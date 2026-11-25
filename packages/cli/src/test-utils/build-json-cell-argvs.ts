@@ -1,6 +1,6 @@
 import { listKinds } from '../rules/list-kinds.ts';
 
-export type JsonCellShape = 'brief' | 'show' | 'log' | 'list' | 'recap';
+type JsonCellShape = 'brief' | 'show' | 'log' | 'list' | 'recap';
 
 export interface JsonCellArgv {
   readonly shape: JsonCellShape;
