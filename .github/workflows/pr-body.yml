@@ -25,4 +25,4 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: zgeoff/tools/.github/workflows/pr-body-check.yml@a8c62d5e90a66cbee12cf64573fd0169d44bbe2c # main
+    uses: zgeoff/tools/.github/workflows/pr-body-check.yml@05782f705f2aa63e6cfa58a4e66e9b72147d77d4 # main
