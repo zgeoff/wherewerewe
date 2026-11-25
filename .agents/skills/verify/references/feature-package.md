@@ -16,8 +16,8 @@ Start a run first: steps 2 and 3 of [Check a change](../SKILL.md#check-a-change)
 bun verify use --feature package
 bun verify package build
 bun verify package install
-bun verify package run --name www --line 'help' --expect 'www (wherewerewe): what is true now in one long agent session, in one short brief.'
-bun verify package run --name wherewerewe --line 'help' --expect 'www (wherewerewe): what is true now in one long agent session, in one short brief.'
+bun verify package run --name www --line 'help' --expect 'www: notes for one long agent session, one labelled row at a time.'
+bun verify package run --name wherewerewe --line 'help' --expect 'www: notes for one long agent session, one labelled row at a time.'
 bun verify package run --name www --line=--version --expect 'wherewerewe {version}'
 ```
 

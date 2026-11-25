@@ -1,7 +1,0 @@
-id	kind	claim	check	at_write	last	written	by	extra
-t-alerts	task	Kiln alert rule fires above 1,280 °C; pushed 4c1d2e0	pr:kilnworks/pottery-app#12	-	-	2026-04-07T10:15:00Z	agent	blocked_by=w-probe
-t-docs	task	Write the alert docs page	-	-	-	2026-04-06T09:30:00Z	agent	-
-w-probe	wait	the probe vendor to confirm the sensor range	-	-	-	2026-04-06T11:00:00Z	agent	who=vendor
-ok-push	ok	push the alert branches yourself	-	-	-	2026-04-06T09:05:00Z	agent	who=owner;where=terminal;scope=pottery-app branches;standing
-r-units	rule	Store temperatures in tenths of a degree; the probe sends tenths	-	-	-	2026-04-06T09:10:00Z	agent	-
-wh-sim	where	Kiln simulator in /srv/kiln-sim; stop it with kill on its pid	path:/srv/kiln-sim	-	-	2026-04-06T09:20:00Z	agent	-

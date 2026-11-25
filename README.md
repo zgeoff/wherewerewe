@@ -12,8 +12,8 @@
   </p>
 </div>
 
-**wherewerewe** keeps the notes of one long agent session as plain files. After each compaction your
-agent runs `www` and gets back the goal, what you allowed, and what is still open.
+**wherewerewe** keeps the notes of one long agent session as short labelled rows. After each
+compaction your agent runs `www` and gets back the goal, what you allowed, and what is still open.
 
 What the agents that built and tried wherewerewe said about it, lightly edited; the second was
 written for fun.
@@ -50,18 +50,24 @@ www init tide-alerts --goal "Ship tide alerts behind the tide_alerts flag; done 
 ```
 
 Inside Claude Code or Codex, a bare `www` finds the session. Anywhere else, add
-`--session tide-alerts` to each command, as the snippets below do.
+`--session tide-alerts` to each command.
 
 ### Write as you go
 
-Record each task and decision when it happens:
+A row is one fact in one line, under any label you choose:
 
 ```text
-$ www --session tide-alerts task t-e2e "Write alerts-e2e against staging"
-t-e2e  task, open, no check. Brief: 181 of 20000 tokens.
+$ www task "Write alerts-e2e against staging" --note "Use the recorded tide fixtures"
+{"ok":true,"id":"task-1","label":"task"}
 
-$ www --session tide-alerts decide "Retry a 503 from the tide feed 3 times, 2 s apart" --why "The feed returns 503 for about 4 s during its hourly refresh" --on t-e2e
-d-1  decision on t-e2e. Read it with: www show t-e2e. Brief: 208 of 20000 tokens.
+$ www grant "merge the alert PRs once CI is green"
+{"ok":true,"id":"grant-1","label":"grant"}
+
+$ www decide "Retry a 503 from the tide feed 3 times, 2 s apart" --why "The feed returns 503 for about 4 s during its hourly refresh"
+{"ok":true,"id":"decision-1","label":"decision"}
+
+$ www done task-1 --evidence "alerts-e2e run 412 passed"
+{"ok":true,"id":"task-1","closed":"done"}
 ```
 
 ### After a compaction
@@ -69,42 +75,39 @@ d-1  decision on t-e2e. Read it with: www show t-e2e. Brief: 208 of 20000 tokens
 Run `www` and read the session back:
 
 ```text
-$ www --session tide-alerts
-tide-alerts · day 1 · Wed 2026-11-25 08:12Z · last write 0m ago · no checks
-GOAL  Ship tide alerts behind the tide_alerts flag; done when alerts-e2e passes on staging
-GRANT  from the owner in chat, 0m ago
-  may    • merge the alert PRs once CI is green
-  never  • the prod push certificate
-  reading: covers merges on green CI; kept back: the prod push certificate
-NOW  t-e2e · set 0m ago · note 0m ago
-  next: write the first alert case
-    Use the recorded tide fixtures, not the live feed.
-…
+$ www
+tide-alerts · 5 open rows · last write 2m ago
+GOAL   Ship tide alerts behind the tide_alerts flag; done when alerts-e2e passes on staging
+GRANT  grant-1  merge the alert PRs once CI is green
+NOW    Write the first alert case
+WAIT   wait-1  Review of the tide feed PR [dana]
+DECISION
+       decision-1  Retry a 503 from the tide feed 3 times, 2 s apart
+                   note: why: The feed returns 503 for about 4 s during its hourly refresh
+Everything: www rows | jq   ·   Write: www <label> "<text>"   ·   www help
 ```
 
-### Leave your agent a note
+### Find things again
 
-From a terminal outside any agent, tell it something it must not lose:
+`www rows` prints every open row as JSON lines, for `jq` and `grep`:
 
-```text
-$ www --session tide-alerts say "Use the recorded tide fixtures for e2e, not the live feed" --on t-e2e
-o-1  owner note on t-e2e. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 300 of 20000 tokens.
+```sh
+www rows | jq -r 'select(.label=="decision") | "\(.id)  \(.text)"'
+www rows --all | grep -i certificate
 ```
 
 ## Features
 
-- **[Brief](./docs/design/wherewerewe/brief.md):** the goal, the grant, owner notes, what changed,
-  open work and waits, in one read.
-- **[Checks](./docs/design/wherewerewe/checks.md):** a claim can name a pull request, branch, path
-  or process, and `www` checks it live.
-- **[The grant](./docs/design/wherewerewe/commands.md):** your words on what the agent may, may not
-  and must never do, printed whole.
-- **[Owner notes](./docs/design/wherewerewe/owner-notes.md):** you write and clear them from a
-  terminal outside any agent, and the agent cannot clear one.
-- **[Hooks](./docs/design/wherewerewe/sessions-and-hooks.md):** after a compaction, they hold the
+- **[Rows](./docs/design/wherewerewe/README.md#the-row):** every note is a labelled line of at most
+  300 characters, with an optional note of detail.
+- **[The brief](./docs/design/wherewerewe/README.md#the-brief):** the goal, the pin, the grant, the
+  next step, the waits and each other label, in one read.
+- **[The grant](./docs/design/wherewerewe/README.md#the-row):** your words on what the agent may do
+  and what you keep back, printed whole.
+- **[The gate](./docs/design/wherewerewe/README.md#the-gate):** after a compaction, hooks hold the
   agent's tool calls until it reads its brief.
-- **[Plain files](./docs/design/wherewerewe/store.md):** tab-separated text, with a journal that
-  deletes nothing, readable with `less`.
+- **[One plain file](./docs/design/wherewerewe/README.md#the-file):** JSON lines that the tool only
+  appends to, readable with `jq`.
 
 ## Documentation
 

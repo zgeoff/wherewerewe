@@ -1,21 +1,17 @@
-export type FilePlan =
-  | { readonly kind: 'refused'; readonly reason: 'unreadable' | 'foreign-rules' | 'foreign-skill' }
-  | {
-      readonly kind: 'text';
-      readonly text: string;
+export type Json = Readonly<Record<string, unknown>>;
 
-      // printed before the write: what a rule adds to a file
-      readonly notices: readonly string[];
-      readonly changedLine: string;
-      readonly sameLine: string;
-    };
+export interface Paths {
+  readonly claudeSettings: string;
+  readonly codexHooks: string;
+  readonly codexRules: string;
+  readonly codexConfig: string;
+  readonly skills: readonly string[];
+}
 
-export const allowRule = 'Bash(www *)';
-export const codexRuleLine = 'prefix_rule(pattern = ["www"], decision = "allow")';
-
-export interface DoctorCheck {
-  readonly isOk: boolean;
-
-  // `ok: …` for a pass, otherwise the failing line and each fix, as printed
-  readonly lines: readonly string[];
+// One file install writes, or one thing doctor checks.
+export interface Step {
+  readonly path: string;
+  readonly ok: boolean;
+  readonly detail: string;
+  readonly content?: string;
 }
