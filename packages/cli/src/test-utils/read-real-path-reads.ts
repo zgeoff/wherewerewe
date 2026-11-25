@@ -4,8 +4,8 @@ import { listTypeScriptFiles } from './list-type-script-files.ts';
 import { parseSourceTokens } from './parse-source-tokens.ts';
 import type { SourceToken } from './parse-source-tokens.ts';
 
-// The one test that builds a PATH of the host's own folders: it installs the packed program.
-const exemptFiles: ReadonlySet<string> = new Set(['e2e/build-packed-install.test.ts']);
+// The one test that reads the real environment: it takes the binary to run from WHEREWEREWE_BIN.
+const exemptFiles: ReadonlySet<string> = new Set(['e2e/compiled-binary.test.ts']);
 
 // Every `file:line` of a test file under src and e2e that reads the real PATH, as `process.env.PATH`
 // or any use of `process.env` as a whole, or that sets a PATH from an absolute folder: a string in

@@ -6,7 +6,7 @@
   // synced start hook in .claude/ loads agent-hooks at run time, so knip sees none of them
   "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/diet", "@zgeoff/agent-hooks"],
   "workspaces": {
-    ".": { "entry": ["rig.config.ts", "scripts/**/*.test.ts"] },
+    ".": { "entry": ["rig.config.ts", "*.test.ts", "scripts/**/*.test.ts"] },
     "packages/*": { "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts"] }
   }
 }

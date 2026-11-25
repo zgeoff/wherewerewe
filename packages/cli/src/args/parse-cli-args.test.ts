@@ -124,6 +124,7 @@ test.each([
   [['--help'], 'help', []],
   [['-h'], 'help', []],
   [['help'], 'help', []],
+  [['--version'], 'version', []],
 ])('it reads %p as the command %s with its positionals', (argv, command, positionals) => {
   const ctx = setupTest();
   const parsed = ctx.parseCLIArgs(argv);

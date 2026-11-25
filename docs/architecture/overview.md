@@ -13,8 +13,8 @@ The `@wherewerewe/cli` package in `packages/cli/` installs two commands, `www` a
 that run the same file. Agents and people type `www`, because it is short. A script or a hook calls
 `wherewerewe`, because no other common tool uses that name.
 
-The package ships its TypeScript source, and Bun runs it, so the repo has no build step.
-`ts-pattern` is its only runtime dependency.
+The package compiles to one binary per platform, and each release builds them. `ts-pattern` is its
+only runtime dependency.
 
 ## The store
 
@@ -129,9 +129,9 @@ last 10 journal rows. `show` with no id lists every open task in full and reads 
 prints the journal oldest first, kept to the rows that `--since`, `--op` and `--id` name, and sorts
 them by time. `recap` prints one screen for the owner: the grant as the brief prints it, the notes
 on open items, and the decisions and closes since `--since`, which defaults to `24h`. The `writes`
-count of `recap` leaves out `changed` rows, which a read writes. Each section has a row limit and an
-overflow line, whose command prints the rest, and the whole screen is at most 55 lines. Each line is
-at most 100 characters, except the two overflow lines that repeat a `--since` value longer than 7
+count of `recap` leaves out `changed` rows, which the brief writes. Each section has a row limit and
+an overflow line, whose command prints the rest, and the whole screen is at most 61 lines. Each line
+is at most 100 characters, except the two overflow lines that repeat a `--since` value longer than 7
 characters, which stay whole so their commands run. `show <id>`, `log` and `recap` read the journal
 in chunks and hold only the rows they need and take no lock. `show` probes its one item, `log` and
 `recap` probe nothing, and none writes. Once the session is found and its store is format 2, none is
@@ -195,8 +195,9 @@ known host, given as 8,000, 10,000 and 20,000 estimated tokens of 3 bytes each. 
 limit drops rows one at a time in a fixed cut order. Each section that lost rows ends with a line
 that counts them and names the `www list` command that prints every row of its kind. `OPEN` ends
 with its count line instead, which names `www show`, and `DECISIONS` can end with both its own count
-line and its cut line. The brief never cuts the header, the goal, the grant, the owner's notes, the
-changed rows, the item in focus with its step and note, or the footer.
+line and its cut line. The brief never cuts the header, the goal, the grant, the owner's notes (at
+most 2), the changed rows (at most 3, with an overflow line), the item in focus with its step and
+note, or the footer.
 
 The host comes from the reader's environment, `CLAUDE_CODE_SESSION_ID` for Claude Code and
 `CODEX_SESSION_ID` or `CODEX_THREAD_ID` for Codex, never from the store. The open tasks print in the
@@ -212,9 +213,9 @@ of a versioned type, whole and never cut, with each string redacted before it is
 `www goal --paste` prints the grant as a `/goal` text for the owner to paste, from the `session`
 file alone.
 
-Each read probes each check, and each open pull request in `prs.tsv` that no item names, at most 8
+The brief probes each check, and each open pull request in `prs.tsv` that no item names, at most 8
 at once, and stops waiting at the deadline that [the check design](../design/wherewerewe/checks.md)
-sets. After the deadline, no probe starts a command. The read marks each claim whose result differs
+sets. After the deadline, no probe starts a command. The brief marks each claim whose result differs
 from its `at_write`, prints the command that fixes it, and saves `last`, `changed` rows and
 `prs.tsv` states only when it takes the lock at once. A probe that gets no answer, or that the
 deadline stops, reads `unchecked`, and the item's tag shows `unchecked`. A write's reply probes

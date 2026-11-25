@@ -4,10 +4,19 @@
 
 - [Overview](./architecture/overview.md): the package, its two commands, and what works.
 
+## Guides
+
+- [Install wherewerewe](./guides/install.md): install with Homebrew or the install script, set up
+  the hooks, upgrade and remove.
+
+## Runbooks
+
+- [Releasing](./runbooks/releasing.md): the release setup, cutting a release and recovering one.
+
 ## Design
 
 - [wherewerewe](./design/wherewerewe/README.md): the design of the notes store, its commands, the
-  brief and the hooks, before it is built.
+  brief and the hooks.
 
 ## Decisions
 

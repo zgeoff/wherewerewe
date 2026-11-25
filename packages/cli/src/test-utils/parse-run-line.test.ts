@@ -1,6 +1,10 @@
 import { expect, test } from 'bun:test';
 import { parseRunLine } from './parse-run-line.ts';
 
+function setupTest() {
+  return { parseRunLine };
+}
+
 test.each([
   ['Run: www help', ['help']],
   ['Run: www', []],
@@ -22,11 +26,17 @@ test.each([
   [String.raw`Run: www task t-a 'it'\''s here!'`, ['task', 't-a', "it's here!"]],
   [String.raw`Run: www task t-a a\ b`, ['task', 't-a', 'a b']],
 ])('it splits %s into its words', (line, words) => {
-  expect(parseRunLine(line)).toStrictEqual(words);
+  const ctx = setupTest();
+
+  expect(ctx.parseRunLine(line)).toStrictEqual(words);
 });
 
 test('it throws on a shell line', () => {
-  expect(() => parseRunLine('Run: bun add -g @wherewerewe/cli@latest')).toThrow(
-    'not a www run line',
-  );
+  const ctx = setupTest();
+
+  expect(() =>
+    ctx.parseRunLine(
+      'Run: curl -fsSL https://raw.githubusercontent.com/zgeoff/wherewerewe/main/install.sh | sh',
+    ),
+  ).toThrow('not a www run line');
 });

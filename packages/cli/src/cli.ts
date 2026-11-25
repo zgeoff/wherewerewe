@@ -1,4 +1,5 @@
 #!/usr/bin/env -S bun --no-env-file --config=/dev/null
+import { realpathSync } from 'node:fs';
 import { isatty } from 'node:tty';
 import { runCLI } from './run-cli.ts';
 
@@ -14,6 +15,7 @@ const result = await runCLI({
   emit: (text) => {
     process.stdout.write(text);
   },
+  binaryPath: { execPath: process.execPath, realPath: realpathSync(process.execPath) },
 });
 
 process.stdout.write(result.stdout);

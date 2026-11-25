@@ -321,7 +321,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     .with({ kind: 'newer' }, (found): Refusal => ({
       exitCode: 5,
       lines: [`www: ${found.name} is format ${found.format}, and this www reads format 2.`],
-      runs: [{ shell: ['bun', 'add', '-g', '@wherewerewe/cli@latest'] }],
+      runs: [{ upgrade: true }],
     }))
     .with({ kind: 'broken-store' }, (found) => buildBrokenStore(found))
     .exhaustive();

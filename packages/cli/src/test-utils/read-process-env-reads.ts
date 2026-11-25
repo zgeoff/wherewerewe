@@ -4,8 +4,11 @@ import { listTypeScriptFiles } from './list-type-script-files.ts';
 import { parseSourceTokens } from './parse-source-tokens.ts';
 import type { SourceToken } from './parse-source-tokens.ts';
 
+// The compiled-binary and gate lock tests read WHEREWEREWE_BIN, the binary the smoke job hands them.
 const exemptFiles: ReadonlySet<string> = new Set([
   'src/cli.ts',
+  'e2e/compiled-binary.test.ts',
+  'e2e/cli-hook-concurrent-gate.test.ts',
   'src/test-utils/read-process-env-reads.ts',
   'src/test-utils/read-process-env-reads.test.ts',
 ]);

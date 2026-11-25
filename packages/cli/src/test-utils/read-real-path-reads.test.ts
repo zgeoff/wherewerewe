@@ -4,34 +4,46 @@ import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { readRealPathReads } from './read-real-path-reads.ts';
 
-test('it finds no test that reads the real PATH or builds one from a host folder', () => {
-  expect(readRealPathReads(join(import.meta.dir, '..', '..'))).toStrictEqual([]);
-});
-
-test('it reports a read of the real PATH and an absolute folder in a PATH, in a test file only', () => {
+function setupTest() {
   const packageDir = createTempDir('real-path-reads').path;
 
   mkdirSync(join(packageDir, 'src'));
   mkdirSync(join(packageDir, 'e2e'));
 
+  return {
+    packageDir,
+    realPackageDir: join(import.meta.dir, '..', '..'),
+    readRealPathReads,
+  };
+}
+
+test('it finds no test that reads the real PATH or builds one from a host folder', () => {
+  const ctx = setupTest();
+
+  expect(ctx.readRealPathReads(ctx.realPackageDir)).toStrictEqual([]);
+});
+
+test('it reports a read of the real PATH and an absolute folder in a PATH, in a test file only', () => {
+  const ctx = setupTest();
+
   writeFileSync(
-    join(packageDir, 'src', 'a.test.ts'),
+    join(ctx.packageDir, 'src', 'a.test.ts'),
     "const a = 1;\nconst p = [stub, process.env['PATH']].join(':');\nconst q = process?.env?.PATH;\n",
   );
 
   writeFileSync(
-    join(packageDir, 'src', 'b.test.ts'),
+    join(ctx.packageDir, 'src', 'b.test.ts'),
     "const env = { PATH: [bin, '/usr/bin'].join(':'), HOME: root };\nconst ok = { PATH: bin };\n",
   );
 
-  writeFileSync(join(packageDir, 'src', 'c.ts'), 'const p = process.env.PATH;\n');
+  writeFileSync(join(ctx.packageDir, 'src', 'c.ts'), 'const p = process.env.PATH;\n');
 
   writeFileSync(
-    join(packageDir, 'e2e', 'build-packed-install.test.ts'),
+    join(ctx.packageDir, 'e2e', 'compiled-binary.test.ts'),
     'const p = process.env.PATH;\n',
   );
 
-  expect(readRealPathReads(packageDir).toSorted()).toStrictEqual([
+  expect(ctx.readRealPathReads(ctx.packageDir).toSorted()).toStrictEqual([
     'src/a.test.ts:2',
     'src/a.test.ts:3',
     'src/b.test.ts:1',
@@ -39,13 +51,10 @@ test('it reports a read of the real PATH and an absolute folder in a PATH, in a 
 });
 
 test('it reports a host folder that reaches a PATH through a variable, a helper or an assignment', () => {
-  const packageDir = createTempDir('real-path-reads-flow').path;
-
-  mkdirSync(join(packageDir, 'src'));
-  mkdirSync(join(packageDir, 'e2e'));
+  const ctx = setupTest();
 
   writeFileSync(
-    join(packageDir, 'src', 'a.test.ts'),
+    join(ctx.packageDir, 'src', 'a.test.ts'),
     [
       "const hostBin = '/usr/bin';",
       'const env = { PATH: hostBin };',
@@ -65,11 +74,11 @@ test('it reports a host folder that reaches a PATH through a variable, a helper 
   );
 
   writeFileSync(
-    join(packageDir, 'src', 'b.test.ts'),
+    join(ctx.packageDir, 'src', 'b.test.ts'),
     'const { PATH } = process.env;\nconst copy = { ...process.env, HOME: root };\nconst home = process.env.HOME;\n',
   );
 
-  expect(readRealPathReads(packageDir).toSorted()).toStrictEqual([
+  expect(ctx.readRealPathReads(ctx.packageDir).toSorted()).toStrictEqual([
     'src/a.test.ts:2',
     'src/a.test.ts:4',
     'src/a.test.ts:6',
@@ -81,13 +90,10 @@ test('it reports a host folder that reaches a PATH through a variable, a helper 
 });
 
 test('it reports a host folder that reaches a PATH through a typed declaration or a later assignment', () => {
-  const packageDir = createTempDir('real-path-reads-typed').path;
-
-  mkdirSync(join(packageDir, 'src'));
-  mkdirSync(join(packageDir, 'e2e'));
+  const ctx = setupTest();
 
   writeFileSync(
-    join(packageDir, 'src', 'a.test.ts'),
+    join(ctx.packageDir, 'src', 'a.test.ts'),
     [
       "const typedBin: string = '/usr/bin';",
       'const first = { PATH: typedBin };',
@@ -107,7 +113,7 @@ test('it reports a host folder that reaches a PATH through a typed declaration o
     ].join('\n'),
   );
 
-  expect(readRealPathReads(packageDir)).toStrictEqual([
+  expect(ctx.readRealPathReads(ctx.packageDir)).toStrictEqual([
     'src/a.test.ts:2',
     'src/a.test.ts:5',
     'src/a.test.ts:7',

@@ -535,9 +535,33 @@ test('it refuses a store of a newer format, and writes nothing', async () => {
     result: {
       exitCode: 5,
       stdout: '',
-      stderr: `www: old-notes is format 3, and this www reads format 2.\nRun: bun add -g @wherewerewe/cli@latest${nothingWrittenComment}\n`,
+      stderr: `www: old-notes is format 3, and this www reads format 2.\nRun: curl -fsSL https://raw.githubusercontent.com/zgeoff/wherewerewe/main/install.sh | sh${nothingWrittenComment}\n`,
     },
     unchanged: before,
+  });
+});
+
+test('it tells a Homebrew binary to upgrade through brew when the store is of a newer format', async () => {
+  const ctx = setupTest();
+
+  seedStoreFile(ctx.folder, 'session', 'format=3\n');
+
+  const result = await runCLI({
+    argv: ['import', 'old-notes'],
+    env: { HOME: ctx.root, XDG_STATE_HOME: ctx.root },
+    cwd: '/work',
+    now: () => Date.parse('2026-03-10T11:43:00Z'),
+    terminal: { stdin: false, stdout: false },
+    binaryPath: {
+      execPath: '/opt/homebrew/bin/www',
+      realPath: '/opt/homebrew/Cellar/wherewerewe/0.2.0/bin/wherewerewe',
+    },
+  });
+
+  expect(result).toStrictEqual({
+    exitCode: 5,
+    stdout: '',
+    stderr: `www: old-notes is format 3, and this www reads format 2.\nRun: brew upgrade wherewerewe${nothingWrittenComment}\n`,
   });
 });
 

@@ -1,7 +1,7 @@
 # wherewerewe
 
 - **Status:** agreed
-- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0003](../../decisions/0003-checks-are-built-in-read-only-probes.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md), [0005](../../decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md), [0006](../../decisions/0006-ship-typescript-source-run-by-bun.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md), [0014](../../decisions/0014-the-gate-fails-open.md), [0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md), [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md), [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md)
+- **Decision records:** [0001](../../decisions/0001-the-store-is-plain-tsv-files.md), [0002](../../decisions/0002-sessions-bind-by-agent-session-id.md), [0003](../../decisions/0003-checks-are-built-in-read-only-probes.md), [0004](../../decisions/0004-hooks-install-once-per-machine.md), [0005](../../decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md), [0007](../../decisions/0007-hooks-do-not-build-on-agent-hooks.md), [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0013](../../decisions/0013-the-hooks-gate-until-the-agent-reads-the-brief.md), [0014](../../decisions/0014-the-gate-fails-open.md), [0015](../../decisions/0015-a-post-tool-hook-marks-the-brief-read.md), [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md), [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md), [0022](../../decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)
 
 One coding agent session runs for about two weeks and is compacted many times. Its Markdown notes file rots: the agent appends below a stale top until the file is too long to read back, and by day 9 it stops keeping notes at all. `wherewerewe` (typed as `www`) replaces the file with a store that holds one short line per thing that is true now, with an optional note of detail on each, and the owner's grant in the owner's words. It prints the state with live checks of each pull request, branch, path and process the lines name, within the limit of the agent that reads it, at most 20,000 estimated tokens and less where the host cuts shell output, with the open tasks that fit and a count of the rest. After every compaction, a hook in Claude Code and in Codex puts the goal and the grant back in context and refuses the agent's tool calls until it reads the brief whole with `www`.
 
@@ -35,7 +35,7 @@ flowchart LR
 | [checks.md](checks.md)                      | the probes, their timeouts, and what a failed or offline check prints              |
 | [sessions-and-hooks.md](sessions-and-hooks.md) | how a command and a hook find their session, the hooks, the gate, install and doctor     |
 | [owner-notes.md](owner-notes.md)            | how the owner reads the session, corrects it, and keeps their notes apart from the agent's writes, and what that does not stop |
-| [shipping.md](shipping.md)                  | the package, the built file, the runtime, and why the hooks don't use agent-hooks |
+| [shipping.md](shipping.md)                  | the compiled binaries, their release and install, and why the hooks don't use agent-hooks |
 | [skills.md](skills.md)                      | what changes in the handoff, where-were-we and pickup skills                       |
 | [build-order.md](build-order.md)            | the slices, each with what it delivers, its dependencies, its acceptance lines and its wringer feature |
 
@@ -65,7 +65,7 @@ Signing off this design authorises the build agent to take these steps when its 
 Only the owner can do these, by hand:
 
 - Trust the five new hook entries in Codex's `/hooks`.
-- Publish the first version to npm, with the one command the npm-publish skill hands over.
+- Confirm that the release App can reach wherewerewe and the tap.
 
 ## Builder decides
 

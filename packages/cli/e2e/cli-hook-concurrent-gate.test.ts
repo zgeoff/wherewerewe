@@ -10,8 +10,14 @@ import { readGateLine } from '../src/test-utils/read-gate-line.ts';
 import { seedHookStore } from '../src/test-utils/seed-hook-store.ts';
 
 async function setupTest() {
-  const program = await resolveProgram('www');
+  // the smoke job names a compiled binary, so the gate lock is proven on each platform's own runner
+  const resolved = await resolveProgram('www');
 
+  const given = [process.env['WHEREWEREWE_BIN'] ?? '']
+    .filter((path) => path !== '')
+    .map((path) => [path]);
+
+  const program = { ...resolved, command: given[0] ?? resolved.command };
   const stateHome = createTempDir('hook-concurrent').path;
   const root = join(stateHome, 'wherewerewe');
 

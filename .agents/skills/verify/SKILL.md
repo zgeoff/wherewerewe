@@ -52,6 +52,7 @@ Read a feature's file before you run its journey.
 | new-kinds   | Write a lesson, a promise and the owner's words, read them in the brief and the recap, list the rules, and close each | [references/feature-new-kinds.md](references/feature-new-kinds.md)     |
 | json        | Read the brief and a list as JSON, and print the grant as a /goal text                                                | [references/feature-json.md](references/feature-json.md)               |
 | hooks       | Pipe hook payloads through www hook for each host, and install the hooks into a temp home                             | [references/feature-hooks.md](references/feature-hooks.md)             |
+| package     | Build the binary for this machine, install it with install.sh, and run it as www and wherewerewe                      | [references/feature-package.md](references/feature-package.md)         |
 
 <!-- /wringer:features -->
 
@@ -142,18 +143,17 @@ for its commands.
 
 <!-- repo: commands -->
 
-- `bun verify www <command> ...` runs the real `www <command>` with `HOME` and `XDG_STATE_HOME`
-  inside the run's folder.
-- `bun verify www run --line '<line>' --expect '<text>'` runs that line as `www` and fails unless it
-  exits 0 and its stdout holds the text.
-- In `www run`, each `{run}` in `--line` and `--expect` is the run's folder.
-- `bun verify www make-path --name <name>` makes the folder `<run>/paths/<name>` for a `--path`
-  check, and `bun verify www remove-path --name <name>` removes it.
+- `bun verify www <command> ...` runs the real `www <command>`, with `HOME` and `XDG_STATE_HOME` in
+  the run's folder.
+- `bun verify www run --line '<line>' --expect '<text>'` fails unless that `www` line exits 0 and
+  its stdout holds the text. Each `{run}` in either is the run's folder.
+- `bun verify www make-path --name <name>` and `remove-path --name <name>` make and remove
+  `<run>/paths/<name>`, a folder for a `--path` check.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, and its stderr holds the text and `Run: <run line>`.
-- `bun verify terminal ...` drives `www` in a terminal: see
-  [feature-owner-notes.md](references/feature-owner-notes.md).
-- When the doctor check `www-help`, which runs `www help`, fails, fix `www` first.
+- `bun verify terminal ...` drives `www` in a terminal
+  ([feature-owner-notes.md](references/feature-owner-notes.md)).
+- When the `www-help` doctor check fails, fix `www` first.
 
 <!-- /repo -->
 

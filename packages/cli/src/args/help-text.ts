@@ -49,7 +49,7 @@ Checks, one per item: --pr <owner>/<repo>#<n>  --branch <repo path>@<branch>  --
 Owner, from a terminal outside any agent:  www say "<text>" [--on <id>]   www ack o-<n>
 
 Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www import <name>
-Setup:   www install [--print] [--replace-skill]   www doctor
+Setup:   www install [--print] [--replace-skill]   www doctor   www --version
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,

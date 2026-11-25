@@ -4,20 +4,29 @@ import { WringerError, createWringer, local } from '@wringer/core';
 import type { Wringer } from '@wringer/core';
 import { terminal } from '@wringer/terminal';
 import { z } from 'zod';
+import { pickHostTarget } from '../binaries/pick-host-target.ts';
+import { readReleaseVersion } from '../ship/read-release-version.ts';
 import { buildOwnerPrograms } from './build-owner-programs.ts';
+import { buildPackageInstallArgv } from './build-package-install-argv.ts';
+import { buildPackageRunArgv } from './build-package-run-argv.ts';
 import { buildWWWArgv } from './build-www-argv.ts';
+import { checkPackageInstall } from './check-package-install.ts';
+import { checkPackageRun } from './check-package-run.ts';
 import { checkWWWHelp } from './check-www-help.ts';
 import { createFilterRepo } from './create-filter-repo.ts';
 import { fillRunFolder } from './fill-run-folder.ts';
 import { makePath } from './make-path.ts';
+import { parseWWWLine } from './parse-www-line.ts';
 import { readStateRoot } from './read-state-root.ts';
 import { readWWWOutput } from './read-www-output.ts';
 import { removePath } from './remove-path.ts';
+import { runPackageBuild } from './run-package-build.ts';
 import { runWWWHook } from './run-www-hook.ts';
 import { runWWWInstall } from './run-www-install.ts';
 import { runWWWLineOnCopy } from './run-www-line-on-copy.ts';
 import { runWWWLine } from './run-www-line.ts';
 
+const repoRoot = join(import.meta.dir, '..', '..');
 const wwwOutputSchema = z.strictObject({ exitCode: z.number().int(), firstLine: z.string() });
 
 const wwwRunSchema = z.strictObject({
@@ -240,6 +249,78 @@ export function createVerifyRegistry(): Wringer {
         return Promise.resolve({ folder });
       },
     })
+    .command({
+      path: ['package', 'build'],
+      summary: 'Compile the binary for this machine into <run>/release, with its SHA256SUMS',
+      effect: 'write',
+      args: z.strictObject({}),
+      data: z.strictObject({ target: z.string() }),
+      run: async (_args, ctx) => {
+        const target = await runPackageBuild({
+          root: repoRoot,
+          releaseFolder: join(readStateRoot(ctx.endpoints), 'release'),
+          platform: process.platform,
+          arch: process.arch,
+          runCommand: (argv, cwd) =>
+            Bun.spawn([...argv], { cwd, stdio: ['ignore', 'ignore', 'inherit'] }).exited,
+        });
+
+        return { target };
+      },
+    })
+    .command({
+      path: ['package', 'install'],
+      summary:
+        'Run install.sh against <run>/release, into <run>/bin, and check that it exits 0 and prints exactly its download, installed and PATH lines',
+      effect: 'write',
+      args: z.strictObject({}),
+      data: wwwRunSchema,
+      run: async (_args, ctx) => {
+        const stateRoot = readStateRoot(ctx.endpoints);
+        const target = pickHostTarget(process.platform, process.arch) ?? 'none';
+
+        const version = await readReleaseVersion(repoRoot);
+
+        const output = await ctx.exec(
+          buildPackageInstallArgv(stateRoot, join(repoRoot, 'install.sh')),
+        );
+
+        checkPackageInstall(output, { stateRoot, target, version });
+
+        return { exitCode: output.exitCode, stdout: output.stdout, stderr: output.stderr };
+      },
+    })
+    .command({
+      path: ['package', 'run'],
+      summary:
+        'Run the installed binary --name (www or wherewerewe) with the words of --line, and check that it exits 0 and that its first line is exactly --expect, where {version} stands for the package version',
+      effect: 'write',
+      args: z.strictObject({
+        name: z.enum(['www', 'wherewerewe']),
+        line: z.string(),
+        expect: z.string(),
+      }),
+      data: wwwRunSchema,
+      run: async (args, ctx) => {
+        const output = await ctx.exec(
+          buildPackageRunArgv(
+            readStateRoot(ctx.endpoints),
+            args.name,
+            parseWWWLine(`www ${args.line}`),
+          ),
+        );
+
+        const version = await readReleaseVersion(repoRoot);
+
+        checkPackageRun(
+          `${args.name} ${args.line}`,
+          output,
+          args.expect.replaceAll('{version}', version),
+        );
+
+        return { exitCode: output.exitCode, stdout: output.stdout, stderr: output.stderr };
+      },
+    })
     .check({
       name: 'www-help',
       input: z.strictObject({}),
@@ -334,6 +415,17 @@ export function createVerifyRegistry(): Wringer {
         'Pipe hook payloads through www hook for each host, and install the hooks into a temp home',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
+    .feature({
+      name: 'package',
+      summary:
+        'Build the binary for this machine, install it with install.sh, and run it as www and wherewerewe',
+      paths: [
+        'install.sh',
+        'scripts/binaries/**',
+        'packages/cli/src/cli.ts',
+        'packages/cli/package.json',
+      ],
+    })
     .shared(
       'scripts/verify/**',
       'package.json',
@@ -351,7 +443,8 @@ export function createVerifyRegistry(): Wringer {
       '.claude/**',
       '.codex/**',
       '.github/**',
-      'scripts/dispatch-publish/**',
+      'scripts/dispatch-ship/**',
+      'scripts/ship/**',
       'scripts/verify-gate/**',
       'scripts/run-knip.sh',
       '.editorconfig',

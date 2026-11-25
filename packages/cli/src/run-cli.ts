@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
+import manifest from '../package.json' with { type: 'json' };
 import { helpText } from './args/help-text.ts';
 import { isWriteArgv, parseCLIArgs } from './args/parse-cli-args.ts';
 import { formatDuplicateNotes } from './commands/format-duplicate-notes.ts';
@@ -19,6 +20,7 @@ import { buildReadRefusal } from './refusals/build-read-refusal.ts';
 import { buildRefusalResult } from './refusals/build-refusal-result.ts';
 import { buildRefusalScope } from './refusals/build-refusal-scope.ts';
 import { buildRefusal } from './refusals/build-refusal.ts';
+import { pickUpgradeRun } from './refusals/pick-upgrade-run.ts';
 import { findListKind } from './rules/find-list-kind.ts';
 import { isOwnerTerminal } from './rules/is-owner-terminal.ts';
 import { isSessionName } from './rules/is-session-name.ts';
@@ -88,6 +90,15 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<Command
     return runSetup(input, args);
   }
 
+  if (args.command === 'version') {
+    return {
+      exitCode: 0,
+      stdout: `wherewerewe ${manifest.version}\n`,
+      stderr: '',
+      stdoutFormat: 'text',
+    };
+  }
+
   if (ownerCommands.has(args.command) && !isOwnerTerminal(input)) {
     return buildRefusalResult(
       buildRefusal({ kind: 'owner-only' }),
@@ -121,6 +132,11 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<Command
     now: input.now,
     root,
     byOwner: isOwnerTerminal(input),
+    upgradeRun: pickUpgradeRun(
+      input.binaryPath?.execPath ?? '',
+      input.binaryPath?.realPath ?? '',
+      input.env['HOME'] ?? '',
+    ),
   };
 
   const result = await match(args.command)
@@ -234,7 +250,7 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
     .with({ kind: 'hand-kept' }, { kind: 'format-1' }, { kind: 'newer' }, (unreadable) =>
       buildRefusalResult(
         buildReadRefusal(unreadable, { name, folder }),
-        buildRefusalScope(context.args, context.cwd),
+        buildRefusalScope(context.args, context.cwd, context.upgradeRun),
       ),
     )
     .with({ kind: 'broken' }, (broken) =>
@@ -242,7 +258,7 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
         ? runReadCommand(context, broken.partial, broken)
         : buildRefusalResult(
             buildReadRefusal(broken, { name, folder }),
-            buildRefusalScope(context.args, context.cwd),
+            buildRefusalScope(context.args, context.cwd, context.upgradeRun),
           ),
     )
     .exhaustive();
@@ -266,7 +282,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
       pick: args.command === 'say' ? pickSay : pickAck,
     });
 
-    return resolveWriteResult(owned, args, context.cwd);
+    return resolveWriteResult(owned, context);
   }
 
   const pick = match(args.command)
@@ -297,7 +313,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
     pick,
   });
 
-  return resolveWriteResult(written, args, context.cwd);
+  return resolveWriteResult(written, context);
 }
 
 async function runReadCommand(
@@ -343,7 +359,7 @@ function findHost(context: CommandContext): 'claude' | 'codex' | null {
   return findAgentID(context.env)?.harness ?? null;
 }
 
-function resolveWriteResult(written: RunWriteResult, args: ParsedArgs, cwd: string): CommandResult {
+function resolveWriteResult(written: RunWriteResult, context: CommandContext): CommandResult {
   return match(written)
     .with({ kind: 'replied' }, (replied) => ({
       exitCode: 0 as const,
@@ -352,7 +368,10 @@ function resolveWriteResult(written: RunWriteResult, args: ParsedArgs, cwd: stri
       stdoutFormat: 'text' as const,
     }))
     .with({ kind: 'refused' }, (refused) =>
-      buildRefusalResult(refused.refusal, buildRefusalScope(args, cwd)),
+      buildRefusalResult(
+        refused.refusal,
+        buildRefusalScope(context.args, context.cwd, context.upgradeRun),
+      ),
     )
     .exhaustive();
 }

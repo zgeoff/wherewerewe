@@ -63,7 +63,10 @@ async function replyNoSession(context: CommandContext, name: string): Promise<CL
 }
 
 function replyRefusal(refusal: Refusal, context: CommandContext): CLIResult {
-  return buildRefusalResult(refusal, buildRefusalScope(context.args, context.cwd));
+  return buildRefusalResult(
+    refusal,
+    buildRefusalScope(context.args, context.cwd, context.upgradeRun),
+  );
 }
 
 async function importStore(

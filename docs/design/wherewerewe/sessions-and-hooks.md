@@ -312,7 +312,7 @@ Codex's rule is `prefix_rule(pattern = ["www"], decision = "allow")` in a `.rule
 
 [README.md](README.md) lists each owner step for the whole build. The ones in this part:
 
-1. The build agent runs `www install`, which writes the hook entries into `~/.claude/settings.json` and `~/.codex/hooks.json`, and the allow rules into `~/.claude/settings.json` and `~/.codex/rules/wherewerewe.rules`. The owner's sign-off of the design authorises it. When the owner keeps those files in dotfiles, the agent applies `www install --print` there instead.
+1. The build agent runs `wherewerewe install`, which writes the hook entries into `~/.claude/settings.json` and `~/.codex/hooks.json`, and the allow rules into `~/.claude/settings.json` and `~/.codex/rules/wherewerewe.rules`. The owner's sign-off of the design authorises it. When the owner keeps those files in dotfiles, the agent applies `wherewerewe install --print` there instead.
 2. The build agent adds the two lines above to `~/.codex/config.toml`, under the same sign-off. The Codex allow rule runs only the `www` calls it matches outside the sandbox. The lines cover the rest, such as `wherewerewe`, an absolute path to `www` or a script with a redirect, and a Codex version that drops rules. Without them, such a Codex write fails, and such a Codex read still prints the brief without saving results.
 3. The owner opens `/hooks` in Codex and trusts the five new entries, by hand. Codex skips an untrusted hook.
 

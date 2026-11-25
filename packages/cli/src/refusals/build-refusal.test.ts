@@ -1028,14 +1028,14 @@ test.each([
     fills: [],
   },
   {
-    title: 'a store of a newer format (its Run line installs from npm)',
+    title: 'a store of a newer format (its Run line runs the install script)',
     setup: [],
     files: [{ session: 'old-notes', name: 'session', text: 'format=3\n' }],
     argv: ['--session', 'old-notes'],
     env: 'agent',
     exitCode: 5,
     stderr:
-      'www: old-notes is format 3, and this www reads format 2.\nRun: bun add -g @wherewerewe/cli@latest\n',
+      'www: old-notes is format 3, and this www reads format 2.\nRun: curl -fsSL https://raw.githubusercontent.com/zgeoff/wherewerewe/main/install.sh | sh\n',
     fills: [],
   },
   {

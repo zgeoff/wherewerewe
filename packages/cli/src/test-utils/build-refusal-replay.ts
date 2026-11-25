@@ -1,6 +1,7 @@
 import { barePlaceholders } from '../refusals/format-command-line.ts';
 import type { RefusalScope } from '../refusals/format-refusal.ts';
 import { formatRefusal, nothingWrittenComment } from '../refusals/format-refusal.ts';
+import { pickUpgradeRun } from '../refusals/pick-upgrade-run.ts';
 import type { Refusal, RunLine, RunWord } from '../types.ts';
 import { buildShellReplayLine } from './build-shell-replay-line.ts';
 import { parseRunLine } from './parse-run-line.ts';
@@ -33,7 +34,7 @@ export function buildRefusalReplay(
   return {
     script: printed.map((line) => buildShellReplayLine(line.slice('Run: '.length))).join('\n'),
     expected: scopes.flatMap((scope) =>
-      refusal.runs.map((run) => buildExpectedWords(run, scope.sessionFlag)),
+      refusal.runs.flatMap((run) => buildExpectedWords(run, scope)),
     ),
     comments: printed.map((line) => line.endsWith(nothingWrittenComment)),
     expectedComments: scopes.flatMap((scope) =>
@@ -42,15 +43,26 @@ export function buildRefusalReplay(
   };
 }
 
-function buildExpectedWords(run: RunLine, sessionFlag: string | null): string[] {
-  if ('shell' in run) {
-    return [...run.shell];
+// The words of each program a Run line starts, in the order a pipe's stand-ins print them.
+function buildExpectedWords(run: RunLine, scope: RefusalScope): string[][] {
+  if ('upgrade' in run) {
+    return buildExpectedWords(scope.upgradeRun ?? pickUpgradeRun('', '', ''), scope);
   }
+
+  if ('shell' in run) {
+    return [[...run.shell]];
+  }
+
+  if ('pipeline' in run) {
+    return run.pipeline.map((words) => [...words]);
+  }
+
+  const sessionFlag = scope.sessionFlag;
 
   if ('usage' in run) {
     const usage = parseRunLine(`Run: www ${buildShellReplayLine(run.usage)}`.trimEnd());
 
-    return ['www', ...(sessionFlag === null ? [] : ['--session', sessionFlag]), ...usage];
+    return [['www', ...(sessionFlag === null ? [] : ['--session', sessionFlag]), ...usage]];
   }
 
   const endOfFlags = run.www.indexOf('--');
@@ -61,9 +73,11 @@ function buildExpectedWords(run: RunLine, sessionFlag: string | null): string[] 
   );
 
   return [
-    'www',
-    ...(sessionFlag === null || hasSession ? [] : ['--session', sessionFlag]),
-    ...run.www.map((word) => toExpectedWord(word)),
+    [
+      'www',
+      ...(sessionFlag === null || hasSession ? [] : ['--session', sessionFlag]),
+      ...run.www.map((word) => toExpectedWord(word)),
+    ],
   ];
 }
 

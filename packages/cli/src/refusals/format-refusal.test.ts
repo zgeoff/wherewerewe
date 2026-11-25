@@ -11,6 +11,7 @@ import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import type { RunWord } from '../types.ts';
 import { buildRefusal } from './build-refusal.ts';
 import { formatRefusal, nothingWrittenComment } from './format-refusal.ts';
+import { pickUpgradeRun } from './pick-upgrade-run.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
 function setupTest() {
@@ -21,12 +22,24 @@ function setupTest() {
 
   seedStubCommand(bin, 'www', `printf 'www\\n'; printf '%s\\n' "$@"`);
   seedStubCommand(bin, 'less', `printf 'less\\n'; printf '%s\\n' "$@"`);
+  seedStubCommand(bin, 'brew', `printf 'brew\\n'; printf '%s\\n' "$@"`);
+
+  // a download that echoes its arguments to stderr, and answers with the script that the install
+  // script would be: the pipe then runs a real sh, and no network is reached
+  seedStubCommand(
+    bin,
+    'curl',
+    `printf 'curl %s\\n' "$*" >&2; echo 'echo "installer-ran:$WHEREWEREWE_INSTALL_DIR"'`,
+  );
 
   // each argument ends in a unit separator and each call in a record separator, so an argument can
   // hold any character but those two
   seedStubCommand(replayBin, 'www', String.raw`printf '%s\037' www "$@"; printf '\036'`);
   seedStubCommand(replayBin, 'less', String.raw`printf '%s\037' less "$@"; printf '\036'`);
-  seedStubCommand(replayBin, 'bun', String.raw`printf '%s\037' bun "$@"; printf '\036'`);
+  seedStubCommand(replayBin, 'curl', String.raw`printf '%s\037' curl "$@"; printf '\036'`);
+
+  // the pipe's end hands on what the stand-in before it printed, then records itself
+  seedStubCommand(replayBin, 'sh', String.raw`cat; printf '%s\037' sh "$@"; printf '\036'`);
   mkdirSync(cwd);
 
   // the flags a refusal's Run line may leave out: one whose own presence is what it refuses, or
@@ -155,13 +168,100 @@ test('it prints a shell run as it is', () => {
     {
       exitCode: 5,
       lines: ['www: x'],
-      runs: [{ shell: ['bun', 'add', '-g', '@wherewerewe/cli@latest'] }],
+      runs: [{ shell: ['brew', 'upgrade', 'wherewerewe'] }],
     },
     { sessionFlag: 'tide-alerts', writes: false },
   );
 
-  expect(text).toBe('www: x\nRun: bun add -g @wherewerewe/cli@latest\n');
+  expect(text).toBe('www: x\nRun: brew upgrade wherewerewe\n');
 });
+
+test('it prints a pipeline as each command, quoted, joined by a pipe', () => {
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
+    {
+      exitCode: 5,
+      lines: ['www: x'],
+      runs: [{ pipeline: [['curl', '-fsSL', 'https://example.com/a b.sh'], ['sh']] }],
+    },
+    { sessionFlag: 'tide-alerts', writes: false },
+  );
+
+  expect(text).toBe('www: x\nRun: curl -fsSL "https://example.com/a b.sh" | sh\n');
+});
+
+test.each([
+  {
+    title: 'the install script when the scope holds no upgrade line',
+    scope: { sessionFlag: null, writes: false },
+    line: 'Run: curl -fsSL https://raw.githubusercontent.com/zgeoff/wherewerewe/main/install.sh | sh',
+  },
+  {
+    title: 'the line of the scope',
+    scope: {
+      sessionFlag: null,
+      writes: false,
+      upgradeRun: { shell: ['brew', 'upgrade', 'wherewerewe'] },
+    },
+    line: 'Run: brew upgrade wherewerewe',
+  },
+])('it prints an upgrade run as $title', (row) => {
+  const ctx = setupTest();
+
+  const text = ctx.formatRefusal(
+    { exitCode: 5, lines: ['www: x'], runs: [{ upgrade: true }] },
+    row.scope,
+  );
+
+  expect(text).toBe(`www: x\n${row.line}\n`);
+});
+
+test.each([
+  {
+    title: 'brew when the binary came from Homebrew',
+    paths: ['/opt/homebrew/bin/www', '/opt/homebrew/Cellar/wherewerewe/0.2.0/bin/wherewerewe'],
+    stdout: 'brew\nupgrade\nwherewerewe\n',
+    stderr: '',
+  },
+  {
+    title: 'the install script, which a real sh runs, for the default folder',
+    paths: ['/Users/river/.local/bin/www', '/Users/river/.local/bin/wherewerewe'],
+    stdout: 'installer-ran:\n',
+    stderr: 'curl -fsSL https://raw.githubusercontent.com/zgeoff/wherewerewe/main/install.sh\n',
+  },
+  {
+    title: 'the install script, with the folder of the binary, for a folder with a space in it',
+    paths: ['/srv/my tools/bin/www', '/srv/my tools/bin/wherewerewe'],
+    stdout: 'installer-ran:/srv/my tools/bin\n',
+    stderr: 'curl -fsSL https://raw.githubusercontent.com/zgeoff/wherewerewe/main/install.sh\n',
+  },
+])(
+  'it prints a refusal of a newer store whose Run line a POSIX shell runs as printed, with $title',
+  async (row) => {
+    const ctx = setupTest();
+    const [execPath = '', realPath = ''] = row.paths;
+
+    const text = ctx.formatRefusal(
+      buildRefusal({ kind: 'newer', name: 'old-notes', format: '3' }),
+      {
+        sessionFlag: null,
+        writes: true,
+        upgradeRun: pickUpgradeRun(execPath, realPath, '/Users/river'),
+      },
+    );
+
+    const last = text.trimEnd().split('\n').at(-1) ?? '';
+
+    const replayed = await ctx.runInShell(last.slice('Run: '.length));
+
+    expect({
+      exitCode: replayed.exitCode,
+      stdout: replayed.stdout,
+      stderr: replayed.stderr,
+    }).toStrictEqual({ exitCode: 0, stdout: row.stdout, stderr: row.stderr });
+  },
+);
 
 test('it redacts a --session value that looks like a credential', () => {
   const ctx = setupTest();
