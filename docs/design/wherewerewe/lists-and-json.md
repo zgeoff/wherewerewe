@@ -22,7 +22,7 @@ Three reads that slice 3b adds: `www list <kind>`, which prints every row of a k
 | decisions | `www list decisions` | the decisions in force, newest first; `www log --op decide,ruled-out` keeps the history |
 | pull request rows | `www list prs` | the open pull requests no item names |
 
-`www list <kind>` prints every open row of the kind whole, in the brief's order, with each item's note under it as `www show` prints it. It runs no check, so each tag shows the result the last read saved, and it never takes the lock. It is a subcommand of its own because `www show <word>` reads its argument as an item id, and a task can have any id. `www list` with no kind, or an unknown one, exits 2 with `Run: www list tasks`. A kind with no open row prints its heading with a zero count, such as `RULES (0, max 15)`, `DECISIONS (0 in force)` or `PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (0)`, and exits 0; `www list notes` with no note prints nothing and exits 0.
+`www list <kind>` prints every open row of the kind whole, in the brief's order unless the table gives another, with each item's note under it as `www show` prints it. It runs no check, so each tag shows the result the last read saved, and it never takes the lock. It is a subcommand of its own because `www show <word>` reads its argument as an item id, and a task can have any id. `www list` with no kind, or an unknown one, exits 2 with `Run: www list tasks`. A kind with no open row prints its heading with a zero count, such as `RULES (0, max 15)`, `DECISIONS (0 in force)` or `PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (0)`, and exits 0; `www list notes` with no note prints nothing and exits 0.
 
 ```text
 $ www list tasks

@@ -177,7 +177,7 @@ Each of these orderings starts from `wiped`:
 
 #### The `www` commands, the refusal and the injection
 
-A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with a separator, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. The hook reads the command as the shell does:
+A shell command passes the gate in every state when it is one `www` or `wherewerewe` command, bare or as an absolute path ending in that name, with any redirects but a heredoc, optionally piped to `head`, `tail`, `grep`, `wc` or `sort`, so the agent can run the `Run: www import <name>` line of an exit 5. A command with a separator, or a pipe to any other command, is gated like any other call, so a call chained after `www` never skips the gate. The hook reads the command as the shell does:
 
 - The hook first removes each backslash that ends a line, with its line break, outside single quotes, as the shell does.
 - `;`, `&&`, `||`, `&`, a line break and a process substitution, `<(` or `>(`, are separators, and `|` is a pipe, only outside quotes, single or double, and only when no backslash escapes them.
