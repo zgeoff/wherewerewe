@@ -110,7 +110,7 @@ The five read commands take `--json`: the brief (`www --json`, with or without `
 - A cell that is `-` on disk is `null` in every shape. A journal row's `extra` stays the string the journal holds, such as `on=pr-api-77;who=agent`, or `null`.
 - `open` holds the items of `items.tsv` in the order their sections print in the text brief, each with its note. Lessons, promises and the owner's words are in their own arrays, so no row appears twice.
 - Each item's `last` is what the text form's tag shows: in the brief, the result this read got, whether or not the read could save it; in `www list`, the result the last brief saved. `changed` holds every changed row whole. `next` is `null` whenever the text brief hides the next step.
-- `www show grant` with no grant prints one subject, `{ kind: 'grant', row: null }`, with `journal` holding every `grant` row. A closed item, an id with journal rows only, and an id with no row print `"subjects":[]`.
+- `www show grant` with no grant prints one subject, `{ kind: 'grant', row: null }`, with `journal` holding every `grant` row. A closed item, an id other than a decision id that has journal rows only, and an id with no row print `"subjects":[]`; a decision id prints its decision subject.
 - A recap whose journal cannot be read holds `null` for `writes`, `decidedSince` and `closedSince`, and the text form's reason goes to stderr.
 - Each string value, an object key included, passes the credential redaction before it is encoded, so the output is always valid JSON.
 - Each value carries `v: 1`. A new field keeps the version, and a removed or renamed field raises it.

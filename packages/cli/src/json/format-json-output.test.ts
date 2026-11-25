@@ -212,8 +212,9 @@ test('it prints a value at every field of every kind of row in every shape, and 
             entry.key === extra?.['key'] && !entry.kinds.some((kind) => kind === extra['kind']),
         ),
 
-        // a rule refuses a check, and only a pid: check stores a pid_start
-        /\{kind=rule\}\.(?:row\.check|row\.extra\.pid_start|checkedNow)$/u.test(path),
+        // a rule refuses a check, so it holds no result of one, and only a pid: check stores a
+        // pid_start
+        /\{kind=rule\}\.(?:row\.(?:check|atWrite|last|extra\.pid_start)|checkedNow)$/u.test(path),
 
         // a list of one kind holds rows of that kind only
         listed !== undefined && listRowKinds.get(listed['list'] ?? '') !== listed['kind'],
@@ -296,6 +297,17 @@ test('it places every string field of every shape in the table, a named row or a
         'list|rows.[].note.note',
         'recap|notes.[].item.note.note',
         'recap|notes.[].note.note',
+      ],
+    },
+    {
+      reason:
+        "a probe writes a check's result from a fixed set; the wait's at-write cell covers the redaction of a hand-edited one",
+      paths: [
+        'brief|open.[].row.last',
+        'show|subjects.[].row.last',
+        'list|rows.[].row.last',
+        'recap|notes.[].item.row.atWrite',
+        'recap|notes.[].item.row.last',
       ],
     },
     {
@@ -486,6 +498,7 @@ test("it leaves out the task's note row that holds a credential, keeps the other
           written: '2026-03-10T07:00:00Z',
           note: 'Stop it with the kill switch',
         },
+        { id: 't-b', owed: false, written: '2026-03-10T06:00:00Z', note: 'Clear the old cache' },
       ],
       names: true,
       leaked: false,

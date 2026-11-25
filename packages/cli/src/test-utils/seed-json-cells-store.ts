@@ -31,8 +31,6 @@ export const plainCells: Readonly<Record<string, string>> = {
   'approval where': 'slack',
   'approval scope': 'in the sailing app',
   'rule claim': 'Show depths in metres',
-  'rule at write': 'clean at write',
-  'rule last': 'stale since the spec moved',
   'rule written': '2026-03-09T16:20:00Z',
   'where claim': 'The chart API lives in the sailing app',
   goal: 'Ship the tide chart',
@@ -119,7 +117,7 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
       check: cell('task check'),
       atWrite: 'missing',
       last: 'missing',
-      extra: { blocked_by: cell('task blocked by'), pid_start: cell('task pid start') },
+      extra: { blocked_by: cell('task blocked by') },
     }),
 
     // no process has this pid, so each read finds it gone, as it was at write
@@ -130,7 +128,7 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
       check: 'pid:2147483647',
       atWrite: 'gone',
       last: 'gone',
-      extra: { pid_start: '1800000001' },
+      extra: { pid_start: cell('task pid start') },
     }),
 
     // the check found the path at write, and this read finds it gone, so the item changed
@@ -167,8 +165,6 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
       id: 'r-a',
       kind: 'rule',
       claim: cell('rule claim'),
-      atWrite: cell('rule at write'),
-      last: cell('rule last'),
       written: cell('rule written'),
     }),
     item({
@@ -332,7 +328,14 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
   seedStoreFile(
     folder,
     'notes.tsv',
-    formatNotesFile([note, ruleNote, approvalNote, waitNote, whereNote]),
+    formatNotesFile([
+      note,
+      ruleNote,
+      approvalNote,
+      waitNote,
+      whereNote,
+      { id: 't-b', owed: false, written: '2026-03-10T06:00:00Z', note: 'Clear the old cache' },
+    ]),
   );
 
   seedStoreFile(folder, 'lessons.tsv', formatLessonsFile([lesson]));

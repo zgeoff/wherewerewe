@@ -71,10 +71,10 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: true,
       reads: [
-        brief('open', 0, 'row', 'extra', 'pid_start'),
-        show('t-a', 'subjects', 0, 'row', 'extra', 'pid_start'),
-        list('tasks', 'rows', 0, 'row', 'extra', 'pid_start'),
-        recap('notes', 0, 'item', 'row', 'extra', 'pid_start'),
+        brief('open', 1, 'row', 'extra', 'pid_start'),
+        show('t-b', 'subjects', 0, 'row', 'extra', 'pid_start'),
+        list('tasks', 'rows', 1, 'row', 'extra', 'pid_start'),
+        recap('notes', 5, 'item', 'row', 'extra', 'pid_start'),
       ],
     },
     {
@@ -192,18 +192,6 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
         list('rules', 'rows', 0, 'row', 'claim'),
       ],
     },
-    ...['atWrite', 'last'].map((field) => ({
-      cell: field === 'atWrite' ? 'rule at write' : 'rule last',
-      limit: textLimits.claim,
-      prefix: '',
-      isSeparated: false,
-      reads: [
-        brief('open', 5, 'row', field),
-        show('r-a', 'subjects', 0, 'row', field),
-        list('rules', 'rows', 0, 'row', field),
-        recap('notes', 1, 'item', 'row', field),
-      ],
-    })),
     {
       cell: 'where claim',
       limit: textLimits.claim,
