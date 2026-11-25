@@ -1,7 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { match } from 'ts-pattern';
+import { buildAgentFileName } from '../sessions/build-agent-file-name.ts';
+import { checkPlainFolder } from '../store/check-plain-folder.ts';
 import { readTextOrNull } from '../store/read-text-or-null.ts';
+import { writeAppendNoFollow } from '../store/write-append-no-follow.ts';
 import { writeFileAtomic } from '../store/write-file-atomic.ts';
 import { formatGateFile } from './format-gate-file.ts';
 import { parseGateFile } from './parse-gate-file.ts';
@@ -46,12 +49,21 @@ export async function runGateStep(
   event: GateEvent,
   options: GateStepOptions,
 ): Promise<GateRun> {
-  const gatePath = join(context.root, '.gate', `${target.harness}-${target.sessionID}`);
+  const gatePath = join(
+    context.root,
+    '.gate',
+    buildAgentFileName({ harness: target.harness, id: target.sessionID }),
+  );
+
   const eventName = event.kind;
 
   if (options.isStart) {
     mkdirSync(dirname(gatePath), { recursive: true });
-  } else if (!existsSync(gatePath)) {
+  }
+
+  checkPlainFolder(dirname(gatePath));
+
+  if (!options.isStart && !existsSync(gatePath)) {
     return { kind: 'no-file' };
   }
 
@@ -120,7 +132,7 @@ async function applyStep(request: StepRequest): Promise<GateRun> {
 // The fault `hold` keeps the lock until the file `hook-fault` is removed, so a proof can kill the
 // process while it holds the lock. It writes `hook-held` first, so the proof knows the lock is taken.
 async function holdLock(context: HookContext): Promise<void> {
-  writeFileSync(join(context.root, 'hook-held'), '');
+  writeAppendNoFollow(join(context.root, 'hook-held'), '');
 
   while (existsSync(join(context.root, 'hook-fault'))) {
     await context.sleep(20);

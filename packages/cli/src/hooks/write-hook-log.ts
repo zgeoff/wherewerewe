@@ -1,6 +1,7 @@
-import { appendFileSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { formatTimestamp } from '../format-timestamp.ts';
+import { writeAppendNoFollow } from '../store/write-append-no-follow.ts';
 import { writeFileAtomic } from '../store/write-file-atomic.ts';
 
 const keptLines = 200;
@@ -22,7 +23,7 @@ export function writeHookLog(
   const line = `${formatTimestamp(context.now())} ${harness} ${event} ${message.replaceAll('\n', ' ')}\n`;
 
   try {
-    appendFileSync(path, line);
+    writeAppendNoFollow(path, line);
 
     const lines = readFileSync(path, 'utf8')
       .split('\n')

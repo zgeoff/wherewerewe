@@ -14,7 +14,8 @@ export interface HookEnvelope {
   readonly stopHookActive: boolean;
 }
 
-// Null when the text is not a JSON object with an event name and a session id.
+// Null when the text is not a JSON object with an event name and a session id that a file name can
+// hold.
 export function parseHookEnvelope(text: string): HookEnvelope | null {
   const payload = parseJSON(text);
 
@@ -29,7 +30,7 @@ export function parseHookEnvelope(text: string): HookEnvelope | null {
   const toolName = payload['tool_name'];
   const toolInput = payload['tool_input'];
 
-  if (typeof event !== 'string' || typeof sessionID !== 'string' || sessionID === '') {
+  if (typeof event !== 'string' || typeof sessionID !== 'string' || !isAgentID(sessionID)) {
     return null;
   }
 
@@ -53,4 +54,10 @@ function parseJSON(text: string): unknown {
   } catch {
     return null;
   }
+}
+
+// An id names the session's binding and gate files, so it holds letters, digits and dashes only,
+// as findAgentID takes one from the environment.
+function isAgentID(id: string): boolean {
+  return /^[A-Za-z0-9-]+$/u.test(id);
 }

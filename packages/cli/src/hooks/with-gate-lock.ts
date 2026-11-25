@@ -1,5 +1,5 @@
 import { FFIType, dlopen } from 'bun:ffi';
-import { closeSync, openSync } from 'node:fs';
+import { closeSync, constants, openSync } from 'node:fs';
 
 export type GateLockResult<Value> =
   | { readonly kind: 'ran'; readonly value: Value }
@@ -31,7 +31,11 @@ export async function withGateLock<Value>(
     return { kind: 'unavailable', reason: flock };
   }
 
-  const handle = openSync(`${gatePath}.lock`, 'a');
+  const handle = openSync(
+    `${gatePath}.lock`,
+    constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | constants.O_NOFOLLOW,
+    0o666,
+  );
 
   try {
     const deadlineMs = performance.now() + options.waitMs;

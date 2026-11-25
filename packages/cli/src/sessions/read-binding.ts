@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AgentID } from '../types.ts';
+import { buildAgentFileName } from './build-agent-file-name.ts';
 
 export async function readBinding(root: string, agent: AgentID): Promise<string | null> {
   try {
-    const text = await readFile(join(root, '.bindings', `${agent.harness}-${agent.id}`), 'utf8');
+    const text = await readFile(join(root, '.bindings', buildAgentFileName(agent)), 'utf8');
 
     const match = /^name=(?<name>.+)$/mu.exec(text);
 

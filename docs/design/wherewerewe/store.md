@@ -277,6 +277,7 @@ interface PrRow {
 - A read takes `lock` only to save check results and `changed` rows. When `lock` is held or the folder is not writable, the read still prints the brief and saves nothing. See [brief.md](brief.md) for the header in that case.
 - The journal is never rewritten, with two exceptions: `www import` rewrites a hand-kept journal into the current format once, after it copies the original into `import-backup/`, and the format 2 upgrade writes `journal.tsv` again: every format 1 row unchanged, then the upgrade's own rows. Nothing prints the journal whole, except `www log` with no filter.
 - A session folder is never deleted by the tool.
+- Every write lands inside the store root. A write refuses to follow a link at a session folder, `.bindings`, `.gate`, or a file it appends to or creates in place, such as `journal.tsv`, `hook-errors.log` or a gate lock, and stops with an error. An agent session id names a binding or gate file only when it holds letters, digits and dashes alone. An agent can write in the store, so a link it plants there could otherwise carry an allowed `www` write to a file outside it.
 
 ## Versions
 

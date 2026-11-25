@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { checkPlainFolder } from './check-plain-folder.ts';
 import { createLockFiles } from './create-lock-files.ts';
 import { removeLockIfUnchanged } from './remove-lock-if-unchanged.ts';
 import type { LockAttempt } from './take-store-lock.ts';
@@ -16,6 +17,8 @@ export async function withStoreLock<Value>(
   fn: () => Promise<Value>,
   options: { readonly waitMs?: number; readonly files?: LockFiles } = {},
 ): Promise<LockResult<Value>> {
+  checkPlainFolder(folder);
+
   const files = options.files ?? createLockFiles();
   const lockPath = join(folder, 'lock');
 
