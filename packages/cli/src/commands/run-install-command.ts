@@ -100,7 +100,12 @@ function text(stdout: string): CommandResult {
   return { exitCode: 0, stdout, stderr: '', stdoutFormat: 'text' };
 }
 
-function refuseItem(context: InstallContext, item: InstallItem, plan: FilePlan): CommandResult {
+function refuseItem(
+  context: InstallContext,
+  item: InstallItem,
+  plan: FilePlan,
+  hasWritten = false,
+): CommandResult {
   const reason = plan.kind === 'refused' ? plan.reason : 'unreadable';
 
   if (reason === 'foreign-rules') {
@@ -108,6 +113,7 @@ function refuseItem(context: InstallContext, item: InstallItem, plan: FilePlan):
       context.cwd,
       [`www: ${item.shown} holds rules that www install did not write, so install leaves it.`],
       [{ www: ['install', '--print'] }],
+      hasWritten,
     );
   }
 
@@ -118,6 +124,7 @@ function refuseItem(context: InstallContext, item: InstallItem, plan: FilePlan):
         `www: ${item.shown} holds a www skill that www install did not write, or one edited since, so install leaves it.`,
       ],
       [{ www: ['install', '--replace-skill'] }],
+      hasWritten,
     );
   }
 
@@ -125,6 +132,7 @@ function refuseItem(context: InstallContext, item: InstallItem, plan: FilePlan):
     context.cwd,
     [`www: install cannot read ${item.shown} as JSON settings, so it changes nothing.`],
     [{ www: ['install', '--print'] }],
+    hasWritten,
   );
 }
 
@@ -163,6 +171,7 @@ function writeItems(
   config: string,
 ): CommandResult {
   const lines: string[] = [];
+  let hasWritten = false;
 
   for (const item of items) {
     moveForeignSkill(context, item);
@@ -188,6 +197,7 @@ function writeItems(
           context.cwd,
           [`www: ${item.shown} changed while install ran, so it changes nothing there.`],
           [{ www: ['install'] }],
+          hasWritten,
         ),
         stdout: lines.map((line) => `${line}\n`).join(''),
       };
@@ -195,10 +205,12 @@ function writeItems(
 
     if (result.kind === 'refused') {
       return {
-        ...refuseItem(context, item, used),
+        ...refuseItem(context, item, used, hasWritten),
         stdout: lines.map((line) => `${line}\n`).join(''),
       };
     }
+
+    hasWritten ||= result.kind === 'written';
 
     lines.push(...describeWrite(used, item, result));
   }

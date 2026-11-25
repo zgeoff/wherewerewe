@@ -80,7 +80,7 @@ function replaceFile(
 
   mkdirSync(dirname(target), { recursive: true });
 
-  const mode = before === null ? replacement.newMode : statSync(target).mode % 0o1000;
+  const mode = before === null ? replacement.newMode : statSync(target).mode & 0o7777;
   const backup = before === null ? null : `${target}.www-backup`;
 
   if (backup !== null && before !== null) {

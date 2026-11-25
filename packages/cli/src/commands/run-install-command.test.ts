@@ -298,6 +298,35 @@ test('it keeps both writes when the file changes between its read and its rename
   });
 });
 
+test('it never says nothing was written when a later file changes on each try after an earlier one was written', () => {
+  const ctx = setupTest();
+  let tries = 0;
+
+  ctx.place(ctx.paths.claudeSettings, '{\n  "model": "opus"\n}\n');
+
+  const result = ctx.runWith({
+    beforeRename: (path) => {
+      if (path === ctx.paths.codexHooks) {
+        tries += 1;
+
+        writeFileSync(path, `{"hooks": {}, "try": ${String(tries)}}\n`);
+      }
+    },
+  });
+
+  expect({
+    exitCode: result.exitCode,
+    claudeHasHooks: 'hooks' in parseSettingsJson(ctx.read(ctx.paths.claudeSettings)),
+    saysNothingWritten: result.stderr.includes('nothing was written'),
+    saysChanged: result.stderr.includes('changed while install ran'),
+  }).toStrictEqual({
+    exitCode: 3,
+    claudeHasHooks: true,
+    saysNothingWritten: false,
+    saysChanged: true,
+  });
+});
+
 test('it says what it adds and the limits that apply before it changes any file', () => {
   const ctx = setupTest();
 

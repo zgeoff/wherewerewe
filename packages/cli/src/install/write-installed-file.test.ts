@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -70,6 +71,17 @@ test('it keeps the mode of an existing file and copies the old bytes to a backup
     backup: 'old\n',
     backupMode: 0o640,
   });
+});
+
+test('it keeps the sticky bit of an existing file with its permission bits', () => {
+  const ctx = setupTest();
+
+  writeFileSync(ctx.path, 'old\n');
+  chmodSync(ctx.path, 0o1640);
+
+  ctx.write(() => 'new\n');
+
+  expect(statSync(ctx.path).mode & 0o7777).toBe(0o1640);
 });
 
 test('it replaces an older backup', () => {
