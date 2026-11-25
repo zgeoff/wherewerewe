@@ -28,8 +28,9 @@ bun verify www run --line 'www --session trial-notes' --expect 'trial-notes · 3
 ## End state
 
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text: each write
-  answers with one JSON line that holds the row's id, the brief counts four open rows and prints the
-  wait with who it is on and the task with its new text, and after `done` the brief counts three.
+  answers with one JSON line that holds the row's id, the brief counts four open rows, which are the
+  goal, the task, the wait and the next step, and prints the wait with who it is on and the task
+  with its new text, and after `done` the brief counts three.
 - `bun verify www refuse` exits 0: `www` refused the wait with no `--who`, exit 2, and its stderr
   holds the reason.
 - When a command fails, follow its row in [Exit codes](exit-codes.md) (step 4 of

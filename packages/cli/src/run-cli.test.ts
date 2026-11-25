@@ -332,3 +332,55 @@ test('it refuses a command that version 0.1 had, and writes no row for it', asyn
     rows: [expect.objectContaining({ id: 'goal' })],
   });
 });
+
+test('it gives two writers at once two ids, and both rows land', async () => {
+  const ctx = await setupTest();
+
+  const replies = await Promise.all([
+    ctx.json(['task', 'Check the apples']),
+    ctx.json(['task', 'Check the pears']),
+  ]);
+
+  const rows = await ctx.json(['rows']);
+
+  const ids = replies.flat().map((reply) => JSON.stringify(reply));
+
+  expect({ ids: ids.toSorted(), rows }).toStrictEqual({
+    ids: ['{"ok":true,"id":"task-1","label":"task"}', '{"ok":true,"id":"task-2","label":"task"}'],
+    rows: [
+      expect.objectContaining({ id: 'goal' }),
+      expect.objectContaining({ label: 'task' }),
+      expect.objectContaining({ label: 'task' }),
+    ],
+  });
+});
+
+test('it keeps a write that follows a line cut short, and skips a row with a note that is no text', async () => {
+  const ctx = await setupTest();
+
+  const rowsPath = join(ctx.root, 'tide', 'rows.jsonl');
+
+  await appendFile(rowsPath, '{"id":"odd","label":"task","text":"Odd","note":42}\n{"torn":');
+
+  await ctx.www(['task', 'Check the frost']);
+
+  const brief = await ctx.www([]);
+
+  expect(brief.stdout.split('\n').filter((line) => /unreadable|frost/u.test(line))).toStrictEqual([
+    expect.stringContaining('2 unreadable lines skipped'),
+    'TASK   task-1  Check the frost',
+  ]);
+});
+
+test('it keeps both the reason and the note of a decision', async () => {
+  const ctx = await setupTest();
+
+  await ctx.www(['decide', 'Count saplings', '--why', 'The stand is young', '--note', 'West gate']);
+
+  const rows = await ctx.json(['rows']);
+
+  expect(rows).toStrictEqual([
+    expect.objectContaining({ id: 'goal' }),
+    expect.objectContaining({ id: 'decision-1', note: 'why: The stand is young\nWest gate' }),
+  ]);
+});

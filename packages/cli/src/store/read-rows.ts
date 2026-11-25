@@ -47,6 +47,8 @@ function isRow(value: unknown): value is Row {
     isRecord(value) &&
     typeof value['id'] === 'string' &&
     typeof value['label'] === 'string' &&
-    typeof value['text'] === 'string'
+    typeof value['text'] === 'string' &&
+    ['undefined', 'string'].includes(typeof value['note']) &&
+    ['undefined', 'string'].includes(typeof value['who'])
   );
 }

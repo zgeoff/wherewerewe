@@ -44,7 +44,7 @@ function isOurs(group: unknown, harness: Harness): boolean {
 
       return (
         typeof command === 'string' &&
-        new RegExp(`wherewerewe"?'? hook ${harness}$`, 'u').test(command)
+        new RegExp(`(?:^|[/"' ])wherewerewe"?'? hook ${harness}$`, 'u').test(command)
       );
     })
   );

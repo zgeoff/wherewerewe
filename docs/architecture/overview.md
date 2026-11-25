@@ -45,7 +45,7 @@ and writes `rows.jsonl`, and later reads never look at the old files.
 ## The brief and the rows
 
 `www` prints the brief, a text view of the open rows grouped by label. `www rows` prints the same
-rows as JSON lines. Both read the store the same way, and neither writes.
+rows as JSON lines. Both read the store the same way, and neither changes a row.
 
 ## The gate
 

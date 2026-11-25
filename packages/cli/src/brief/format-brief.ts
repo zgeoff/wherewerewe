@@ -59,7 +59,12 @@ function formatAge(from: string, now: number): string {
 }
 
 function formatSection(label: string, rows: readonly Row[], keep: number): string {
-  const shown = firstLabels.includes(label) ? rows : rows.slice(-keep);
+  // the newest rows by their last write, shown in the order they were first written
+  const newest = new Set(
+    rows.toSorted((first, second) => (first.at < second.at ? -1 : 1)).slice(-keep),
+  );
+
+  const shown = firstLabels.includes(label) ? rows : rows.filter((row) => newest.has(row));
   const single = label === 'goal' || label === 'pin' || label === 'now';
   const count = shown.length < rows.length ? ` (${rows.length}, newest ${shown.length} shown)` : '';
   const name = label.toUpperCase();

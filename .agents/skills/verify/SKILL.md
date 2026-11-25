@@ -137,7 +137,8 @@ for its commands.
 - `bun verify www <command> ...` runs the real `www <command>`, with `HOME` and `XDG_STATE_HOME` in
   the run's folder.
 - `bun verify www run --line '<line>' --expect '<text>'` fails unless that `www` line exits 0 and
-  its stdout holds the text. Each `{run}` in either is the run's folder.
+  its stdout holds the text. Each `{run}` in either is the run's folder. Add `--host claude` or
+  `--host codex` to run the line as that host's session `verify-host`.
 - `bun verify www refuse --line '<line>' --expect '<text>'` fails unless `www` refuses the line with
   exit 2 and its stderr holds the text.
 - `bun verify www hook --harness <host> --payload '<JSON>'` pipes the payload into

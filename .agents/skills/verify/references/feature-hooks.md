@@ -9,7 +9,9 @@ journey never touches your own settings or stores.
 
 ## Journey
 
-Run `bun verify up --restart` first, so `trial-hooks` does not exist, then `doctor`.
+Run `bun verify up --restart` first, so `trial-hooks` does not exist, then `doctor`. `--host claude`
+or `--host codex` on `www run` runs the line as that host's session `verify-host`, so `init` and
+`attach` bind that id, and each bound payload below names it.
 
 ```bash
 bun verify use --feature hooks

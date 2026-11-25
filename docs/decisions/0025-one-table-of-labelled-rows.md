@@ -5,7 +5,7 @@
 
 ## Decision
 
-Version 0.2.0 rebuilds the tool around one kind of thing: a row with an id, a label, a text of at most 300 characters and an optional note. Each session keeps its rows in one append-only JSON Lines file. A label is data, and only six labels get a shape check on the way in. Bare `www` prints the brief as text, and every other command prints JSON, with `--human` for plain text. The gate keeps two hooks per host. This replaces records 0001 to 0024, which described version 0.1.0. The [design](../design/wherewerewe/README.md) holds what still stands from them: binding by the host's session id, the gate that fails open, one install per machine, the shipped skill, and compiled binaries through the Homebrew tap and an install script.
+Version 0.2.0 rebuilds the tool around one kind of thing: a row with an id, a label, a text of at most 300 characters and an optional note. Each session keeps its rows in one append-only JSON Lines file. A label is data, and the tool tests the shape of only six labels on the way in. Bare `www` prints the brief as text, and every other command prints JSON, with `--human` for plain text. The gate keeps two hooks per host. This replaces records 0001 to 0024, which described version 0.1.0 and now live only in the git history. The [design](../design/wherewerewe/README.md) holds what still stands from them: binding by the host's session id, the gate that fails open, one install per machine, the shipped skill, and compiled binaries through the Homebrew tap and an install script.
 
 ## Why
 
@@ -30,5 +30,5 @@ Version 0.2.0 rebuilds the tool around one kind of thing: a row with an id, a la
 - The source is about a tenth of its 0.1.0 size.
 - The first read of a 0.1.0 store writes `rows.jsonl` beside the old files, which stay as the backup. The converted rows keep their ids.
 - `www install` removes the hook entries of 0.1.0 and writes two per host. Codex asks its user to trust the new entries once.
-- The commands `list`, `show`, `log`, `recap`, `say`, `ack`, `ok`, `use` and `import` are gone, and so are checks, owner notes and the caps on how many rows a label holds.
+- The commands `list`, `show`, `log`, `recap`, `say`, `ack`, `ok`, `use` and `import` are gone, and so are the checks of pull requests, paths and pids, owner notes and the caps on how many rows a label holds.
 - A new feature needs a real failure in use first.

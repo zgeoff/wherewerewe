@@ -1,7 +1,7 @@
 import { RefusalError } from '../refusal-error.ts';
 import { appendRow } from '../store/append-row.ts';
+import { claimID } from '../store/claim-id.ts';
 import { isID } from '../store/is-id.ts';
-import { nextID } from '../store/next-id.ts';
 import { readRows } from '../store/read-rows.ts';
 import type { Args, Context, Reply, Row } from '../types.ts';
 import { checkLength } from './check-length.ts';
@@ -33,7 +33,11 @@ export async function runAdd(context: Context, args: Args, typed: string): Promi
   checkShape(label, text, args);
 
   const why = args.values['why'];
-  const note = args.values['note'] ?? (why === undefined ? undefined : `why: ${why}`);
+  const detail = args.values['note'];
+  const reason = why === undefined ? undefined : `why: ${why}`;
+
+  const note =
+    detail !== undefined && reason !== undefined ? `${reason}\n${detail}` : (detail ?? reason);
 
   checkLength(text, textLimit, 'text', run);
   checkLength(note, noteLimit, 'note', run);
@@ -41,7 +45,9 @@ export async function runAdd(context: Context, args: Args, typed: string): Promi
   const session = await openSession(context, args);
   const store = await readRows(session.root, session.name);
 
-  const id = singleLabels.has(label) ? label : (args.values['id'] ?? nextID(store.lines, label));
+  const given = singleLabels.has(label) ? label : args.values['id'];
+
+  const id = await claimID(session, store.lines, label, given);
 
   if (!isID(id)) {
     throw new RefusalError(`${id} is not an id: use letters, digits, dots and dashes`, run);

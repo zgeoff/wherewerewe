@@ -61,13 +61,14 @@ Each session keeps one file, `rows.jsonl`, in `$XDG_STATE_HOME/wherewerewe/<name
 
 - A write appends one line. An edit appends the row again, and the last line for an id wins. A close appends the row with `closed` set.
 - The tool never rewrites the file and takes no lock, so two writers at once both land.
+- Before the tool makes an id, it creates an empty file named after that id in the session's `.ids/` folder. Two writers at once get two ids, because only one of them can create the file.
 - The tool skips a line it cannot read, and the brief's first line counts the skipped lines.
 
 The first read of a 0.1 store converts it: the tool writes `rows.jsonl` beside the old files, and leaves the old files as the backup.
 
 ## The commands
 
-`www help` prints the list. Bare `www` prints the brief as text, because an agent reads it straight after a compaction. Every other command prints JSON, and `--human` prints plain text in its place. A refusal exits 2 and prints its reason and the command to run, as JSON on stderr.
+`www help` prints the list. Bare `www` prints the brief as text, because an agent reads it straight after a compaction. Every other command but `www help` prints JSON, and `--human` prints plain text in its place. A refusal exits 2 and prints its reason and the command to run, as JSON on stderr.
 
 ```text
 $ www task "Write alerts-e2e against staging"
@@ -90,12 +91,12 @@ GRANT
 NOW    Write the first alert case
 WAIT   wait-1  Review of the tide feed PR [dana]
 TASK   task-1  Write alerts-e2e against staging
-              note: Use the recorded tide fixtures
+               note: Use the recorded tide fixtures
 Everything: www rows | jq   ·   Write: www <label> "<text>"   ·   www help
 ```
 
 - The brief prints `goal`, `pin`, `grant`, `now` and `wait` first and whole. Each other label follows in the order it first appeared.
-- A label with more than 12 open rows prints its newest 12 and the count.
+- Each other label with more than 12 open rows prints its newest 12 and the count.
 - A brief over 24,000 characters prints fewer rows of each long label: 5, then 2, then 1. Claude Code cuts shell output near 30,000 characters, so the brief stays under that.
 - A note prints its first line, up to 160 characters. `www rows` prints the whole note.
 

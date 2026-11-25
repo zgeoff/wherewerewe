@@ -111,6 +111,21 @@ test('it lets a subagent call through', async () => {
   expect(output).toBe('');
 });
 
+test('it keeps the gate open when a subagent of a read session starts', async () => {
+  const ctx = await setupTest();
+
+  await ctx.hook(buildHookPayload('SessionStart'));
+  await ctx.hook(buildHookPayload('PreToolUse', 'www'));
+
+  const started = await ctx.hook(
+    buildHookPayload('SessionStart', undefined, { agent_id: 'sub-1' }),
+  );
+
+  const call = await ctx.hook(buildHookPayload('PreToolUse', 'ls'));
+
+  expect({ started, call }).toStrictEqual({ started: '', call: '' });
+});
+
 test('it lets a call through for a host session bound to no notes', async () => {
   const ctx = await setupTest();
 

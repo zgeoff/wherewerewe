@@ -39,13 +39,18 @@ async function runGateStep(context: Context, harness: Harness): Promise<string> 
 
   const path = join(root, '.gate', `${harness}-${payload.sessionID}`);
 
+  // a subagent shares its parent's session id, and its start must not close the parent's gate
+  if (payload.isSubagent) {
+    return '';
+  }
+
   if (payload.event === 'SessionStart') {
     await writeGate(path, { state: 'wiped', refusals: 0 });
 
     return `wherewerewe: this session keeps its notes in ${name}. Run: www\n`;
   }
 
-  if (payload.event !== 'PreToolUse' || payload.isSubagent) {
+  if (payload.event !== 'PreToolUse') {
     return '';
   }
 
