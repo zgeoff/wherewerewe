@@ -5,9 +5,11 @@ import { buildHookEntries } from '../install/build-hook-entries.ts';
 import { buildInstallItems } from '../install/build-install-items.ts';
 import type { InstallItem } from '../install/build-install-items.ts';
 import { findHomePaths } from '../install/find-home-paths.ts';
+import { formatCheckLimits } from '../install/format-check-limits.ts';
 import { formatConfigLines } from '../install/format-config-lines.ts';
 import { formatDisplayPath } from '../install/format-display-path.ts';
 import { formatInstallPrint } from '../install/format-install-print.ts';
+import { readCheckLimits } from '../install/read-check-limits.ts';
 import { readTextOrNull } from '../install/read-text-or-null.ts';
 import { refuseInstall } from '../install/refuse-install.ts';
 import type { FilePlan } from '../install/types.ts';
@@ -64,9 +66,10 @@ export function runInstallCommand(context: InstallContext): CommandResult {
     findStoreRoot(context.env) ?? join(paths.home, '.local', 'state', 'wherewerewe');
 
   const shownConfig = formatDisplayPath(paths.codexConfig, paths.home);
+  const limits = formatCheckLimits(readCheckLimits(context.env, context.cwd, paths.home));
 
   if (context.isPrinting) {
-    return text(formatInstallPrint(items, shownConfig, storeRoot));
+    return text(`${formatInstallPrint(items, shownConfig, storeRoot)}\n${limits}`);
   }
 
   const refused = items.find((item) => item.plan(readTextOrNull(item.path)).kind === 'refused');
@@ -75,7 +78,7 @@ export function runInstallCommand(context: InstallContext): CommandResult {
     return refuseItem(context, refused, readTextOrNull(refused.path));
   }
 
-  return writeItems(context, items, formatConfigLines(shownConfig, storeRoot));
+  return writeItems(context, items, `${limits}${formatConfigLines(shownConfig, storeRoot)}`);
 }
 
 function text(stdout: string): CommandResult {

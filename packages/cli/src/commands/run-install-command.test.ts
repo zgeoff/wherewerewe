@@ -16,6 +16,7 @@ import { buildCredentialSamples } from '../test-utils/build-credential-samples.t
 import { isSubsequence } from '../test-utils/is-subsequence.ts';
 import { readFolderHash } from '../test-utils/read-folder-hash.ts';
 import { seedInstallFixture } from '../test-utils/seed-install-fixture.ts';
+import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { runInstallCommand } from './run-install-command.ts';
 
 function setupTest() {
@@ -492,4 +493,37 @@ test('it never prints a value from a settings file, in a run, a print or a refus
     hasLog,
     kept: ctx.read(ctx.paths.claudeSettings).includes(secret),
   }).toStrictEqual({ outputs: [false, false, false], hasLog: false, kept: true });
+});
+
+test('it prints the limits of the checks that apply here before the config lines, when it adds the allow rules', async () => {
+  const ctx = setupTest();
+
+  seedStubCommand(ctx.bin, 'git', 'echo "git version 2.30.1"');
+
+  const result = await ctx.install();
+
+  expect(result.stdout.split('\n').filter((line) => line.startsWith('- '))).toStrictEqual([
+    '- a repo that adds a filter to its own config while a check runs can still run it once.',
+    '- git 2.30.1 is older than 2.45, so a check leans on GIT_ALLOW_PROTOCOL alone to stop a lazy fetch.',
+    '- git 2.30.1 is older than 2.36, so it reads core.fsmonitor=false as the name of a helper program.',
+    `- ${ctx.bin} is on PATH and you can write to it, so a git or gh an agent plants there runs from a check.`,
+  ]);
+});
+
+test('it prints the same limits with --print, which writes nothing', async () => {
+  const ctx = setupTest();
+
+  seedStubCommand(ctx.bin, 'git', 'echo "git version 2.55.0"');
+
+  const before = ctx.hash();
+
+  const result = await ctx.install(['--print']);
+
+  expect({
+    same: ctx.hash() === before,
+    limit: result.stdout.includes('- a repo that adds a filter'),
+  }).toStrictEqual({
+    same: true,
+    limit: true,
+  });
 });

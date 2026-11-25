@@ -22,6 +22,22 @@ function readRealPath(path: string): string {
   }
 }
 
+// The first program of that name on the probe's PATH whose real path is outside the folder, so a
+// link from a trusted folder to a file an agent wrote into its workspace never runs either.
+export function readProbeProgram(name: string, probePath: string, cwd: string): string | null {
+  const folder = readRealPath(cwd);
+
+  for (const entry of probePath.split(':')) {
+    const found = Bun.which(name, { PATH: entry, cwd: '/' });
+
+    if (found !== null && !isInside(readRealPath(found), folder)) {
+      return found;
+    }
+  }
+
+  return null;
+}
+
 function isInside(entry: string, folder: string): boolean {
   const fromFolder = relative(folder, entry);
 

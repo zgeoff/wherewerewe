@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import { buildProbeEnv } from './build-probe-env.ts';
-import { readProbePath } from './read-probe-path.ts';
+import { readProbeEnv } from './read-probe-env.ts';
+import { readProbePath, readProbeProgram } from './read-probe-path.ts';
 import type { CommandResult } from './types.ts';
 
 // Stops each command a read started: its whole process group, so a child it started dies too.
@@ -47,7 +47,7 @@ export function runCommand(
 ): Promise<CommandResult> {
   const [name, ...args] = argv;
   const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd);
-  const path = Bun.which(name, { PATH: probePath });
+  const path = readProbeProgram(name, probePath, options.cwd);
 
   if (path === null) {
     return Promise.resolve({ kind: 'missing' });
@@ -56,7 +56,7 @@ export function runCommand(
   return new Promise<CommandResult>((resolve) => {
     // Git before 2.45 cannot switch lazy fetch off, so GIT_ALLOW_PROTOCOL leaves it no transport.
     const child = spawn(path, args, {
-      env: buildProbeEnv(options.env, probePath),
+      env: readProbeEnv(options.env, probePath, options.cwd),
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: true,
     });
