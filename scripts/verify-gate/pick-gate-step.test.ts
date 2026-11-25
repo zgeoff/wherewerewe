@@ -19,7 +19,7 @@ test.each([
   {
     title: "a bot's release pull request",
     head: 'release-please--branches--main--components--@wherewerewe/cli',
-    user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
+    user: { type: 'Bot', login: 'zgeoff-release-bot[bot]' },
     body: null,
     step: { kind: 'skip', reason: 'a release pull request carries no verify report' },
   },
@@ -40,7 +40,7 @@ test.each([
   {
     title: "the release bot's pull request from a fork",
     head: 'release-please--branches--main--components--@wherewerewe/cli',
-    user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
+    user: { type: 'Bot', login: 'zgeoff-release-bot[bot]' },
     headRepo: { full_name: 'fork-owner/notes' },
     body: '',
     step: { kind: 'gate', baseRef: 'main', body: '' },
@@ -48,7 +48,7 @@ test.each([
   {
     title: "the release bot's pull request from a deleted fork",
     head: 'release-please--branches--main--components--@wherewerewe/cli',
-    user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
+    user: { type: 'Bot', login: 'zgeoff-release-bot[bot]' },
     headRepo: null,
     body: '',
     step: { kind: 'gate', baseRef: 'main', body: '' },
