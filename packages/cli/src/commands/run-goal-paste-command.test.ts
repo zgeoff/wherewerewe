@@ -13,6 +13,7 @@ import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
+import type { Grant } from '../types.ts';
 
 function setupTest() {
   const root = createTempDir('run-goal-paste').path;
@@ -62,6 +63,41 @@ function setupTest() {
       '--reading',
       'covers it',
     ],
+
+    // each word of the bullets and the scope, counted, and each word of the paste, counted
+    countMissingWords: (grant: Pick<Grant, 'may' | 'not' | 'never' | 'scope'>, pasted: string) => {
+      const counts = new Map<string, number>();
+
+      for (const word of pasted.split(/\s+/u)) {
+        counts.set(word, (counts.get(word) ?? 0) + 1);
+      }
+
+      const wanted = [...grant.may, ...grant.not, ...grant.never, grant.scope ?? '']
+        .join(' ')
+        .split(/\s+/u)
+        .filter((word) => word !== '');
+
+      return wanted.filter((word) => {
+        const left = counts.get(word) ?? 0;
+
+        counts.set(word, left - 1);
+
+        return left <= 0;
+      });
+    },
+
+    // the bullets and the scope whose characters do not all appear, in order, once the line breaks
+    // and the indents that wrap a long bullet are taken out of the paste
+    readCutBullets: (grant: Pick<Grant, 'may' | 'not' | 'never' | 'scope'>, pasted: string) => {
+      const squeezed = pasted.replaceAll(/\s+/gu, '');
+
+      return [
+        ...grant.may,
+        ...grant.not,
+        ...grant.never,
+        ...(grant.scope === null ? [] : [grant.scope]),
+      ].filter((bullet) => !squeezed.includes(bullet.replaceAll(/\s+/gu, '')));
+    },
     readExample: () =>
       readDesignBlock('lists-and-json.md', '### www goal --paste', 'text')
         .split('\n')
@@ -284,4 +320,75 @@ test('it prints a grant of 700 astral characters in under 1,100 code points and 
     isWithinCodePoints: Array.from(pasted.stdout, (character) => character).length <= 1100,
     isWithinUnits: pasted.stdout.length <= 4000,
   }).toStrictEqual({ written: 0, exitCode: 0, isWithinCodePoints: true, isWithinUnits: true });
+});
+
+test.each([
+  { layout: 'wide-bullets' as const },
+  { layout: 'long-bullet' as const },
+  { layout: 'long-bullet-no-scope' as const },
+])(
+  'it prints every character of each bullet and the scope uncut, for the $layout layout',
+  async (row) => {
+    const ctx = setupTest();
+    const name = 'a'.repeat(24);
+
+    const grant = buildWorstCaseBriefInput({ host: 'claude', taskCount: 0, grant: row.layout })
+      .session.grant;
+
+    await ctx.run(['init', name, '--goal', 'Ship it']);
+
+    await ctx.run(
+      ctx.buildGrantArgv(
+        grant?.may ?? [],
+        grant?.not ?? [],
+        grant?.never ?? [],
+        grant?.scope ?? null,
+      ),
+    );
+
+    const pasted = await ctx.run(['goal', '--paste']);
+
+    expect({
+      exitCode: pasted.exitCode,
+      cut: ctx.readCutBullets(
+        {
+          may: grant?.may ?? [],
+          not: grant?.not ?? [],
+          never: grant?.never ?? [],
+          scope: grant?.scope ?? null,
+        },
+        pasted.stdout,
+      ),
+    }).toStrictEqual({ exitCode: 0, cut: [] });
+  },
+);
+
+test('it prints each word of an ordinary grant, in order, with none cut or joined', async () => {
+  const ctx = setupTest();
+  const name = 'tide-alerts';
+
+  await ctx.run(['init', name, '--goal', 'Ship it']);
+
+  await ctx.run(
+    ctx.buildGrantArgv(
+      ['read every file in the chart repo', 'run the unit tests and the linter'],
+      ['push to a shared branch'],
+      ['delete a tag'],
+      'the chart repo',
+    ),
+  );
+
+  const pasted = await ctx.run(['goal', '--paste']);
+
+  expect(
+    ctx.countMissingWords(
+      {
+        may: ['read every file in the chart repo', 'run the unit tests and the linter'],
+        not: ['push to a shared branch'],
+        never: ['delete a tag'],
+        scope: 'the chart repo',
+      },
+      pasted.stdout,
+    ),
+  ).toStrictEqual([]);
 });

@@ -340,6 +340,49 @@ test.each(
   });
 });
 
+test.each(
+  listCommandShapes()
+    .filter((shape) => !isReadCommand(shape.command) || shape.command === 'sessions')
+    .map((shape) => ({ command: shape.command, taken: shape.taken })),
+)('it refuses --json for $command and names the flags it takes', async (row) => {
+  const ctx = setupTest();
+
+  const refused = await ctx.run([row.command, '--json']);
+
+  const flags = row.taken.map((flag) => `--${flag}`);
+
+  const takes =
+    flags.length === 0
+      ? 'only --session'
+      : [flags.slice(0, -1).join(', '), flags.at(-1)].filter((part) => part !== '').join(' and ');
+
+  expect({
+    exitCode: refused.exitCode,
+    stdout: refused.stdout,
+    reason: refused.stderr.split('\n')[0],
+  }).toStrictEqual({
+    exitCode: 2,
+    stdout: '',
+    reason: `www: ${row.command} takes no --json flag. It takes ${takes}.`,
+  });
+});
+
+test('it holds www sessions and each write command in the table the --json refusals run over', () => {
+  const commands = new Set(
+    listCommandShapes()
+      .filter((shape) => !isReadCommand(shape.command) || shape.command === 'sessions')
+      .map((shape) => shape.command),
+  );
+
+  expect({
+    hasSessions: commands.has('sessions'),
+    hasWrites: ['init', 'task', 'decide', 'where'].every((command) => commands.has(command)),
+    hasJsonReads: ['brief', 'show', 'log', 'list', 'recap'].some((command) =>
+      commands.has(command),
+    ),
+  }).toStrictEqual({ hasSessions: true, hasWrites: true, hasJsonReads: false });
+});
+
 test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample, entry.tail] as const))(
   'it prints a %s sample typed as a flag as the placeholder, with none of its tail',
   async (_name, sample, tail) => {
