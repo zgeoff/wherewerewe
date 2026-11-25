@@ -84,6 +84,10 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<Command
     return runHook(input, args);
   }
 
+  if (args.command === 'install' || args.command === 'doctor') {
+    return runSetup(input, args);
+  }
+
   if (ownerCommands.has(args.command) && !isOwnerTerminal(input)) {
     return buildRefusalResult(
       buildRefusal({ kind: 'owner-only' }),
@@ -158,6 +162,29 @@ async function runHook(input: CLIInput, args: ParsedArgs): Promise<CommandResult
   });
 
   return { ...result, stdoutFormat: 'json' };
+}
+
+// install and doctor read no store and need no session. They load their own modules, so no other
+// command pays for them.
+async function runSetup(input: CLIInput, args: ParsedArgs): Promise<CommandResult> {
+  if (args.command === 'doctor') {
+    const doctorModule = await import('./commands/run-doctor-command.ts');
+
+    return doctorModule.runDoctorCommand({ env: input.env, cwd: input.cwd });
+  }
+
+  const [installModule, versionModule] = await Promise.all([
+    import('./commands/run-install-command.ts'),
+    import('./install/get-package-version.ts'),
+  ]);
+
+  return installModule.runInstallCommand({
+    env: input.env,
+    cwd: input.cwd,
+    isPrinting: args.values.print === true,
+    isReplacingSkill: args.values['replace-skill'] === true,
+    version: versionModule.getPackageVersion(),
+  });
 }
 
 async function runSessionBoundCommand(context: CommandContext): Promise<CommandResult> {

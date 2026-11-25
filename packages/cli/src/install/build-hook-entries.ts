@@ -1,5 +1,5 @@
 import type { Harness } from '../hooks/types.ts';
-import { quoteShellWord } from './quote-shell-word.ts';
+import { quoteShellWord } from '../refusals/quote-shell-word.ts';
 
 export interface HookEntry {
   readonly event: string;
