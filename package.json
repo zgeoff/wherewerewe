@@ -23,6 +23,7 @@
       "@zgeoff/oxlint-config": "0.11.3",
       "@zgeoff/rig": "0.3.2",
       "@zgeoff/testing": "0.4.2",
+      "fast-check": "4.10.2",
       "knip": "6.44.2",
       "lefthook": "2.2.2",
       "oxfmt": "0.77.0",
