@@ -183,8 +183,11 @@ export function buildRefusalSamples(): RefusalSample[] {
     'owner-note-numbers-used-up': [{ kind: 'owner-note-numbers-used-up', lastNumber: 999 }],
     'owner-note-unknown': [{ kind: 'owner-note-unknown', name, id: 'o-9', shownIDs: ['o-1'] }],
     'bad-since': [
-      { kind: 'bad-since', command: 'recap' },
-      { kind: 'bad-since', command: 'log' },
+      { kind: 'bad-since', args: buildParsedArgs(['recap', '--since', 'yesterday', '--json']) },
+      {
+        kind: 'bad-since',
+        args: buildParsedArgs(['log', '--since', 'yesterday', '--op', 'set', '--id', 't-a']),
+      },
     ],
     'use-needs-for': [{ kind: 'use-needs-for', args: use }],
     'use-not-approval': [{ kind: 'use-not-approval', id: 't-a', itemKind: 'task' }],

@@ -169,7 +169,11 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       (found) => buildOwnerRefusal(found),
     )
     .with({ kind: 'bad-since' }, (found) =>
-      usage(2, 'www: --since takes 24h, 3d or day-7.', [found.command, '--since', '24h']),
+      usage(
+        2,
+        'www: --since takes 24h, 3d or day-7.',
+        buildRunSpec(found.args).replaceFlag('since', '24h').toArgv(),
+      ),
     )
     .with({ kind: 'use-needs-for' }, (found) =>
       refuse(

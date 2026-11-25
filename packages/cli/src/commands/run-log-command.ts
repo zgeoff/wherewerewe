@@ -23,7 +23,7 @@ export async function runLogCommand(
 
   if (since !== undefined && fromMs === null) {
     return buildRefusalResult(
-      buildRefusal({ kind: 'bad-since', command: 'log' }),
+      buildRefusal({ kind: 'bad-since', args }),
       buildRefusalScope(args, at.cwd),
     );
   }

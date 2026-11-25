@@ -13,6 +13,7 @@ import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from './args/help-text.ts';
+import { listCommandShapes } from './args/parse-cli-args.ts';
 import { formatGateFile } from './hooks/format-gate-file.ts';
 import { jsonVersion } from './json/json-version.ts';
 import { nothingWrittenComment } from './refusals/format-refusal.ts';
@@ -3684,5 +3685,35 @@ test.each(['wiped', 'reading', 'cut', 'failed', 'read', 'open'] as const)(
     expect({ bytes: readFileSync(path, 'utf8'), mtimeMs: statSync(path).mtimeMs }).toStrictEqual(
       before,
     );
+  },
+);
+
+test.each(
+  listCommandShapes().flatMap((shape) =>
+    shape.command === 'log' || shape.command === 'recap' ? [shape] : [],
+  ),
+)(
+  'it keeps each flag $command takes on the Run line of a --since it cannot read',
+  async (shape) => {
+    const ctx = setupTest();
+    const values: Readonly<Record<string, string>> = { op: 'set', id: 't-a' };
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const others = shape.taken.filter((flag) => flag !== 'since');
+
+    const typed = others.flatMap((flag) => {
+      const value = values[flag];
+
+      return value === undefined ? [`--${flag}`] : [`--${flag}`, value];
+    });
+
+    const result = await ctx.run([shape.command, '--since', 'yesterday', ...typed]);
+
+    const runLine = result.stderr.split('\n').find((line) => line.startsWith('Run: ')) ?? '';
+
+    const words = await readShellWords(runLine.slice('Run: '.length));
+
+    expect(words).toStrictEqual(['www', shape.command, '--since', '24h', ...typed]);
   },
 );

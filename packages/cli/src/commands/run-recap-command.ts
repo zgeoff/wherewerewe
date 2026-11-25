@@ -26,7 +26,7 @@ export async function runRecapCommand(
 
   if (parsed === null) {
     return buildRefusalResult(
-      buildRefusal({ kind: 'bad-since', command: 'recap' }),
+      buildRefusal({ kind: 'bad-since', args }),
       buildRefusalScope(args, at.cwd),
     );
   }

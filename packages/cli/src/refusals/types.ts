@@ -135,7 +135,7 @@ export type RefusalReason =
       readonly id: string;
       readonly shownIDs: readonly string[];
     }
-  | { readonly kind: 'bad-since'; readonly command: 'log' | 'recap' }
+  | { readonly kind: 'bad-since'; readonly args: ParsedArgs }
   | { readonly kind: 'use-needs-for'; readonly args: ParsedArgs }
   | {
       readonly kind: 'use-not-approval';

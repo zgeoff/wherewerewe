@@ -99,7 +99,7 @@ function findRunProblem(words: readonly RunWord[], cwd: string): Refusal | null 
     !isSinceText(since)
   ) {
     return restorePlaceholders(
-      buildRefusal({ kind: 'bad-since', command: parsed.args.command }),
+      buildRefusal({ kind: 'bad-since', args: parsed.args }),
       filled.samples,
     );
   }
