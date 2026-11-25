@@ -21,6 +21,12 @@ const templates: readonly WriteTemplate[] = [
   { command: 'wait', words: ['wait', '{id}', '{claim}', '--who', '{who}'] },
   { command: 'rule', words: ['rule', '{id}', '{claim}'] },
   { command: 'where', words: ['where', '{id}', '{claim}'] },
+  { command: 'lesson', words: ['lesson', '{id}', '{claim}', '--why', '{why}'] },
+  {
+    command: 'promise',
+    words: ['promise', '{id}', '{claim}', '--to', '{who}', '--by', '{by}'],
+  },
+  { command: 'words', words: ['words', '{id}', '{quote}', '--where', '{where}'] },
   {
     command: 'ok',
     words: [
@@ -127,6 +133,7 @@ const soundValues: Readonly<Record<string, string>> = {
   claim: 'Feed the fish',
   note: 'Check the filter',
   who: 'sam',
+  by: 'Friday',
   quote: 'go ahead',
   where: 'chat',
   next: 'Rinse the tank',

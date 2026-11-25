@@ -38,17 +38,18 @@ Read a feature's file before you run its journey.
 
 <!-- wringer:features -->
 
-| Feature     | Summary                                                                                                       | File                                                                   |
-| ----------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| help        | Print the help text with `www help`                                                                           | [references/feature-help.md](references/feature-help.md)               |
-| notes       | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www`                           | [references/feature-notes.md](references/feature-notes.md)             |
-| import      | Convert a hand-kept store with `www import`, and read its brief                                               | [references/feature-import.md](references/feature-import.md)           |
-| owner-notes | Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief            | [references/feature-owner-notes.md](references/feature-owner-notes.md) |
-| item-notes  | Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close | [references/feature-item-notes.md](references/feature-item-notes.md)   |
-| grant       | Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant      | [references/feature-grant.md](references/feature-grant.md)             |
-| recap       | Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines     | [references/feature-recap.md](references/feature-recap.md)             |
-| tasks       | Open 20 tasks, read them in the brief under each host, and list every open task with `www show`               | [references/feature-tasks.md](references/feature-tasks.md)             |
-| checks      | Write an item with a --path check, remove the path, read the CHANGED row, and run the fix command it prints   | [references/feature-checks.md](references/feature-checks.md)           |
+| Feature     | Summary                                                                                                               | File                                                                   |
+| ----------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| help        | Print the help text with `www help`                                                                                   | [references/feature-help.md](references/feature-help.md)               |
+| notes       | Keep notes with `www init`, `task`, `set` and `done`, and read them back with `www`                                   | [references/feature-notes.md](references/feature-notes.md)             |
+| import      | Convert a hand-kept store with `www import`, and read its brief                                                       | [references/feature-import.md](references/feature-import.md)           |
+| owner-notes | Write and clear owner notes with `www say` and `www ack` in a terminal, and read them in the brief                    | [references/feature-owner-notes.md](references/feature-owner-notes.md) |
+| item-notes  | Keep a note on an item with `--note` and `--owed`, read it under `NOW`, and clear an owed note before a close         | [references/feature-item-notes.md](references/feature-item-notes.md)   |
+| grant       | Upgrade a format 1 store to format 2 with the owner's words as its grant, and read and replace the grant              | [references/feature-grant.md](references/feature-grant.md)             |
+| recap       | Read one screen of what a session kept with `www recap`, and run the command of one of its overflow lines             | [references/feature-recap.md](references/feature-recap.md)             |
+| tasks       | Open 20 tasks, read them in the brief under each host, and list every open task with `www show`                       | [references/feature-tasks.md](references/feature-tasks.md)             |
+| checks      | Write an item with a --path check, remove the path, read the CHANGED row, and run the fix command it prints           | [references/feature-checks.md](references/feature-checks.md)           |
+| new-kinds   | Write a lesson, a promise and the owner's words, read them in the brief and the recap, list the rules, and close each | [references/feature-new-kinds.md](references/feature-new-kinds.md)     |
 
 <!-- /wringer:features -->
 

@@ -3,9 +3,11 @@ import { match } from 'ts-pattern';
 import { helpText } from './args/help-text.ts';
 import { parseCLIArgs } from './args/parse-cli-args.ts';
 import { getSessionDay } from './brief/get-session-day.ts';
+import { formatDuplicateNotes } from './commands/format-duplicate-notes.ts';
 import { formatSessionLines } from './commands/format-session-lines.ts';
 import { runBriefCommand } from './commands/run-brief-command.ts';
 import { runImportCommand } from './commands/run-import-command.ts';
+import { runListCommand } from './commands/run-list-command.ts';
 import { runLogCommand } from './commands/run-log-command.ts';
 import { runRecapCommand } from './commands/run-recap-command.ts';
 import { runSessionCommand } from './commands/run-session-command.ts';
@@ -16,6 +18,7 @@ import { buildReadRefusal } from './refusals/build-read-refusal.ts';
 import { buildRefusalResult } from './refusals/build-refusal-result.ts';
 import { buildRefusalScope } from './refusals/build-refusal-scope.ts';
 import { buildRefusal } from './refusals/build-refusal.ts';
+import { findListKind } from './rules/find-list-kind.ts';
 import { isOwnerTerminal } from './rules/is-owner-terminal.ts';
 import { isSessionName } from './rules/is-session-name.ts';
 import { redactCredentialWords } from './rules/redact-credential-words.ts';
@@ -31,8 +34,11 @@ import { pickDecision } from './writes/pick-decision.ts';
 import { pickGoalWrite } from './writes/pick-goal-write.ts';
 import { pickGrantWrite } from './writes/pick-grant-write.ts';
 import { pickItemWrite } from './writes/pick-item-write.ts';
+import { pickLessonWrite } from './writes/pick-lesson-write.ts';
 import { pickNowWrite } from './writes/pick-now-write.ts';
+import { pickPromiseWrite } from './writes/pick-promise-write.ts';
 import { pickSay } from './writes/pick-say.ts';
+import { pickWordsWrite } from './writes/pick-words-write.ts';
 import { runOwnerWrite } from './writes/run-owner-write.ts';
 import { runWrite } from './writes/run-write.ts';
 import type { RunWriteResult } from './writes/run-write.ts';
@@ -127,7 +133,7 @@ async function runSessionBoundCommand(context: CommandContext): Promise<CLIResul
     .exhaustive();
 }
 
-const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'recap']);
+const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'recap', 'list']);
 
 async function runNamedSession(context: CommandContext, name: string): Promise<CLIResult> {
   const folder = join(context.root, name);
@@ -183,6 +189,12 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
       'grant',
       () => (writeInput: WriteInput) => pickGrantWrite({ ...writeInput, byOwner: context.byOwner }),
     )
+    .with('lesson', () => pickLessonWrite)
+    .with('promise', () => pickPromiseWrite)
+    .with(
+      'words',
+      () => (writeInput: WriteInput) => pickWordsWrite({ ...writeInput, byOwner: context.byOwner }),
+    )
     .with('now', () => pickNowWrite)
     .with('done', 'drop', 'use', () => pickClose)
     .with('decide', () => pickDecision)
@@ -202,7 +214,17 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
   return resolveWriteResult(written, args, context.cwd);
 }
 
-function runReadCommand(
+async function runReadCommand(
+  context: CommandContext,
+  store: Store,
+  unread: UnreadRows | null,
+): Promise<CLIResult> {
+  const result = await runReadCommandBody(context, store, unread);
+
+  return { ...result, stderr: `${result.stderr}${formatDuplicateNotes(store)}` };
+}
+
+function runReadCommandBody(
   context: CommandContext,
   store: Store,
   unread: UnreadRows | null,
@@ -216,6 +238,15 @@ function runReadCommand(
       return id === undefined
         ? Promise.resolve(runTaskListCommand(store, context.nowMs, unread))
         : runShowCommand(store, id, context, unread);
+    })
+    .with('list', () => {
+      const kind = findListKind(args.positionals[0]);
+
+      if (kind === null) {
+        throw new Error('the parser refuses a kind that list does not take');
+      }
+
+      return runListCommand(store, kind, context, unread);
     })
     .with('log', () => runLogCommand(store, args, context, unread))
     .with('recap', () => runRecapCommand(store, args, context, unread))

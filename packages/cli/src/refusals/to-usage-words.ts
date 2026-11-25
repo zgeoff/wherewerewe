@@ -1,9 +1,9 @@
 import type { RunWord } from '../types.ts';
 import { toPlaceholder } from './to-placeholder.ts';
 
-// The required words of a help line after `www`, such as `wait <id> "<what>" --who <who> [<check>]`:
-// each bracketed group is left out, a quoted or bare `<placeholder>` becomes a placeholder, `<id>`
-// and `<name>` with the id shape, and a `<n>` inside a word, as in `o-<n>`, becomes 1.
+// The required words of a help line after `www`: each bracketed group is left out, a `<placeholder>`
+// becomes a placeholder (`<id>` and `<name>` with the id shape), `o-<n>` becomes `o-1`, and a
+// choice such as `<tasks|waits>` becomes its first choice.
 export function toUsageWords(line: string): RunWord[] {
   const words: RunWord[] = [];
   let depth = 0;
@@ -27,6 +27,10 @@ function toUsageWord(word: string): RunWord {
 
   if (placeholder === undefined) {
     return word.replaceAll('<n>', '1');
+  }
+
+  if (placeholder?.includes('|')) {
+    return placeholder.slice(1).split('|')[0] ?? '';
   }
 
   return placeholder === '<id>' || placeholder === '<name>'

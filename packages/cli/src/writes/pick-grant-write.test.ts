@@ -31,12 +31,26 @@ function setupTest() {
           notesUnread: null,
           prs: [],
           prsUnread: null,
+          lessons: [],
+          lessonsUnread: null,
+          promises: [],
+          promisesUnread: null,
+          words: [],
+          wordsUnread: null,
           ownerUnread: null,
         },
         journal: {
           closed: new Map(),
+          lastRows: {
+            items: new Map(),
+            lesson: new Map(),
+            promise: new Map(),
+            words: new Map(),
+          },
           decisions: new Map(),
           lastDecisionNumber: 0,
+          replaced: new Set(),
+          inForce: [],
           lastOwnerNoteNumber: 0,
         },
         args: buildParsedArgs(argv),
@@ -100,7 +114,7 @@ test('it writes the bullets, the scope, the reading and where, with a journal ro
       ],
     },
     reply:
-      'grant: 60 of 700 characters in 3 of 12 bullets on 3 of 19 lines, reading 26 of 200. Brief: 9 lines.',
+      'grant: 60 of 700 characters in 3 of 12 bullets on 3 of 19 lines, reading 26 of 200. Brief: 9 of 8000 tokens.',
   });
 });
 
@@ -152,7 +166,7 @@ test('it replaces only the reading with --reading alone, and keeps the bullets, 
         extra: 'where=terminal;reading=1',
       },
     ],
-    reply: 'grant reading: 32 of 200. Brief: 9 lines.',
+    reply: 'grant reading: 32 of 200. Brief: 9 of 8000 tokens.',
   });
 });
 
@@ -269,7 +283,7 @@ test('it writes a grant of only --not, with no may bullet', () => {
       ],
     ],
     reply:
-      'grant: 51 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 84 of 200. Brief: 9 lines.',
+      'grant: 51 of 700 characters in 1 of 12 bullets on 1 of 19 lines, reading 84 of 200. Brief: 9 of 8000 tokens.',
   });
 });
 
@@ -300,7 +314,7 @@ test('it writes a bullet of 162 characters and counts its two lines', () => {
   );
 
   expect(picked.reply).toBe(
-    'grant: 162 of 700 characters in 1 of 12 bullets on 2 of 19 lines, reading 1 of 200. Brief: 9 lines.',
+    'grant: 162 of 700 characters in 1 of 12 bullets on 2 of 19 lines, reading 1 of 200. Brief: 9 of 8000 tokens.',
   );
 });
 
@@ -323,7 +337,7 @@ test('it writes a may bullet of 162 characters and a not bullet and counts 3 lin
   );
 
   expect(picked.reply).toBe(
-    'grant: 205 of 700 characters in 2 of 12 bullets on 3 of 19 lines, reading 94 of 200. Brief: 9 lines.',
+    'grant: 205 of 700 characters in 2 of 12 bullets on 3 of 19 lines, reading 94 of 200. Brief: 9 of 8000 tokens.',
   );
 });
 
@@ -336,7 +350,7 @@ test('it writes one bullet of 700 characters with no space, on 8 lines', () => {
   );
 
   expect(picked.reply).toBe(
-    'grant: 700 of 700 characters in 1 of 12 bullets on 8 of 19 lines, reading 1 of 200. Brief: 9 lines.',
+    'grant: 700 of 700 characters in 1 of 12 bullets on 8 of 19 lines, reading 1 of 200. Brief: 9 of 8000 tokens.',
   );
 });
 
@@ -359,7 +373,7 @@ test('it writes the widest grant of 7 bullets of 90 and 5 of 6 with a scope of 4
   );
 
   expect(picked.reply).toBe(
-    'grant: 700 of 700 characters in 12 of 12 bullets on 19 of 19 lines, reading 1 of 200. Brief: 9 lines.',
+    'grant: 700 of 700 characters in 12 of 12 bullets on 19 of 19 lines, reading 1 of 200. Brief: 9 of 8000 tokens.',
   );
 });
 

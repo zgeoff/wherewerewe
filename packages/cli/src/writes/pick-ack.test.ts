@@ -30,12 +30,26 @@ function setupTest() {
           notesUnread: null,
           prs: [],
           prsUnread: null,
+          lessons: [],
+          lessonsUnread: null,
+          promises: [],
+          promisesUnread: null,
+          words: [],
+          wordsUnread: null,
           ownerUnread: null,
         },
         journal: {
           closed: new Map(),
+          lastRows: {
+            items: new Map(),
+            lesson: new Map(),
+            promise: new Map(),
+            words: new Map(),
+          },
           decisions: new Map(),
           lastDecisionNumber: 0,
+          replaced: new Set(),
+          inForce: [],
           lastOwnerNoteNumber: 2,
         },
         args: buildParsedArgs(argv),
@@ -51,7 +65,9 @@ test('it removes the note, writes an ack row with its text, and replies', () => 
   const first = { id: 'o-1', text: 'Ask me first', said: '2026-03-10T11:00:00Z', on: null };
   const second = { id: 'o-2', text: 'Use readings', said: '2026-03-10T11:05:00Z', on: 't-a' };
   const picked = ctx.pick(['ack', 'o-1'], [first, second]);
-  const actual: unknown = picked.kind === 'write' ? picked.reply(10) : null;
+
+  const actual: unknown =
+    picked.kind === 'write' ? picked.reply({ tokens: 10, limit: 8000 }) : null;
 
   expect([picked, actual]).toStrictEqual([
     {
@@ -72,7 +88,7 @@ test('it removes the note, writes an ack row with its text, and replies', () => 
       },
       reply: expect.any(Function),
     },
-    'o-1  cleared. Kept in the journal. Brief: 10 lines.',
+    'o-1  cleared. Kept in the journal. Brief: 10 of 8000 tokens.',
   ]);
 });
 

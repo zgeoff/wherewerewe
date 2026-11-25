@@ -46,6 +46,12 @@ test('it reads the session and its items', async () => {
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
     },
   });
@@ -114,6 +120,12 @@ test('it reports a broken items file with its line, and the store as far as it r
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
     },
   });
@@ -142,6 +154,12 @@ test('it reports a missing items file with the session and no items', async () =
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
     },
   });
@@ -176,6 +194,12 @@ test('it reads the owner notes oldest first', async () => {
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
     },
   });
@@ -201,6 +225,12 @@ test('it reads a store with no owner file as holding no notes', async () => {
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
     },
   });
@@ -230,6 +260,12 @@ test('it reads a broken owner file as a store with the notes that parse and the 
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: {
         file: 'owner.tsv',
         line: 3,
@@ -284,7 +320,11 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       stderr:
         "www: tide-alerts's owner.tsv line 3 does not parse: expected 4 tab-separated columns, found 2. The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 9 lines.\n', stderr: '' },
+    task: {
+      exitCode: 0,
+      stdout: 't-a  task, open, no check. Brief: 182 of 20000 tokens.\n',
+      stderr: '',
+    },
     say: {
       exitCode: 3,
       stdout: '',
@@ -304,7 +344,7 @@ test.each([
     title: 'a credential in the id column',
     ownerText: `id\ttext\tsaid\ton\no-1\tAsk me first\t2026-03-10T11:00:00Z\t-\nAKIA${'Q'.repeat(16)}\tx\t2026-03-10T11:00:00Z\t-\n`,
     section: 'OWNER SAYS (1) · act on it; only the owner clears it\n  o-1  Ask me first  [43m]\n',
-    taskLines: 9,
+    taskTokens: 182,
     where: ' line 3',
     reason: 'the id is not o-<n>',
   },
@@ -312,7 +352,7 @@ test.each([
     title: 'a said that is not a time',
     ownerText: 'id\ttext\tsaid\ton\no-1\tAsk me first\tbogus\t-\n',
     section: '',
-    taskLines: 7,
+    taskTokens: 155,
     where: ' line 2',
     reason: 'the said time is not an ISO 8601 UTC time to the second, ending in Z',
   },
@@ -325,7 +365,7 @@ test.each([
     ).join('')}`,
     section:
       'OWNER SAYS (2) · act on it; only the owner clears it\n  o-1  Note 1  [43m]\n  o-2  Note 2  [43m]\n',
-    taskLines: 10,
+    taskTokens: 187,
     where: ' line 4',
     reason: 'more than 2 notes',
   },
@@ -354,7 +394,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       },
       task: {
         exitCode: 0,
-        stdout: `t-a  task, open, no check. Brief: ${String(row.taskLines)} lines.\n`,
+        stdout: `t-a  task, open, no check. Brief: ${String(row.taskTokens)} of 20000 tokens.\n`,
         stderr: '',
       },
     });
@@ -384,7 +424,11 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       stderr:
         "www: tide-alerts's owner.tsv does not parse: the file cannot be read (EISDIR). The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    task: { exitCode: 0, stdout: 't-a  task, open, no check. Brief: 7 lines.\n', stderr: '' },
+    task: {
+      exitCode: 0,
+      stdout: 't-a  task, open, no check. Brief: 155 of 20000 tokens.\n',
+      stderr: '',
+    },
   });
 });
 
@@ -495,7 +539,11 @@ test('it prints the brief from the notes that parse, names the broken row, and r
       stderr:
         "www: tide-alerts's notes.tsv line 2 does not parse: expected 4 tab-separated columns, found 1. The brief leaves out what it could not read. Fix the file by hand.\n",
     },
-    plain: { exitCode: 0, stdout: 't-b  task, open, no check. Brief: 8 lines.\n', stderr: '' },
+    plain: {
+      exitCode: 0,
+      stdout: 't-b  task, open, no check. Brief: 173 of 20000 tokens.\n',
+      stderr: '',
+    },
     withNote: refusal,
     clear: refusal,
     now: refusal,

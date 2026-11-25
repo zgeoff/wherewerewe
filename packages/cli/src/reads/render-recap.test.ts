@@ -16,6 +16,7 @@ function setupTest() {
     session: buildMockSession({}),
     items: [],
     notes: [],
+    promises: [],
     rows: [],
     sinceText: '24h',
     sessionID: 'tide-alerts',
@@ -69,6 +70,16 @@ test('it renders the recap of the design example line for line', () => {
 
   const text = ctx.render({
     session: buildMockSession({ grant: ctx.designGrant }),
+    promises: [
+      {
+        id: 'due-cost',
+        what: 'Cost table for the alert fan-out',
+        to: 'owner',
+        byWhen: 'day 10, before review',
+        written: '2026-03-09T16:05:10Z',
+        by: 'agent',
+      },
+    ],
     items: [
       buildMockItem({ id: 't-flag', claim: 'Turn on the tide_alerts flag in staging config' }),
       buildMockItem({
@@ -153,6 +164,8 @@ test('it renders the recap of the design example line for line', () => {
       '  reading: covers merges in both repos on green CI with findings answered, staging deploys, the',
       '    staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit',
       '    merges and releases',
+      'PROMISED (1, max 5)',
+      '  due-cost    Cost table for the alert fan-out · to owner · by day 10, before review',
       'NOTES (3 on 13 open items) · owed first, then newest',
       '  t-flag      Turn on the tide_alerts flag in staging config',
       '    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: stagin…',
@@ -566,7 +579,7 @@ test('it prints the folder name of the session in each command, never the name t
   ]);
 });
 
-test('it renders the worst case in 55 lines, each at most 100 characters, and at most 5,555 characters', () => {
+test('it renders the worst case in 61 lines, each at most 100 characters, and at most 6,161 characters', () => {
   const ctx = setupTest();
   const name = 'n'.repeat(24);
   const worstNowMs = Date.parse('2026-03-10T12:00:00Z');
@@ -575,10 +588,10 @@ test('it renders the worst case in 55 lines, each at most 100 characters, and at
 
   const dayStartMs = Date.parse(`${new Date(worstNowMs).toISOString().slice(0, 10)}T00:00:00Z`);
   const tasks = buildMockIDs('task', 6);
-  const waits = buildMockIDs('wait', 4);
+  const waits = buildMockIDs('wait', 8);
   const approvals = buildMockIDs('appr', 1);
-  const rules = buildMockIDs('rule', 5);
-  const whereIDs = buildMockIDs('here', 4);
+  const rules = buildMockIDs('rule', 15);
+  const whereIDs = buildMockIDs('here', 8);
 
   const items = [
     ...tasks.map((id) => buildMockItem({ id, claim: 'c'.repeat(120) })),
@@ -607,6 +620,14 @@ test('it renders the worst case in 55 lines, each at most 100 characters, and at
     sinceText: 'day-999',
     fromMs: dayStartMs,
     items,
+    promises: buildMockIDs('prom', 5).map((id) => ({
+      id,
+      what: 'c'.repeat(120),
+      to: 't'.repeat(16),
+      byWhen: 'b'.repeat(24),
+      written: '2026-03-09T09:00:00Z',
+      by: 'agent' as const,
+    })),
     notes: items.slice(0, 19).map((item) =>
       buildMockNote({
         id: item.id,
@@ -644,10 +665,10 @@ test('it renders the worst case in 55 lines, each at most 100 characters, and at
     header: lines[0],
     lines: lines.length,
     widest: Math.max(...lines.map((line) => line.split(/(?:)/u).length)),
-    isWithinLimit: text.split(/(?:)/u).length <= 5555,
+    isWithinLimit: text.split(/(?:)/u).length <= 6161,
   }).toStrictEqual({
     header: `${name} · day 999 · recap since day 999 00:00Z (day-999) · 1018 writes`,
-    lines: 55,
+    lines: 61,
     widest: 100,
     isWithinLimit: true,
   });

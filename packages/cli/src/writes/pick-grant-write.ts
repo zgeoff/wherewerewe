@@ -6,6 +6,7 @@ import { countGrantWords } from '../rules/count-grant-words.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { grantLimits } from '../rules/grant-limits.ts';
 import type { Grant, ParsedArgs, RefusalReason } from '../types.ts';
+import { formatBriefLine } from './format-brief-line.ts';
 import { pickGrantPartsRefusal } from './pick-grant-parts-refusal.ts';
 import { pickGrantTextRefusals } from './pick-grant-text-refusals.ts';
 import { toGrantWords } from './to-grant-words.ts';
@@ -66,10 +67,10 @@ export function pickGrantWrite(input: WriteInput & { readonly byOwner: boolean }
         },
       ],
     },
-    reply: (briefLines) =>
+    reply: (figure) =>
       isReadingOnly
-        ? `grant reading: ${String(readingLength)} of ${String(grantLimits.reading)}. Brief: ${String(briefLines)} lines.`
-        : `grant: ${String(countGrantWords(grant))} of ${String(grantLimits.words)} characters in ${String(bullets)} of ${String(grantLimits.bullets)} bullets on ${String(lines)} of ${String(grantLimits.lines)} lines, reading ${String(readingLength)} of ${String(grantLimits.reading)}. Brief: ${String(briefLines)} lines.`,
+        ? `grant reading: ${String(readingLength)} of ${String(grantLimits.reading)}. ${formatBriefLine(figure)}`
+        : `grant: ${String(countGrantWords(grant))} of ${String(grantLimits.words)} characters in ${String(bullets)} of ${String(grantLimits.bullets)} bullets on ${String(lines)} of ${String(grantLimits.lines)} lines, reading ${String(readingLength)} of ${String(grantLimits.reading)}. ${formatBriefLine(figure)}`,
   };
 }
 

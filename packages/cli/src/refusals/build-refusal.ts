@@ -7,6 +7,7 @@ import type { ParsedArgs, Placeholder, Refusal, RefusalReason, RunWord } from '.
 import { buildApprovalRefusal } from './build-approval-refusal.ts';
 import { buildArgvRefusal } from './build-argv-refusal.ts';
 import { buildCheckValueRefusal } from './build-check-value-refusal.ts';
+import { buildKindRefusal } from './build-kind-refusal.ts';
 import { buildNoteRefusal } from './build-note-refusal.ts';
 import { buildOwnerRefusal } from './build-owner-refusal.ts';
 import { buildRunSpec } from './build-run-spec.ts';
@@ -33,6 +34,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'flag-takes-no-value' },
       { kind: 'flag-not-taken' },
       { kind: 'wrong-positionals' },
+      { kind: 'bad-list-kind' },
       (found) => buildArgvRefusal(found),
     )
     .with({ kind: 'text-too-long' }, (found) => buildTooLong(found))
@@ -54,7 +56,6 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildCredentialRun(found),
       ),
     )
-    .with({ kind: 'kind-full' }, (found) => buildKindFull(found))
     .with(
       { kind: 'owed-needs-note' },
       { kind: 'note-and-no-note' },
@@ -165,12 +166,17 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildRunSpec(found.args).addFlag('for', runPlaceholders.what).toArgv(),
       ),
     )
-    .with({ kind: 'use-not-approval' }, (found) =>
-      refuse(
+    .with({ kind: 'use-not-approval' }, (found) => {
+      const closes: RunWord[] =
+        found.itemKind === 'lesson' || found.itemKind === 'words'
+          ? ['drop', found.id, '--why', runPlaceholders.reason]
+          : ['done', found.id, '--evidence', runPlaceholders.evidence];
+
+      return refuse(
         `www: refused: ${found.id} is a ${getKindWord(found.itemKind)}, and use spends the one-time approval.`,
-        ['done', found.id, '--evidence', runPlaceholders.evidence],
-      ),
-    )
+        closes,
+      );
+    })
     .with({ kind: 'no-open-item' }, (found) => buildNoOpenItem(found))
     .with({ kind: 'closed-id' }, (found) =>
       refuse(
@@ -178,11 +184,16 @@ export function buildRefusal(reason: RefusalReason): Refusal {
         buildRunSpec(found.args).replacePositional(0, runPlaceholders.newID).toArgv(),
       ),
     )
-    .with({ kind: 'other-kind' }, (found) =>
-      refuse(
-        `www: refused: ${found.id} is a ${getKindWord(found.itemKind)}. Change its text with set, or pick a new id.`,
-        buildOtherKindRun(found),
-      ),
+    .with(
+      { kind: 'kind-full' },
+      { kind: 'other-kind' },
+      { kind: 'lesson-needs-why' },
+      { kind: 'promise-needs-parts' },
+      { kind: 'promise-separator' },
+      { kind: 'words-needs-where' },
+      { kind: 'close-kind' },
+      { kind: 'id-held-twice' },
+      (found) => buildKindRefusal(found),
     )
     .with({ kind: 'bad-id' }, (found) => {
       const repaired = repairID(found.id, 16, isItemID, runPlaceholders.newID);
@@ -361,40 +372,6 @@ function buildCredentialRun(found: Found<'credential'>): RunWord[] {
   return replaceText(found.args, found.target, runPlaceholders.secret);
 }
 
-const capWords = {
-  ok: { cap: 1, plural: 'one-time approvals' },
-  task: { cap: 30, plural: 'tasks' },
-  wait: { cap: 4, plural: 'waits' },
-  rule: { cap: 5, plural: 'rules' },
-  where: { cap: 4, plural: 'where items' },
-} as const;
-
-function buildKindFull(found: Found<'kind-full'>): Refusal {
-  const cap = capWords[found.itemKind].cap;
-  const plural = capWords[found.itemKind].plural;
-
-  const argv = match(found.itemKind)
-    .with('ok', (): RunWord[] => ['use', found.oldestID, '--for', runPlaceholders.what])
-    .with('rule', (): RunWord[] => ['drop', found.oldestID, '--why', runPlaceholders.reason])
-    .with('task', 'wait', 'where', (): RunWord[] => [
-      'done',
-      found.oldestID,
-      '--evidence',
-      runPlaceholders.evidence,
-    ])
-    .exhaustive();
-
-  const advice =
-    found.itemKind === 'ok'
-      ? 'Spend it with www use, or drop it.'
-      : 'Close one, or replace one with www set.';
-
-  return refuse(
-    `www: refused: the session holds ${String(cap)} of ${String(cap)} ${plural}. ${advice}`,
-    argv,
-  );
-}
-
 function buildOnUnknown(found: Found<'on-unknown'>): Refusal {
   const spec = buildRunSpec(found.args);
   const closest = pickClosestID(found.id, found.openIDs);
@@ -428,25 +405,6 @@ function buildTaskForSet(spec: RunSpec, args: ParsedArgs): RunSpec {
   const task = spec.renameCommand('task').keepCheckAndNoteFlags();
 
   return args.positionals.length === 1 ? task.addPositional(runPlaceholders.claim) : task;
-}
-
-// A rule has no check, so the set that turns the claim into a rule's new text drops the flags.
-function buildOtherKindRun(found: Found<'other-kind'>): RunWord[] {
-  const typed = buildRunSpec(found.args);
-
-  // ok takes its words in --quote, so the set that replaces it takes them as the claim
-  const spec = (
-    found.args.command === 'ok'
-      ? typed
-          .keepFlags(['note', 'owed'])
-          .addPositional(found.args.values.quote ?? runPlaceholders.claim)
-      : typed
-  ).renameCommand('set');
-
-  return match(found.itemKind)
-    .with('rule', () => spec.keepFlags(['note', 'owed']).toArgv())
-    .with('task', 'wait', 'ok', 'where', () => spec.keepCheckAndNoteFlags().toArgv())
-    .exhaustive();
 }
 
 // Lower-cases, turns each run of characters outside a-z, 0-9 and - into -, trims -, and cuts to

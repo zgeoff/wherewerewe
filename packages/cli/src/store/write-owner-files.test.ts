@@ -130,10 +130,10 @@ test.each([
     journal:
       'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T11:43:00Z\tinit\ttide-alerts\tagent\tShip the glaze timer\t-\t-\n',
     log: 'No journal rows match.\n',
-    next: 'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 7 lines.\n',
+    next: 'o-1  owner note. It shows in every brief until you run: www --session tide-alerts ack o-1. Brief: 158 of 20000 tokens.\n',
     ack: {
       exitCode: 0,
-      stdout: 'o-1  cleared. Kept in the journal. Brief: 5 lines.\n',
+      stdout: 'o-1  cleared. Kept in the journal. Brief: 132 of 20000 tokens.\n',
       stderr: '',
     } satisfies CLIResult,
   },
@@ -142,7 +142,7 @@ test.each([
     journal:
       'ts\top\tid\tby\ttext\twhy\textra\n2026-03-10T11:43:00Z\tinit\ttide-alerts\tagent\tShip the glaze timer\t-\t-\n2026-03-10T11:43:30Z\tsay\to-1\towner\tAsk me first\t-\t-\n',
     log: 'day 1  11:43  say       o-1        owner  Ask me first\n',
-    next: 'o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 7 lines.\n',
+    next: 'o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 158 of 20000 tokens.\n',
     ack: {
       exitCode: 3,
       stdout: '',
@@ -244,12 +244,12 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
       next: {
         exitCode: 0,
         stdout:
-          'o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 8 lines.\n',
+          'o-2  owner note. It shows in every brief until you run: www --session tide-alerts ack o-2. Brief: 167 of 20000 tokens.\n',
         stderr: '',
       },
       ack: {
         exitCode: 0,
-        stdout: 'o-1  cleared. Kept in the journal. Brief: 7 lines.\n',
+        stdout: 'o-1  cleared. Kept in the journal. Brief: 158 of 20000 tokens.\n',
         stderr: '',
       },
       afterAck: {

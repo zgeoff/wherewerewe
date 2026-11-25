@@ -20,9 +20,11 @@ The package ships its TypeScript source, and Bun runs it, so the repo has no bui
 Each session keeps its state in one folder of plain text files under `$XDG_STATE_HOME/wherewerewe/`,
 or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the goal, the grant with
 one line per bullet, and the item in focus, `items.tsv` the open items, `notes.tsv` one row for each
-open item that has a note, `owner.tsv` the owner's notes that still show, and `journal.tsv` every
-write. `init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A note write and
-the close of an item with a note rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A
+open item that has a note, `owner.tsv` the owner's notes that still show, `lessons.tsv`,
+`promises.tsv` and `words.tsv` the open lessons, promises and pieces of the owner's words, and
+`journal.tsv` every write. A missing `lessons.tsv`, `promises.tsv` or `words.tsv` reads as no rows.
+`init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A note write and the
+close of an item with a note rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A
 session never reuses a closed id: a write reads from the journal the ids that `done`, `drop` and
 `use` closed, the decision numbers, who made each decision and, for `say`, the highest note number
 among its `say` rows, and nothing else from the journal. The store is format 2. Every command except
@@ -51,13 +53,14 @@ command exits 4, and never falls back to the only session on the machine. See
 ## Commands and refusals
 
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
-`rule`, `where`, `set`, `ok`, `grant`, `decide`, `done`, `drop`, `use`, `show`, `log`, `recap`,
-`import`, `say` and `ack`, and `www` alone prints the brief. A write answers in one line, except
-`now` and a close, which print the note of an item that has one. The reply of a write, such as
-`task`, `done`, `decide`, `say` or `ack`, names the item or note and ends with the brief's length;
-`init`, `attach`, `detach` and `import` say what they did, and `import` names the folder of the
-backup. Each refusal prints its text and a `Run:` line with the command that fixes it. See
-[the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
+`rule`, `where`, `lesson`, `promise`, `words`, `set`, `ok`, `grant`, `decide`, `done`, `drop`,
+`use`, `show`, `list`, `log`, `recap`, `import`, `say` and `ack`, and `www` alone prints the brief.
+A write answers in one line, except `now` and a close, which print the note of an item that has one.
+The reply of a write, such as `task`, `done`, `decide`, `say` or `ack`, names the item or note and
+ends with the brief's length; `init`, `attach`, `detach` and `import` say what they did, and
+`import` names the folder of the backup. Each refusal prints its text and a `Run:` line with the
+command that fixes it. See [the commands design](../design/wherewerewe/commands.md) for the replies
+and the refusals.
 
 `now` and every item write take `--note` and `--owed`, and `set` also takes `--no-note` and no
 claim. A note holds up to 400 characters, an item has at most one, and `--owed` marks a note that
@@ -183,17 +186,24 @@ table.
 
 ## The brief
 
-`www` prints the goal, the grant, the item in focus with its note, and the open tasks, waits, the
-one-time approval, rules and where items, in the budget of the agent that reads it: at most 82 lines
-and 9,000 characters for Claude Code, and 73 lines and 7,200 characters for Codex and for a reader
-with no known host. The host comes from the reader's environment, `CLAUDE_CODE_SESSION_ID` for
-Claude Code and `CODEX_SESSION_ID` or `CODEX_THREAD_ID` for Codex, never from the store. The open
-tasks print in the order of the brief design, as many as fit, and a count line names `www show`,
-which lists the rest. The grant prints whole after the goal and is never cut. Its bullets sit under
-`may`, `not` and `never`: each `may` and `not` bullet takes a line of its own, and short `never`
-bullets share a line. Only the note of the item in focus prints, and every item with an owed note is
-tagged `owed`. The goal, each grant bullet, the reading and the note wrap at 100 columns by the rule
-in the brief design, at most 3 changed rows and 1 pull request row show, and the footer is one line.
+`www` prints the goal, the grant, the owner's words, the item in focus with its note, and the open
+tasks, waits, promises, the one-time approval, rules, lessons, decisions and where items, within the
+limit of the agent that reads it: 24,000 bytes on Claude Code, 30,000 on Codex and 60,000 with no
+known host, given as 8,000, 10,000 and 20,000 estimated tokens of 3 bytes each. A brief over its
+limit drops rows one at a time in a fixed cut order. Each section that lost rows ends with a line
+that counts them and names the `www list` command that prints every row of its kind. `OPEN` ends
+with its count line instead, which names `www show`, and `DECISIONS` can end with both its own count
+line and its cut line. The brief never cuts the header, the goal, the grant, the owner's notes, the
+changed rows, the item in focus with its step and note, or the footer.
+
+The host comes from the reader's environment, `CLAUDE_CODE_SESSION_ID` for Claude Code and
+`CODEX_SESSION_ID` or `CODEX_THREAD_ID` for Codex, never from the store. The open tasks print in the
+order of the brief design, as many as fit, and a count line names `www show`, which lists the rest.
+The grant prints whole after the goal and is never cut. Its bullets sit under `may`, `not` and
+`never`: each `may` and `not` bullet takes a line of its own, and short `never` bullets share a
+line. Only the note of the item in focus prints, and every item with an owed note is tagged `owed`.
+The goal, each grant bullet, the reading and the note wrap at 100 columns by the rule in the brief
+design, at most 3 changed rows and 1 pull request row show, and the footer is one line.
 
 Each read probes each check, and each open pull request in `prs.tsv` that no item names, at most 8
 at once, and stops waiting at the deadline that [the check design](../design/wherewerewe/checks.md)

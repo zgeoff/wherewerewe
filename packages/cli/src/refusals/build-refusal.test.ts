@@ -6,6 +6,7 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { run } from '@zgeoff/testing/process';
 import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
+import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
@@ -248,52 +249,39 @@ test.each([
     title: 'a full set of waits',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
-      ['wait', 'w-a', 'x', '--who', 'owner'],
-      ['wait', 'w-b', 'x', '--who', 'owner'],
-      ['wait', 'w-c', 'x', '--who', 'owner'],
-      ['wait', 'w-d', 'x', '--who', 'owner'],
+      ...buildMockIDs('w-', 8).map((id) => ['wait', id, 'x', '--who', 'owner']),
     ],
     files: [],
-    argv: ['wait', 'w-e', 'x', '--who', 'owner'],
+    argv: ['wait', 'w-99', 'x', '--who', 'owner'],
     env: 'agent',
     exitCode: 3,
-    stderr:
-      'www: refused: the session holds 4 of 4 waits. Close one, or replace one with www set.\nRun: www done w-a --evidence "<PR, commit or test run>"\n',
+    stderr: `www: refused: the session holds 8 of 8 waits. Close one, or replace one with www set.\nRun: www done ${buildMockIDs('w-', 8)[0]} --evidence "<PR, commit or test run>"\n`,
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
     title: 'a full set of where items',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
-      ['where', 'wt-a', 'x'],
-      ['where', 'wt-b', 'x'],
-      ['where', 'wt-c', 'x'],
-      ['where', 'wt-d', 'x'],
+      ...buildMockIDs('wt-', 8).map((id) => ['where', id, 'x']),
     ],
     files: [],
-    argv: ['where', 'wt-e', 'x'],
+    argv: ['where', 'wt-99', 'x'],
     env: 'agent',
     exitCode: 3,
-    stderr:
-      'www: refused: the session holds 4 of 4 where items. Close one, or replace one with www set.\nRun: www done wt-a --evidence "<PR, commit or test run>"\n',
+    stderr: `www: refused: the session holds 8 of 8 where items. Close one, or replace one with www set.\nRun: www done ${buildMockIDs('wt-', 8)[0]} --evidence "<PR, commit or test run>"\n`,
     fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
   },
   {
     title: 'a full set of rules',
     setup: [
       ['init', 'tide-alerts', '--goal', 'Ship it'],
-      ['rule', 'r-a', 'x'],
-      ['rule', 'r-b', 'x'],
-      ['rule', 'r-c', 'x'],
-      ['rule', 'r-d', 'x'],
-      ['rule', 'r-e', 'x'],
+      ...buildMockIDs('r-', 15).map((id) => ['rule', id, 'x']),
     ],
     files: [],
-    argv: ['rule', 'r-f', 'x'],
+    argv: ['rule', 'r-99', 'x'],
     env: 'agent',
     exitCode: 3,
-    stderr:
-      'www: refused: the session holds 5 of 5 rules. Close one, or replace one with www set.\nRun: www drop r-a --why "<reason>"\n',
+    stderr: `www: refused: the session holds 15 of 15 rules. Close one, or replace one with www set.\nRun: www drop ${buildMockIDs('r-', 15)[0]} --why "<reason>"\n`,
     fills: [{ '<reason>': 'stopped' }],
   },
   {
@@ -3557,6 +3545,382 @@ test.each([
       'www: refused: an id is 2 to 16 characters of a-z, 0-9 and -, starts with a letter, and is not grant, d-<n> or o-<n>.\nRun: www task <new id> "Tidy the beds"\n',
     fills: [{ '<new id>': 't-beds' }],
   },
+  {
+    title: 'a lesson with no --why',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['lesson', 'l-a', 'Reseed first'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a lesson needs the mistake behind it.\nRun: www lesson l-a "Reseed first" --why "<the mistake behind it>"\n',
+    fills: [{ '<the mistake behind it>': 'A stale row passed' }],
+  },
+  {
+    title: 'a promise with no --by',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['promise', 'p-a', 'Cost table', '--to', 'owner'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: a promise names who gets it and when.\nRun: www promise p-a "Cost table" --to owner --by "<when>"\n',
+    fills: [{ '<when>': 'Friday' }],
+  },
+  {
+    title: 'a promise --by that holds a semicolon',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', 'Fri; Mon'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: --by cannot hold ; or =, which the journal keeps apart.\nRun: www promise p-a "Cost table" --to owner --by "<when, with no ; or =>"\n',
+    fills: [{ '<when, with no ; or =>': 'Friday' }],
+  },
+  {
+    title: 'owner words with no --where',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: ['words', 'w-a', 'Plain words'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the owner\'s words need where they were said.\nRun: www words w-a "<the owner\'s exact words>" --where "<where>"\n',
+    fills: [{ "<the owner's exact words>": 'Plain words', '<where>': 'chat' }],
+  },
+  {
+    title: 'a lesson of 121 characters',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [],
+    argv: [
+      'lesson',
+      'l-a',
+      'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      '--why',
+      'A stale row passed',
+    ],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the lesson is 121 characters, and the limit is 120. Write what is true now; the story belongs in a PR or a commit.\nRun: www lesson l-a "<lesson of at most 120 characters>" --why "A stale row passed"\n',
+    fills: [{ '<lesson of at most 120 characters>': 'Reseed first' }],
+  },
+  {
+    title: 'a 6th lesson',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['lesson', 'l-1', 'Reseed first', '--why', 'A stale row passed'],
+      ['lesson', 'l-2', 'Reseed first', '--why', 'A stale row passed'],
+      ['lesson', 'l-3', 'Reseed first', '--why', 'A stale row passed'],
+      ['lesson', 'l-4', 'Reseed first', '--why', 'A stale row passed'],
+      ['lesson', 'l-5', 'Reseed first', '--why', 'A stale row passed'],
+    ],
+    files: [],
+    argv: ['lesson', 'l-6', 'Reseed first', '--why', 'A stale row passed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the session holds 5 of 5 lessons. Drop one, or replace one with www lesson.\nRun: www drop l-1 --why "<reason>"\n',
+    fills: [{ '<reason>': 'Old' }],
+  },
+  {
+    title: 'a 6th promise',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['promise', 'p-1', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+      ['promise', 'p-2', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+      ['promise', 'p-3', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+      ['promise', 'p-4', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+      ['promise', 'p-5', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+    ],
+    files: [],
+    argv: ['promise', 'p-6', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the session holds 5 of 5 promises. Close one, or replace one with www promise.\nRun: www done p-1 --evidence "<what you delivered>"\n',
+    fills: [{ '<what you delivered>': 'cost table sent' }],
+  },
+  {
+    title: 'a 9th piece of owner words',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['words', 'w-1', 'Plain words', '--where', 'chat'],
+      ['words', 'w-2', 'Plain words', '--where', 'chat'],
+      ['words', 'w-3', 'Plain words', '--where', 'chat'],
+      ['words', 'w-4', 'Plain words', '--where', 'chat'],
+      ['words', 'w-5', 'Plain words', '--where', 'chat'],
+      ['words', 'w-6', 'Plain words', '--where', 'chat'],
+      ['words', 'w-7', 'Plain words', '--where', 'chat'],
+      ['words', 'w-8', 'Plain words', '--where', 'chat'],
+    ],
+    files: [],
+    argv: ['words', 'w-9', 'Plain words', '--where', 'chat'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: the session holds 8 of 8 owner\'s words. Drop one, or replace one with www words.\nRun: www drop w-1 --why "<reason>"\n',
+    fills: [{ '<reason>': 'Old' }],
+  },
+  {
+    title: 'a task with the id of a lesson',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed'],
+    ],
+    files: [],
+    argv: ['task', 'l-a', 'A task'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: l-a is a lesson. Change it with www lesson, or pick a new id.\nRun: www lesson l-a "<do this>" --why "<the mistake behind it>"\n',
+    fills: [{ '<do this>': 'Reseed first', '<the mistake behind it>': 'A stale row passed' }],
+  },
+  {
+    title: 'a lesson with the id of a promise',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+    ],
+    files: [],
+    argv: ['lesson', 'p-a', 'Reseed first', '--why', 'A stale row passed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: p-a is a promise. Change it with www promise, or pick a new id.\nRun: www promise p-a "<what>" --to "<who>" --by "<when>"\n',
+    fills: [{ '<what>': 'Cost table', '<who>': 'owner', '<when>': 'Friday' }],
+  },
+  {
+    title: 'a promise with the id of owner words',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['words', 'w-a', 'Plain words', '--where', 'chat'],
+    ],
+    files: [],
+    argv: ['promise', 'w-a', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: w-a holds the owner\'s words. Change them with www words, or pick a new id.\nRun: www words w-a "<the owner\'s exact words>" --where "<where>"\n',
+    fills: [{ "<the owner's exact words>": 'Plain words', '<where>': 'chat' }],
+  },
+  {
+    title: 'owner words with the id of a lesson',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed'],
+    ],
+    files: [],
+    argv: ['words', 'l-a', 'Plain words', '--where', 'chat'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: l-a is a lesson. Change it with www lesson, or pick a new id.\nRun: www lesson l-a "<do this>" --why "<the mistake behind it>"\n',
+    fills: [{ '<do this>': 'Reseed first', '<the mistake behind it>': 'A stale row passed' }],
+  },
+  {
+    title: 'set on the id of a lesson',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed'],
+    ],
+    files: [],
+    argv: ['set', 'l-a', 'New text'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: l-a is a lesson. Change it with www lesson, or pick a new id.\nRun: www lesson l-a "<do this>" --why "<the mistake behind it>"\n',
+    fills: [{ '<do this>': 'Reseed first', '<the mistake behind it>': 'A stale row passed' }],
+  },
+  {
+    title: 'now on the id of a promise',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+    ],
+    files: [],
+    argv: ['now', 'p-a', 'Go'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: p-a is a promise. Change it with www promise, or pick a new id.\nRun: www promise p-a "<what>" --to "<who>" --by "<when>"\n',
+    fills: [{ '<what>': 'Cost table', '<who>': 'owner', '<when>': 'Friday' }],
+  },
+  {
+    title: 'done on a lesson',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed'],
+    ],
+    files: [],
+    argv: ['done', 'l-a', '--evidence', 'merged'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: l-a is a lesson, and a lesson closes with drop.\nRun: www drop l-a --why "<reason>"\n',
+    fills: [{ '<reason>': 'Fixed' }],
+  },
+  {
+    title: 'done on owner words',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['words', 'w-a', 'Plain words', '--where', 'chat'],
+    ],
+    files: [],
+    argv: ['done', 'w-a', '--evidence', 'merged'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: w-a holds the owner\'s words, and they close with drop.\nRun: www drop w-a --why "<reason>"\n',
+    fills: [{ '<reason>': 'Fixed' }],
+  },
+  {
+    title: 'use on a lesson',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed'],
+    ],
+    files: [],
+    argv: ['use', 'l-a', '--for', 'merged it'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: l-a is a lesson, and use spends the one-time approval.\nRun: www drop l-a --why "<reason>"\n',
+    fills: [{ '<reason>': 'Fixed' }],
+  },
+  {
+    title: 'use on owner words',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['words', 'w-a', 'Plain words', '--where', 'chat'],
+    ],
+    files: [],
+    argv: ['use', 'w-a', '--for', 'merged it'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: w-a is a piece of the owner\'s words, and use spends the one-time approval.\nRun: www drop w-a --why "<reason>"\n',
+    fills: [{ '<reason>': 'Fixed' }],
+  },
+  {
+    title: 'use on a promise',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+    ],
+    files: [],
+    argv: ['use', 'p-a', '--for', 'merged it'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: p-a is a promise, and use spends the one-time approval.\nRun: www done p-a --evidence "<PR, commit or test run>"\n',
+    fills: [{ '<PR, commit or test run>': 'commit 4c1d2e0' }],
+  },
+  {
+    title: 'a lesson with the id of a dropped lesson',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed'],
+      ['drop', 'l-a', '--why', 'Gone'],
+    ],
+    files: [],
+    argv: ['lesson', 'l-a', 'Reseed first', '--why', 'A stale row passed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: l-a closed on day 1. Pick a new id.\nRun: www lesson <new id> "Reseed first" --why "A stale row passed"\n',
+    fills: [{ '<new id>': 'l-b' }],
+  },
+  {
+    title: 'a promise with the id of a kept promise',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+      ['done', 'p-a', '--evidence', 'sent'],
+    ],
+    files: [],
+    argv: ['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', 'Friday'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: p-a closed on day 1. Pick a new id.\nRun: www promise <new id> "Cost table" --to owner --by Friday\n',
+    fills: [{ '<new id>': 'p-b' }],
+  },
+  {
+    title: 'a lesson write while lessons.tsv holds a row that does not parse',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'lessons.tsv',
+        text: 'id\ttext\twhy\twritten\tby\nl-x\tx\ty\tnot a time\tagent\n',
+      },
+    ],
+    argv: ['lesson', 'l-b', 'Reseed first', '--why', 'A stale row passed'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      "www: tide-alerts's lessons.tsv line 2 does not parse: the written time is not an ISO 8601 UTC time to the second, ending in Z. Fix the row by hand.\nRun: less <STATE>/tide-alerts/lessons.tsv\n",
+    fills: [],
+  },
+  {
+    title: 'a done of an id while promises.tsv holds a row that does not parse',
+    setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'promises.tsv',
+        text: 'id\twhat\tto\tby_when\twritten\tby\np-x\tx\n',
+      },
+    ],
+    argv: ['done', 'p-a', '--evidence', 'sent'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      "www: tide-alerts's promises.tsv line 2 does not parse: expected 6 tab-separated columns, found 2. Fix the row by hand.\nRun: less <STATE>/tide-alerts/promises.tsv\n",
+    fills: [],
+  },
+  {
+    title: 'a close of an id that a task and a lesson both hold',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 'l-seed', 'A task'],
+    ],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'lessons.tsv',
+        text: 'id\ttext\twhy\twritten\tby\nl-seed\tx\ty\t2026-03-07T15:20:44Z\tagent\n',
+      },
+    ],
+    argv: ['done', 'l-seed', '--evidence', 'merged'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: tide-alerts holds l-seed twice, as a task in items.tsv and as a lesson in lessons.tsv. Rename one of them by hand; the journal keeps both.\nRun: less <STATE>/tide-alerts/lessons.tsv\n',
+    fills: [],
+  },
+  {
+    title: 'a set of an id that a task and a lesson both hold',
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 'l-seed', 'A task'],
+    ],
+    files: [
+      {
+        session: 'tide-alerts',
+        name: 'lessons.tsv',
+        text: 'id\ttext\twhy\twritten\tby\nl-seed\tx\ty\t2026-03-07T15:20:44Z\tagent\n',
+      },
+    ],
+    argv: ['set', 'l-seed', 'New text'],
+    env: 'agent',
+    exitCode: 3,
+    stderr:
+      'www: refused: tide-alerts holds l-seed twice, as a task in items.tsv and as a lesson in lessons.tsv. Rename one of them by hand; the journal keeps both.\nRun: less <STATE>/tide-alerts/lessons.tsv\n',
+    fills: [],
+  },
 ])('it refuses $title with its text and a Run line that passes', async (row) => {
   const ctx = setupTest();
 
@@ -3722,3 +4086,65 @@ test('it prints the path of a broken file as one word that a real shell reads ba
 
   expect(words).toStrictEqual(['less', join(folder, 'items.tsv')]);
 });
+
+test.each([
+  {
+    title: 'the lesson text',
+    argv: (text: string) => ['lesson', 'l-a', text, '--why', 'A mistake'],
+  },
+  { title: 'the lesson why', argv: (text: string) => ['lesson', 'l-a', 'Reseed', '--why', text] },
+  {
+    title: 'the promise text',
+    argv: (text: string) => ['promise', 'p-a', text, '--to', 'owner', '--by', 'Friday'],
+  },
+  {
+    title: 'the promise --to',
+    argv: (text: string) => ['promise', 'p-a', 'Cost table', '--to', text, '--by', 'Friday'],
+  },
+  {
+    title: 'the promise --by',
+    argv: (text: string) => ['promise', 'p-a', 'Cost table', '--to', 'owner', '--by', text],
+  },
+  { title: 'the owner words', argv: (text: string) => ['words', 'w-a', text, '--where', 'chat'] },
+  {
+    title: 'the owner words --where',
+    argv: (text: string) => ['words', 'w-a', 'Plain words', '--where', text],
+  },
+])(
+  'it refuses a credential of every pattern in $title with exit 3, changes no file and prints no tail',
+  async (row) => {
+    const ctx = setupTest();
+    const samples = buildCredentialSamples();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it'], ctx.agentEnv);
+
+    const before = await ctx.readTree();
+
+    const results = [];
+
+    for (const sample of samples) {
+      const result = await ctx.run(row.argv(`token ${sample.sample}`), ctx.agentEnv);
+
+      results.push({
+        name: sample.name,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        refusal: result.stderr.split('\n')[0],
+        hasTail: result.stderr.includes(sample.tail),
+        runLine: result.stderr.split('\n').filter((line) => line.startsWith('Run: www')).length,
+      });
+    }
+
+    expect({ results, tree: await ctx.readTree() }).toStrictEqual({
+      results: samples.map((sample) => ({
+        name: sample.name,
+        exitCode: 3,
+        stdout: '',
+        refusal: `www: refused: the text looks like a credential (it matches the ${sample.name} pattern). Write where the secret lives, never its value.`,
+        hasTail: false,
+        runLine: 1,
+      })),
+      tree: before,
+    });
+  },
+);

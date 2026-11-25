@@ -5,8 +5,8 @@ import { isNamedPullRequest } from './is-named-pull-request.ts';
 import { pickChangedItems } from './pick-changed-items.ts';
 import type { BriefInput } from './types.ts';
 
-// The brief as a write reply counts its lines, and as the read orders its probes: no probe has run,
-// so each tag reads the last result saved, and each open pull request row reads its saved state.
+// The brief as a write reply counts its tokens: no probe has run, so each tag reads the last result
+// saved, and each open pull request row reads its saved state.
 export function buildReplyBriefInput(store: Store, context: BriefContext): BriefInput {
   const checkCount = store.items.filter((item) => item.check !== null).length;
 

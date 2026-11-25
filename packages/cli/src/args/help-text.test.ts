@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { grantLimits } from '../rules/grant-limits.ts';
-import { itemCaps, ownerNoteCap } from '../rules/item-caps.ts';
+import { itemCaps, lessonCap, ownerNoteCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import { helpText } from './help-text.ts';
 
@@ -24,6 +24,13 @@ function setupTest() {
     waitWho: `a wait takes --who ${String(textLimits.waitWho)}`,
     idMin: `An id has ${String(textLimits.idMin)} to`,
     idMax: `to ${String(textLimits.idMax)} characters`,
+    lesson: `A lesson takes ${String(textLimits.lesson)} with`,
+    lessonWhy: `its --why ${String(textLimits.lessonWhy)}, a promise`,
+    promise: `a promise ${String(textLimits.promise)} with`,
+    promiseTo: `with --to ${String(textLimits.promiseTo)} and`,
+    promiseBy: `--by ${String(textLimits.promiseBy)}, and the owner's`,
+    words: `the owner's words ${String(textLimits.words)} with`,
+    wordsWhere: `with --where ${String(textLimits.wordsWhere)}. A session`,
     sessionNameMin: `a session name ${String(textLimits.sessionNameMin)} to`,
     sessionNameMax: `to ${String(textLimits.sessionNameMax)}.`,
   };
@@ -37,9 +44,9 @@ function setupTest() {
     reading: `a reading of ${String(grantLimits.reading)}`,
   };
 
-  const capPhrase = `at most ${String(itemCaps.task)} tasks, ${String(itemCaps.wait)} waits, ${String(itemCaps.ok)} approval, ${String(itemCaps.rule)} rules, ${String(itemCaps.where)} where items and ${String(ownerNoteCap)} owner notes`;
+  const capPhrase = `at most ${String(itemCaps.task)} tasks, ${String(itemCaps.wait)} waits, ${String(itemCaps.ok)} approval, ${String(itemCaps.rule)} rules, ${String(itemCaps.where)} where items, ${String(lessonCap)} lessons, ${String(promiseCap)} promises, ${String(wordsCap)} owner's words and ${String(ownerNoteCap)} owner notes`;
 
-  return { text, textPhrases, grantPhrases, capPhrase };
+  return { helpText, text, textPhrases, grantPhrases, capPhrase };
 }
 
 test('it holds each limit of the tables in its own phrase', () => {
@@ -55,7 +62,8 @@ test('it holds each limit of the tables in its own phrase', () => {
 });
 
 test('it keeps each line of the Limits text within 100 characters', () => {
-  const lines = helpText.split('\n');
+  const ctx = setupTest();
+  const lines = ctx.helpText.split('\n');
   const start = lines.findIndex((line) => line.startsWith('Limits:'));
   const end = lines.findIndex((line) => line.startsWith('Exit codes:'));
 

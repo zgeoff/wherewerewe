@@ -248,6 +248,21 @@ test.each([
   },
 );
 
+test.each([['-h'], ['--help']])(
+  'it refuses a flag help does not take with help in its text, for %s',
+  async (flag) => {
+    const ctx = setupTest();
+
+    const refused = await ctx.run([flag, '--bogus=y']);
+
+    expect(refused).toStrictEqual({
+      exitCode: 2,
+      stdout: '',
+      stderr: 'www: help takes no --bogus flag. It takes only --session.\nRun: www help\n',
+    });
+  },
+);
+
 test('it keeps --session on the usage Run line of a flag the command does not take', async () => {
   const ctx = setupTest();
 
@@ -295,7 +310,7 @@ test.each(
   const fills = Object.fromEntries(
     parseRunLine(runLine)
       .map((word) => word.replaceAll(/^\[+|\]+$/gu, ''))
-      .filter((word) => /<[^>]*>/u.test(word))
+      .filter((word) => /<[^>|]*>/u.test(word))
       .map((word) => [word, 'zz-a']),
   );
 

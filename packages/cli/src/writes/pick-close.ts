@@ -5,12 +5,17 @@ import { formatTimestamp } from '../format-timestamp.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { Item, ParsedArgs, RefusalReason } from '../types.ts';
+import { collectOpenIDs } from './collect-id-holders.ts';
+import { formatBriefLine } from './format-brief-line.ts';
+import { isOwnCloseRetry } from './is-own-close-retry.ts';
+import { pickDuplicateIDRefusal } from './pick-duplicate-id-refusal.ts';
+import { pickFileClose } from './pick-file-close.ts';
 import { pickNotesUnreadRefusal } from './pick-note-change.ts';
 import { pickTextRefusal } from './pick-text-refusal.ts';
 import type { WriteInput, WriteResult } from './types.ts';
 
-// An open item whose id the journal already closed lost its rewrite to an interrupted write: it
-// finishes the rewrite and adds no second row.
+// An open item whose own close is the newest journal row of its id lost its rewrite to an
+// interrupted write: it finishes the rewrite and adds no second row (isOwnCloseRetry).
 export function pickClose(input: WriteInput): WriteResult {
   const store = input.store;
   const args = input.args;
@@ -29,16 +34,28 @@ export function pickClose(input: WriteInput): WriteResult {
     };
   }
 
+  const duplicate = pickDuplicateIDRefusal(input, id);
+
+  if (duplicate !== null) {
+    return { kind: 'refused', refusal: buildRefusal(duplicate) };
+  }
+
   const item = store.items.find((candidate) => candidate.id === id);
 
   if (item === undefined) {
+    const fileClose = pickFileClose(input, command, id, why);
+
+    if (fileClose !== null) {
+      return fileClose;
+    }
+
     return {
       kind: 'refused',
       refusal: buildRefusal({
         kind: 'no-open-item',
         args,
         id,
-        openIDs: store.items.map((candidate) => candidate.id),
+        openIDs: collectOpenIDs(store),
         ...(command === 'use'
           ? {
               suggestIDs: store.items
@@ -80,7 +97,7 @@ export function pickClose(input: WriteInput): WriteResult {
 
   const ts = formatTimestamp(nowMs);
   const wasInFocus = store.session.now === id;
-  const isSpent = input.journal.closed.has(id);
+  const isSpent = isOwnCloseRetry(input.journal.lastRows.items.get(id), command, item.claim);
 
   const verb = match(command)
     .with('done', () => 'done')
@@ -104,8 +121,8 @@ export function pickClose(input: WriteInput): WriteResult {
         ? []
         : [{ ts, op: args.command, id, by: 'agent', text: item.claim, why, extra: null }],
     },
-    reply: (briefLines) => {
-      const brief = `Brief: ${String(briefLines)} lines.`;
+    reply: (figure) => {
+      const brief = formatBriefLine(figure);
 
       if (note === undefined) {
         return `${id}  ${verb}. Off the brief, kept in the journal. ${brief}`;

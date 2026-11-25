@@ -6,7 +6,7 @@ import { renderShow } from '../reads/render-show.ts';
 import type { ShowInput } from '../reads/render-show.ts';
 import { readJournalIndex } from '../store/read-journal-index.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
-import type { CLIResult, JournalRow, Store, UnreadRows } from '../types.ts';
+import type { CLIResult, Item, JournalRow, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
 import type { CommandContext } from './types.ts';
 
@@ -49,21 +49,21 @@ export async function runShowCommand(
       rows,
       closed,
       nowMs: context.nowMs,
-      checkNow: await runItemProbe(store, id, context.env),
+      checkNows: await Promise.all(
+        store.items.filter((item) => item.id === id).map((item) => runItemProbe(item, context.env)),
+      ),
     }),
     stderr: notes.join(''),
   };
 }
 
 async function runItemProbe(
-  store: Store,
-  id: string,
+  item: Item,
   env: Readonly<Record<string, string | undefined>>,
-): Promise<ShowInput['checkNow']> {
-  const item = store.items.find((candidate) => candidate.id === id);
-  const target = item?.check === null || item === undefined ? null : parseCheckTarget(item.check);
+): Promise<ShowInput['checkNows'][number]> {
+  const target = item.check === null ? null : parseCheckTarget(item.check);
 
-  if (item === undefined || target === null) {
+  if (target === null) {
     return null;
   }
 

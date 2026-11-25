@@ -1,9 +1,11 @@
 import { expect, test } from 'bun:test';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { helpText } from '../args/help-text.ts';
 import { runCLI } from '../run-cli.ts';
 import { buildGrantFaultCases, faultCredential } from '../test-utils/build-grant-fault-cases.ts';
 import { buildSampleRunArgv } from '../test-utils/build-sample-run-argv.ts';
 import { buildWriteFaultCases } from '../test-utils/build-write-fault-cases.ts';
+import { readHelpCommandLine } from '../test-utils/read-help-command-line.ts';
 import { settleRefusal } from './settle-refusal.ts';
 
 function setupTest() {
@@ -11,6 +13,8 @@ function setupTest() {
   const env = { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
 
   return {
+    settle: (refusal: Parameters<typeof settleRefusal>[0]) =>
+      settleRefusal(refusal, { sessionFlag: null, cwd: '/' }),
     run: (argv: readonly string[]) =>
       runCLI({
         argv,
@@ -130,14 +134,13 @@ test.each(
 });
 
 test('it ends at www help after three refusals in a row', () => {
-  const settled = settleRefusal(
-    {
-      exitCode: 3,
-      lines: ['www: x'],
-      runs: [{ www: ['task', 'Bad Id', '', '--pr', 'nope'] }],
-    },
-    { sessionFlag: null, cwd: '/' },
-  );
+  const ctx = setupTest();
+
+  const settled = ctx.settle({
+    exitCode: 3,
+    lines: ['www: x'],
+    runs: [{ www: ['task', 'Bad Id', '', '--pr', 'nope'] }],
+  });
 
   expect(settled).toStrictEqual({
     refusal: {
@@ -153,12 +156,11 @@ test.each([
   'wait <id> "<what>" --who <who> [<check>]',
   'set <id> ["<claim>"] [--note "<detail>" [--owed] | --no-note]',
   'ack o-<n>',
+  'list <tasks|waits|approvals|rules|where|lessons|promises|words|notes|decisions|prs>',
   '',
 ])('it keeps the usage Run line %p, which the parser takes', (line) => {
-  const settled = settleRefusal(
-    { exitCode: 2, lines: ['www: x'], runs: [{ usage: line }] },
-    { sessionFlag: null, cwd: '/' },
-  );
+  const ctx = setupTest();
+  const settled = ctx.settle({ exitCode: 2, lines: ['www: x'], runs: [{ usage: line }] });
 
   expect(settled.refusal).toStrictEqual({
     exitCode: 2,
@@ -168,10 +170,13 @@ test.each([
 });
 
 test('it prints the refusal a usage Run line would get when the parser refuses the line', () => {
-  const settled = settleRefusal(
-    { exitCode: 2, lines: ['www: x'], runs: [{ usage: 'wait <id> "<what>" --on <id>' }] },
-    { sessionFlag: null, cwd: '/' },
-  );
+  const ctx = setupTest();
+
+  const settled = ctx.settle({
+    exitCode: 2,
+    lines: ['www: x'],
+    runs: [{ usage: 'wait <id> "<what>" --on <id>' }],
+  });
 
   expect(settled.refusal).toStrictEqual({
     exitCode: 2,
@@ -182,15 +187,37 @@ test('it prints the refusal a usage Run line would get when the parser refuses t
   });
 });
 
+test('it prints the refusal of a flag that an optional group of the usage line holds, in place of the line', () => {
+  const ctx = setupTest();
+
+  const settled = ctx.settle({
+    exitCode: 2,
+    lines: ['www: x'],
+    runs: [{ usage: 'log [--bogus]' }],
+  });
+
+  expect(settled.refusal.lines[0]).toContain('www: log takes no --bogus flag.');
+});
+
+test.each(['set', 'grant', 'task', 'decide', 'ok', 'log'])(
+  'it keeps the help line of %s, whose optional groups the parser takes',
+  (command) => {
+    const ctx = setupTest();
+    const line = readHelpCommandLine(helpText, command) ?? '';
+    const settled = ctx.settle({ exitCode: 2, lines: ['www: x'], runs: [{ usage: line }] });
+
+    expect(settled.refusal.runs).toStrictEqual([{ usage: line }]);
+  },
+);
+
 test('it keeps the Run line of the second refusal when two refusals in a row settle it', () => {
-  const settled = settleRefusal(
-    {
-      exitCode: 3,
-      lines: ['www: x'],
-      runs: [{ www: ['task', 'ok-id', '', '--pr', 'nope'] }],
-    },
-    { sessionFlag: null, cwd: '/' },
-  );
+  const ctx = setupTest();
+
+  const settled = ctx.settle({
+    exitCode: 3,
+    lines: ['www: x'],
+    runs: [{ www: ['task', 'ok-id', '', '--pr', 'nope'] }],
+  });
 
   expect(settled).toStrictEqual({
     refusal: {

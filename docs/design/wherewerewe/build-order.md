@@ -83,7 +83,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 
 - [ ] The `owner-notes` journey reaches its end state. Evidence: the wringer report block in the pull request, with a claim for `owner-notes`, and a green `verify / gate`.
 - [ ] `say` and `ack` refuse when stdin or stdout is not a terminal, and when any of the five agent variables is set. Evidence: tests that run each case, using `script` to give a terminal.
-- [ ] A note shows first after the goal until `ack`, and a third note is refused. Evidence: brief tests.
+- [ ] A note shows first after the goal and the grant until `ack`, and a third note is refused. Evidence: brief tests.
 - [ ] No agent command opens `owner.tsv` for writing. Evidence: a test that makes `owner.tsv` read-only and runs every agent write.
 
 ## Slice 2b: notes
@@ -161,7 +161,7 @@ The trial journey also settles how a target behaves for a CLI with no server: an
 - [ ] The ASCII worst case of brief.md renders within each host's limit, 24,000, 30,000 and 60,000 bytes, and cuts nothing. Evidence: the worst-case render test for each host.
 - [ ] A store whose every stored text is in a 3-byte script renders within each host's limit, drops rows in the cut order of brief.md, and ends each section that lost rows with its cut line, whose `www list <kind>` command prints every row of that kind. Evidence: cut tests that run the printed commands.
 - [ ] The brief's header starts with `<name> · day` and its last line is the footer, for every store. Evidence: a renderer test that the hooks slice reuses.
-- [ ] Each write reply ends `Brief: <t> of <limit> tokens.`, with `<t>` equal to the estimate of the brief a read prints next, and `<limit>` the reader's host's. Evidence: reply tests for each host.
+- [ ] Each write reply ends `Brief: <t> of <limit> tokens.`, with `<t>` the estimate of the brief rendered from the saved store, using saved check results and running no probe, and `<limit>` the reader's host's. Evidence: reply tests for each host.
 - [ ] `www list` prints every open row of each kind in commands.md, and exits 2 with its `Run:` line for no kind or an unknown one. Evidence: list tests.
 - [ ] The brief prints the 3 newest decisions in force and a count line with `www list decisions`; a replaced or ruled-out decision never counts. Evidence: brief tests.
 - [ ] `www lesson`, `www promise` and `www words` write only their own file and the journal, refuse at their caps, refuse each text over its limit and each credential, and a refused write changes no file. A store with none of the three files reads with none. Evidence: store and refusal tests.

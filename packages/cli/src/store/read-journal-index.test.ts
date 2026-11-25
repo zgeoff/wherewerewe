@@ -32,6 +32,58 @@ test('it finds each id that a done, drop or use row closed, with the ts of that 
   );
 });
 
+test('it keeps the newest row of each id in its file, a replacement in the same second after a close included', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-04T08:00:00Z',
+    op: 'done',
+    id: 'l-seed',
+    text: 'An old task',
+  });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-06T08:00:00Z',
+    op: 'lesson',
+    id: 'l-seed',
+    text: 'Pin the clock',
+  });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-08T08:00:00Z',
+    op: 'drop',
+    id: 'l-seed',
+    text: 'Pin the clock',
+    extra: 'kind=lesson',
+  });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-08T08:00:00Z',
+    op: 'lesson',
+    id: 'l-seed',
+    text: 'Pin the clock',
+  });
+
+  await seedJournalRow(ctx.folder, {
+    ts: '2026-03-08T09:00:00Z',
+    op: 'drop',
+    id: 'due-cost',
+    text: 'Cost table',
+    extra: 'kind=promise',
+  });
+
+  const index = await readJournalIndex(ctx.folder);
+
+  expect(index.lastRows).toStrictEqual({
+    items: new Map([['l-seed', { op: 'done', text: 'An old task' }]]),
+    lesson: new Map([['l-seed', { op: 'lesson', text: 'Pin the clock' }]]),
+    promise: new Map([['due-cost', { op: 'drop', text: 'Cost table' }]]),
+    words: new Map(),
+  });
+});
+
 test('it finds each decision with who made it, and the highest decision number', async () => {
   const ctx = setupTest();
 

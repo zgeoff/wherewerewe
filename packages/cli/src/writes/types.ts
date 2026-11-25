@@ -7,6 +7,12 @@ import type {
   StoreChange,
 } from '../types.ts';
 
+// The estimated tokens of the brief a write reply counts, and the reader's limit in tokens.
+export interface BriefFigure {
+  readonly tokens: number;
+  readonly limit: number;
+}
+
 // What a write's probe found before the lock, for the check the write expected to store.
 export interface WriteProbe {
   readonly ref: string;
@@ -33,7 +39,7 @@ export type WriteResult =
   | {
       readonly kind: 'write';
       readonly change: StoreChange;
-      readonly reply: (briefLines: number) => string;
+      readonly reply: (figure: BriefFigure) => string;
     }
   | { readonly kind: 'refused'; readonly refusal: Refusal };
 
@@ -41,6 +47,6 @@ export type OwnerWriteResult =
   | {
       readonly kind: 'write';
       readonly change: OwnerChange;
-      readonly reply: (briefLines: number) => string;
+      readonly reply: (figure: BriefFigure) => string;
     }
   | { readonly kind: 'refused'; readonly refusal: Refusal };

@@ -1,10 +1,9 @@
 import { collectChangedIDs } from '../brief/collect-changed-ids.ts';
-import { formatAge } from '../brief/format-age.ts';
 import { formatTaskLine } from '../brief/format-task-line.ts';
 import { orderTasks } from '../brief/order-tasks.ts';
-import { wrapBlock } from '../brief/wrap-block.ts';
 import { itemCaps } from '../rules/item-caps.ts';
 import type { Item, Note } from '../types.ts';
+import { formatNoteLines } from './format-note-lines.ts';
 
 // Every open task in the brief's order, each row as the brief prints it and its note whole. No
 // line is cut.
@@ -37,12 +36,7 @@ export function renderTaskList(input: TaskListInput): string {
       return [row];
     }
 
-    const age = formatAge(input.nowMs - Date.parse(note.written));
-
-    return [
-      row,
-      ...wrapBlock(note.note, `    ${note.owed ? 'owed note' : 'note'} (${age}): `, '    '),
-    ];
+    return [row, ...formatNoteLines(note, input.nowMs)];
   });
 
   return `${[`OPEN (${String(tasks.length)}, max ${String(itemCaps.task)})`, ...lines].join('\n')}\n`;

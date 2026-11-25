@@ -16,6 +16,10 @@ import { getPickedImport } from '../test-utils/get-picked-import.ts';
 import { parseHandKeptStore } from './parse-hand-kept-store.ts';
 import { pickImport } from './pick-import.ts';
 
+function setupTest() {
+  return { pickImport };
+}
+
 test.each([
   {
     title: 'a session line that is not key=value',
@@ -101,6 +105,8 @@ test.each([
     problems: ['session (now): t-gone names no open item.'],
   },
 ])('it refuses $title, with the exact problem lines', (row) => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: row.session,
     items:
@@ -108,7 +114,7 @@ test.each([
     journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -534,43 +540,37 @@ test.each([
     ],
   },
   {
-    title: 'five questions against a cap of 4 waits',
+    title: 'nine questions against a cap of 8 waits',
     items: [],
-    journal: ['q-1', 'q-2', 'q-3', 'q-4', 'q-5'].map((id) =>
-      buildHandKeptQuestionRow({ id, text: 'Which' }),
-    ),
+    journal: buildMockIDs('q-', 9).map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
     problems: [
-      'journal.tsv: 5 open waits (q-1, q-2, q-3, q-4, q-5), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `journal.tsv: 9 open waits (${buildMockIDs('q-', 9).join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
-    title: 'three wait items and two questions against a cap of 4 waits',
-    items: ['w-a', 'w-b', 'w-c'].map((id) =>
+    title: 'six wait items and three questions against a cap of 8 waits',
+    items: buildMockIDs('w-', 6).map((id) =>
       buildHandKeptItemRow({ id, kind: 'wait', extra: 'who=owner' }),
     ),
-    journal: ['q-1', 'q-2'].map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
+    journal: buildMockIDs('q-', 3).map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
     problems: [
-      'items.tsv and journal.tsv: 5 open waits (w-a, w-b, w-c, q-1, q-2), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv and journal.tsv: 9 open waits (${[...buildMockIDs('w-', 6), ...buildMockIDs('q-', 3)].join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
-    title: 'six rules against a cap of 5',
-    items: ['r-a', 'r-b', 'r-c', 'r-d', 'r-e', 'r-f'].map((id) =>
-      buildHandKeptItemRow({ id, kind: 'rule' }),
-    ),
+    title: '16 rules against a cap of 15',
+    items: buildMockIDs('r-', 16).map((id) => buildHandKeptItemRow({ id, kind: 'rule' })),
     journal: [],
     problems: [
-      'items.tsv: 6 open rules (r-a, r-b, r-c, r-d, r-e, r-f), and the limit is 5. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv: 16 open rules (${buildMockIDs('r-', 16).join(', ')}), and the limit is 15. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
-    title: 'five where items against a cap of 4',
-    items: ['wh-a', 'wh-b', 'wh-c', 'wh-d', 'wh-e'].map((id) =>
-      buildHandKeptItemRow({ id, kind: 'where' }),
-    ),
+    title: 'nine where items against a cap of 8',
+    items: buildMockIDs('wh-', 9).map((id) => buildHandKeptItemRow({ id, kind: 'where' })),
     journal: [],
     problems: [
-      'items.tsv: 5 open where items (wh-a, wh-b, wh-c, wh-d, wh-e), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `items.tsv: 9 open where items (${buildMockIDs('wh-', 9).join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ],
   },
   {
@@ -585,13 +585,15 @@ test.each([
     ],
   },
 ])('it refuses $title, with the exact problem lines', (row) => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items: `${['id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra', ...row.items].join('\n')}\n`,
     journal: `${['ts\top\tid\ttext', ...row.journal].join('\n')}\n`,
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -626,13 +628,15 @@ test.each([
     ],
   },
 ])('it refuses $title', (row) => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items: row.items,
     journal: row.journal,
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -644,6 +648,8 @@ test.each([
 });
 
 test('it refuses a now that names a task a done row closed', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nnow=t-a\n',
     items:
@@ -651,7 +657,7 @@ test('it refuses a now that names a task a done row closed', () => {
     journal: 'ts\top\tid\ttext\n2026-03-02T10:00:00Z\tdone\tt-a\tfinished\n',
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -663,6 +669,8 @@ test('it refuses a now that names a task a done row closed', () => {
 });
 
 test('it lists a session line, an items row, a journal row and two caps, in that order', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nbogus\n',
     items: `${[
@@ -673,13 +681,11 @@ test('it lists a session line, an items row, a journal row and two caps, in that
     journal: `${[
       'ts\top\tid\ttext',
       '2026-03-02T09:00:00Z\tnote\tn-1',
-      ...['q-1', 'q-2', 'q-3', 'q-4', 'q-5'].map((id) =>
-        buildHandKeptQuestionRow({ id, text: 'Which' }),
-      ),
+      ...buildMockIDs('q-', 9).map((id) => buildHandKeptQuestionRow({ id, text: 'Which' })),
     ].join('\n')}\n`,
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -693,12 +699,14 @@ test('it lists a session line, an items row, a journal row and two caps, in that
       'items.tsv line 33 (ok-a): an approval needs who, where, scope, and once or standing.',
       'journal.tsv line 2: the row has 3 columns, and a hand-kept journal row has 4.',
       `items.tsv: 31 open tasks (${buildMockIDs('t-', 31).join(', ')}), and the limit is 30. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
-      'journal.tsv: 5 open waits (q-1, q-2, q-3, q-4, q-5), and the limit is 4. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>',
+      `journal.tsv: 9 open waits (${buildMockIDs('q-', 9).join(', ')}), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`,
     ]),
   );
 });
 
 test('it imports a session that holds lines import replaces', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session:
       'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nlast_write=2026-03-01T00:00:00Z\nlast_nudge=x\nimported_from=0-by-hand\n',
@@ -706,7 +714,7 @@ test('it imports a session that holds lines import replaces', () => {
     journal: 'ts\top\tid\ttext\n',
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -911,6 +919,8 @@ test.each([
     ],
   },
 ])('it carries over $title', (row) => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items:
@@ -919,7 +929,7 @@ test.each([
   });
 
   const picked = getPickedImport(
-    pickImport(hand, {
+    ctx.pickImport(hand, {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -943,6 +953,8 @@ test.each([
     expected: { who: 'owner', where: 'chat', scope: 'the repo' },
   },
 ])('it converts an approval with $title', (row) => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items: `${[
@@ -953,7 +965,7 @@ test.each([
   });
 
   const picked = getPickedImport(
-    pickImport(hand, {
+    ctx.pickImport(hand, {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -993,6 +1005,8 @@ test.each([
     journal: ['2026-03-04T10:00:00Z\tclosed\tt-x\tmerged'],
   },
 ])('it leaves out $title, and keeps the open task beside it', (row) => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items: `${[
@@ -1004,7 +1018,7 @@ test.each([
   });
 
   const picked = getPickedImport(
-    pickImport(hand, {
+    ctx.pickImport(hand, {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1017,6 +1031,8 @@ test.each([
 });
 
 test('it converts a whole store as store.md says, and leaves a closed item out', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session:
       'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nnow=t-a\nnow_next=go\nnow_set=2026-03-02T09:30:00Z\nformat=0-by-hand\nlast_write=2026-01-01T00:00:00Z\n',
@@ -1037,7 +1053,7 @@ test('it converts a whole store as store.md says, and leaves a closed item out',
     ].join('\n'),
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1156,6 +1172,8 @@ test('it converts a whole store as store.md says, and leaves a closed item out',
 });
 
 test('it ends the journal with the import row alone when there is no agent id', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n',
@@ -1163,7 +1181,7 @@ test('it ends the journal with the import row alone when there is no agent id', 
   });
 
   const picked = getPickedImport(
-    pickImport(hand, {
+    ctx.pickImport(hand, {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1176,6 +1194,8 @@ test('it ends the journal with the import row alone when there is no agent id', 
 });
 
 test('it converts a store with no journal rows, with an empty last_write', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items: 'id\tkind\tclaim\tcheck\tat_write\tlast\twritten\tby\textra\n',
@@ -1183,7 +1203,7 @@ test('it converts a store with no journal rows, with an empty last_write', () =>
   });
 
   const picked = getPickedImport(
-    pickImport(hand, {
+    ctx.pickImport(hand, {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1196,6 +1216,8 @@ test('it converts a store with no journal rows, with an empty last_write', () =>
 });
 
 test('it converts into files that the store parsers read back whole', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\nnow=t-a\n',
     items: [
@@ -1216,7 +1238,7 @@ test('it converts into files that the store parsers read back whole', () => {
   });
 
   const picked = getPickedImport(
-    pickImport(hand, {
+    ctx.pickImport(hand, {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1241,8 +1263,10 @@ test('it converts into files that the store parsers read back whole', () => {
 });
 
 test('it converts a store to format 2 with no grant when it holds no standing approval', () => {
+  const ctx = setupTest();
+
   const picked = getPickedImport(
-    pickImport(buildHandKeptApprovals(['once']), {
+    ctx.pickImport(buildHandKeptApprovals(['once']), {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1260,7 +1284,9 @@ test('it converts a store to format 2 with no grant when it holds no standing ap
 });
 
 test('it refuses a standing token with no --may, and prints the flags that fix it', () => {
-  const picked = pickImport(buildHandKeptApprovals(['standing']), {
+  const ctx = setupTest();
+
+  const picked = ctx.pickImport(buildHandKeptApprovals(['standing']), {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1295,8 +1321,10 @@ test('it refuses a standing token with no --may, and prints the flags that fix i
 });
 
 test('it folds a standing token into the grant: no item, a drop row, then the grant row', () => {
+  const ctx = setupTest();
+
   const picked = getPickedImport(
-    pickImport(buildHandKeptApprovals(['standing', 'once']), {
+    ctx.pickImport(buildHandKeptApprovals(['standing', 'once']), {
       name: 'old-notes',
       args: buildParsedArgs([
         'import',
@@ -1345,7 +1373,9 @@ test('it folds a standing token into the grant: no item, a drop row, then the gr
 });
 
 test('it refuses two one-time approvals, and its Run line drops all but the newest', () => {
-  const picked = pickImport(buildHandKeptApprovals(['once', 'once']), {
+  const ctx = setupTest();
+
+  const picked = ctx.pickImport(buildHandKeptApprovals(['once', 'once']), {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1366,8 +1396,10 @@ test('it refuses two one-time approvals, and its Run line drops all but the newe
 });
 
 test('it takes --drop for an approval and leaves the other one-time approval', () => {
+  const ctx = setupTest();
+
   const picked = getPickedImport(
-    pickImport(buildHandKeptApprovals(['once', 'once']), {
+    ctx.pickImport(buildHandKeptApprovals(['once', 'once']), {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes', '--drop', 'ok-0']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1389,6 +1421,8 @@ test('it takes --drop for an approval and leaves the other one-time approval', (
 });
 
 test('it refuses a question named grant with the item grant problem, and its Run line drops it', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items:
@@ -1396,7 +1430,7 @@ test('it refuses a question named grant with the item grant problem, and its Run
     journal: `${['ts\top\tid\ttext', buildHandKeptQuestionRow({ id: 'grant', text: 'Who may merge' })].join('\n')}\n`,
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1417,6 +1451,8 @@ test('it refuses a question named grant with the item grant problem, and its Run
 });
 
 test('it removes a question named grant that --drop names, with a drop row', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items:
@@ -1425,7 +1461,7 @@ test('it removes a question named grant that --drop names, with a drop row', () 
   });
 
   const picked = getPickedImport(
-    pickImport(hand, {
+    ctx.pickImport(hand, {
       name: 'old-notes',
       args: buildParsedArgs(['import', 'old-notes', '--drop', 'grant']),
       nowMs: Date.parse('2026-03-10T11:43:00Z'),
@@ -1448,6 +1484,8 @@ test('it removes a question named grant that --drop names, with a drop row', () 
 });
 
 test('it imports a hand-kept store with 30 open tasks', () => {
+  const ctx = setupTest();
+
   const hand = parseHandKeptStore({
     session: 'name=old-notes\ngoal=Ship it\nstarted=2026-03-02T08:00:00Z\n',
     items: `${[
@@ -1457,7 +1495,7 @@ test('it imports a hand-kept store with 30 open tasks', () => {
     journal: 'ts\top\tid\ttext\n2026-03-02T08:00:00Z\tinit\told-notes\tStart\n',
   });
 
-  const picked = pickImport(hand, {
+  const picked = ctx.pickImport(hand, {
     name: 'old-notes',
     args: buildParsedArgs(['import', 'old-notes']),
     nowMs: Date.parse('2026-03-10T11:43:00Z'),

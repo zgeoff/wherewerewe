@@ -4,8 +4,14 @@ import { createTempDir } from '@zgeoff/testing/fs';
 import { readStore } from '../store/read-store.ts';
 import { seedDayNineStore } from './seed-day-nine-store.ts';
 
+function setupTest() {
+  return { seedDayNineStore };
+}
+
 test('it seeds the session of day 9 with its items, owner notes, saved results and pull request row', async () => {
-  const store = await seedDayNineStore(createTempDir('day-nine').path);
+  const ctx = setupTest();
+
+  const store = await ctx.seedDayNineStore(createTempDir('day-nine').path);
   const read = await readStore(join(store.stateRoot, 'tide-alerts'));
 
   expect(
@@ -14,6 +20,7 @@ test('it seeds the session of day 9 with its items, owner notes, saved results a
       read.store.ownerNotes.map((note) => note.id),
       read.store.prs.map((row) => row.ref),
       read.store.session.now,
+      [read.store.lessons.length, read.store.promises.length, read.store.words.length],
     ],
   ).toStrictEqual([
     [
@@ -35,5 +42,6 @@ test('it seeds the session of day 9 with its items, owner notes, saved results a
     ['o-2', 'o-3'],
     ['bosunhq/bosun-app#64'],
     'pr-api-77',
+    [1, 1, 2],
   ]);
 });

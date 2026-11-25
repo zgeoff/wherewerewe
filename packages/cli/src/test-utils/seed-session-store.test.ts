@@ -24,6 +24,12 @@ test('it makes a readable store with no items and returns its folder', async () 
       notesUnread: null,
       prs: [],
       prsUnread: null,
+      lessons: [],
+      lessonsUnread: null,
+      promises: [],
+      promisesUnread: null,
+      words: [],
+      wordsUnread: null,
       ownerUnread: null,
     },
   });

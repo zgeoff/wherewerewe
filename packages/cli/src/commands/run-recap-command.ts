@@ -45,7 +45,7 @@ export async function runRecapCommand(
     };
   }
 
-  const notes = [unread, store.notesUnread, journalUnread].flatMap((found) =>
+  const notes = [unread, store.notesUnread, store.promisesUnread, journalUnread].flatMap((found) =>
     found === null ? [] : [formatUnreadNote(store.session.name, found, 'This read')],
   );
 
@@ -55,6 +55,7 @@ export async function runRecapCommand(
       session: store.session,
       items: store.items,
       notes: store.notes,
+      promises: store.promises,
       rows,
       sinceText,
       sessionID: basename(store.folder),

@@ -9,8 +9,10 @@ export interface CredentialSample {
 
 // One sample for each pattern of the credential test, each built from parts so no commit holds a
 // credential. The ops_ sample holds a semicolon, a character that ends a word for the redaction.
-export function buildCredentialSamples(): CredentialSample[] {
-  const tail = ['Qz7Wx', '9Lm2N', 'p4Rt6', 'Vy8Bc'].join('');
+// A rotation of the default tail gives samples that differ from the default ones.
+export function buildCredentialSamples(rotation = 0): CredentialSample[] {
+  const parts = ['Qz7Wx', '9Lm2N', 'p4Rt6', 'Vy8Bc'].join('');
+  const tail = `${parts.slice(rotation % parts.length)}${parts.slice(0, rotation % parts.length)}`;
 
   return [
     ...['ghp', 'gho', 'ghs', 'ghu', 'ghr', 'github_pat', 'npm'].map((name) =>

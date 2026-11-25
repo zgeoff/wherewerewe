@@ -22,18 +22,19 @@ Three reads that slice 3b adds: `www list <kind>`, which prints every row of a k
 | decisions | `www list decisions` | the decisions in force, newest first; `www log --op decide,ruled-out` keeps the history |
 | pull request rows | `www list prs` | the open pull requests no item names |
 
-`www list <kind>` prints every open row of the kind whole, in the brief's order, with each item's note under it as `www show` prints it. It runs no check, so each tag shows the result the last read saved, and it never takes the lock. It is a subcommand of its own because `www show <word>` reads its argument as an item id, and a task can have any id. `www list` with no kind, or an unknown one, exits 2 with `Run: www list tasks`.
+`www list <kind>` prints every open row of the kind whole, in the brief's order unless the table gives another, with each item's note under it as `www show` prints it. It runs no check, so each tag shows the result the last read saved, and it never takes the lock. It is a subcommand of its own because `www show <word>` reads its argument as an item id, and a task can have any id. `www list` with no kind, or an unknown one, exits 2 with `Run: www list tasks`. A kind with no open row prints its heading with a zero count, such as `RULES (0, max 15)`, `DECISIONS (0 in force)` or `PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (0)`, and exits 0; `www list notes` with no note prints nothing and exits 0.
 
 ```text
 $ www list tasks
-OPEN (4, max 30)
-  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07  [OPEN failing]
+OPEN (5, max 30)
+  pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa  [OPEN failing]
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
     s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
     unused import in the retry helper, not on the retry logic.
+  pr-app-61   Alert settings screen: in review  [MERGED]
   t-flag      Turn on the tide_alerts flag in staging config  [blocked by w-apns · owed]
-    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: staging
-    is shared with the harbour team, who demo on Thursday.
+    owed note (43h): Turn the tide_alerts flag back off in staging config before this closes:
+    staging is shared with the harbour team, who demo on Thursday.
   pr-tk-19    tidekit: harmonic constants for harbours south of 60°S  [OPEN pending]
   t-e2e       Write alerts-e2e against staging  [no check · 3d]
 
@@ -55,7 +56,8 @@ RULES (3, max 15)
 $ www list where
 WHERE (3, max 8)
   wt-tz       bosun-api worktree for the time zone fix, branch tz-fix  [clean]
-    note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads its fixtures from there.
+    note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads its
+    fixtures from there.
   p-sim       app simulator, pid 48211; stop it with kill 48211  [gone]
   s-staging   staging secrets live in the vault bosun-staging; never print a value  [no check · 8d]
 
@@ -74,14 +76,15 @@ WORDS (2, max 8)
 
 $ www list notes
   t-flag      Turn on the tide_alerts flag in staging config
-    owed note (2d): Turn the tide_alerts flag back off in staging config before this closes: staging
-    is shared with the harbour team, who demo on Thursday.
-  pr-api-77   Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07
+    owed note (43h): Turn the tide_alerts flag back off in staging config before this closes:
+    staging is shared with the harbour team, who demo on Thursday.
+  pr-api-77   Alert job retries a 503 from the tide feed; pushed 3e1f0aa
     note (1h): The 503s come from the feed's hourly refresh, about 4 s long (d-23). Retry 3 times, 2
     s apart: a longer backoff makes the alert miss its 2-hour window. The lint job fails on an
     unused import in the retry helper, not on the retry logic.
   wt-tz       bosun-api worktree for the time zone fix, branch tz-fix
-    note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads its fixtures from there.
+    note (2d): Remove it with git worktree remove once the tz-fix PR merges; the simulator reads its
+    fixtures from there.
 
 $ www list decisions
 DECISIONS (6 in force)
@@ -94,14 +97,14 @@ DECISIONS (6 in force)
 
 $ www list prs
 PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
-  bosunhq/bosun-app#64  opened 3h ago  [OPEN pending]
+  bosunhq/bosun-app#64  opened 3h ago  [OPEN]
 ```
 
 ### --json
 
 The read commands take `--json`: the bare brief (`www`, with or without `--session <name>`), `www show` and `www show <id>`, `www log`, `www list <kind>` and `www recap`. Text stays the default. Hooks and scripts read the JSON, and the agent reads the text, so the `www` skill and every `Run:` line use the text form. No write command takes `--json`.
 
-- A JSON read prints one JSON value and a newline on stdout, and nothing else.
+- A JSON read that succeeds prints one JSON value and a newline on stdout, and nothing else.
 - It runs the same checks, takes the same lock, and exits with the same code as its text form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.
 - The JSON brief is never cut and is outside the brief's limit, because no host puts it in front of a model: it holds every open row whole. The recap's JSON holds its rows whole, with no 100-character cut.
 - Each value carries `v: 1`. A new field keeps the version, and a removed or renamed field raises it.
@@ -182,7 +185,7 @@ $ www list rules --json
 {"v":1,"kind":"rules","rows":[{"kind":"rule","row":{"id":"r-api-tests","kind":"rule","claim":"Run the API tests from api/; from the repo root the queue tests are skipped","check":null,"atWrite":null,"last":null,"written":"2026-03-03T10:20:00Z","by":"agent","extra":{}},"note":null},{"kind":"rule","row":{"id":"r-tk-fork","kind":"rule","claim":"tidekit is a fork here: pass -R tidal-org/tidekit to gh, or the PR opens on the fork","check":null,"atWrite":null,"last":null,"written":"2026-03-05T14:02:11Z","by":"agent","extra":{}},"note":null},{"kind":"rule","row":{"id":"r-sim-port","kind":"rule","claim":"Start the app simulator with PORT=8091; 8090 belongs to another session","check":null,"atWrite":null,"last":null,"written":"2026-03-09T08:12:40Z","by":"agent","extra":{}},"note":null}]}
 ```
 
-A schema test pins each type, so a field change fails until `v` changes with it.
+A schema test pins each type, so a removed or renamed field fails until `v` changes with it, and a new field fails until the schema adds it.
 
 ### www goal --paste
 

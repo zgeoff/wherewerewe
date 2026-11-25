@@ -5,19 +5,26 @@ import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { createGitCommit, runGit } from '@zgeoff/testing/git';
+import { estimateTokens } from '../brief/estimate-tokens.ts';
+import { itemCaps, lessonCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
 import { runCLI } from '../run-cli.ts';
+import { formatPrsFile } from '../store/format-prs-file.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
+import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { countBriefLines } from '../test-utils/count-brief-lines.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedDayNineStore } from '../test-utils/seed-day-nine-store.ts';
+import { seedExampleStartStore } from '../test-utils/seed-example-start-store.ts';
 import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
+import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
+import { seedWorstCaseStore } from '../test-utils/seed-worst-case-store.ts';
 
 function setupTest() {
   const root = createTempDir('run-brief').path;
@@ -39,6 +46,7 @@ function setupTest() {
   return {
     root,
     bin,
+    stateRoot,
     folder,
     agentEnv,
     advance: (durationMs: number) => {
@@ -104,68 +112,128 @@ test.each([
 
   const store = await seedDayNineStore(ctx.root);
 
-  const env = { ...store.env, CLAUDE_CODE_SESSION_ID: '', ...row.variable };
+  const env = {
+    ...store.env,
+    CLAUDE_CODE_SESSION_ID: '',
+    WHEREWEREWE_SESSION: 'tide-alerts',
+    ...row.variable,
+  };
 
-  const result = await ctx.runClock(env, ['--session', 'tide-alerts']);
+  const result = await ctx.runClock(env, []);
 
   expect({
     exitCode: result.exitCode,
     stdout: result.stdout,
     stderr: result.stderr,
     lines: countBriefLines(result.stdout),
-    characters: Array.from(result.stdout, (character) => character).length,
+    bytes: Buffer.byteLength(result.stdout),
+    tokens: estimateTokens(result.stdout),
   }).toStrictEqual({
     exitCode: 0,
     stdout: ctx.readDayNine(),
     stderr: '',
-    lines: 48,
-    characters: 3440,
+    lines: 60,
+    bytes: 4228,
+    tokens: 1410,
   });
 });
 
-test('it ends each reply of commands.md with the count of the brief from the day 9 store', async () => {
+test('it prints each www list example of lists-and-json.md, character for character, from the day 9 store', async () => {
   const ctx = setupTest();
 
   const store = await seedDayNineStore(ctx.root);
 
-  seedGhAnswers(store.bin, {
-    'bosunhq/bosun-api#77': 'OPEN pending',
-    'bosunhq/bosun-app#61': 'MERGED',
-    'tidal-org/tidekit#19': 'OPEN pending',
-    'bosunhq/bosun-app#64': 'OPEN pending',
-  });
+  const text = readFileSync(
+    join(
+      import.meta.dir,
+      '..',
+      '..',
+      '..',
+      '..',
+      'docs',
+      'design',
+      'wherewerewe',
+      'lists-and-json.md',
+    ),
+    'utf8',
+  );
 
-  const argvs = [
-    [
-      'set',
-      'pr-api-77',
-      'Alert job retries a 503 3 times, 2 s apart; pushed 9b41c07',
-      '--pr',
-      'bosunhq/bosun-api#77',
-    ],
-    ['done', 'pr-app-61', '--evidence', 'merged as 51aa0e2, seen by check'],
-    ['now', 'pr-api-77', 'fix the failing lint job on 9b41c07, push, then request review'],
-    [
-      'grant',
-      '--reading',
-      'covers merges in both repos on green CI with findings answered, staging deploys, the staging alerts table, opening tidekit PRs; kept back: prod push cert, prod database, tidekit merges and releases',
-    ],
-  ];
+  const section = text.slice(text.indexOf('### www list'), text.indexOf('### --json'));
+  const block = /```text\n(?<examples>.*?)```/su.exec(section)?.groups?.['examples'] ?? '';
 
-  const lastLines: string[] = [];
+  const examples = block
+    .split('\n\n')
+    .map((chunk) => chunk.trimEnd().split('\n'))
+    .filter((lines) => lines[0]?.startsWith('$ www list ') === true);
 
-  for (const argv of argvs) {
-    const result = await ctx.run(['--session', 'tide-alerts', ...argv], store.env);
+  const env = { ...store.env, CLAUDE_CODE_SESSION_ID: '', WHEREWEREWE_SESSION: 'tide-alerts' };
+  const actual: { command: string; stdout: string }[] = [];
 
-    lastLines.push(result.stdout.trimEnd().split('\n').at(-1) ?? '');
+  for (const lines of examples) {
+    const command = (lines[0] ?? '').slice('$ www '.length);
+
+    const argv = await readShellWords(command);
+    const result = await ctx.runClock(env, argv);
+
+    actual.push({ command, stdout: result.stdout });
   }
 
-  expect(lastLines).toStrictEqual([
-    'pr-api-77  task, open, checked now: OPEN pending. Brief: 47 lines.',
-    'pr-app-61  done. Off the brief, kept in the journal. Brief: 45 lines.',
-    'now: pr-api-77, with its note (1h). Brief: 45 lines.',
-    'grant reading: 197 of 200. Brief: 45 lines.',
-  ]);
+  expect(actual).toStrictEqual(
+    examples.map((lines) => ({
+      command: (lines[0] ?? '').slice('$ www '.length),
+      stdout: `${lines.slice(1).join('\n')}\n`,
+    })),
+  );
+});
+
+test("it prints each write reply of commands.md's examples, figures included, from the store the examples start from", async () => {
+  const ctx = setupTest();
+
+  const store = await seedExampleStartStore(ctx.root);
+
+  const text = readFileSync(
+    join(import.meta.dir, '..', '..', '..', '..', 'docs', 'design', 'wherewerewe', 'commands.md'),
+    'utf8',
+  );
+
+  const section = text.slice(text.indexOf('Examples from the invented session.'));
+  const block = /```text\n(?<examples>.*?)```/su.exec(section)?.groups?.['examples'] ?? '';
+
+  const examples = block
+    .split('\n\n')
+    .map((chunk) => chunk.trimEnd().split('\n'))
+    .filter((lines) => lines[0]?.startsWith('$ www ') === true);
+
+  const actual: { command: string; reply: string }[] = [];
+
+  for (const lines of examples) {
+    const command = (lines[0] ?? '').slice('$ www '.length);
+
+    const argv = await readShellWords(command);
+
+    seedGhAnswers(store.bin, {
+      'bosunhq/bosun-api#77': 'OPEN pending',
+      'bosunhq/bosun-app#61': argv[0] === 'done' ? 'MERGED' : 'OPEN passing',
+      'tidal-org/tidekit#19': 'OPEN pending',
+    });
+
+    const result = await runCLI({
+      argv,
+      env: store.env,
+      cwd: '/work',
+      terminal: { stdin: false, stdout: false },
+      now: () => Date.parse('2026-03-10T11:43:00Z'),
+    });
+
+    actual.push({ command, reply: result.stdout + result.stderr });
+  }
+
+  expect(actual).toStrictEqual(
+    examples.map((lines) => ({
+      command: (lines[0] ?? '').slice('$ www '.length),
+      reply: `${lines.slice(1).join('\n')}\n`,
+    })),
+  );
 });
 
 test('it hides the next step when the item in focus changed after now_set, and prints its note whole under the hidden line', async () => {
@@ -607,3 +675,93 @@ test('it runs each fix command of the changed rows as printed in a bound session
     leftChanged: false,
   });
 });
+
+test.each([
+  {
+    host: 'claude',
+    variable: 'CLAUDE_CODE_SESSION_ID',
+    id: 'a1b2-test',
+    kinds: ['show', 'waits', 'promises', 'lessons', 'decisions', 'where', 'prs'],
+  },
+  {
+    host: 'codex',
+    variable: 'CODEX_SESSION_ID',
+    id: 'c9-test',
+    kinds: ['show', 'promises', 'where', 'prs'],
+  },
+] as const)(
+  'it runs the command of each cut line of a 3-byte store as printed for $host with --session, and lists every row of its kind',
+  async (row) => {
+    const ctx = setupTest();
+    const name = 'n'.repeat(24);
+    const env = { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: '', [row.variable]: row.id };
+
+    const pullRequestRefs = Array.from(
+      { length: 12 },
+      (_, index) => `bosunhq/bosun-api#${String(100 + index)}`,
+    );
+
+    const rowIDs: Readonly<Record<string, readonly string[]>> = {
+      waits: buildMockIDs('wait', itemCaps.wait),
+      promises: buildMockIDs('prom', promiseCap),
+      lessons: buildMockIDs('less', lessonCap),
+      rules: buildMockIDs('rule', itemCaps.rule),
+      where: buildMockIDs('here', itemCaps.where),
+      words: buildMockIDs('word', wordsCap),
+      decisions: ['d-1', 'd-2', 'd-3'],
+      prs: pullRequestRefs,
+      show: buildMockIDs('task', 30),
+    };
+
+    await seedWorstCaseStore((argv) => ctx.run(argv, ctx.agentEnv), ctx.stateRoot, name, {
+      taskCount: 30,
+      isThreeByte: true,
+    });
+
+    seedStoreFile(
+      join(ctx.stateRoot, name),
+      'prs.tsv',
+      formatPrsFile(
+        pullRequestRefs.map((ref) => ({
+          ref,
+          opened: '2026-03-10T08:43:00Z',
+          state: 'OPEN' as const,
+          seen: '2026-03-10T09:00:00Z',
+        })),
+      ),
+    );
+
+    await ctx.run(['attach', name], env);
+
+    const brief = await ctx.run(['--session', name], env);
+
+    const cutLines = brief.stdout
+      .split('\n')
+      .filter((line) =>
+        /^ {2}and \d+ more(?: open tasks)?: www --session \S+ (?:list \S+|show)$/u.test(line),
+      );
+
+    const listed = await Promise.all(
+      cutLines.map(async (line) => {
+        const words = await readShellWords(line.slice(line.indexOf(': ') + 2));
+
+        const kind = words.at(-1) ?? '';
+
+        const result = await ctx.run(words.slice(1), env);
+
+        return {
+          kind,
+          exitCode: result.exitCode,
+          missing: (rowIDs[kind] ?? ['no row of this kind is known']).filter(
+            (id) => !result.stdout.includes(id),
+          ),
+        };
+      }),
+    );
+
+    expect({ kinds: listed.map((entry) => entry.kind), listed }).toStrictEqual({
+      kinds: [...row.kinds],
+      listed: row.kinds.map((kind) => ({ kind, exitCode: 0, missing: [] })),
+    });
+  },
+);
