@@ -14,6 +14,7 @@ function setupTest() {
         limit: { bytes: 30_000, tokens: 10_000 },
         estimate: 1410,
         goal: 'Ship the alert screen',
+        pin: null,
         grant: { may: ['merge on green CI'], where: 'chat', reading: 'covers merges' },
         ownerNotes: [{ id: 'o-1', text: 'Ask first', said: '2026-03-10T09:40:12Z', on: null }],
         words: [],

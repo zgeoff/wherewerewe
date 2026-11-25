@@ -37,6 +37,7 @@ test('it adds items in order with the defaults the test leaves out', async () =>
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },

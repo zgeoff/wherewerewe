@@ -49,6 +49,7 @@ export function buildBriefJSON(input: BriefJsonInput): BriefJson {
     limit: pickBriefLimit(brief.host),
     estimate: input.estimate,
     goal: session.goal,
+    pin: brief.pin,
     grant: buildGrantOpts(session.grant),
     ownerNotes: brief.ownerNotes,
     words: brief.words.toSorted((first, second) => first.written.localeCompare(second.written)),

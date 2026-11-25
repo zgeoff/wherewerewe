@@ -38,6 +38,7 @@ import { pickGrantWrite } from './writes/pick-grant-write.ts';
 import { pickItemWrite } from './writes/pick-item-write.ts';
 import { pickLessonWrite } from './writes/pick-lesson-write.ts';
 import { pickNowWrite } from './writes/pick-now-write.ts';
+import { pickPinWrite } from './writes/pick-pin-write.ts';
 import { pickPromiseWrite } from './writes/pick-promise-write.ts';
 import { pickSay } from './writes/pick-say.ts';
 import { pickWordsWrite } from './writes/pick-words-write.ts';
@@ -287,6 +288,7 @@ async function runStoreCommand(context: CommandContext, store: Store): Promise<C
 
   const pick = match(args.command)
     .with('goal', () => pickGoalWrite)
+    .with('pin', () => pickPinWrite)
     .with(
       'grant',
       () => (writeInput: WriteInput) => pickGrantWrite({ ...writeInput, byOwner: context.byOwner }),

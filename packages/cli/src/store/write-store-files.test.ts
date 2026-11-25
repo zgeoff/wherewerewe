@@ -79,6 +79,7 @@ test('it writes the items and the session, and appends the journal rows', async 
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },
@@ -157,6 +158,7 @@ test('it leaves the items alone when the journal append fails, so a close is nev
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },
@@ -214,6 +216,7 @@ test('it appends the journal row before it rewrites the items, so a close that s
         promises: [],
         promisesUnread: null,
         words: [],
+        pin: null,
         wordsUnread: null,
         ownerUnread: null,
       },
@@ -371,4 +374,24 @@ test.each([
   const after = await readTreeHashes(ctx.root);
 
   expect(readChangedPaths(before, after)).toStrictEqual([...row.changed]);
+});
+
+test('it writes the pin to its own file, and an empty pin clears it, with the session left alone', async () => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+
+  const sessionBefore = readFileSync(join(ctx.folder, 'session'), 'utf8');
+
+  await writeStoreFiles(ctx.folder, { pin: 'Small and plain.', journal: [] });
+
+  const set = readFileSync(join(ctx.folder, 'pin'), 'utf8');
+
+  await writeStoreFiles(ctx.folder, { pin: '', journal: [] });
+
+  expect({
+    set,
+    cleared: readFileSync(join(ctx.folder, 'pin'), 'utf8'),
+    session: readFileSync(join(ctx.folder, 'session'), 'utf8') === sessionBefore,
+  }).toStrictEqual({ set: 'Small and plain.\n', cleared: '', session: true });
 });

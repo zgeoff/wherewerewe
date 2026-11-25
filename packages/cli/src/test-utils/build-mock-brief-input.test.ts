@@ -15,6 +15,7 @@ test('it lays the named fields over an empty brief input', () => {
     notes: [],
     ownerNotes: [],
     words: [],
+    pin: null,
     promises: [],
     lessons: [],
     decisions: [],

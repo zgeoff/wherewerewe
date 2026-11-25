@@ -11,6 +11,7 @@ export interface PrintSite {
 const fills: Readonly<Record<string, string>> = {
   '<name>': 'tide-alerts',
   '<goal>': 'Ship the glaze timer',
+  '<sentence>': 'Small and plain',
   '<what done means>': 'Ship the glaze timer',
   '<words>': 'Merge small fixes',
   '<scope>': 'the timer repo',

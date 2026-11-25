@@ -21,6 +21,7 @@ export function buildMockBriefInput(fields: Partial<BriefInput>): BriefInput {
     notes: [],
     ownerNotes: [],
     words: [],
+    pin: null,
     promises: [],
     lessons: [],
     decisions: [],

@@ -34,6 +34,7 @@ export const plainCells: Readonly<Record<string, string>> = {
   'rule written': '2026-03-09T16:20:00Z',
   'where claim': 'The chart API lives in the sailing app',
   goal: 'Ship the tide chart',
+  pin: 'Keep alerts plain',
   'next step': 'run the tests',
   'owner note': 'Ask before you merge',
   'owner note on': 't-q',
@@ -341,6 +342,7 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
   seedStoreFile(folder, 'lessons.tsv', formatLessonsFile([lesson]));
   seedStoreFile(folder, 'promises.tsv', formatPromisesFile([promise]));
   seedStoreFile(folder, 'words.tsv', formatWordsFile([words]));
+  seedStoreFile(folder, 'pin', `${cell('pin')}\n`);
 
   seedStoreFile(
     folder,

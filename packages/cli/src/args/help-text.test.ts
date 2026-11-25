@@ -12,6 +12,7 @@ function setupTest() {
     claim: `a claim is one line of at most ${String(textLimits.claim)} characters`,
     note: `a note ${String(textLimits.note)}`,
     goal: `a goal ${String(textLimits.goal)}`,
+    pin: `a pin ${String(textLimits.pin)}`,
     nextStep: `a next step ${String(textLimits.nextStep)}`,
     decision: `a decision ${String(textLimits.decision)} with`,
     why: `with its --why ${String(textLimits.why)}`,

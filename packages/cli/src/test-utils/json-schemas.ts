@@ -125,6 +125,7 @@ export const jsonSchemas = {
     limit,
     estimate: z.number(),
     goal: z.string(),
+    pin: z.string().nullable(),
     grant: grantOpts.nullable(),
     ownerNotes: z.array(ownerNote),
     words: z.array(words),

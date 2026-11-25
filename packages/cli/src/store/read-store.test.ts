@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { nothingWrittenComment } from '../refusals/format-refusal.ts';
@@ -52,10 +52,29 @@ test('it reads the session and its items', async () => {
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },
   });
+});
+
+test.each([
+  ['a pin file of one line', 'Small and plain.\n', 'Small and plain.'],
+  ['an empty pin file, which is a cleared pin', '', null],
+  ['a pin file of two lines', 'Small.\nPlain.\n', null],
+  ['a pin file over 200 characters', `${'x'.repeat(201)}\n`, null],
+])('it reads %s as %j', async (_title, text, pin) => {
+  const ctx = setupTest();
+
+  await seedSessionStore(ctx.root, 'tide-alerts');
+  await seedItem(ctx.folder, { id: 't-a', claim: 'Write it' });
+
+  writeFileSync(join(ctx.folder, 'pin'), text);
+
+  const read = await readStore(ctx.folder);
+
+  expect(read.kind === 'store' && read.store.pin).toBe(pin);
 });
 
 test('it reports a folder with no session file as missing', async () => {
@@ -126,6 +145,7 @@ test('it reports a broken items file with its line, and the store as far as it r
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },
@@ -160,6 +180,7 @@ test('it reports a missing items file with the session and no items', async () =
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },
@@ -200,6 +221,7 @@ test('it reads the owner notes oldest first', async () => {
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },
@@ -231,6 +253,7 @@ test('it reads a store with no owner file as holding no notes', async () => {
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },
@@ -266,6 +289,7 @@ test('it reads a broken owner file as a store with the notes that parse and the 
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: {
         file: 'owner.tsv',

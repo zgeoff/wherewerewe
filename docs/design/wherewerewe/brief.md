@@ -25,6 +25,7 @@ flowchart TD
 | ---------------------------- | -------------------------------------------------------------------------------------------------- | ----------- |
 | header                       | session, day, time, age of the last write, how many checks ran and how long they took             | always      |
 | `GOAL`                       | the goal                                                                                           | always      |
+| `PIN`                        | the session's pin, wrapped like `GOAL`                                                            | left out    |
 | `GRANT`                      | where and when the owner gave the grant, the owner's scope, the owner's words in bullets under `may`, `not` and `never`, at least one bullet in any of them, and the agent's reading of what they cover and what the owner kept back | `GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"` |
 | `OWNER SAYS`                 | each owner note, oldest first                                                                      | left out    |
 | `WORDS`                      | the owner's exact words, oldest first                                                              | left out    |
@@ -54,6 +55,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | header                   | `<name> · day <d> · <Ddd YYYY-MM-DD HH:MMZ> · last write <age> ago · <n> checks in <t>s[ · <n> unchecked: <reason>]`, or `no checks` in place of the check count when no probe runs | 133 |
 | header, second line      | `  results not saved: <the store is not writable here \| another write held the lock>`        | 51     |
 | goal                     | `GOAL  <goal>`, wrapped, each further line indented 6                                         | 3 lines, 218 |
+| pin                      | `PIN   <pin>`, wrapped, each further line indented 6                                          | 3 lines, 218 |
 | grant heading            | `GRANT  from the owner in <where>, <age> ago`, then ` · <scope>` when the owner gave one; the age is that of the words | 94     |
 | grant bullet             | `  may    • <bullet>`, `  not    • <bullet>` or `  never  • <bullet>` for a group's first bullet, `         • <bullet>` for each further one; wrapped, each further line indented 11 | 19 lines across all bullets, each at most 100 characters |
 | grant reading            | `  reading: <reading>`, wrapped, each further line indented 4                                 | 3 lines, 219 |
@@ -187,7 +189,7 @@ When the brief is over its limit, the renderer drops one row at a time, from the
 
 | Rank          | Lines                                                                                     | Why                                                                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| never cut     | the header, `GOAL`, the grant, the owner's notes, the changed rows and their overflow line, `NOW`, the next step, the note and the row of the item in focus, in whatever section it prints, each section's count or cut line, and the footer | what the agent may do, what the owner said, and which claims are now false each prevent a wrong act after a compaction; the cut line names the list command; they take under 9,000 bytes even in a 3-byte script, so they always fit |
+| never cut     | the header, `GOAL`, the pin, the grant, the owner's notes, the changed rows and their overflow line, `NOW`, the next step, the note and the row of the item in focus, in whatever section it prints, each section's count or cut line, and the footer | what the agent may do, what the owner said, and which claims are now false each prevent a wrong act after a compaction; the cut line names the list command; they take under 9,000 bytes even in a 3-byte script, so they always fit |
 | 2             | owner's words                                                                             | the agent cannot rebuild the owner's words from its own paraphrase, and they shape every choice; with 8 at 300 characters in a 3-byte script, the cut reaches this rank on no host |
 | 3             | waits on the owner (`who=owner`)                                                          | the agent must not redo or forget a question the owner holds                                                                          |
 | 4             | the one-time approval                                                                     | it is a permission, and an agent that forgets what it may do is the failure to prevent                                               |
@@ -215,7 +217,8 @@ Each section that lost rows ends with `  and <n> more: www list <kind>`, with `-
 - A decision is in force unless a later `decide` row replaces it, by `replaces=<its id>` in its `extra`, as `www decide --replaces <its id>` writes; a `ruled-out` row never is. The 3 newest are the 3 with the latest `ts`, the higher `d-<n>` first on a tie.
 - A line's width and a text's limit count code points, as the wrap does; the brief's limit counts bytes.
 - The header line starts with `<name> · day`, and the footer line is fixed, because the hook's whole-read check reads both ([sessions-and-hooks.md](sessions-and-hooks.md#what-counts-as-a-whole-read)). A test pins both for every store.
-- The grant prints whole on every brief, directly after `GOAL`.
+- The pin prints whole on every brief, directly after `GOAL` and before the grant, and a brief with no pin prints no line for it.
+- The grant prints whole on every brief, directly after `GOAL` and the pin.
 - A changed item is one whose check result differs from its `at_write`. An `unchecked` result is never compared: the item's saved `last` stands in for it, so an item whose `last` differs from its `at_write` stays changed, with this read's `unchecked` as its tag. An `at_write` of `-` takes the first result without counting it as changed.
 - The brief hides the next step of the item in focus when a `changed` journal row of that item comes after its last `now` row in the journal, or when this read's result for it differs from its `last`, or from its `at_write` when `last` is empty. The line reads `changed after it was set` in the first case and `reads <result>` in the second. The line prints only when a step is set. The step stays in the journal, and the note still prints.
 - `CHANGED SINCE WRITTEN` rows go in `items.tsv` order. A row's tag shows this read's result, `unchecked` included, while `last` keeps the last result that was not `unchecked`.

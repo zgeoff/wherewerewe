@@ -20,7 +20,7 @@ export async function readInjection(
 
   const lines = match(read)
     .with({ kind: 'session' }, (found): string[] | null => [
-      ...renderGoalAndGrant(found.session, nowMs),
+      ...renderGoalAndGrant(found.session, nowMs, null),
       ...refusal,
     ])
     .with(

@@ -29,6 +29,7 @@ test('it makes a readable store with no items and returns its folder', async () 
       promises: [],
       promisesUnread: null,
       words: [],
+      pin: null,
       wordsUnread: null,
       ownerUnread: null,
     },

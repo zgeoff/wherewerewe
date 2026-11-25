@@ -5,6 +5,7 @@ export const textLimits = {
   claim: 120,
   note: 400,
   goal: 200,
+  pin: 200,
   nextStep: 120,
   decision: 200,
   why: 200,

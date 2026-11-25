@@ -42,6 +42,7 @@ Write as you go. One id holds one claim and one note; --note replaces the note:
   www decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]
   www goal "<what done means>"
   www goal --paste           print a /goal text of the grant, for the owner to paste
+  www pin "<sentence>"       pin one line on what kind of thing the work is for; --clear removes it
   www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
             --where <where> --reading "<what they cover; what the owner kept back>"
   www grant --reading "<what they cover; what the owner kept back>"
@@ -65,8 +66,9 @@ Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www 
 Setup:   www install [--print] [--replace-skill]   www doctor   www --version
 Any command takes --session <name>.
 
-Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
-a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or --for 200.
+Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a pin 200, a next
+step 120, a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or
+--for 200.
 An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 120, --who 16,
 --where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
@@ -271,6 +273,7 @@ www.show(id?: ItemID | DecisionID | 'grant', opts?: ReadOpts); // no id: every o
 www.log(opts: { since?: Since; op?: string[]; id?: string } & ReadOpts);
 www.list(kind: ListKind, opts?: ReadOpts);        // every row of one kind
 www.recap(opts: { since?: Since } & ReadOpts);    // default 24h
+www.pin(sentence?: string, opts?: { clear?: boolean }); // one sentence or --clear, never both; one line of at most 200 characters
 www.sessions();
 www.init(name: SessionName, opts: { goal: string });
 www.attach(name: SessionName);                    // sessions-and-hooks.md
@@ -334,6 +337,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - `www grant` runs from any shell. Its journal row has `by=owner` when the terminal test in [owner-notes.md](owner-notes.md) passes, and `by=agent` otherwise.
 - `ok` accepts `--once` and ignores it, because every approval is one-time. `--standing` gets the refusal below.
 - `www lesson`, `www promise` and `www words` write only their own file and the journal. A write with an id that holds a lesson, a promise or the owner's words of that kind replaces it. `done` refuses a lesson and the owner's words, and `drop` closes any of the three.
+- `www pin "<sentence>"` sets the session's one pin and replaces the one it holds, and `www pin --clear` removes it. A pin is one line of at most 200 characters, and `www pin` with no sentence and no `--clear`, or with both, is refused. A pin write adds no journal row and sets `last_write`. The pin lives in the `pin` file ([store.md](store.md)), and the brief prints it under `GOAL` ([brief.md](brief.md)).
 - `www goal --paste` takes no argument, and a goal text beside it is refused ([www goal --paste](lists-and-json.md#www-goal---paste)).
 - `www import` takes the grant's flags and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. A bound session's `www` prints the same text, and the gate opens on the next call ([sessions-and-hooks.md](sessions-and-hooks.md)).
@@ -347,6 +351,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 | next step (`now`)                   | 120 characters  |
 | note (`--note`)                     | 400 characters  |
 | goal                                | 200 characters  |
+| pin (`pin`)                         | 200 characters  |
 | a grant bullet (`--may`, `--not`, `--never`) | no limit of its own; the words row bounds it, after each line break becomes a space |
 | the grant's scope (`--scope`)       | 40 characters, after each line break becomes a space |
 | the grant's words: every bullet and the scope | 700 characters, in at most 12 bullets on at most 19 lines of the brief |
@@ -612,6 +617,8 @@ When the tool can fix the call, the `Run:` line is the refused command with each
 | `words` has no `--where`                          | `www: refused: the owner's words need where they were said.` `Run: www words w-plain "<the owner's exact words>" --where <where>` |
 | `--to` or `--by` holds `;` or `=`                 | `www: refused: --by cannot hold ; or =, which the journal keeps apart.` `Run: www promise due-cost "Cost table for the alert fan-out" --to owner --by "<when, with no ; or =>"` |
 | `list` with no kind or an unknown one (exit 2)    | `www: list takes tasks, waits, approvals, rules, where, lessons, promises, words, notes, decisions or prs.` `Run: www list tasks` |
+| A pin of two lines or over 200 characters         | `www: refused: the pin is 231 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.` `Run: www pin "<pin of at most 200 characters>"`, or the one-line refusal of a text of two lines |
+| `pin` with no sentence or with both a sentence and `--clear` (exit 2) | `www: pin takes "<sentence>" or --clear.` `Run: www pin "<sentence>"` |
 | `goal --paste` beside a goal text (exit 2)        | `www: goal --paste takes no goal text.` `Run: www goal --paste` |
 | `goal --paste` with no grant                      | `www: refused: tide-alerts has no grant to print.` `Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"` |
 | An id names no open item                          | `www: refused: no open item pr-api-78. Open items: pr-api-77, pr-tk-19, t-flag, t-e2e.` `Run: www task pr-api-78 "<claim>"`                                                                            |

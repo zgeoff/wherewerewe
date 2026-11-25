@@ -160,6 +160,9 @@ export interface Store {
   readonly promises: readonly PromiseRow[];
   readonly words: readonly WordsRow[];
 
+  // the one-line pin of the `pin` file; null when the file is missing, empty or does not read
+  readonly pin: string | null;
+
   // null when every row of that file parses
   readonly lessonsUnread: UnreadRows | null;
   readonly promisesUnread: UnreadRows | null;
@@ -259,6 +262,9 @@ export interface StoreChange {
   readonly lessons?: readonly LessonRow[];
   readonly promises?: readonly PromiseRow[];
   readonly words?: readonly WordsRow[];
+
+  // the whole new `pin` file's text; '' clears the pin
+  readonly pin?: string;
   readonly journal: readonly JournalRow[];
 }
 
@@ -390,6 +396,7 @@ interface ArgValues {
   readonly by?: string | undefined;
   readonly json?: boolean | undefined;
   readonly paste?: boolean | undefined;
+  readonly clear?: boolean | undefined;
   readonly print?: boolean | undefined;
   readonly 'replace-skill'?: boolean | undefined;
   readonly version?: boolean | undefined;
@@ -413,6 +420,7 @@ type TextLabel =
   | 'claim'
   | 'next step'
   | 'goal'
+  | 'pin'
   | 'evidence'
   | 'reason'
   | 'who'

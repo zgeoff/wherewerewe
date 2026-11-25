@@ -19,6 +19,7 @@ import { parsePromisesFile } from './parse-promises-file.ts';
 import { parsePrsFile } from './parse-prs-file.ts';
 import type { RowsParse } from './parse-rows-file.ts';
 import { parseWordsFile } from './parse-words-file.ts';
+import { readPin } from './read-pin.ts';
 import { readSessionFile } from './read-session-file.ts';
 import { readTextOrNull } from './read-text-or-null.ts';
 
@@ -80,6 +81,7 @@ async function readItems(
 
   const owner = {
     ...(await readOwner(folder)),
+    pin: await readPin(folder),
     ...(await readKinds(folder)),
     ...(options.isPrsRead ? await readPrs(folder) : { prs: [], prsUnread: null }),
   };

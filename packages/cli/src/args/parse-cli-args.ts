@@ -51,6 +51,7 @@ const options = {
   'no-note': { type: 'boolean' },
   json: { type: 'boolean' },
   paste: { type: 'boolean' },
+  clear: { type: 'boolean' },
   print: { type: 'boolean' },
   'replace-skill': { type: 'boolean' },
   version: { type: 'boolean' },
@@ -123,6 +124,15 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
       usage: '"<what done means>"',
       flags: ['paste'],
       line: 'goal "<what done means>"',
+    },
+  ],
+  [
+    'pin',
+    {
+      counts: [0, 1],
+      usage: '"<sentence>" or --clear',
+      flags: ['clear'],
+      line: 'pin "<sentence>"',
     },
   ],
   [
@@ -359,7 +369,10 @@ function checkArgs(argv: readonly string[]): ParseResult {
 
   const isGoalWithNothing = command === 'goal' && rest.length === 0 && args.values.paste !== true;
 
-  if (!shape.counts.includes(rest.length) || isGoalWithNothing) {
+  // a pin takes a sentence or --clear, never both and never neither
+  const isPinMismatch = command === 'pin' && (rest.length === 0) === (args.values.clear !== true);
+
+  if (!shape.counts.includes(rest.length) || isGoalWithNothing || isPinMismatch) {
     return refuse({ kind: 'wrong-positionals', command, usage: shape.usage, line: shape.line });
   }
 

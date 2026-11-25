@@ -12,6 +12,9 @@ export interface BriefInput {
     readonly on: string | null;
   }[];
   readonly words: readonly WordsRow[];
+
+  // the pin, which the brief never cuts
+  readonly pin: string | null;
   readonly promises: readonly PromiseRow[];
   readonly lessons: readonly LessonRow[];
 

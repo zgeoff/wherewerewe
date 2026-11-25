@@ -9,6 +9,7 @@ import { pickInitArgsRefusal } from './pick-init-args-refusal.ts';
 import { pickItemArgsRefusal } from './pick-item-write.ts';
 import { pickLessonArgsRefusal } from './pick-lesson-write.ts';
 import { pickNowArgsRefusal } from './pick-now-write.ts';
+import { pickPinArgsRefusal } from './pick-pin-write.ts';
 import { pickPromiseArgsRefusal } from './pick-promise-write.ts';
 import { pickSayArgsRefusal } from './pick-say.ts';
 import { pickWordsArgsRefusal } from './pick-words-write.ts';
@@ -26,6 +27,7 @@ export function pickArgsRefusals(args: ParsedArgs, cwd: string): RefusalReason[]
     .with('words', () => pickWordsArgsRefusal(args))
     .with('now', () => pickNowArgsRefusal(args))
     .with('goal', () => pickGoalArgsRefusal(args))
+    .with('pin', () => pickPinArgsRefusal(args))
     .with('done', 'drop', 'use', () => pickCloseArgsRefusal(args))
     .with('decide', () => pickDecisionArgsRefusal(args))
     .with('say', () => pickSayArgsRefusal(args))

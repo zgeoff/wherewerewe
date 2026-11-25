@@ -44,6 +44,12 @@ export async function writeStoreFiles(folder: string, change: StoreChange): Prom
     writeFileAtomic(join(folder, 'words.tsv'), formatWordsFile(change.words));
   }
 
+  if (change.pin !== undefined) {
+    const text = change.pin === '' ? '' : `${change.pin}\n`;
+
+    writeFileAtomic(join(folder, 'pin'), text);
+  }
+
   if (change.session !== undefined) {
     writeFileAtomic(join(folder, 'session'), formatSessionFile(change.session));
   }

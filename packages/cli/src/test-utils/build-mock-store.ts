@@ -14,6 +14,7 @@ export function buildMockStore(fields: Partial<Store>): Store {
     lessons: [],
     promises: [],
     words: [],
+    pin: null,
     notesUnread: null,
     ownerUnread: null,
     prsUnread: null,

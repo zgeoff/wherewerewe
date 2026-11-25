@@ -51,6 +51,20 @@ test('it names the session, its day, the host with none for no host, the goal an
   });
 });
 
+test('it holds the pin as a string, and as null with none', () => {
+  const ctx = setupTest();
+
+  const build = (pin: string | null) =>
+    ctx.buildBriefJSON({
+      brief: buildMockBriefInput({ pin }),
+      prs: [],
+      decisionRows: [],
+      estimate: 0,
+    }).pin;
+
+  expect([build('Small and plain.'), build(null)]).toStrictEqual(['Small and plain.', null]);
+});
+
 test('it shows the result this read got as the last result of a checked item', () => {
   const ctx = setupTest();
 

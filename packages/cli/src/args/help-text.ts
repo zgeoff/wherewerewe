@@ -29,6 +29,7 @@ Write as you go. One id holds one claim and one note; --note replaces the note:
   www decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]
   www goal "<what done means>"
   www goal --paste           print a /goal text of the grant, for the owner to paste
+  www pin "<sentence>"       pin one line on what kind of thing the work is for; --clear removes it
   www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
             --where <where> --reading "<what they cover; what the owner kept back>"
   www grant --reading "<what they cover; what the owner kept back>"
@@ -52,8 +53,9 @@ Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www 
 Setup:   www install [--print] [--replace-skill]   www doctor   www --version
 Any command takes --session <name>.
 
-Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
-a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or --for 200.
+Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a pin 200, a next
+step 120, a decision 200 with its --why 200, an owner note 160, and a close --why, --evidence or
+--for 200.
 An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 120, --who 16,
 --where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.

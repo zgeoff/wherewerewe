@@ -51,7 +51,7 @@ export function joinBrief(
 
   const lines = [
     ...renderHeader(input),
-    ...renderGoalAndGrant(input.session, input.nowMs),
+    ...renderGoalAndGrant(input.session, input.nowMs, input.pin),
     ...renderOwnerNotes(input),
     ...early,
     ...renderChanged(input),

@@ -126,6 +126,29 @@ test('it leaves empty sections out and says NOW is none with the command to set 
   expect(brief).not.toContain('OPEN');
 });
 
+test('it prints the pin under the goal and above the grant, wrapped like the goal, and nothing with no pin', () => {
+  const ctx = setupTest();
+  const pin = `Small and plain: ${'a sailor reads an alert in one glance, '.repeat(3)}and no more.`;
+  const withPin = ctx.render(buildMockBriefInput({ pin })).split('\n');
+  const goalAt = withPin.indexOf('GOAL  Ship tide alerts in bosun-api and bosun-app.');
+
+  expect(withPin.slice(goalAt + 1, goalAt + 4)).toStrictEqual([
+    'PIN   Small and plain: a sailor reads an alert in one glance, a sailor reads an alert in one glance,',
+    '      a sailor reads an alert in one glance, and no more.',
+    expect.stringMatching(/^GRANT {2}none/u),
+  ]);
+
+  expect(ctx.render(buildMockBriefInput({ pin: null }))).not.toContain('PIN');
+});
+
+test('it never cuts the pin, over a limit of 1 byte', () => {
+  const ctx = setupTest();
+  const pin = 'Small and plain: a sailor reads an alert in one glance.';
+  const items = [buildMockItem({ id: 't-a' }), buildMockItem({ id: 't-b' })];
+
+  expect(ctx.render(buildMockBriefInput({ pin, items }), 1)).toInclude(`PIN   ${pin}\n`);
+});
+
 test.each([
   ['a task with a check not yet run', { check: 'pid:42' }, '[not checked yet]'],
   ['a task with a saved result', { check: 'pid:42', last: 'alive' }, '[alive]'],

@@ -3773,3 +3773,78 @@ test.each(
     expect(words).toStrictEqual(['www', shape.command, '--since', '24h', ...typed]);
   },
 );
+
+test('it pins one sentence, replaces it, clears it, and keeps the session file readable to an older www', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship the tide alerts to the harbour app']);
+
+  const sessionBefore = readFileSync(join(ctx.stateRoot, 'tide-alerts', 'session'), 'utf8');
+
+  const first = await ctx.run(['pin', 'Small and plain: a sailor reads an alert in one glance.']);
+  const second = await ctx.run(['pin', 'Boring and safe.']);
+  const brief = await ctx.run([]);
+  const jsonRun = await ctx.run(['--json']);
+
+  const json = z.object({ pin: z.string().nullable() }).parse(JSON.parse(jsonRun.stdout));
+
+  const cleared = await ctx.run(['pin', '--clear']);
+  const briefAfter = await ctx.run([]);
+  const jsonAfterRun = await ctx.run(['--json']);
+
+  const jsonAfter = z.object({ pin: z.string().nullable() }).parse(JSON.parse(jsonAfterRun.stdout));
+  const sessionAfter = readFileSync(join(ctx.stateRoot, 'tide-alerts', 'session'), 'utf8');
+
+  expect({
+    exits: [first.exitCode, second.exitCode, cleared.exitCode],
+    replies: [
+      first.stdout.split('.')[0],
+      second.stdout.split('.')[0],
+      cleared.stdout.split('.')[0],
+    ],
+    pinLine: brief.stdout.split('\n').find((line) => line.startsWith('PIN')) ?? null,
+    underGoal: brief.stdout.split('\n')[1]?.startsWith('GOAL') && brief.stdout.split('\n')[2],
+    json: json.pin,
+    briefAfter: briefAfter.stdout.split('\n').find((line) => line.startsWith('PIN')) ?? null,
+    jsonAfter: jsonAfter.pin,
+    sessionKeys: sessionAfter.split('\n').filter((line) => line.startsWith('pin')),
+    sessionBefore: sessionBefore.split('\n').length === sessionAfter.split('\n').length,
+  }).toStrictEqual({
+    exits: [0, 0, 0],
+    replies: ['pin set', 'pin set', 'pin cleared'],
+    pinLine: 'PIN   Boring and safe.',
+    underGoal: 'PIN   Boring and safe.',
+    json: 'Boring and safe.',
+    briefAfter: null,
+    jsonAfter: null,
+    sessionKeys: [],
+    sessionBefore: true,
+  });
+});
+
+test('it refuses a pin of two lines, a pin over 200 characters, and a pin with nothing or with both', async () => {
+  const ctx = setupTest();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  const results = [
+    await ctx.run(['pin', 'One.\nTwo.']),
+    await ctx.run(['pin', 'x'.repeat(201)]),
+    await ctx.run(['pin']),
+    await ctx.run(['pin', 'Plain.', '--clear']),
+  ];
+
+  expect(
+    results.map((result) => [result.exitCode, result.stderr.trimEnd().split('\n').at(-1)]),
+  ).toStrictEqual([
+    [3, expect.stringMatching(/^Run: www pin "<one line>" {2}# nothing was written$/u)],
+    [
+      3,
+      expect.stringMatching(
+        /^Run: www pin "<pin of at most 200 characters>" {2}# nothing was written$/u,
+      ),
+    ],
+    [2, expect.stringMatching(/^Run: www pin /u)],
+    [2, expect.stringMatching(/^Run: www pin /u)],
+  ]);
+});

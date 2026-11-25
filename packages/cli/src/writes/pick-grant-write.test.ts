@@ -36,6 +36,7 @@ function setupTest() {
           promises: [],
           promisesUnread: null,
           words: [],
+          pin: null,
           wordsUnread: null,
           ownerUnread: null,
         },

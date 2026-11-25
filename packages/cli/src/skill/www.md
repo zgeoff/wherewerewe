@@ -20,12 +20,12 @@ Write as you go, one claim per id:
 - `www words`: the owner's exact words, kept whole.
 - `www decide`: a choice and the reason for it.
 - `www grant`: what the owner lets you do, in their words.
+- `www pin "<sentence>"`: what kind of thing the work is for, in one line.
 - `www done <id> --evidence "<PR, commit or test run>"` and `www drop <id> --why "<reason>"` close
   an item.
 
 `www` holds what is true now and where the rest lives. Keep the content in files that `www where`
-rows point to, as lists or tables. A note such as "axis done; key half done; table waits on the
-feed" reads better in its file as:
+rows point to. A note like "axis done; key half done; table waits on the feed" reads better as:
 
 | Part  | State             |
 | ----- | ----------------- |
@@ -37,5 +37,4 @@ A refusal's first line is its reason and its last line is its fix: a `Run:` line
 
 A subagent's shell and a plain terminal have no session of their own: pass `--session <name>` there.
 
-Before you stop, write what is still open. `www help` lists every command, and `www list tasks`
-prints every row of one kind.
+Before you stop, write what is still open. `www help` lists every command.

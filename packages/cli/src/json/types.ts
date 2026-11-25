@@ -37,6 +37,7 @@ export interface BriefJson {
   readonly limit: { readonly bytes: number; readonly tokens: number };
   readonly estimate: number;
   readonly goal: string;
+  readonly pin: string | null;
   readonly grant: GrantOpts | null;
   readonly ownerNotes: readonly {
     readonly id: string;

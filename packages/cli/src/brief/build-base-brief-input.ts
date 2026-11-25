@@ -23,6 +23,7 @@ export function buildBaseBriefInput(
   | 'notes'
   | 'ownerNotes'
   | 'words'
+  | 'pin'
   | 'promises'
   | 'lessons'
   | 'decisions'
@@ -36,6 +37,7 @@ export function buildBaseBriefInput(
     notes: store.notes,
     ownerNotes: store.ownerNotes,
     words: store.words,
+    pin: store.pin,
     promises: store.promises,
     lessons: store.lessons,
     decisions: context.decisions,

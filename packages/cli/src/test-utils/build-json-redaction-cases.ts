@@ -211,6 +211,13 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       reads: [brief('goal')],
     },
     {
+      cell: 'pin',
+      limit: textLimits.pin,
+      prefix: '',
+      isSeparated: false,
+      reads: [brief('pin')],
+    },
+    {
       cell: 'next step',
       limit: textLimits.nextStep,
       prefix: '',

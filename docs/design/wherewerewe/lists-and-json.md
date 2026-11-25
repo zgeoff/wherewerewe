@@ -134,6 +134,7 @@ interface BriefJson {
   limit: { bytes: number; tokens: number }; // the text brief's limit on that host
   estimate: number; // estimated tokens of the text brief, as the write reply gives
   goal: string;
+  pin: string | null; // the session's pin, null when it has none
   grant: GrantOpts | null;
   ownerNotes: { id: OwnerNoteID; text: string; said: string; on: ItemID | null }[]; // the rows of owner.tsv
   words: WordsRow[];
