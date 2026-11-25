@@ -271,7 +271,7 @@ test('it starts probes in the order given, and a probe the deadline stops before
   seedStubCommand(
     ctx.folder,
     'gh',
-    `echo "$LAUNCH $3" >> "${log}"
+    `echo "$USER $3" >> "${log}"
 /bin/sleep 5
 printf '%s' '${ctx.passing}'`,
   );
@@ -288,7 +288,7 @@ printf '%s' '${ctx.passing}'`,
   // each command's env is copied just before it starts, so the getter numbers the launches in order
   const env = {
     PATH: ctx.folder,
-    get LAUNCH(): string {
+    get USER(): string {
       launches.count += 1;
 
       return String(launches.count);

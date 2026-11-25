@@ -56,17 +56,20 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 - An interrupt or an exit of the process kills each probe still running, and its children.
 - A probe never runs a command stored in the store. The reference is parsed into its parts, and each part is passed as one argument, never through a shell.
 - A check never changes an item's claim, kind or state. It sets `last`, adds a `changed` journal row when `last` changes, and sets `state` and `seen` in `prs.tsv`. A probed `prs.tsv` row takes `OPEN` for any `OPEN …` result and `MERGED` or `CLOSED` for those, and keeps its state for `not found` and `unchecked`. A read that saves results writes the first result into an `at_write` of `-`, with no `changed` row.
-- A probe finds `gh` and `git` through the `PATH` the command was given, without its empty and relative entries and without each entry inside the folder the command runs in, so a `git` or `gh` that an agent writes into its workspace never runs.
+- A probe finds `gh` and `git` through the `PATH` the command was given, without its empty and relative entries and without each entry whose real path is inside the folder the command runs in, so a `git` or `gh` that an agent writes into its workspace, or links to, never runs. The probe hands that same `PATH` to `git` and `gh`, with only the variables that locate the owner's config and credentials, the proxy and the certificates. Every other variable, such as `GIT_CONFIG_PARAMETERS` or `LD_PRELOAD`, stays out, because it could make `git` or `gh` read other config or start a program. The list is in [build-probe-env.ts](../../../packages/cli/src/checks/build-probe-env.ts).
 - `unchecked` never counts as changed and never overwrites `last`. An item whose saved `last` differs from `at_write` counts as changed on every read until its claim is rewritten, whether or not this read probed it.
 - A pid whose start time differs from `pid_start` reads `gone`: the number now belongs to another process. Where `/proc` is missing, the probe checks only that the pid is alive.
 - When `gh` is not on `PATH`, every `pr` probe reads `unchecked`, and the header's reason is `gh missing`. When `gh` exits with an authentication error, the reason is `gh not logged in`. When a network error is seen, the reason is `offline`.
 - A `prs.tsv` row whose `state` is `MERGED` or `CLOSED` is never probed again.
 - A write with a check runs that one probe, with the same timeout, before it replies, and stores the result in `at_write`. An `unchecked` result is stored as `-`, so the next read takes its first result without counting a change.
 
-### Known limits of the path probe
+### Known limits of the probes
 
-- The path probe reads the filter drivers, runs `git status`, then reads them again. A process that adds a driver and removes it again between those reads can still run a program. Closing this fully would take a probe that runs no `git status` in a repo whose own config defines any filter, which is the owner's choice to make.
+- The path probe reads the filter drivers, runs `git status`, then reads them again. A process that adds a driver and removes it again between those reads can still run a program. To close it, the path probe would run no `git status` in a repo whose own config defines a filter. That choice is the owner's.
 - A repo that defines a filter in its own config, such as a Git LFS driver, reads `dirty` for each file that filter would have made clean.
+- `www` run from a home folder skips each `PATH` entry inside it, such as `~/.local/bin`. A `git` or `gh` found only there reads as missing.
+- A probe trusts a `PATH` entry outside the folder `www` runs in, even one the agent can write, such as a sibling workspace.
+- Git before 2.36 reads `core.fsmonitor=false` as the name of a helper program.
 
 ### What the brief prints when probes fail
 

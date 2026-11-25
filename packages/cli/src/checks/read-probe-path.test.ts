@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
-import { toProbePath } from './to-probe-path.ts';
+import { readProbePath } from './read-probe-path.ts';
 
 function setupTest() {
-  return { toProbePath };
+  return { readProbePath };
 }
 
 test.each([
@@ -25,5 +25,5 @@ test.each([
 ])('it keeps only the absolute entries outside the working folder: $title', (row) => {
   const ctx = setupTest();
 
-  expect(ctx.toProbePath(row.path, '/srv/work')).toBe(row.expected);
+  expect(ctx.readProbePath(row.path, '/srv/work')).toBe(row.expected);
 });
