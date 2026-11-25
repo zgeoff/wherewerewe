@@ -72,7 +72,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | lesson                   | `  <id>  <instruction>  [why: <why>]`                                                         | 349    |
 | decision                 | `  <d-n>  <choice>`, with a choice over 200 characters, such as one imported from a hand-kept journal, cut to 199 and `…`; the heading is `DECISIONS (<n> in force)` | 212    |
 | where                    | `  <id>  <claim>  [<result or no check · age>[ · owed]]`                                      | 166    |
-| open count line          | `  and <m> more open tasks: www show`, or `  and <m> more open tasks: www --session <name> show`; `<m>` is at most 29 | 69 |
+| open count line          | `  and <m> more open tasks: www show`, or `  and <m> more open tasks: www --session <name> show`; `<m>` is at most 30, and at most 29 while a task is in focus | 69 |
 | pull request             | `  <ref>  opened <age> ago  [<result>]`; a ref over 60 characters is cut to 59 and `…`        | 98     |
 | pull request overflow    | `  and <n> more: www list prs`, or `  and <n> more: www --session <name> list prs`                | 62     |
 | cut line                 | `  and <n> more: www list <kind>`, or `  and <n> more: www --session <name> list <kind>`; `<kind>` is `waits`, `approvals`, `rules`, `where`, `lessons`, `promises`, `words` or `decisions` | 68 |
@@ -212,7 +212,7 @@ Each section that lost rows ends with `  and <n> more: www list <kind>`, with `-
 - The brief is within its host's limit in bytes. Write a test that renders the ASCII worst case for each host, and one that renders every stored text in a 3-byte script.
 - When a brief is over its limit, the renderer drops rows in [the cut order](#the-cut-order) and ends each section that lost rows with its cut line. The cut runs once, on the rows as the read's check results leave them, after the probes finish or the deadline passes ([checks.md](checks.md)); no earlier cut decides which rows to probe. It never drops or clips a never-cut line, and the cut line of a section is never cut. The cut line counts only the rows the cut dropped from the rows its section printed, and a section's own count line, such as `OPEN`'s count of the task rows the fill left out, counts what it did before, so a section can end with both. `DECISIONS` ends with its count line, when more than 3 are in force, then its cut line.
 - When the never-cut lines alone pass the limit, the brief prints them whole, over the limit, and exits 0, and a write reply's `<t>` is then over its `<limit>`.
-- A decision is in force unless a later `decide` row replaces it; a `ruled-out` row never is.
+- A decision is in force unless a later `decide` row replaces it, by `replaces=<its id>` in its `extra`, as `www decide --replaces <its id>` writes; a `ruled-out` row never is. The 3 newest are the 3 with the latest `ts`, the higher `d-<n>` first on a tie.
 - A line's width and a text's limit count code points, as the wrap does; the brief's limit counts bytes.
 - The header line starts with `<name> · day`, and the footer line is fixed, because the hook's whole-read check reads both ([sessions-and-hooks.md](sessions-and-hooks.md#what-counts-as-a-whole-read)). A test pins both for every store.
 - The grant prints whole on every brief, directly after `GOAL`.
