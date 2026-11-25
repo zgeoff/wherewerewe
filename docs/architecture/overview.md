@@ -55,12 +55,13 @@ command exits 4, and never falls back to the only session on the machine. See
 This version has `help`, `sessions`, `init`, `attach`, `detach`, `goal`, `now`, `task`, `wait`,
 `rule`, `where`, `lesson`, `promise`, `words`, `set`, `ok`, `grant`, `decide`, `done`, `drop`,
 `use`, `show`, `list`, `log`, `recap`, `import`, `say` and `ack`, and `www` alone prints the brief.
-A write answers in one line, except `now` and a close, which print the note of an item that has one.
-The reply of a write, such as `task`, `done`, `decide`, `say` or `ack`, names the item or note and
-ends with the brief's length; `init`, `attach`, `detach` and `import` say what they did, and
-`import` names the folder of the backup. Each refusal prints its text and a `Run:` line with the
-command that fixes it. See [the commands design](../design/wherewerewe/commands.md) for the replies
-and the refusals.
+`www show`, `log`, `list`, `recap` and the brief take `--json`, and `www goal --paste` prints the
+grant as a `/goal` text. A write answers in one line, except `now` and a close, which print the note
+of an item that has one. The reply of a write, such as `task`, `done`, `decide`, `say` or `ack`,
+names the item or note and ends with the brief's length; `init`, `attach`, `detach` and `import` say
+what they did, and `import` names the folder of the backup. Each refusal prints its text and a
+`Run:` line with the command that fixes it. See
+[the commands design](../design/wherewerewe/commands.md) for the replies and the refusals.
 
 `now` and every item write take `--note` and `--owed`, and `set` also takes `--no-note` and no
 claim. A note holds up to 400 characters, an item has at most one, and `--owed` marks a note that
@@ -204,6 +205,11 @@ The grant prints whole after the goal and is never cut. Its bullets sit under `m
 line. Only the note of the item in focus prints, and every item with an owed note is tagged `owed`.
 The goal, each grant bullet, the reading and the note wrap at 100 columns by the rule in the brief
 design, at most 3 changed rows and 1 pull request row show, and the footer is one line.
+
+The brief, `www show`, `www log`, `www list` and `www recap` take `--json` and print one JSON value
+of a versioned type, whole and never cut, with each string redacted before it is encoded.
+`www goal --paste` prints the grant as a `/goal` text for the owner to paste, from the `session`
+file alone.
 
 Each read probes each check, and each open pull request in `prs.tsv` that no item names, at most 8
 at once, and stops waiting at the deadline that [the check design](../design/wherewerewe/checks.md)

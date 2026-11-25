@@ -313,6 +313,12 @@ export interface CLIResult {
   readonly stderr: string;
 }
 
+// What a command returns to runCLI: the result, and how its stdout is printed. A JSON stdout is one
+// encoded line whose strings the command already redacted, so runCLI's word pass skips it.
+export interface CommandResult extends CLIResult {
+  readonly stdoutFormat?: 'json';
+}
+
 export interface AgentID {
   readonly harness: 'claude' | 'codex';
   readonly id: string;

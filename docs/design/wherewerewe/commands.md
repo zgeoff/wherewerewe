@@ -1,7 +1,7 @@
 # The commands
 
 - **Status:** agreed
-- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0012](../../decisions/0012-a-capped-heading-names-its-max.md), [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md), [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md)
+- **Decision records:** [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md), [0009](../../decisions/0009-30-open-tasks-and-a-count-of-the-rest.md), [0011](../../decisions/0011-a-grant-of-limits-and-its-lines.md), [0012](../../decisions/0012-a-capped-heading-names-its-max.md), [0016](../../decisions/0016-the-brief-limit-is-20000-tokens-or-the-host-limit.md), [0017](../../decisions/0017-a-lesson-is-a-kind-of-its-own.md), [0018](../../decisions/0018-a-promise-is-a-kind-of-its-own.md), [0019](../../decisions/0019-the-owners-words-are-a-kind-of-their-own.md), [0020](../../decisions/0020-authority-comes-from-the-owners-own-acts.md), [0021](../../decisions/0021-a-refused-write-says-so-on-its-run-line.md)
 
 `www` is one command with a subcommand per write. Every write answers in one line, and that line ends with the brief's estimated tokens, so the agent sees what each write costs; the session and import commands in the reply table are the exceptions. `now` and each close print the item's note before that line, and a claim write that keeps an older note prints the older-note line before it, so the reply always ends on that line. Every refusal prints a command to run next: the fixed call when the tool can fix it, or else the command that shows what the fix needs. Build the command-line parser, the write replies, the refusals and `www recap` from this doc, in the slice from [build-order.md](build-order.md).
 
@@ -9,7 +9,7 @@
 
 ### www help
 
-`www help` prints this text, as built through slice 3b but for the two lines the last diff below adds, decision records 0009, 0011 and 0016 to 0019, and the limits' diff, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
+`www help` prints this text, as built through slice 3b, decision records 0009, 0011 and 0016 to 0020, and the limits' diff, and `www --help` and `www -h` do the same. The lines below are fixed, spacing included: a test compares the block with the tool's output character for character.
 
 ```text
 www (wherewerewe): what is true now in one long agent session, in one short brief.
@@ -26,6 +26,7 @@ Read. Run www first, after every compaction, and whenever you are unsure:
   www list <tasks|waits|approvals|rules|where|lessons|promises|words|notes|decisions|prs>
                              every row of one kind, whole, as the brief prints it
   www recap [--since <t>]    one screen for the owner: grant, notes, promises, decisions, closes
+www, show, log, list and recap take --json: one JSON value for a script, in place of the text.
 
 Write as you go. One id holds one claim and one note; --note replaces the note:
   www now <id> "<next step>" [--note "<detail>" [--owed]]
@@ -40,6 +41,7 @@ Write as you go. One id holds one claim and one note; --note replaces the note:
   www set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]
   www decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]
   www goal "<what done means>"
+  www goal --paste           print a /goal text of the grant, for the owner to paste
   www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
             --where <where> --reading "<what they cover; what the owner kept back>"
   www grant --reading "<what they cover; what the owner kept back>"
@@ -74,7 +76,7 @@ words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 3b but for two lines, with the caps of decision records 0009, 0011 and 0016 to 0019, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff and the limits' diff below are what each changed up to slice 2d, and each shows the caps of its own slice. The last diff adds the two lines slice 3b leaves. The caps in the block above, from slice 3b, replace the caps those diffs show. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 3b, with the caps of decision records 0009, 0011 and 0016 to 0020, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff, the limits' diff and the slice 3b diff below are what each changed, and each shows the caps of its own slice. The caps in the block above, from slice 3b, replace the caps those diffs show. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -210,19 +212,54 @@ The limits' diff adds every limit the code enforces to the help, so an agent can
 +A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
 ```
 
-#### After slice 3b
-
-In slice 3b, add these two lines to the block above, with the code and the test, in the same pull request. Apply this diff to the block to add `--json` on the read commands and the printed goal, decision record 0020:
+Slice 3b, decision records 0016 to 0020:
 
 ```diff
-@@ -14,2 +14,3 @@
-   www recap [--since <t>]    one screen for the owner: grant, notes, promises, decisions, closes
-+Read commands take --json: one JSON value for a script, in place of the text.
- 
-@@ -28,2 +29,3 @@
+@@ -3,4 +3,5 @@
+ Read. Run www first, after every compaction, and whenever you are unsure:
+-  www                        the brief: goal, grant, owner notes, what changed, now and its note,
+-                             open work, waits, the approval, rules, where things are. Runs checks.
++  www                        the brief: goal, grant, owner notes and words, what changed, now and
++                             its note, open work, waits, promises, the approval, rules, lessons,
++                             decisions, where things are. Runs checks.
+   www show [<id>]            one item, decision or the grant (www show grant): its text, its note,
+@@ -10,3 +11,6 @@
+   www sessions               every session on this machine
+-  www recap [--since <t>]    one screen for the owner: the grant, notes, decisions, what closed
++  www list <tasks|waits|approvals|rules|where|lessons|promises|words|notes|decisions|prs>
++                             every row of one kind, whole, as the brief prints it
++  www recap [--since <t>]    one screen for the owner: grant, notes, promises, decisions, closes
++www, show, log, list and recap take --json: one JSON value for a script, in place of the text.
+
+@@ -18,2 +22,5 @@
+   www rule <id> "<do it this way, and why>"
++  www lesson <id> "<do this>" --why "<the mistake behind it>"
++  www promise <id> "<what>" --to <who> --by <when>
++  www words <id> "<the owner's exact words>" --where <where>
+   www where <id> "<what and where, and how to stop it>" [<check>]
+@@ -22,2 +29,3 @@
    www goal "<what done means>"
 +  www goal --paste           print a /goal text of the grant, for the owner to paste
    www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
+@@ -27,2 +35,3 @@
+-Notes: --note "<detail>" and --owed work on now and on every item write. A note holds what you
+-need on your next turn to that item. An owed note stops done, drop and use until set clears it.
++Notes: --note "<detail>" and --owed work on now and on every task, wait, approval, rule and where
++write, and not on a lesson, a promise or the owner's words. A note holds what you need on your
++next turn to that item. An owed note stops done, drop and use until set clears it.
+@@ -30,3 +39,4 @@
+
+-Close. Each leaves the brief and stays in the journal:
++Close. Each leaves the brief and stays in the journal. A lesson or the owner's words close with
++drop only:
+   www done <id> --evidence "<PR, commit or test run>"
+@@ -48,3 +58,5 @@
+ 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
+-A session holds at most 30 tasks, 4 waits, 1 approval, 5 rules, 4 where items and 2 owner notes.
++A lesson takes 120 with its --why 200, a promise 120 with --to 16 and --by 24, and the owner's
++words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
++8 where items, 5 lessons, 5 promises, 8 owner's words and 2 owner notes.
+ Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
 ### Signatures
@@ -532,7 +569,7 @@ With counts of at most 4 digits where no cap applies, at most 62 open items in `
 
 ## Refusals
 
-Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, and ends with one or two `Run:` lines. When the tool can fix the call, the `Run:` line is the refused command with each bad value replaced and each missing flag added, so it is complete. When it cannot, such as with no session, a hand-kept store or a decision number it cannot guess, the `Run:` line is the command that gets the agent what the fix needs. A value only the agent knows is a `<placeholder>` for what goes there. Every other value comes from the agent's command or the store, such as the oldest open task when a kind is full. The examples use the invented session.
+Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, and ends with one or two `Run:` lines. The last `Run:` line of a refusal of any command other than the five reads, `www sessions`, `www help` and `www goal --paste` ends with two spaces and `# nothing was written`, such as `Run: www task t-e2e "<claim of at most 120 characters>"  # nothing was written`. A shell reads `#` there as the start of a comment, so the line still runs as printed, and the fix and the fact sit on one line. An unknown command gets it too, and when a refusal prints two `Run:` lines, only the last does. The reason lines are unchanged, and every exit code takes the same rule, because a refused write changes nothing ([decision record 0021](../../decisions/0021-a-refused-write-says-so-on-its-run-line.md)). When the tool can fix the call, the `Run:` line is the refused command with each bad value replaced and each missing flag added, so it is complete. When it cannot, such as with no session, a hand-kept store or a decision number it cannot guess, the `Run:` line is the command that gets the agent what the fix needs. A value only the agent knows is a `<placeholder>` for what goes there. Every other value comes from the agent's command or the store, such as the oldest open task when a kind is full. The examples use the invented session.
 
 | When                                              | The text                                                                                                                                                                                               |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -605,7 +642,7 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 | A `--since` that is not `24h`, `3d` or `day-7`, a value such as `-2h` that starts with a dash included, or one that names a time past the year 9999 (exit 2) | `www: --since takes 24h, 3d or day-7.` `Run: www log --since 24h` or `Run: www recap --since 24h`, the command that was typed |
 | An unknown command (exit 2) | `www: unknown command "taks".` `Run: www help` |
 | A flag the command does not take, a flag that no command takes among them (exit 2) | `www: wait takes no --on flag. It takes --pr, --branch, --path, --pid, --note, --owed and --who.` `Run: www wait <id> "<what>" --who <who> [<check>]`, the command's line in the help. The first line names the refused flag as typed and each flag the command takes, in the order of the table the parser reads, and leaves out a flag that the command always refuses with a text of its own, such as `--standing` on `ok`. A command that takes no flag of its own prints `www: sessions takes no --goal flag. It takes only --session.` and `Run: www sessions`; the brief's refusal names `the brief`, and its `Run:` line is `www`. A flag before an unknown command gets the unknown command's refusal |
-| `show` with two ids (exit 2)                      | `www: show takes [<id>].` `Run: www help`                                                                                                         |
+| A command with too few or too many arguments (exit 2) | `www: show takes [<id>].` `Run: www show [<id>]`, the command's line in the help, as for a flag the command does not take                  |
 | `decide` with a `--who` other than `owner` or `agent` | `www: refused: --who on a decision is owner or agent.` `Run: www decide "Retry a 503 3 times" --why "The feed flaps" --who "<owner or agent>"` |
 
 - When `www grant` or one upgrade finds more than one problem, it prints each problem's lines and one `Run:` line with every flag the problems need, so the filled line passes. `--drop` repeats once per id, such as `--drop ok-wipe --drop grant`.
@@ -619,9 +656,9 @@ Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, 
 - A `Run:` line is one output line. A line break in a `www` value prints as the space the store would keep, and a value that the credential test matches once its line breaks and the spaces around them are taken out prints as `<where the secret lives>`. A word of another command, such as a store path in `Run: less <path>`, that holds a tab or a line break prints in `$'…'` quotes, with each of those as octal escapes.
 - A word after `--` in a `Run:` line is one positional. `www` never splits it or reads it as a flag, so `-- t-a '--may=x'` keeps `--may=x` as the claim.
 - No output line holds text that the credential test matches. Each match, with the rest of its word, in a refusal's text, a `Run:` line, a key or an id read from the store, or an unknown command or flag, prints as `<where the secret lives>`. A flag whose value is replaced keeps its flag, as `--may "<where the secret lives>"`. A `Run:` word whose quotes would complete a match, such as `--may="-ops_…"` with 19 characters after `ops_`, prints as the placeholder too, so no quote is lost. A credential refusal names the pattern without its `_` or `-`, as `it matches the ghp pattern`, so the name is no match itself.
-- The `Run:` line of a flag the command does not take is a usage line: the command's line in `www help`, as the help writes it, with its optional parts in brackets. Before it prints a usage line, `www` fills its placeholders with samples and puts it through its parser, once with the required words alone and once with each optional group, or each choice of a group that holds `|`, added; it prints the line unfilled. A choice such as `<tasks|waits>` fills as its first choice. A test fills each placeholder, leaves out each optional part, and runs the line.
+- The `Run:` line of a flag the command does not take, or of a wrong number of arguments, is a usage line: the command's line in `www help`, as the help writes it, with its optional parts in brackets. Before it prints a usage line, `www` fills its placeholders with samples and puts it through its parser, once with the required words alone and once with each optional group, or each choice of a group that holds `|`, added; it prints the line unfilled. A choice such as `<tasks|waits>` fills as its first choice. A test fills each placeholder, leaves out each optional part, and runs the line.
 - A placeholder is a word the refusal wrote for a value only the agent knows. A value the agent typed is never a placeholder, even one that reads like `<…>`, so the checks read it as text.
-- Before it prints a `Run:` line, `www` fills each placeholder with a sample, except in a usage line; a usage line gets the parser check of the bullet before. The sample is a word that appears in no other word of the line, so `www` can tell it from a typed value, and it meets the placeholder's own rule: an id or a session name gets a valid id, a check flag a value of its form, and a decision's `--who` gets `owner` or `agent`. `www` then puts the filled line through its parser and through each check the command runs before it reads the store, by calling the functions the write calls: each text's checks for empty, one line, length and a credential, the item id, the session name, the check flags, the approval's parts, and for `grant` and `import` the grant's parts and texts. When the filled line would be refused, `www` prints that refusal and its own `Run:` line instead, and checks the new line the same way. After the third refusal in a row, the `Run:` line is `www help`. When the line's other words hold both `owner` and `agent`, no `--who` sample meets the sample rule, and the `Run:` line is `www help`. Checks that read the store run only when the agent runs the line: whether an id is open or closed, whether an id already holds another kind, a kind's cap, and whether a `set` gives a rule a check. Their rows in the table above are refusals the agent can still get from a printed `Run:` line.
+- Before it prints a `Run:` line, `www` fills each placeholder with a sample, except in a usage line; a usage line gets the parser check of the bullet before. The sample is a word that appears in no other word of the line, so `www` can tell it from a typed value, and it meets the placeholder's own rule: an id or a session name gets a valid id, a check flag a value of its form, and a decision's `--who` gets `owner` or `agent`. `www` then puts the filled line, without its `# nothing was written` comment, through its parser and through each check the command runs before it reads the store, by calling the functions the write calls: each text's checks for empty, one line, length and a credential, the item id, the session name, the check flags, the approval's parts, and for `grant` and `import` the grant's parts and texts. When the filled line would be refused, `www` prints that refusal and its own `Run:` line instead, and checks the new line the same way. After the third refusal in a row, the `Run:` line is `www help`. When the line's other words hold both `owner` and `agent`, no `--who` sample meets the sample rule, and the `Run:` line is `www help`. Checks that read the store run only when the agent runs the line: whether an id is open or closed, whether an id already holds another kind, a kind's cap, and whether a `set` gives a rule a check. Their rows in the table above are refusals the agent can still get from a printed `Run:` line.
 
 ## Constraints
 

@@ -27,7 +27,7 @@ import { findAgentID } from './sessions/find-agent-id.ts';
 import { resolveSession } from './sessions/resolve-session.ts';
 import { findStoreRoot } from './store/find-store-root.ts';
 import { readStore } from './store/read-store.ts';
-import type { CLIInput, CLIResult, ParsedArgs, Store, UnreadRows } from './types.ts';
+import type { CLIInput, CLIResult, CommandResult, ParsedArgs, Store, UnreadRows } from './types.ts';
 import { pickAck } from './writes/pick-ack.ts';
 import { pickClose } from './writes/pick-close.ts';
 import { pickDecision } from './writes/pick-decision.ts';
@@ -51,13 +51,13 @@ export async function runCLI(input: CLIInput): Promise<CLIResult> {
   const result = await runCommand(input);
 
   return {
-    ...result,
-    stdout: redactCredentialWords(result.stdout),
+    exitCode: result.exitCode,
+    stdout: result.stdoutFormat === 'json' ? result.stdout : redactCredentialWords(result.stdout),
     stderr: redactCredentialWords(result.stderr),
   };
 }
 
-function runCommand(input: CLIInput): Promise<CLIResult> {
+function runCommand(input: CLIInput): Promise<CommandResult> {
   return match(parseCLIArgs(input.argv))
     .with({ kind: 'refused' }, (refused) =>
       Promise.resolve(
@@ -75,7 +75,7 @@ function runCommand(input: CLIInput): Promise<CLIResult> {
 const ownerCommands: ReadonlySet<string> = new Set(['say', 'ack']);
 const sessionCommands: ReadonlySet<string> = new Set(['init', 'attach', 'detach', 'sessions']);
 
-async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResult> {
+async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CommandResult> {
   if (args.command === 'help') {
     return { exitCode: 0, stdout: helpText, stderr: '' };
   }
@@ -121,7 +121,7 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<CLIResu
   return result;
 }
 
-async function runSessionBoundCommand(context: CommandContext): Promise<CLIResult> {
+async function runSessionBoundCommand(context: CommandContext): Promise<CommandResult> {
   const resolution = await resolveSession({
     flag: context.args.sessionFlag,
     env: context.env,
@@ -136,7 +136,7 @@ async function runSessionBoundCommand(context: CommandContext): Promise<CLIResul
 
 const readCommands: ReadonlySet<string> = new Set(['brief', 'show', 'log', 'recap', 'list']);
 
-async function runNamedSession(context: CommandContext, name: string): Promise<CLIResult> {
+async function runNamedSession(context: CommandContext, name: string): Promise<CommandResult> {
   if (context.args.command === 'goal' && context.args.values.paste === true) {
     return runGoalPasteCommand(context, name);
   }
@@ -167,7 +167,7 @@ async function runNamedSession(context: CommandContext, name: string): Promise<C
     .exhaustive();
 }
 
-async function runStoreCommand(context: CommandContext, store: Store): Promise<CLIResult> {
+async function runStoreCommand(context: CommandContext, store: Store): Promise<CommandResult> {
   const args = context.args;
 
   if (readCommands.has(args.command)) {
@@ -223,7 +223,7 @@ async function runReadCommand(
   context: CommandContext,
   store: Store,
   unread: UnreadRows | null,
-): Promise<CLIResult> {
+): Promise<CommandResult> {
   const result = await runReadCommandBody(context, store, unread);
 
   return { ...result, stderr: `${result.stderr}${formatDuplicateNotes(store)}` };
@@ -233,7 +233,7 @@ function runReadCommandBody(
   context: CommandContext,
   store: Store,
   unread: UnreadRows | null,
-): Promise<CLIResult> {
+): Promise<CommandResult> {
   const args = context.args;
 
   return match(args.command)
@@ -241,7 +241,7 @@ function runReadCommandBody(
       const [id] = args.positionals;
 
       return id === undefined
-        ? Promise.resolve(runTaskListCommand(store, context.nowMs, unread))
+        ? runTaskListCommand(store, context, unread)
         : runShowCommand(store, id, context, unread);
     })
     .with('list', () => {

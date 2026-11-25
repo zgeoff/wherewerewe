@@ -5,6 +5,7 @@ import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from './args/help-text.ts';
+import { jsonVersion } from './json/json-version.ts';
 import { nothingWrittenComment } from './refusals/format-refusal.ts';
 import { findCredentialMatch } from './rules/find-credential-match.ts';
 import { runCLI } from './run-cli.ts';
@@ -39,6 +40,8 @@ import { seedGhAnswers } from './test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from './test-utils/seed-git-repo.ts';
 import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
+import { seedJsonCaseStore } from './test-utils/seed-json-case-store.ts';
+import type { JsonCase } from './test-utils/seed-json-case-store.ts';
 import { seedLockFile } from './test-utils/seed-lock-file.ts';
 import { seedRedactionStore } from './test-utils/seed-redaction-store.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
@@ -3286,6 +3289,174 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
   });
 });
 
+test.each(
+  (
+    [
+      'a whole store',
+      'a notes row that does not parse',
+      'a held lock',
+      'a read-only store folder',
+      'no session',
+      'a format 1 store',
+      'a hand-kept store',
+      'a newer store',
+      'a session that does not parse',
+    ] satisfies JsonCase[]
+  ).flatMap((state) =>
+    [
+      { command: 'www', argv: [] },
+      { command: 'www show', argv: ['show'] },
+      { command: 'www log', argv: ['log'] },
+      { command: 'www list tasks', argv: ['list', 'tasks'] },
+      { command: 'www recap', argv: ['recap'] },
+    ].map((read) => ({ command: read.command, argv: read.argv, state })),
+  ),
+)('it exits $command --json with the code and stderr of its text form when $state', async (row) => {
+  const text = setupTest();
+  const json = setupTest();
+
+  const restoreText = await seedJsonCaseStore(text.root, row.state);
+  const restoreJson = await seedJsonCaseStore(json.root, row.state);
+
+  const scoped = ['--session', 'tide-alerts', ...row.argv];
+
+  const printedText = await text.run(scoped);
+  const printedJSON = await json.run([...scoped, '--json']);
+
+  restoreText();
+  restoreJson();
+
+  expect({
+    exitCode: printedJSON.exitCode,
+    stderr: printedJSON.stderr.replaceAll(json.root, '<ROOT>'),
+    stdout: printedJSON.exitCode === 0 ? 'one line of JSON' : printedJSON.stdout,
+    lines: printedJSON.stdout.split('\n').length,
+  }).toStrictEqual({
+    exitCode: printedText.exitCode,
+    stderr: printedText.stderr.replaceAll(text.root, '<ROOT>'),
+    stdout: printedJSON.exitCode === 0 ? 'one line of JSON' : '',
+    lines: printedJSON.exitCode === 0 ? 2 : 1,
+  });
+
+  expect(() => (printedJSON.exitCode === 0 ? JSON.parse(printedJSON.stdout) : null)).not.toThrow();
+});
+
+test.each([
+  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h', '--json'] },
+  { title: 'www list --json', argv: ['list', '--json'] },
+])(
+  'it exits $title with the code and stderr of its usage refusal and prints no JSON',
+  async (row) => {
+    const ctx = setupTest();
+
+    const refused = await ctx.run(row.argv);
+
+    expect({ exitCode: refused.exitCode, stdout: refused.stdout }).toStrictEqual({
+      exitCode: 2,
+      stdout: '',
+    });
+  },
+);
+
+test('it changes the files a read changes, and no more, with --json', async () => {
+  const text = setupTest();
+  const json = setupTest();
+
+  const runSeedSteps = async (ctx: ReturnType<typeof setupTest>) => {
+    const frozen = { env: ctx.agentEnv, now: () => Date.parse('2026-03-10T11:43:00Z') };
+
+    await runCLI({
+      argv: ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ...frozen,
+      cwd: '/work',
+      terminal: { stdin: false, stdout: false },
+    });
+
+    await seedItem(join(ctx.stateRoot, 'tide-alerts'), {
+      id: 't-a',
+      check: 'path:/work/no-such-folder-here',
+      atWrite: 'exists',
+      last: 'exists',
+    });
+
+    return frozen;
+  };
+
+  const frozenText = await runSeedSteps(text);
+  const frozenJSON = await runSeedSteps(json);
+
+  await runCLI({
+    argv: [],
+    ...frozenText,
+    cwd: '/work',
+    terminal: { stdin: false, stdout: false },
+  });
+
+  await runCLI({
+    argv: ['--json'],
+    ...frozenJSON,
+    cwd: '/work',
+    terminal: { stdin: false, stdout: false },
+  });
+
+  const jsonTree = await json.readTree();
+  const textTree = await text.readTree();
+
+  expect(jsonTree).toStrictEqual(textTree);
+});
+
+test.each([
+  ['show', ['show', '--json']],
+  ['log', ['log', '--json']],
+  ['list', ['list', 'tasks', '--json']],
+  ['recap', ['recap', '--json']],
+])(
+  'it takes no lock and changes no file for www %s --json while the lock is held',
+  async (_name, argv) => {
+    const ctx = setupTest();
+    const folder = join(ctx.stateRoot, 'tide-alerts');
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 't-a', 'Write it']);
+
+    seedLockFile(folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
+
+    const before = await ctx.readTree();
+    const printed = await ctx.run(argv);
+    const after = await ctx.readTree();
+
+    expect({ exitCode: printed.exitCode, unchanged: after }).toStrictEqual({
+      exitCode: 0,
+      unchanged: before,
+    });
+  },
+);
+
+test('it prints a claim that ends in ops_ and a few characters as JSON that parses', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedItem(folder, { id: 't-a', claim: 'Check the cache ops_abcde' });
+
+  const printed = await ctx.run(['list', 'tasks', '--json']);
+
+  const parsed: unknown = JSON.parse(printed.stdout);
+
+  expect(parsed).toStrictEqual({
+    ...jsonVersion,
+    kind: 'tasks',
+    rows: [
+      {
+        kind: 'task',
+        row: expect.objectContaining({ id: 't-a', claim: 'Check the cache ops_abcde' }),
+        note: null,
+      },
+    ],
+  });
+});
+
 test('it prints no text of the new files through process.stdout or console', async () => {
   const ctx = setupTest();
 
@@ -3297,6 +3468,18 @@ test('it prints no text of the new files through process.stdout or console', asy
     'src/writes/pick-words-write.ts',
     'src/writes/pick-file-close.ts',
     'src/refusals/build-kind-refusal.ts',
+    'src/commands/run-goal-paste-command.ts',
+    'src/commands/refuse-no-session.ts',
+    'src/reads/render-goal-paste.ts',
+    'src/reads/format-failing-names.ts',
+    'src/json/build-brief-json.ts',
+    'src/json/build-grant-opts.ts',
+    'src/json/build-list-json.ts',
+    'src/json/build-log-json.ts',
+    'src/json/build-recap-json.ts',
+    'src/json/build-show-json.ts',
+    'src/json/build-shown.ts',
+    'src/json/format-json-output.ts',
   ];
 
   const texts = await Promise.all(names.map((name) => ctx.readSource(name)));

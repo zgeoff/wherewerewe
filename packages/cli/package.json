@@ -32,7 +32,8 @@
   "devDependencies": {
     "@zgeoff/rig": "catalog:",
     "@zgeoff/testing": "catalog:",
-    "fast-check": "catalog:"
+    "fast-check": "catalog:",
+    "zod": "catalog:"
   },
   "engines": {
     "bun": ">=1.4.4"

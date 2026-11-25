@@ -134,16 +134,25 @@ export async function seedDayNineRows(
   ]);
 
   const rules = [
-    ['r-api-tests', 'Run the API tests from api/; from the repo root the queue tests are skipped'],
+    [
+      'r-api-tests',
+      'Run the API tests from api/; from the repo root the queue tests are skipped',
+      '2026-03-03T10:20:00Z',
+    ],
     [
       'r-tk-fork',
       'tidekit is a fork here: pass -R tidal-org/tidekit to gh, or the PR opens on the fork',
+      '2026-03-05T14:02:11Z',
     ],
-    ['r-sim-port', 'Start the app simulator with PORT=8091; 8090 belongs to another session'],
+    [
+      'r-sim-port',
+      'Start the app simulator with PORT=8091; 8090 belongs to another session',
+      '2026-03-09T08:12:40Z',
+    ],
   ] as const;
 
-  for (const [id, claim] of rules) {
-    await run('2026-03-02T10:00:00Z', ['rule', id, claim]);
+  for (const [id, claim, writtenAt] of rules) {
+    await run(writtenAt, ['rule', id, claim]);
   }
 
   if (!isExampleStart) {

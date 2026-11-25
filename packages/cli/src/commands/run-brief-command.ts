@@ -8,11 +8,14 @@ import { pickCheckSave } from '../checks/pick-check-save.ts';
 import { runChecks } from '../checks/run-checks.ts';
 import type { CheckRun } from '../checks/types.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
+import { buildBriefJSON } from '../json/build-brief-json.ts';
+import { formatJSONOutput } from '../json/format-json-output.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
 import { readStore } from '../store/read-store.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeCheckFiles } from '../store/write-check-files.ts';
-import type { CLIResult, JournalRow, Store, UnreadRows } from '../types.ts';
+import type { CommandResult, JournalRow, Store, UnreadRows } from '../types.ts';
+import { buildBriefFigure } from '../writes/read-brief-figure.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
 import { readDecisions } from './read-decisions.ts';
 import type { CommandContext } from './types.ts';
@@ -25,7 +28,7 @@ export async function runBriefCommand(
   context: CommandContext,
   unread: UnreadRows | null,
   host: 'claude' | 'codex' | null,
-): Promise<CLIResult> {
+): Promise<CommandResult> {
   const decided = await readDecisions(store.folder);
 
   const briefContext = {
@@ -53,27 +56,50 @@ export async function runBriefCommand(
   const hidden = await readHiddenStep(store, run);
 
   const saved = unread === null ? await writeCheckResults(store, run, context.nowMs) : null;
+  const input = buildReadBriefInput(store, { run, hidden: hidden.step, saved }, briefContext);
+
+  const stderr = [
+    unread,
+    store.notesUnread,
+    store.ownerUnread,
+    store.prsUnread,
+    store.lessonsUnread,
+    store.promisesUnread,
+    store.wordsUnread,
+    decided.unread,
+    hidden.unread,
+  ]
+    .flatMap((rows) =>
+      rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'The brief')],
+    )
+    .join('');
+
+  if (context.args.values.json !== true) {
+    return { exitCode: 0, stdout: renderBrief(input), stderr };
+  }
+
+  const left = await readStore(store.folder);
+
+  const figureStore = left.kind === 'store' ? left.store : store;
+
+  const figure = buildBriefFigure(
+    figureStore,
+    { nowMs: context.nowMs, sessionFlag: context.args.sessionFlag, host },
+    decided.decisions,
+  );
 
   return {
     exitCode: 0,
-    stdout: renderBrief(
-      buildReadBriefInput(store, { run, hidden: hidden.step, saved }, briefContext),
+    stdout: formatJSONOutput(
+      buildBriefJSON({
+        brief: input,
+        prs: store.prs,
+        decideRows: decided.rows,
+        estimate: figure.tokens,
+      }),
     ),
-    stderr: [
-      unread,
-      store.notesUnread,
-      store.ownerUnread,
-      store.prsUnread,
-      store.lessonsUnread,
-      store.promisesUnread,
-      store.wordsUnread,
-      decided.unread,
-      hidden.unread,
-    ]
-      .flatMap((rows) =>
-        rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'The brief')],
-      )
-      .join(''),
+    stderr,
+    stdoutFormat: 'json',
   };
 }
 

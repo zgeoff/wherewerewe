@@ -95,7 +95,7 @@ test('it prints the grant as a /goal text and writes nothing', async () => {
 
   const asOwner = await ctx.run(
     ['--session', 'tide-alerts', 'goal', '--paste'],
-    { HOME: ctx.root, XDG_STATE_HOME: ctx.root, PATH: store.bin },
+    ctx.ownerEnv,
     true,
   );
 

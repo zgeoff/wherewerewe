@@ -57,6 +57,9 @@ www --help
   prints the journal.
 - `www recap` prints one screen for the owner: the grant, the promises, the notes on open items, and
   the decisions and closes since a time.
+- `--json` on `www`, `show`, `log`, `list` and `recap` prints one JSON value for a script, in place
+  of the text.
+- `www goal --paste` prints the grant as a `/goal` text for the owner to paste.
 
 ## Documentation
 

@@ -46,6 +46,7 @@
         "@zgeoff/rig": "catalog:",
         "@zgeoff/testing": "catalog:",
         "fast-check": "catalog:",
+        "zod": "catalog:",
       },
     },
   },

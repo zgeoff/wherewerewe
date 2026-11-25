@@ -38,7 +38,7 @@ async function setupTest() {
 
   return {
     ownerOnlyText:
-      'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
+      'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"  # nothing was written\n',
     folder,
     runPiped: (argv: readonly string[], env: Record<string, string> = {}) =>
       run(program.command, { cwd: program.cwd, env: { ...cleanEnv, ...env }, args: argv }),

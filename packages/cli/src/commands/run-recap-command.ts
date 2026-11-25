@@ -1,4 +1,6 @@
 import { basename } from 'node:path';
+import { buildRecapJSON } from '../json/build-recap-json.ts';
+import { formatJSONOutput } from '../json/format-json-output.ts';
 import { isLogRow } from '../reads/is-log-row.ts';
 import { parseSince } from '../reads/parse-since.ts';
 import { renderRecap } from '../reads/render-recap.ts';
@@ -6,7 +8,7 @@ import { buildRefusalResult } from '../refusals/build-refusal-result.ts';
 import { buildRefusalScope } from '../refusals/build-refusal-scope.ts';
 import { buildRefusal } from '../refusals/build-refusal.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
-import type { CLIResult, JournalRow, ParsedArgs, Store, UnreadRows } from '../types.ts';
+import type { CommandResult, JournalRow, ParsedArgs, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
 import type { ReadAt } from './types.ts';
 
@@ -17,7 +19,7 @@ export async function runRecapCommand(
   args: ParsedArgs,
   at: ReadAt,
   unread: UnreadRows | null,
-): Promise<CLIResult> {
+): Promise<CommandResult> {
   const nowMs = at.nowMs;
   const sinceText = args.values.since ?? '24h';
   const parsed = parseSince(sinceText, nowMs, store.session.started);
@@ -48,6 +50,25 @@ export async function runRecapCommand(
   const notes = [unread, store.notesUnread, store.promisesUnread, journalUnread].flatMap((found) =>
     found === null ? [] : [formatUnreadNote(store.session.name, found, 'This read')],
   );
+
+  if (args.values.json === true) {
+    return {
+      exitCode: 0,
+      stdout: formatJSONOutput(
+        buildRecapJSON({
+          session: store.session,
+          items: store.items,
+          notes: store.notes,
+          promises: store.promises,
+          rows,
+          fromMs,
+          nowMs,
+        }),
+      ),
+      stderr: notes.join(''),
+      stdoutFormat: 'json',
+    };
+  }
 
   return {
     exitCode: 0,
