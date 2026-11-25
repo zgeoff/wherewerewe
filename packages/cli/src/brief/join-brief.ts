@@ -2,12 +2,11 @@ import { match } from 'ts-pattern';
 import { redactCredentialWords } from '../rules/redact-credential-words.ts';
 import type { Note } from '../types.ts';
 import { formatAge } from './format-age.ts';
-import { formatGoalLines } from './format-goal-lines.ts';
 import { formatListCommand } from './format-list-command.ts';
 import { getSessionDay } from './get-session-day.ts';
 import { padID } from './pad-id.ts';
 import { pickFixCommand } from './pick-fix-command.ts';
-import { renderGrantLines } from './render-grant-lines.ts';
+import { renderGoalAndGrant } from './render-goal-and-grant.ts';
 import type { BriefInput, ItemSection } from './types.ts';
 import { wrapBlock } from './wrap-block.ts';
 
@@ -52,8 +51,7 @@ export function joinBrief(
 
   const lines = [
     ...renderHeader(input),
-    ...formatGoalLines(input.session.goal),
-    ...renderGrant(input),
+    ...renderGoalAndGrant(input.session, input.nowMs),
     ...renderOwnerNotes(input),
     ...early,
     ...renderChanged(input),
@@ -110,19 +108,6 @@ function renderChecks(checks: BriefInput['checks']): string {
       return `${String(ran.count)} checks in ${ran.seconds.toFixed(1)}s${unchecked}`;
     })
     .exhaustive();
-}
-
-const noGrantLine =
-  'GRANT  none. Run: www grant --may "<what the owner allows, in their words>" --where <where> --reading "<what they cover; what the owner kept back>"';
-
-function renderGrant(input: BriefInput): string[] {
-  const grant = input.session.grant;
-
-  if (grant === null) {
-    return [noGrantLine];
-  }
-
-  return renderGrantLines(grant, input.nowMs);
 }
 
 function renderOwnerNotes(input: BriefInput): string[] {

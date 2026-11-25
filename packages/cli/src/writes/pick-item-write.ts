@@ -13,6 +13,7 @@ import { textLimits } from '../rules/text-limits.ts';
 import type { Extra, Item, Kind, Note, ParsedArgs, RefusalReason, Store } from '../types.ts';
 import { collectIDHolders, collectOpenIDs } from './collect-id-holders.ts';
 import { formatBriefLine } from './format-brief-line.ts';
+import { formatChainLine } from './format-chain-line.ts';
 import { pickDuplicateIDRefusal } from './pick-duplicate-id-refusal.ts';
 import { pickKindIDRefusal } from './pick-kind-id-refusal.ts';
 import {
@@ -66,9 +67,17 @@ export function pickItemWrite(input: WriteInput): WriteResult {
       reply: (figure) => {
         const brief = formatBriefLine(figure);
 
-        return noteChange.kind === 'write'
-          ? `${id}  note, ${formatNotePart(noteChange.note)}. ${brief}`
-          : `${id}  note cleared. ${brief}`;
+        const chain = formatChainLine(id, {
+          claim: null,
+          note: noteChange.kind === 'write' ? noteChange.note.note : null,
+        });
+
+        const status =
+          noteChange.kind === 'write'
+            ? `${id}  note, ${formatNotePart(noteChange.note)}. ${brief}`
+            : `${id}  note cleared. ${brief}`;
+
+        return chain === null ? status : `${chain}\n${status}`;
       },
     };
   }
@@ -136,9 +145,20 @@ export function pickItemWrite(input: WriteInput): WriteResult {
       const note = noteChange.kind === 'write' ? `, note ${formatNotePart(noteChange.note)}` : '';
       const status = `${id}  ${kind}, open${check}${note}. ${brief}`;
 
-      return existing !== undefined && existingNote !== undefined && noteChange.kind === 'keep'
-        ? `${formatOlderNoteLine(args, id, existingNote, nowMs)}\n${status}`
-        : status;
+      const chain = formatChainLine(id, {
+        claim,
+        note: noteChange.kind === 'write' ? noteChange.note.note : null,
+      });
+
+      const lines = [
+        ...(existing !== undefined && existingNote !== undefined && noteChange.kind === 'keep'
+          ? [formatOlderNoteLine(args, id, existingNote, nowMs)]
+          : []),
+        ...(chain === null ? [] : [chain]),
+        status,
+      ];
+
+      return lines.join('\n');
     },
   };
 }

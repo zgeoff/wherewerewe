@@ -80,6 +80,14 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<Command
     return { exitCode: 0, stdout: helpText, stderr: '', stdoutFormat: 'text' };
   }
 
+  if (args.command === 'hook') {
+    return runHook(input, args);
+  }
+
+  if (args.command === 'install' || args.command === 'doctor') {
+    return runSetup(input, args);
+  }
+
   if (ownerCommands.has(args.command) && !isOwnerTerminal(input)) {
     return buildRefusalResult(
       buildRefusal({ kind: 'owner-only' }),
@@ -130,6 +138,68 @@ async function runParsedArgs(input: CLIInput, args: ParsedArgs): Promise<Command
     .otherwise(() => runSessionBoundCommand(context));
 
   return result;
+}
+
+// The hook loads its own modules and no brief, check or write module, so a hook for an unbound
+// agent session starts fast. It prints JSON or plain text that no word pass may touch.
+async function runHook(input: CLIInput, args: ParsedArgs): Promise<CommandResult> {
+  const root = findStoreRoot(input.env);
+  const harness = args.positionals[0] === 'codex' ? 'codex' : 'claude';
+
+  if (root === null) {
+    return { exitCode: 0, stdout: '', stderr: '', stdoutFormat: 'json' };
+  }
+
+  const hookModule = await import('./commands/run-hook-command.ts');
+
+  const result = await hookModule.runHookCommand(harness, input.stdin ?? '', {
+    env: input.env,
+    now: input.now,
+    root,
+    sleep: (delayMs) => Bun.sleep(delayMs),
+    faultSleepMs: 6000,
+    fault: null,
+  });
+
+  return { ...result, stdoutFormat: 'json' };
+}
+
+// install and doctor read no store and need no session. They load their own modules, so no other
+// command pays for them.
+async function runSetup(input: CLIInput, args: ParsedArgs): Promise<CommandResult> {
+  if (args.command === 'doctor') {
+    const doctorModule = await import('./commands/run-doctor-command.ts');
+
+    return doctorModule.runDoctorCommand({ env: input.env, cwd: input.cwd });
+  }
+
+  const [installModule, versionModule] = await Promise.all([
+    import('./commands/run-install-command.ts'),
+    import('./install/get-package-version.ts'),
+  ]);
+
+  const streamed: string[] = [];
+
+  const emit = (text: string): void => {
+    const redacted = redactCredentialWords(text);
+
+    if (input.emit === undefined) {
+      streamed.push(redacted);
+    } else {
+      input.emit(redacted);
+    }
+  };
+
+  const result = installModule.runInstallCommand({
+    emit,
+    env: input.env,
+    cwd: input.cwd,
+    isPrinting: args.values.print === true,
+    isReplacingSkill: args.values['replace-skill'] === true,
+    version: versionModule.getPackageVersion(),
+  });
+
+  return { ...result, stdout: `${streamed.join('')}${result.stdout}` };
 }
 
 async function runSessionBoundCommand(context: CommandContext): Promise<CommandResult> {

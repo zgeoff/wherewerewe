@@ -74,7 +74,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the claim is 152 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.\nRun: www task t-e2e "<claim of at most 120 characters>"\n',
+      'www: refused: the claim is 152 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www task t-e2e "<claim of at most 120 characters>"\n',
     fills: [{ '<claim of at most 120 characters>': 'A short claim' }],
   },
   {
@@ -88,7 +88,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the next step is 121 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.\nRun: www now t-a "<next step of at most 120 characters>"\n',
+      'www: refused: the next step is 121 characters, and the limit is 120. Write what is true now, and put the detail in its note with --note.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www now t-a "<next step of at most 120 characters>"\n',
     fills: [{ '<next step of at most 120 characters>': 'go' }],
   },
   {
@@ -124,7 +124,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the evidence is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nRun: www done t-a --evidence "<evidence of at most 200 characters>"\n',
+      'www: refused: the evidence is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www done t-a --evidence "<evidence of at most 200 characters>"\n',
     fills: [{ '<evidence of at most 200 characters>': 'commit 4c1d2e0' }],
   },
   {
@@ -138,7 +138,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the reason is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nRun: www drop t-a --why "<reason of at most 200 characters>"\n',
+      'www: refused: the reason is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www drop t-a --why "<reason of at most 200 characters>"\n',
     fills: [{ '<reason of at most 200 characters>': 'stopped' }],
   },
   {
@@ -795,8 +795,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: --blocked-by missing-thing names no open task or wait. Open: zz-open.\nRun: www task t-flag x\n',
-    fills: [{}],
+      'www: refused: --blocked-by missing-thing names no open task or wait. Open: zz-open.\nRun: www task t-flag x --blocked-by "<open task or wait>"\n',
+    fills: [{ '<open task or wait>': 'zz-open' }],
   },
   {
     title: 'an init of a session that exists, with an agent id',
@@ -1083,16 +1083,6 @@ test.each([
     fills: [{}],
   },
   {
-    title: 'a command of a later version',
-    setup: [],
-    files: [],
-    argv: ['doctor', 'tide-alerts'],
-    env: 'agent',
-    exitCode: 2,
-    stderr: 'www: "doctor" comes in a later version of www.\nRun: www help\n',
-    fills: [{}],
-  },
-  {
     title: 'an unknown flag',
     setup: [],
     files: [],
@@ -1216,7 +1206,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope "<what it covers>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --once --scope "<what it covers>"\n',
     fills: [{ '<what it covers>': 'bosun-api' }],
   },
   {
@@ -1710,7 +1700,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the --for text is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nRun: www use ok-a --for "<--for text of at most 200 characters>"\n',
+      'www: refused: the --for text is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www use ok-a --for "<--for text of at most 200 characters>"\n',
     fills: [{ '<--for text of at most 200 characters>': 'merged it' }],
   },
   {
@@ -1783,7 +1773,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the decision is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nRun: www decide "<decision of at most 200 characters>" --why "The feed flaps"\n',
+      'www: refused: the decision is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www decide "<decision of at most 200 characters>" --why "The feed flaps"\n',
     fills: [{ '<decision of at most 200 characters>': 'Retry a 503 3 times' }],
   },
   {
@@ -1794,7 +1784,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the reason is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nRun: www decide "Retry a 503 3 times" --why "<reason of at most 200 characters>"\n',
+      'www: refused: the reason is 201 characters, and the limit is 200. Write what is true now; the story belongs in a PR or a commit.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www decide "Retry a 503 3 times" --why "<reason of at most 200 characters>"\n',
     fills: [{ '<reason of at most 200 characters>': 'The feed flaps' }],
   },
   {
@@ -1887,8 +1877,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: no open item zzzzzzzzzz. Open items: pr-api-77.\nRun: www decide "Retry a 503 3 times" --why "The feed flaps"\n',
-    fills: [{}],
+      'www: refused: no open item zzzzzzzzzz. Open items: pr-api-77.\nRun: www decide "Retry a 503 3 times" --why "The feed flaps" --on <open id>\n',
+    fills: [{ '<open id>': 'pr-api-77' }],
   },
   {
     title: 'a decision that replaces a decision that does not exist, with decisions made',
@@ -2025,7 +2015,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --scope "<what it covers>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --once --scope "<what it covers>"\n',
     fills: [{ '<where the secret lives>': 'merge yourself', '<what it covers>': 'bosun-api' }],
   },
   {
@@ -2036,7 +2026,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-b --quote="--preview" --where chat --scope tests --who "<who>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-b --quote="--preview" --where chat --scope tests --once --who "<who>"\n',
     fills: [{ '<who>': 'owner' }],
   },
   {
@@ -2257,8 +2247,10 @@ test.each([
     env: 'owner',
     exitCode: 3,
     stderr:
-      'www: refused: no open item d-1. Open items: none.\nRun: www --session tide-alerts say Hello\n',
-    fills: [{}],
+      'www: refused: no open item d-1. Open items: none.\nRun: www --session tide-alerts say Hello --on <open id>\n',
+
+    // no item is open, so the store refuses every id the line could take, as Refusals allows
+    fills: [],
   },
   {
     title: 'a say on an item that is not open',
@@ -2269,8 +2261,10 @@ test.each([
     env: 'owner',
     exitCode: 3,
     stderr:
-      'www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello\n',
-    fills: [{}],
+      'www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello --on <open id>\n',
+
+    // no item is open, so the store refuses every id the line could take, as Refusals allows
+    fills: [],
   },
   {
     title: 'a note over its limit on a task with a new id',
@@ -2280,7 +2274,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the note is 401 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.\nRun: www task t-e2e "Write it" --note "<note of at most 400 characters>"\n',
+      'www: refused: the note is 401 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www task t-e2e "Write it" --note "<note of at most 400 characters>"\n',
     fills: [{ '<note of at most 400 characters>': 'A short note' }],
   },
   {
@@ -2294,7 +2288,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the note is 401 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.\nRun: www set t-a --note "<note of at most 400 characters>"\n',
+      'www: refused: the note is 401 characters, and the limit is 400. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www set t-a --note "<note of at most 400 characters>"\n',
     fills: [{ '<note of at most 400 characters>': 'A short note' }],
   },
   {
@@ -3608,7 +3602,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: the lesson is 121 characters, and the limit is 120. Write what is true now; the story belongs in a PR or a commit.\nRun: www lesson l-a "<lesson of at most 120 characters>" --why "A stale row passed"\n',
+      'www: refused: the lesson is 121 characters, and the limit is 120. Write what is true now; the story belongs in a PR or a commit.\nOne row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.\nRun: www lesson l-a "<lesson of at most 120 characters>" --why "A stale row passed"\n',
     fills: [{ '<lesson of at most 120 characters>': 'Reseed first' }],
   },
   {

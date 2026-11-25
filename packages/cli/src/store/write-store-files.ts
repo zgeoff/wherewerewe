@@ -1,5 +1,4 @@
 import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
-import { appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { StoreChange } from '../types.ts';
 import { formatItemsFile } from './format-items-file.ts';
@@ -9,6 +8,7 @@ import { formatNotesFile } from './format-notes-file.ts';
 import { formatPromisesFile } from './format-promises-file.ts';
 import { formatSessionFile } from './format-session-file.ts';
 import { formatWordsFile } from './format-words-file.ts';
+import { writeAppendNoFollowAsync } from './write-append-no-follow.ts';
 import { writeFileAtomic } from './write-file-atomic.ts';
 
 // Runs only inside the lock. The journal goes first, then the files, so a write that stops half way
@@ -18,7 +18,10 @@ export async function writeStoreFiles(folder: string, change: StoreChange): Prom
   if (change.journal.length > 0) {
     const path = join(folder, 'journal.tsv');
 
-    await appendFile(path, `${readCutLineEnd(path)}${formatJournalRows(change.journal)}`);
+    await writeAppendNoFollowAsync(
+      path,
+      `${readCutLineEnd(path)}${formatJournalRows(change.journal)}`,
+    );
   }
 
   if (change.items !== undefined) {

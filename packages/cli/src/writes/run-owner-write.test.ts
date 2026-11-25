@@ -149,7 +149,7 @@ test.each([
   {
     title: 'a note on an unknown item',
     argv: ['say', 'Hello', '--on', 't-none'],
-    stderr: `www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello${nothingWrittenComment}\n`,
+    stderr: `www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello --on <open id>${nothingWrittenComment}\n`,
   },
   {
     title: 'an ack of an unknown note',

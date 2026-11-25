@@ -49,7 +49,7 @@ Checks, one per item: --pr <owner>/<repo>#<n>  --branch <repo path>@<branch>  --
 Owner, from a terminal outside any agent:  www say "<text>" [--on <id>]   www ack o-<n>
 
 Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www import <name>
-Setup:   www install [--print]   www doctor
+Setup:   www install [--print] [--replace-skill]   www doctor
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
@@ -58,7 +58,7 @@ An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 
 --where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
 A lesson takes 120 with its --why 200, a promise 120 with --to 16 and --by 24, and the owner's
-words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
+words 300 with --where 40. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
 8 where items, 5 lessons, 5 promises, 8 owner's words and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 `;

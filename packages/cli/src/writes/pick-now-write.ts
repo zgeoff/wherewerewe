@@ -5,6 +5,7 @@ import { buildRefusal } from '../refusals/build-refusal.ts';
 import { textLimits } from '../rules/text-limits.ts';
 import type { ParsedArgs, RefusalReason } from '../types.ts';
 import { formatBriefLine } from './format-brief-line.ts';
+import { formatChainLine } from './format-chain-line.ts';
 import { pickDuplicateIDRefusal } from './pick-duplicate-id-refusal.ts';
 import { pickNoOpenItemRefusal } from './pick-item-write.ts';
 import {
@@ -60,9 +61,11 @@ export function pickNowWrite(input: WriteInput): WriteResult {
     },
     reply: (figure) => {
       const brief = formatBriefLine(figure);
+      const chain = formatChainLine(id, { claim: null, note: args.values.note ?? null });
+      const chainLines = chain === null ? [] : [chain];
 
       if (note === undefined) {
-        return `now: ${id}. ${brief}`;
+        return [...chainLines, `now: ${id}. ${brief}`].join('\n');
       }
 
       const word = note.owed ? 'owed note' : 'note';
@@ -70,6 +73,7 @@ export function pickNowWrite(input: WriteInput): WriteResult {
 
       return [
         ...wrapBlock(note.note, '    ', '    '),
+        ...chainLines,
         `now: ${id}, with its ${word} (${age}). ${brief}`,
       ].join('\n');
     },

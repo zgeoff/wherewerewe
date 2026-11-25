@@ -1,6 +1,5 @@
 import { randomBytes } from 'node:crypto';
 import {
-  appendFileSync,
   closeSync,
   fchmodSync,
   fsyncSync,
@@ -10,11 +9,12 @@ import {
   writeSync,
 } from 'node:fs';
 import type { OwnerFiles } from './types.ts';
+import { writeAppendNoFollow } from './write-append-no-follow.ts';
 
 export function createOwnerFiles(): OwnerFiles {
   return {
     append: (path, text) => {
-      appendFileSync(path, text);
+      writeAppendNoFollow(path, text);
     },
     writeTemporary: (path, text) => {
       const temporaryPath = `${path}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`;

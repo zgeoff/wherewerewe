@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { sortBriefEnd } from '../hooks/sort-brief-end.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildCutOrderStore } from '../test-utils/build-cut-order-store.ts';
 import { buildMockBriefInput } from '../test-utils/build-mock-brief-input.ts';
@@ -1271,8 +1272,22 @@ test('it starts the header with the session name and day, and ends with the foot
     briefs.map((brief) => [
       /^[a-z0-9-]+ · day \d+ · /u.test(brief),
       brief.endsWith(`${briefFooter}\n`),
+      sortBriefEnd(
+        {
+          event: 'PostToolUse',
+          harness: 'claude',
+          sessionID: '9e1f-trial',
+          agentID: null,
+          toolName: 'Bash',
+          command: 'www',
+          response: brief,
+          exitCode: null,
+          maxOutputTokens: null,
+        },
+        brief.split(' · day')[0] ?? '',
+      ),
     ]),
-  ).toStrictEqual(briefs.map(() => [true, true]));
+  ).toStrictEqual(briefs.map(() => [true, true, 'whole']));
 });
 
 test('it prints a credential in a stored decision as the placeholder, when the cut would split it', () => {

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { buildProbeEnv } from './build-probe-env.ts';
-import { readProbePath } from './read-probe-path.ts';
+import { resolve as resolvePath } from 'node:path';
+import { readProbeEnv } from './read-probe-env.ts';
+import { readProbePath, readProbeProgram } from './read-probe-path.ts';
 import type { CommandResult } from './types.ts';
 
 // Stops each command a read started: its whole process group, so a child it started dies too.
@@ -46,8 +47,9 @@ export function runCommand(
   options: RunCommandOptions,
 ): Promise<CommandResult> {
   const [name, ...args] = argv;
-  const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd);
-  const path = Bun.which(name, { PATH: probePath });
+  const trees = [options.cwd, ...collectTargetFolders(args, options.cwd)];
+  const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd, trees);
+  const path = readProbeProgram(name, probePath, options.cwd, trees);
 
   if (path === null) {
     return Promise.resolve({ kind: 'missing' });
@@ -56,7 +58,7 @@ export function runCommand(
   return new Promise<CommandResult>((resolve) => {
     // Git before 2.45 cannot switch lazy fetch off, so GIT_ALLOW_PROTOCOL leaves it no transport.
     const child = spawn(path, args, {
-      env: buildProbeEnv(options.env, probePath),
+      env: readProbeEnv(options.env, probePath, options.cwd),
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: true,
     });
@@ -121,6 +123,16 @@ export function runCommand(
         stderr: Buffer.concat(stderr).toString('utf8'),
       });
     });
+  });
+}
+
+// The folders a probe's git works in: each value after `-C`, read from the folder the command runs
+// in, so the work tree of the repo a probe targets is guarded as the workspace is.
+function collectTargetFolders(args: readonly string[], cwd: string): string[] {
+  return args.flatMap((arg, at) => {
+    const next = args[at + 1];
+
+    return arg === '-C' && next !== undefined ? [resolvePath(cwd, next)] : [];
   });
 }
 

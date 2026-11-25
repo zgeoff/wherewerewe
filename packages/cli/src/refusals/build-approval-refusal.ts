@@ -42,7 +42,7 @@ export function buildApprovalRefusal(reason: ApprovalRefusalReason): Refusal {
     .with({ kind: 'ok-needs-parts' }, (found) => {
       const added = found.missing.reduce(
         (spec, flag) => spec.addFlag(flag, approvalPlaceholders[flag]),
-        buildRunSpec(found.args).dropFlag('once'),
+        buildRunSpec(found.args),
       );
 
       return refuse(

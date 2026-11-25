@@ -262,3 +262,108 @@ test('it gives the command only the variables git and gh need, the filtered PATH
     stderr: '',
   });
 });
+
+test('it never runs a git that is a link into the working folder, even from a folder outside it', async () => {
+  const ctx = setupTest();
+  const marker = join(ctx.folder, 'agent-git-ran');
+  const linkedBin = join(ctx.folder, 'linked-bin');
+  const realBin = join(ctx.folder, 'real-bin');
+
+  seedStubCommand(join(ctx.work, 'agent-bin'), 'git', `: > "${marker}"; echo agent`);
+  mkdirSync(linkedBin);
+  symlinkSync(join(ctx.work, 'agent-bin', 'git'), join(linkedBin, 'git'));
+  seedStubCommand(realBin, 'git', 'echo real');
+
+  const result = await ctx.run('git', 1000, { PATH: `${linkedBin}:${realBin}` });
+
+  expect({ result, ran: existsSync(marker) }).toStrictEqual({
+    result: { kind: 'exit', code: 0, stdout: 'real\n', stderr: '' },
+    ran: false,
+  });
+});
+
+test.each(['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM'])(
+  'it hands git no %s that names a file in the working folder',
+  async (name) => {
+    const ctx = setupTest();
+    const realBin = join(ctx.folder, 'real-bin');
+    const owner = join(ctx.folder, 'owner.gitconfig');
+
+    seedStubCommand(realBin, 'git', `echo "[$(/usr/bin/printenv ${name})]"`);
+
+    const inside = await ctx.run('git', 1000, {
+      PATH: realBin,
+      [name]: join(ctx.work, 'agent.gitconfig'),
+    });
+
+    const outside = await ctx.run('git', 1000, { PATH: realBin, [name]: owner });
+
+    expect([inside, outside]).toStrictEqual([
+      { kind: 'exit', code: 0, stdout: '[/dev/null]\n', stderr: '' },
+      { kind: 'exit', code: 0, stdout: `[${owner}]\n`, stderr: '' },
+    ]);
+  },
+);
+
+test.each([
+  {
+    title: 'from a subfolder of a work tree whose root holds the git',
+    plant: 'ws/bin',
+    cwd: 'ws/sub',
+    target: null,
+    link: false,
+  },
+  {
+    title: 'in the work tree of a repo only the probe targets',
+    plant: 'repo/bin',
+    cwd: 'elsewhere',
+    target: 'repo/sub',
+    link: false,
+  },
+  {
+    title: 'beside a nested .git folder the agent made in a subfolder',
+    plant: 'ws/bin',
+    cwd: 'ws/sub/inner',
+    target: null,
+    link: false,
+  },
+  {
+    title: 'through a link in a clean folder that points into the work tree',
+    plant: 'ws/bin',
+    cwd: 'ws/sub',
+    target: null,
+    link: true,
+  },
+])('it never runs a git planted $title', async (row) => {
+  const ctx = setupTest();
+  const marker = join(ctx.folder, 'planted-git-ran');
+  const realBin = join(ctx.folder, 'real-bin');
+  const clean = join(ctx.folder, 'clean-bin');
+
+  for (const tree of ['ws', 'repo']) {
+    mkdirSync(join(ctx.folder, tree, '.git'), { recursive: true });
+    mkdirSync(join(ctx.folder, tree, 'sub'), { recursive: true });
+  }
+
+  mkdirSync(join(ctx.folder, 'ws', 'sub', 'inner', '.git'), { recursive: true });
+  mkdirSync(join(ctx.folder, 'elsewhere'));
+  seedStubCommand(join(ctx.folder, row.plant), 'git', `: > "${marker}"; echo planted`);
+  seedStubCommand(realBin, 'git', 'echo real');
+  mkdirSync(clean);
+  symlinkSync(join(ctx.folder, row.plant, 'git'), join(clean, 'git'));
+
+  const first = row.link ? clean : join(ctx.folder, row.plant);
+  const args = row.target === null ? ['status'] : ['-C', join(ctx.folder, row.target), 'status'];
+
+  const result = await runCommand(['git', ...args], {
+    env: { PATH: `${first}:${realBin}` },
+    cwd: join(ctx.folder, row.cwd),
+    timeoutMs: 1000,
+    kills: createKillSet(),
+  });
+
+  expect({ result, ran: existsSync(marker) }).toStrictEqual({
+    result: { kind: 'exit', code: 0, stdout: 'real\n', stderr: '' },
+    ran: false,
+  });
+});

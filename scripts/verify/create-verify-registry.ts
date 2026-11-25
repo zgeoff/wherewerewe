@@ -13,6 +13,8 @@ import { makePath } from './make-path.ts';
 import { readStateRoot } from './read-state-root.ts';
 import { readWWWOutput } from './read-www-output.ts';
 import { removePath } from './remove-path.ts';
+import { runWWWHook } from './run-www-hook.ts';
+import { runWWWInstall } from './run-www-install.ts';
 import { runWWWLineOnCopy } from './run-www-line-on-copy.ts';
 import { runWWWLine } from './run-www-line.ts';
 
@@ -74,6 +76,58 @@ export function createVerifyRegistry(): Wringer {
         if (output.exitCode !== 0 || !output.stdout.includes(expected)) {
           throw new WringerError('check-failed', {
             message: `${line} exited ${String(output.exitCode)} and printed ${JSON.stringify(output.stdout + output.stderr)}, which lacks ${JSON.stringify(expected)}`,
+          });
+        }
+
+        return output;
+      },
+    })
+    .command({
+      path: ['www', 'hook'],
+      summary:
+        'Pipe the JSON --payload into `www hook <harness>` with the run home; {run} is the run folder and {brief:<name>} the whole brief of that session; check that it exits 0 and prints --expect, or nothing with --empty',
+      args: z.strictObject({
+        harness: z.enum(['claude', 'codex']),
+        payload: z.string(),
+        expect: z.string().optional(),
+        empty: z.boolean().optional(),
+      }),
+      data: wwwRunSchema,
+      run: async (args, ctx) => {
+        const output = await runWWWHook(
+          ctx.exec,
+          readStateRoot(ctx.endpoints),
+          args.harness,
+          args.payload,
+        );
+
+        const isOk =
+          output.exitCode === 0 &&
+          (args.empty === true
+            ? output.stdout === ''
+            : output.stdout.includes(args.expect ?? '\u0000'));
+
+        if (!isOk) {
+          throw new WringerError('check-failed', {
+            message: `www hook ${args.harness} exited ${String(output.exitCode)} and printed ${JSON.stringify(output.stdout + output.stderr)}`,
+          });
+        }
+
+        return output;
+      },
+    })
+    .command({
+      path: ['www', 'install'],
+      summary:
+        'Run `www install` against the run home, and check that it exits 0 and prints --expect',
+      args: z.strictObject({ expect: z.string() }),
+      data: wwwRunSchema,
+      run: async (args, ctx) => {
+        const output = await runWWWInstall(ctx.exec, readStateRoot(ctx.endpoints));
+
+        if (output.exitCode !== 0 || !output.stdout.includes(args.expect)) {
+          throw new WringerError('check-failed', {
+            message: `www install exited ${String(output.exitCode)} and printed ${JSON.stringify(output.stdout + output.stderr)}, which lacks ${JSON.stringify(args.expect)}`,
           });
         }
 
@@ -272,6 +326,12 @@ export function createVerifyRegistry(): Wringer {
     .feature({
       name: 'json',
       summary: 'Read the brief and a list as JSON, and print the grant as a /goal text',
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
+    .feature({
+      name: 'hooks',
+      summary:
+        'Pipe hook payloads through www hook for each host, and install the hooks into a temp home',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
     .shared(

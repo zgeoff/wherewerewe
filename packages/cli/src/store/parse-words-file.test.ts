@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { textLimits } from '../rules/text-limits.ts';
 import { wordsHeader } from './constants.ts';
 import { formatWordsFile } from './format-words-file.ts';
 import { parseWordsFile } from './parse-words-file.ts';
@@ -75,17 +76,17 @@ test.each([
   {
     title: 'an empty where',
     line: `w-a\tx\t\t2026-03-04T09:30:00Z\tagent`,
-    reason: 'the where is empty, longer than 16 characters, not one line or holds ; or =',
+    reason: `the where is empty, longer than ${String(textLimits.wordsWhere)} characters, not one line or holds ; or =`,
   },
   {
-    title: 'a where of 17 characters',
-    line: `w-a\tx\t${'c'.repeat(17)}\t2026-03-04T09:30:00Z\tagent`,
-    reason: 'the where is empty, longer than 16 characters, not one line or holds ; or =',
+    title: 'a where one character over its limit',
+    line: `w-a\tx\t${'c'.repeat(textLimits.wordsWhere + 1)}\t2026-03-04T09:30:00Z\tagent`,
+    reason: `the where is empty, longer than ${String(textLimits.wordsWhere)} characters, not one line or holds ; or =`,
   },
   {
     title: 'a where that holds a semicolon',
     line: `w-a\tx\ta;b\t2026-03-04T09:30:00Z\tagent`,
-    reason: 'the where is empty, longer than 16 characters, not one line or holds ; or =',
+    reason: `the where is empty, longer than ${String(textLimits.wordsWhere)} characters, not one line or holds ; or =`,
   },
   {
     title: 'a written time with no Z',

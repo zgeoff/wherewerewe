@@ -1,10 +1,20 @@
 import { expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from './args/help-text.ts';
+import { listCommandShapes } from './args/parse-cli-args.ts';
+import { formatGateFile } from './hooks/format-gate-file.ts';
 import { jsonVersion } from './json/json-version.ts';
 import { nothingWrittenComment } from './refusals/format-refusal.ts';
 import { findCredentialMatch } from './rules/find-credential-match.ts';
@@ -184,10 +194,7 @@ test.each([
   [['taks'], `www: unknown command "taks".\nRun: www help${nothingWrittenComment}\n`],
   [['brief'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
   [['brief', '--bogus'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
-  [
-    ['doctor', 'x'],
-    `www: "doctor" comes in a later version of www.\nRun: www help${nothingWrittenComment}\n`,
-  ],
+  [['doctor', 'x'], 'www: doctor takes no arguments.\nRun: www doctor\n'],
   [
     ['task', 't-a'],
     `www: task takes <id> "<claim>".\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,
@@ -3408,9 +3415,10 @@ test.each(
   ).not.toThrow();
 });
 
+// the --json form's Run line keeps --json, the flag it typed, where the refused value lets it
 test.each([
-  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h'] },
-  { title: 'www list --json', argv: ['list'] },
+  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h'], kept: ' --json' },
+  { title: 'www list --json', argv: ['list'], kept: '' },
 ])(
   'it exits $title with the code and stderr of its usage refusal and prints no JSON',
   async (row) => {
@@ -3424,7 +3432,11 @@ test.each([
       exitCode: refusedJSON.exitCode,
       stdout: refusedJSON.stdout,
       stderr: refusedJSON.stderr,
-    }).toStrictEqual({ exitCode: 2, stdout: '', stderr: refusedText.stderr });
+    }).toStrictEqual({
+      exitCode: 2,
+      stdout: '',
+      stderr: refusedText.stderr.replace(/\n$/u, `${row.kept}\n`),
+    });
 
     expect(refusedText.exitCode).toBe(2);
   },
@@ -3656,3 +3668,57 @@ test('it records the drop of a task whose earlier drop row a stopped append cut 
       .map((line) => line.split('\t')[1]),
   }).toStrictEqual({ dropped: 0, rows: 1, lastLines: ['drop', 'drop'] });
 });
+
+test.each(['wiped', 'reading', 'cut', 'failed', 'read', 'open'] as const)(
+  'it never writes the gate file from the brief, www --json or a write when the state is %s',
+  async (state) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const path = join(ctx.stateRoot, '.gate', 'claude-a1b2-test');
+
+    mkdirSync(join(ctx.stateRoot, '.gate'), { recursive: true });
+    writeFileSync(path, formatGateFile({ state, session: 'tide-alerts', reads: 0, spare: 1 }));
+
+    const before = { bytes: readFileSync(path, 'utf8'), mtimeMs: statSync(path).mtimeMs };
+
+    await ctx.run([]);
+    await ctx.run(['--json']);
+    await ctx.run(['task', 't-a', 'Write it']);
+
+    expect({ bytes: readFileSync(path, 'utf8'), mtimeMs: statSync(path).mtimeMs }).toStrictEqual(
+      before,
+    );
+  },
+);
+
+test.each(
+  listCommandShapes().flatMap((shape) =>
+    shape.command === 'log' || shape.command === 'recap' ? [shape] : [],
+  ),
+)(
+  'it keeps each flag $command takes on the Run line of a --since it cannot read',
+  async (shape) => {
+    const ctx = setupTest();
+    const values: Readonly<Record<string, string>> = { op: 'set', id: 't-a' };
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const others = shape.taken.filter((flag) => flag !== 'since');
+
+    const typed = others.flatMap((flag) => {
+      const value = values[flag];
+
+      return value === undefined ? [`--${flag}`] : [`--${flag}`, value];
+    });
+
+    const result = await ctx.run([shape.command, '--since', 'yesterday', ...typed]);
+
+    const runLine = result.stderr.split('\n').find((line) => line.startsWith('Run: ')) ?? '';
+
+    const words = await readShellWords(runLine.slice('Run: '.length));
+
+    expect(words).toStrictEqual(['www', shape.command, '--since', '24h', ...typed]);
+  },
+);

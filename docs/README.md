@@ -16,7 +16,9 @@
 - [0003: checks are built-in read-only probes](./decisions/0003-checks-are-built-in-read-only-probes.md)
 - [0004: hooks install once per machine](./decisions/0004-hooks-install-once-per-machine.md)
 - [0005: owner notes need a terminal outside any agent](./decisions/0005-owner-notes-need-a-terminal-outside-any-agent.md)
-- [0006: ship TypeScript source run by Bun](./decisions/0006-ship-typescript-source-run-by-bun.md)
+- [0006: ship TypeScript source run by Bun](./decisions/0006-ship-typescript-source-run-by-bun.md),
+  replaced by
+  [0022](./decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)
 - [0007: hooks do not build on agent-hooks](./decisions/0007-hooks-do-not-build-on-agent-hooks.md)
 - [0008: notes, the grant, and no caution steering](./decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - [0009: 30 open tasks and a count of the rest](./decisions/0009-30-open-tasks-and-a-count-of-the-rest.md)
@@ -33,3 +35,6 @@
 - [0019: the owner's words are a kind of their own](./decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 - [0020: authority comes from the owner's own acts](./decisions/0020-authority-comes-from-the-owners-own-acts.md)
 - [0021: a refused write says so on its Run line](./decisions/0021-a-refused-write-says-so-on-its-run-line.md)
+- [0022: ship compiled binaries through the tap and an install script](./decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)
+- [0023: the CLI ships its own www skill](./decisions/0023-the-cli-ships-its-own-www-skill.md)
+- [0024: a part-way install keeps what it wrote](./decisions/0024-a-part-way-install-keeps-what-it-wrote.md)

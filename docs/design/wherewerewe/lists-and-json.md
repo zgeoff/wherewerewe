@@ -112,9 +112,9 @@ The five read commands take `--json`: the brief (`www --json`, with or without `
 - Each item's `last` is what the text form's tag shows: in the brief, the result this read got, whether or not the read could save it; in `www list`, the result the last brief saved. `changed` holds every changed row whole. `next` is `null` whenever the text brief hides the next step.
 - `www show grant` with no grant prints one subject, `{ kind: 'grant', row: null }`, with `journal` holding every `grant` row. A closed item, an id other than a decision id that has journal rows only, and an id with no row print `"subjects":[]`; a decision id prints its decision subject.
 - A recap whose journal cannot be read holds `null` for `writes`, `decidedSince` and `closedSince`, and the text form's reason goes to stderr.
-- Each string value, an object key included, passes the credential redaction before it is encoded, so the output is always valid JSON.
+- Each string value, an object key included, is redacted for credentials before it is encoded, so a redacted value never breaks the JSON.
 - Each value carries `v: 1`. A new field keeps the version, and a removed or renamed field raises it.
-- `www --json` prints the brief as JSON, and the gate lets it pass in every state as it does any `www` command. It is not what the gate calls a brief command, the read of the text brief that opens the gate: the gate never counts it, and `PostToolUse` never counts it as a whole read ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)). The header and footer contract of [brief.md](brief.md) covers the text form only.
+- `www --json` prints the brief as JSON and passes the gate as any `www` command does, but `PostToolUse` never writes `read` for it: only a whole read of the text brief does ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)). Only the text form follows the header and footer contract of [brief.md](brief.md).
 
 ```ts
 // --json output of each read command; text stays the default

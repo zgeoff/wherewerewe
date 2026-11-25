@@ -62,7 +62,7 @@ Checks, one per item: --pr <owner>/<repo>#<n>  --branch <repo path>@<branch>  --
 Owner, from a terminal outside any agent:  www say "<text>" [--on <id>]   www ack o-<n>
 
 Session: www init <name> --goal "<goal>"   www attach <name>   www detach   www import <name>
-Setup:   www install [--print]   www doctor
+Setup:   www install [--print] [--replace-skill]   www doctor
 Any command takes --session <name>.
 
 Limits: a claim is one line of at most 120 characters, a note 400, a goal 200, a next step 120,
@@ -71,12 +71,12 @@ An id has 2 to 16 characters, a session name 2 to 24. An approval takes --quote 
 --where 16 and --scope 40, and a wait takes --who 16. The grant's words come to 700 in at most
 12 bullets on at most 19 lines of the brief, with --scope 40, --where 16 and a reading of 200.
 A lesson takes 120 with its --why 200, a promise 120 with --to 16 and --by 24, and the owner's
-words 300 with --where 16. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
+words 300 with --where 40. A session holds at most 30 tasks, 8 waits, 1 approval, 15 rules,
 8 where items, 5 lessons, 5 promises, 8 owner's words and 2 owner notes.
 Exit codes: 0 done, 2 usage, 3 refused, 4 no session, 5 store needs import or upgrade.
 ```
 
-The block above is the help as built through slice 3b, with the caps of decision records 0009, 0011 and 0016 to 0020, and the test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff, the limits' diff and the slice 3b diff below are what each changed, and each shows the caps of its own slice. The caps in the block above, from slice 3b, replace the caps those diffs show. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
+The block above is the help as built through slice 4, with the caps of decision records 0009, 0011 and 0016 to 0020, and the `--where` cap of `www words`, which slice 4 raised from 16 to 40. The test compares the tool's output with it. The slice 2b, 2c and 2d diffs, the task limit's diff, the grant's diff, the limits' diff and the slice 3b diff below are what each changed, and each shows the caps of its own slice. The caps in the block above replace the caps those diffs show. Apply each diff to the block as the slice before it left it: `-` marks a line taken out, `+` a line put in, a line with neither is unchanged, and each `@@` line gives the line numbers in the block before and after.
 
 Slice 2b, notes:
 
@@ -295,7 +295,7 @@ www.drop(id: ItemID, opts: { why: string });
 www.use(id: ItemID, opts: { for: string });
 www.say(text: string, opts: { on?: ItemID });     // owner-notes.md
 www.ack(id: OwnerNoteID);
-www.install(opts: { print?: boolean });           // sessions-and-hooks.md
+www.install(opts: { print?: boolean; replaceSkill?: boolean }); // sessions-and-hooks.md
 www.doctor();
 www.hook(harness: 'claude' | 'codex');            // reads the hook payload on stdin
 
@@ -335,7 +335,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 - `www lesson`, `www promise` and `www words` write only their own file and the journal. A write with an id that holds a lesson, a promise or the owner's words of that kind replaces it. `done` refuses a lesson and the owner's words, and `drop` closes any of the three.
 - `www goal --paste` takes no argument, and a goal text beside it is refused ([www goal --paste](lists-and-json.md#www-goal---paste)).
 - `www import` takes the grant's flags and `--drop` only to convert a store; `--drop` repeats once per id. See [store.md](store.md) for when each is needed.
-- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. `install` and `doctor` are in the help, and they and `hook` exit 2 until slice 4 builds them; a bound session's `www` prints the same text, and the gate opens on the next call ([sessions-and-hooks.md](sessions-and-hooks.md)).
+- `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store, with the format 1 text above in place of the `session exists` refusal. A bound session's `www` prints the same text, and the gate opens on the next call ([sessions-and-hooks.md](sessions-and-hooks.md)).
 
 ### Text limits
 
@@ -358,12 +358,13 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 | `--to` (`promise`)                  | 16 characters   |
 | `--by` (`promise`)                  | 24 characters   |
 | the owner's words (`words`)         | 300 characters  |
-| `--who`, `--where`                  | 16 characters   |
+| `--where` (`words`)                 | 40 characters   |
+| `--who` (`ok`, `wait`), `--where` (`ok`, `grant`) | 16 characters   |
 | `--scope`                           | 40 characters   |
 
 ### Write replies
 
-Each write prints the note lines or the older-note line in its row first and its status line last, and exits 0. A status line ends in `Brief: <t> of <limit> tokens.`, except the replies of `init`, `attach`, `detach` and `import`, whose rows give their whole reply. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<t>` is the estimate of the brief rendered from the store as the write saved it, with each check's saved result and no probe, and `<limit>` the reader's host's limit in estimated tokens ([brief.md](brief.md#the-briefs-limit)). `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
+Each write prints the note lines or the older-note line in its row first and its status line last, and exits 0. When the claim or the note of a write chains three or more clauses with semicolons, the write goes ahead, and a line before the status line says so: `t-chart: the claim chains clauses with semicolons, and a row holds one fact, so each clause fits a row of its own.`, with `the note`, or `the claim and the note chain`, as the texts are. A status line ends in `Brief: <t> of <limit> tokens.`, except the replies of `init`, `attach`, `detach` and `import`, whose rows give their whole reply. `<check>` is `no check` or `checked now: <result>`, where `<result>` can be `unchecked`; `<t>` is the estimate of the brief rendered from the store as the write saved it, with each check's saved result and no probe, and `<limit>` the reader's host's limit in estimated tokens ([brief.md](brief.md#the-briefs-limit)). `<note lines>` are the item's note, wrapped and indented 4 as the brief prints it ([brief.md](brief.md)).
 
 | Command                         | Reply                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -569,7 +570,7 @@ With counts of at most 4 digits where no cap applies, at most 62 open items in `
 
 ## Refusals
 
-Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, and ends with one or two `Run:` lines. The last `Run:` line of a refusal of any command other than the five reads, `www sessions`, `www help` and `www goal --paste` ends with two spaces and `# nothing was written`, such as `Run: www task t-e2e "<claim of at most 120 characters>"  # nothing was written`. A shell reads `#` there as the start of a comment, so the line still runs as printed, and the fix and the fact sit on one line. The table below leaves the comment out of its `Run:` lines, and `www` adds it to each one a write's refusal prints. An unknown command gets it too, and when a refusal prints two `Run:` lines, only the last does. The reason lines are unchanged, and every exit code takes the same rule, because a refused write changes nothing ([decision record 0021](../../decisions/0021-a-refused-write-says-so-on-its-run-line.md)).
+Each refusal exits 3 (exit 2, 4 and 5 where marked), prints its text on stderr, and ends with one or two `Run:` lines. The last `Run:` line of a refusal of any command other than the five reads, `www sessions`, `www help`, `www doctor`, `www hook` and `www goal --paste` ends with two spaces and `# nothing was written`, such as `Run: www task t-e2e "<claim of at most 120 characters>"  # nothing was written`. A shell reads `#` there as the start of a comment, so the line still runs as printed, and the fix and the fact sit on one line. The table below leaves the comment out of its `Run:` lines, and `www` adds it to each one a write's refusal prints. An unknown command gets it too, and when a refusal prints two `Run:` lines, only the last does. The reason lines are unchanged, and every exit code takes the same rule, because a refused write changes nothing ([decision record 0021](../../decisions/0021-a-refused-write-says-so-on-its-run-line.md)).
 
 When the tool can fix the call, the `Run:` line is the refused command with each bad value replaced and each missing flag added, so it is complete. When it cannot, such as with no session, a hand-kept store or a decision number it cannot guess, the `Run:` line is the command that gets the agent what the fix needs. A value only the agent knows is a `<placeholder>` for what goes there. Every other value comes from the agent's command or the store, such as the oldest open task when a kind is full. The examples use the invented session.
 
@@ -641,11 +642,17 @@ When the tool can fix the call, the `Run:` line is the refused command with each
 | The upgrade finds more than one one-time approval | `www: refused: tide-alerts holds 2 one-time approvals, and format 2 holds 1. Drop all but one.` then each as `  ok-wipe  "you can wipe the staging alerts table once" · staging alerts table  [5d]`, then `Run: www import tide-alerts --drop ok-wipe` |
 | The upgrade finds an item with the id `grant`     | `www: refused: format 2 keeps the id grant for the grant, and tide-alerts has an item grant. Drop it, and write it again under a new id after the upgrade.` `Run: www import tide-alerts --drop grant` |
 | Import finds rows that break a rule               | `www: refused: import found 3 rows that break the rules, and wrote nothing.` then one line per row, such as `items.tsv line 9 (r-models): the claim is 151 characters, and the limit is 120.` and `journal.tsv: 9 open waits (q-1, q-2, q-3, q-4, q-5, q-6, q-7, q-8, q-9), and the limit is 8. Close one by appending the tab-separated row: <ts> closed <id> <what settled it>`, then `Run: www import build` |
-| A `--since` that is not `24h`, `3d` or `day-7`, a value such as `-2h` that starts with a dash included, or one that names a time past the year 9999 (exit 2) | `www: --since takes 24h, 3d or day-7.` `Run: www log --since 24h` or `Run: www recap --since 24h`, the command that was typed |
+| A `--since` that is not `24h`, `3d` or `day-7`, a value such as `-2h` that starts with a dash included, or one that names a time past the year 9999 (exit 2) | `www: --since takes 24h, 3d or day-7.` `Run: www log --since 24h` or `Run: www recap --since 24h`: the command that was typed, with every flag it holds and `24h` in place of the value, such as `Run: www log --since 24h --op set --json` |
 | An unknown command (exit 2) | `www: unknown command "taks".` `Run: www help` |
 | A flag the command does not take, a flag that no command takes among them (exit 2) | `www: wait takes no --on flag. It takes --pr, --branch, --path, --pid, --note, --owed and --who.` `Run: www wait <id> "<what>" --who <who> [<check>]`, the command's line in the help. The first line names the refused flag as typed and each flag the command takes, in the order of the table the parser reads, and leaves out a flag that the command always refuses with a text of its own, such as `--standing` on `ok`. A command that takes no flag of its own prints `www: sessions takes no --goal flag. It takes only --session.` and `Run: www sessions`; the brief's refusal names `the brief`, and its `Run:` line is `www`. A flag before an unknown command gets the unknown command's refusal |
 | A command with too few or too many arguments (exit 2) | `www: show takes [<id>].` `Run: www show [<id>]`, the command's line in the help, as for a flag the command does not take                  |
 | `decide` with a `--who` other than `owner` or `agent` | `www: refused: --who on a decision is owner or agent.` `Run: www decide "Retry a 503 3 times" --why "The feed flaps" --who "<owner or agent>"` |
+| `install` finds no `wherewerewe` on `PATH` | `www: install finds no wherewerewe on PATH, and each hook entry runs it by its path.` `Run: brew install zgeoff/tap/wherewerewe` |
+| `install` finds a settings file it cannot edit as JSON | `www: install cannot read ~/.claude/settings.json as JSON settings, so it changes nothing.` `Run: www install --print` |
+| `install` finds a file that exists and cannot be read | `www: install cannot read ~/.claude/settings.json, so it changes nothing there.` `Run: www install --print` |
+| `install` finds a rules file it did not write | `www: ~/.codex/rules/wherewerewe.rules holds rules that www install did not write, so install leaves it.` `Run: www install --print` |
+| `install` finds a `www` skill it did not write, or one edited since | `www: ~/.claude/skills/www/SKILL.md holds a www skill that www install did not write, or one edited since, so install leaves it.` `Run: www install --replace-skill` |
+| a settings file changes twice while `install` runs | `www: ~/.claude/settings.json changed while install ran, so it changes nothing there.` `Run: www install` |
 
 - When `www grant` or one upgrade finds more than one problem, it prints each problem's lines and one `Run:` line with every flag the problems need, so the filled line passes. `--drop` repeats once per id, such as `--drop ok-wipe --drop grant`.
 - A standing approval is something the owner allowed, so the grant that folds it holds a `--may`.
@@ -653,6 +660,8 @@ When the tool can fix the call, the `Run:` line is the refused command with each
 - The `Run:` line of a reading over its limit is the refused command with only the reading replaced, so `www grant --may … --reading …` and `www import … --reading …` keep their other flags.
 - A claim, a next step and an approval quote, whose commands take `--note`, end an over-limit text with "Write what is true now, and put the detail in its note with --note." Every other text over its limit ends "Write what is true now; the story belongs in a PR or a commit." The note, the grant's words, the grant's lines, the grant's scope and the reading have their own rows.
 - The credential test matches at least these: `ghp_`, `gho_`, `ghs_`, `ghu_`, `github_pat_`, `sk-` followed by 20 or more letters and digits, `xoxb-`, `xoxp-`, `AKIA` followed by 16 capitals or digits, `ops_` followed by 20 or more characters, `-----BEGIN`, and a JWT (`eyJ` then two `.`-separated parts). It applies to notes and to the grant's bullets, scope and reading, and to each grant bullet and each typed `--scope` with its line breaks and the spaces around them taken out, so a credential that a line break splits is refused too. A credential in one of those keeps the refused command and replaces only that value with `"<where the secret lives>"`. Two refusals replace it with their own placeholder first: a value over its own limit gets that limit's placeholder, and a grant over its bullets, words or lines gets one placeholder per group in place of every bullet.
+- A length refusal of a text that states a fact in a row (a claim, a next step, a note, a decision, a `--why`, an `--evidence`, a `--for`, a lesson or a promise) prints one more line after its reason: `One row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.` A name, a place, a date, the owner's own words and the grant's parts get no such line.
+- A `Run:` line keeps each flag the agent typed, with a placeholder in place of a value that was wrong, such as `--blocked-by "<open task or wait>"` or `--on <open id>` when no open id is close to the typed one. It leaves out only a flag whose own presence is what it refuses (`--standing`, a second check flag, a `--no-note` beside the note the fix gives, and a `--drop` that names no item), and the flags of a line that runs another command, such as `ok --standing`'s `grant`. A flag the command does not take is the one exception: its `Run:` line is the command's line in the help, as its row in [Refusals](#refusals) gives.
 - When a note is refused, the `Run:` line keeps the refused command and changes only the note. A note over its limit, with a tab or a newline, or that looks like a credential becomes `--note "<note of at most 400 characters>"`, `--note "<one line>"` or `--note "<where the secret lives>"`, and `--owed` with no `--note` gets `--note "<what is owed>"`. The `Run:` line then passes for a new item and for an item of any kind.
 - When the agent typed `www` with `--session`, each `Run:` line keeps `--session <name>`. A `--session` value that starts with a dash, such as `--help`, leaves every `Run:` line, whether the agent typed it before the command or the `Run:` line repeats it, because the parser reads that value as a flag. A mistyped name stays, because dropping it would make the `Run:` line write to the session the shell is bound to.
 - A `Run:` line is one output line. A line break in a `www` value prints as the space the store would keep, and a value that the credential test matches once its line breaks and the spaces around them are taken out prints as `<where the secret lives>`. A word of another command, such as a store path in `Run: less <path>`, that holds a tab or a line break prints in `$'…'` quotes, with each of those as octal escapes.

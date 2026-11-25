@@ -4,7 +4,6 @@ import type { CheckFlag, FileKind, Kind, ParsedArgs, TextTarget } from '../types
 export type RefusalReason =
   | { readonly kind: 'no-store-folder' }
   | { readonly kind: 'unknown-command'; readonly command: string }
-  | { readonly kind: 'later-command'; readonly command: string }
   | { readonly kind: 'flag-needs-value'; readonly flag: string }
   | {
       readonly kind: 'flag-value-has-dash';
@@ -136,7 +135,7 @@ export type RefusalReason =
       readonly id: string;
       readonly shownIDs: readonly string[];
     }
-  | { readonly kind: 'bad-since'; readonly command: 'log' | 'recap' }
+  | { readonly kind: 'bad-since'; readonly args: ParsedArgs }
   | { readonly kind: 'use-needs-for'; readonly args: ParsedArgs }
   | {
       readonly kind: 'use-not-approval';

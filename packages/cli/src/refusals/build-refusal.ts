@@ -12,6 +12,7 @@ import { buildNoteRefusal } from './build-note-refusal.ts';
 import { buildOwnerRefusal } from './build-owner-refusal.ts';
 import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
+import { buildTooLongRefusal } from './build-too-long-refusal.ts';
 import { buildUpgradeRefusal } from './build-upgrade-refusal.ts';
 import { formatList } from './format-list.ts';
 import { grantPlaceholders } from './grant-placeholders.ts';
@@ -29,7 +30,6 @@ export function buildRefusal(reason: RefusalReason): Refusal {
     )
     .with(
       { kind: 'unknown-command' },
-      { kind: 'later-command' },
       { kind: 'flag-needs-value' },
       { kind: 'flag-value-has-dash' },
       { kind: 'flag-takes-no-value' },
@@ -39,7 +39,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'bad-list-kind' },
       (found) => buildArgvRefusal(found),
     )
-    .with({ kind: 'text-too-long' }, (found) => buildTooLong(found))
+    .with({ kind: 'text-too-long' }, (found) => buildTooLongRefusal(found))
     .with({ kind: 'text-not-one-line' }, (found) =>
       refuse(
         'www: refused: the text must be one line, with no tab or newline.',
@@ -169,7 +169,11 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       (found) => buildOwnerRefusal(found),
     )
     .with({ kind: 'bad-since' }, (found) =>
-      usage(2, 'www: --since takes 24h, 3d or day-7.', [found.command, '--since', '24h']),
+      usage(
+        2,
+        'www: --since takes 24h, 3d or day-7.',
+        buildRunSpec(found.args).replaceFlag('since', '24h').toArgv(),
+      ),
     )
     .with({ kind: 'use-needs-for' }, (found) =>
       refuse(
@@ -329,36 +333,6 @@ function usage(exitCode: 2 | 4, line: string, argv: readonly RunWord[] = ['help'
 
 type Found<Variant extends RefusalReason['kind']> = Extract<RefusalReason, { kind: Variant }>;
 
-function buildTooLong(found: Found<'text-too-long'>): Refusal {
-  if (found.target.label === 'note') {
-    return refuse(
-      `www: refused: the note is ${String(found.length)} characters, and the limit is ${String(found.limit)}. Keep what you need on your next turn to this item, and link the rest from a PR, an issue or a file.`,
-      replaceText(found.args, found.target, toPlaceholder('<note of at most 400 characters>')),
-    );
-  }
-
-  const placeholder = toPlaceholder(
-    `<${found.target.label} of at most ${String(found.limit)} characters>`,
-  );
-
-  const measured = `the ${found.target.label} is ${String(found.length)} characters, and the limit is ${String(found.limit)}.`;
-
-  const advice = match(found.target.label)
-    .with(
-      'claim',
-      'next step',
-      'quote',
-      () => 'Write what is true now, and put the detail in its note with --note.',
-    )
-    .with('reading', "grant's scope", () => null)
-    .otherwise(() => 'Write what is true now; the story belongs in a PR or a commit.');
-
-  return refuse(
-    `www: refused: ${advice === null ? measured : `${measured} ${advice}`}`,
-    replaceText(found.args, found.target, placeholder),
-  );
-}
-
 const grantLabels: ReadonlySet<string> = new Set(['bullet', "grant's scope", 'reading']);
 const itemWriteCommands: ReadonlySet<string> = new Set(['task', 'wait', 'rule', 'where', 'set']);
 
@@ -389,7 +363,7 @@ function buildOnUnknown(found: Found<'on-unknown'>): Refusal {
 
   return refuse(
     `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,
-    (closest === null ? spec.dropFlag('on') : spec.replaceFlag('on', closest)).toArgv(),
+    spec.replaceFlag('on', closest ?? toPlaceholder('<open id>', 'id')).toArgv(),
   );
 }
 
@@ -440,14 +414,9 @@ function buildBlockedByUnknown(found: Found<'blocked-by-unknown'>): Refusal {
   const spec = buildRunSpec(found.args);
   const closest = pickClosestID(found.blockedBy, found.openIDs);
 
-  const argv =
-    closest === null
-      ? spec.dropFlag('blocked-by').toArgv()
-      : spec.replaceFlag('blocked-by', closest).toArgv();
-
   return refuse(
     `www: refused: --blocked-by ${found.blockedBy} names no open task or wait. Open: ${formatList(found.openIDs)}.`,
-    argv,
+    spec.replaceFlag('blocked-by', closest ?? toPlaceholder('<open task or wait>', 'id')).toArgv(),
   );
 }
 

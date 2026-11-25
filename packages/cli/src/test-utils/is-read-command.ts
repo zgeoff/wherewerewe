@@ -6,6 +6,8 @@ const readCommands: ReadonlySet<string> = new Set([
   'recap',
   'sessions',
   'help',
+  'doctor',
+  'hook',
 ]);
 
 // Whether a command only reads, so its refusal ends with no comment that says nothing was written.

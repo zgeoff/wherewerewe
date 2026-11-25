@@ -185,6 +185,22 @@ test('it sees a repeated check flag, so the write can refuse more than one check
   });
 });
 
+test.each([
+  { argv: ['install'], command: 'install' },
+  { argv: ['install', '--print'], command: 'install' },
+  { argv: ['install', '--replace-skill'], command: 'install' },
+  { argv: ['doctor'], command: 'doctor' },
+  { argv: ['hook', 'claude'], command: 'hook' },
+  { argv: ['hook', 'codex'], command: 'hook' },
+])('it takes $argv as the command $command', (row) => {
+  const ctx = setupTest();
+
+  expect(ctx.parseCLIArgs(row.argv)).toStrictEqual({
+    kind: 'args',
+    args: expect.objectContaining({ command: row.command }),
+  });
+});
+
 test('it lets a claim that starts with a dash pass after a dash dash', () => {
   const ctx = setupTest();
   const parsed = ctx.parseCLIArgs(['task', 't-a', '--pid', '5', '--', '-flag first']);
@@ -198,10 +214,19 @@ test('it lets a claim that starts with a dash pass after a dash dash', () => {
 test.each([
   [['taks'], { kind: 'unknown-command', command: 'taks' }],
   [['brief'], { kind: 'unknown-command', command: 'brief' }],
-  [['install'], { kind: 'later-command', command: 'install' }],
-  [['doctor'], { kind: 'later-command', command: 'doctor' }],
-  [['doctor', 'x'], { kind: 'later-command', command: 'doctor' }],
-  [['hook', 'claude'], { kind: 'later-command', command: 'hook' }],
+  [
+    ['doctor', 'x'],
+    { kind: 'wrong-positionals', command: 'doctor', usage: 'no arguments', line: 'doctor' },
+  ],
+  [
+    ['hook', 'gemini'],
+    {
+      kind: 'wrong-positionals',
+      command: 'hook',
+      usage: '<claude|codex>',
+      line: 'hook <claude|codex>',
+    },
+  ],
   [
     ['task', 't-a', 'x', '--colour', 'red'],
     {
@@ -234,7 +259,10 @@ test.each([
     },
   ],
   [['brief', '--colour'], { kind: 'unknown-command', command: 'brief' }],
-  [['doctor', '--colour'], { kind: 'later-command', command: 'doctor' }],
+  [
+    ['doctor', '--colour'],
+    { kind: 'flag-not-taken', command: 'doctor', flag: '--colour', taken: [], line: 'doctor' },
+  ],
   [['goal', 'x', '--session'], { kind: 'flag-needs-value', flag: 'session' }],
   [['init', 'tide', '--goal'], { kind: 'flag-needs-value', flag: 'goal' }],
   [['init', 'new-session', '--goal', '--session'], { kind: 'flag-needs-value', flag: 'goal' }],

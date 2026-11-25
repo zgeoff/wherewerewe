@@ -92,6 +92,17 @@ test('it refuses a --where with a separator, as --who and --where of an approval
   ]);
 });
 
+test.each([
+  { length: 40, kind: 'write' },
+  { length: 41, kind: 'refused' },
+] as const)('it takes a --where of $length characters as a $kind', (row) => {
+  const ctx = setupTest();
+  const where = 'w'.repeat(row.length);
+  const picked = ctx.pick(['words', 'w-plain', 'Plain', '--where', where], false);
+
+  expect(picked.kind).toBe(row.kind);
+});
+
 test('it refuses a 9th piece of the owner words, naming the oldest by time to drop', () => {
   const ctx = setupTest();
 

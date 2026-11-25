@@ -51,6 +51,8 @@ const options = {
   'no-note': { type: 'boolean' },
   json: { type: 'boolean' },
   paste: { type: 'boolean' },
+  print: { type: 'boolean' },
+  'replace-skill': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -271,6 +273,17 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
       line: `list <${listKinds.join('|')}>`,
     },
   ],
+  [
+    'install',
+    {
+      counts: [0],
+      usage: 'no arguments',
+      flags: ['print', 'replace-skill'],
+      line: 'install [--print] [--replace-skill]',
+    },
+  ],
+  ['doctor', { counts: [0], usage: 'no arguments', flags: [], line: 'doctor' }],
+  ['hook', { counts: [1], usage: '<claude|codex>', flags: [], line: 'hook <claude|codex>' }],
 ]);
 
 function checkArgs(argv: readonly string[]): ParseResult {
@@ -321,7 +334,7 @@ function checkArgs(argv: readonly string[]): ParseResult {
   });
 
   if (first === 'brief' || shape === undefined) {
-    return refuse(refuseCommand(command));
+    return refuse({ kind: 'unknown-command', command });
   }
 
   const stray = args.flags.find((flag) => !shape.flags.includes(flag.name));
@@ -348,16 +361,11 @@ function checkArgs(argv: readonly string[]): ParseResult {
     return refuse({ kind: 'bad-list-kind' });
   }
 
+  if (command === 'hook' && rest[0] !== 'claude' && rest[0] !== 'codex') {
+    return refuse({ kind: 'wrong-positionals', command, usage: shape.usage, line: shape.line });
+  }
+
   return { kind: 'args', args };
-}
-
-const laterCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);
-
-// The refusal of a command that is not in the table: one that comes in a later version, or none.
-function refuseCommand(command: string): RefusalReason {
-  return laterCommands.has(command)
-    ? { kind: 'later-command', command }
-    : { kind: 'unknown-command', command };
 }
 
 interface CommandFlags {
@@ -436,7 +444,7 @@ function refuseUnknownFlag(argv: readonly string[], flag: string): RefusalReason
   const shape = commandShapes.get(command);
 
   return first === 'brief' || shape === undefined
-    ? refuseCommand(command)
+    ? { kind: 'unknown-command', command }
     : { kind: 'flag-not-taken', flag, ...toCommandFlags(command, shape) };
 }
 

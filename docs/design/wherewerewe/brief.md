@@ -67,7 +67,7 @@ A wrapped block breaks each line at the last space that leaves the line 85 to 10
 | wait                     | `  <id>  <claim>  [<who> · <result or age>[ · owed]]`                                         | 185    |
 | approval                 | `  <id>  "<quote>" · <scope>`, then `  [owed]` when it has an owed note                       | 193    |
 | rule                     | `  <id>  <claim>`, then `  [owed]` when it has an owed note                                   | 148    |
-| owner's words            | `  <id>  "<words>"  [<where> · <age>]`                                                          | 349    |
+| owner's words            | `  <id>  "<words>"  [<where> · <age>]`                                                          | 373    |
 | promise                  | `  <id>  <what>  [to <who> · by <when>]`                                                      | 193    |
 | lesson                   | `  <id>  <instruction>  [why: <why>]`                                                         | 349    |
 | decision                 | `  <d-n>  <choice>`, with a choice over 200 characters, such as one imported from a hand-kept journal, cut to 199 and `…`; the heading is `DECISIONS (<n> in force)` | 212    |
@@ -125,7 +125,7 @@ A wrapped line holds at least 85 characters, so a line that carries a prefix of 
 - Grant reading, 200 characters behind `  reading: ` (11), then a 4-character indent: 2 lines carry at least 74 + 81 = 155, so 3 lines.
 - Note, 400 characters behind a 4-character indent: 4 lines carry at least 4 × 81 = 324, so 5 lines.
 
-A wrapped block's characters are its text plus each line's prefix; a dropped space only lowers the count. A test renders the ASCII worst case and pins each block's bytes below, with each newline and each multi-byte mark counted.
+A wrapped block's characters are its text plus each line's prefix; a dropped space only lowers the count. Test the ASCII worst case: render it and pin each block's bytes below, counting each newline and each multi-byte mark.
 
 | Block | Bytes |
 | --- | --- |
@@ -133,7 +133,7 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | goal | 219 |
 | grant | 1,228 |
 | owner notes | 452 |
-| owner's words (8) | 2,825 |
+| owner's words (8) | 3,017 |
 | changed | 521 |
 | now and its note | 610 |
 | open (30 tasks) | 5,988 |
@@ -146,7 +146,7 @@ A wrapped block's characters are its text plus each line's prefix; a dropped spa
 | where (8) | 1,361 |
 | pull requests | 256 |
 | footer | 98 |
-| **Total** | **21,208 bytes, 7,070 estimated tokens** |
+| **Total** | **21,400 bytes, 7,134 estimated tokens** |
 
 ### The brief's limit
 
@@ -169,15 +169,15 @@ What raises each limit, and why `www install` sets neither:
 
 A whole brief reaches a Codex agent when the call passes `max_output_tokens: 10000`, and the model sets that parameter itself: it passed 1,000 to 6,000 when nothing named it. So the Codex refusal's `Run:` line and the `SessionStart` line end `(pass max_output_tokens 10000, so the whole brief reaches you)`, as [sessions-and-hooks.md](sessions-and-hooks.md#the-gate) gives them. In 5 of 5 Codex runs that put this wording in the prompt, the model called `www` with `max_output_tokens: 10000`, and a 30,073-byte brief arrived whole. The wording came as the user's message in those runs, so the open question below covers a tool result. Claude Code's Bash tool has no such parameter, so its refusal keeps `Run: www`. When a Codex read is cut anyway, the hook counts it as no whole read.
 
-The figures above are constants in the brief module, each with a comment naming the host version and the measurement behind it. The host comes from the reader's environment, never from the store: `CLAUDE_CODE_SESSION_ID` gives Claude Code, `CODEX_SESSION_ID` or `CODEX_THREAD_ID` gives Codex, and with both families set, Claude Code wins, as in [sessions-and-hooks.md](sessions-and-hooks.md). An agent variable that is empty counts as unset and names no host. A `--session` flag changes none of this. A test pins the three constants. The tool reads no host setting, so an owner who raises `bashOutputMaxChars` keeps the 8,000-token figure, and a later host version that cuts lower needs a change to its constant.
+The figures above are constants in the brief module, each with a comment naming the host version and the measurement behind it. The host comes from the reader's environment, never from the store: `CLAUDE_CODE_SESSION_ID` gives Claude Code, `CODEX_SESSION_ID` or `CODEX_THREAD_ID` gives Codex, and with both families set, Claude Code wins, as in [sessions-and-hooks.md](sessions-and-hooks.md). An agent variable that is empty counts as unset and names no host. A `--session` flag changes none of this. Pin the three constants in a test. The tool reads no host setting, so an owner who raises `bashOutputMaxChars` keeps the 8,000-token figure, and a later host version that cuts lower needs a change to its constant.
 
 The ASCII worst case above fits each host's limit:
 
 | Host          | The tool's limit                      | ASCII worst case                     | Room left            |
 | ------------- | ------------------------------------- | ------------------------------------ | -------------------- |
-| Claude Code   | 24,000 bytes, 8,000 estimated tokens  | 21,208 bytes, 7,070 estimated tokens | 2,792 bytes, 11.6%   |
-| Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,792 bytes, 29.3%   |
-| no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,792 bytes, 64.7%  |
+| Claude Code   | 24,000 bytes, 8,000 estimated tokens  | 21,400 bytes, 7,134 estimated tokens | 2,600 bytes, 10.8%   |
+| Codex         | 30,000 bytes, 10,000 estimated tokens | the same                             | 8,600 bytes, 28.7%   |
+| no known host | 60,000 bytes, 20,000 estimated tokens | the same                             | 38,600 bytes, 64.3%  |
 
 So the ASCII worst case cuts nothing on any host, and Claude Code's room is the smallest. A store whose stored texts are all in a 3-byte script takes more: the never-cut lines then take under 9,000 bytes, and with the owner's words under 17,000, so they fit the smallest limit and [the cut order](#the-cut-order) decides what else stays. The `--json` output of [lists-and-json.md](lists-and-json.md#--json) is outside this limit.
 
@@ -223,7 +223,7 @@ Each section that lost rows ends with `  and <n> more: www list <kind>`, with `-
 - A changed row's fix command stays the same when the item has an owed note. Running it gets the owed-note refusal in [commands.md](commands.md), which prints the note whole.
 - A tag shows `blocked by <id>` only while that id is open. Closing the blocker clears the tag on the next read.
 - An item of a kind that takes a check, a task, a wait or a where item, shows its age since `written` when it has no check, so the reader sees which lines nobody verified. A rule and an approval take no check and show no age.
-- Never use a heading, label, footer or tag to tell the agent to hold back, to ask, or to act only inside a limit. Make each heading say what the section holds. A section of a capped kind that the agent fills prints `(<n>, max <cap>)`, `<n>` the open items of that kind; a section that prints fewer rows than `<n>` ends with a line that counts the rest, except a section that ends with its cut line. `DECISIONS` has no cap and prints `(<n> in force)`; `WORDS`, `PROMISED` and `LESSONS` print `(<n>, max <cap>)`. Two headings keep their own form, `OWNER SAYS (<n>) · act on it; only the owner clears it`, whose cap of 2 only the owner meets, and `CHANGED SINCE WRITTEN (<n>) · these claims are no longer true`, because 0008 keeps each for stating or preventing a fact. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
+- Never use a heading, label, footer or tag to tell the agent to hold back, to ask, or to act only inside a limit. Make each heading say what the section holds. A section of a capped kind that the agent fills prints `(<n>, max <cap>)`, `<n>` the open items of that kind; a section that prints fewer rows than `<n>` ends with a line that counts the rest, and a section that lost rows to the cut ends with its cut line after that count line. `DECISIONS` has no cap and prints `(<n> in force)`; `WORDS`, `PROMISED` and `LESSONS` print `(<n>, max <cap>)`. Two headings keep their own form, `OWNER SAYS (<n>) · act on it; only the owner clears it`, whose cap of 2 only the owner meets, and `CHANGED SINCE WRITTEN (<n>) · these claims are no longer true`, because 0008 keeps each for stating or preventing a fact. [0008](../../decisions/0008-notes-the-grant-and-no-caution-steering.md)
 - Once a session is found and its store is in format 2, the brief always exits 0 and prints, whatever the checks, the lock or the network do. Exits 4 and 5 are defined in [commands.md](commands.md).
 - A write reply's last line ends with the brief's estimated tokens and its limit, `Brief: <t> of <limit> tokens.`, except the `init`, `attach`, `detach` and `import` replies; the reply table in [commands.md](commands.md) is the authority. `<t>` is the estimate of the brief rendered from the store as the write saved it, with each check's saved result and no probe, cut at the reader's host limit, with the header `<n> checks, not run yet`, or `no checks`, and with `--session <name>` in its count and cut lines when the write ran with it; `<limit>` is the reader's host's limit in estimated tokens.
 

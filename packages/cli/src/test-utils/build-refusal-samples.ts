@@ -1,5 +1,5 @@
 import { listCommandShapes, parseCLIArgs } from '../args/parse-cli-args.ts';
-import type { RefusalReason, TextTarget } from '../types.ts';
+import type { ParsedArgs, RefusalReason, TextTarget } from '../types.ts';
 import { buildParsedArgs } from './build-parsed-args.ts';
 
 export interface RefusalSample {
@@ -35,6 +35,25 @@ export function buildRefusalSamples(): RefusalSample[] {
   const init = buildParsedArgs(['init', name, '--goal', 'Ship it']);
   const importArgs = buildParsedArgs(['import', name]);
 
+  const blocked = buildParsedArgs([
+    'task',
+    't-b',
+    'Draw the key',
+    '--blocked-by',
+    't-z',
+    '--note',
+    'after the axis',
+  ]);
+
+  const decideOn = buildParsedArgs([
+    'decide',
+    'Use UTC',
+    '--why',
+    'The feed sends UTC',
+    '--on',
+    't-z',
+  ]);
+
   const ok = buildParsedArgs(
     'ok ok-a --quote Merge --who jo --where slack --scope everywhere'.split(' '),
   );
@@ -60,7 +79,6 @@ export function buildRefusalSamples(): RefusalSample[] {
   const samples: SamplesByKind = {
     'no-store-folder': [{ kind: 'no-store-folder' }],
     'unknown-command': [{ kind: 'unknown-command', command: 'frob' }],
-    'later-command': [{ kind: 'later-command', command: 'install' }],
     'flag-needs-value': [{ kind: 'flag-needs-value', flag: 'note' }],
     'flag-value-has-dash': [
       {
@@ -82,6 +100,26 @@ export function buildRefusalSamples(): RefusalSample[] {
     ],
     'text-too-long': [
       { kind: 'text-too-long', args: task, target: claim, length: 152, limit: 120 },
+      ...collectTooLong([
+        [now, 'next step', { positional: 1 }, 120],
+        [set, 'note', { flag: 'note' }, 400],
+        [decide, 'decision', { positional: 0 }, 200],
+        [decide, 'reason', { flag: 'why' }, 200],
+        [drop, 'reason', { flag: 'why' }, 200],
+        [done, 'evidence', { flag: 'evidence' }, 200],
+        [lesson, 'lesson', { positional: 1 }, 120],
+        [lesson, 'why', { flag: 'why' }, 200],
+        [promise, 'promise', { positional: 1 }, 120],
+        [promise, '--to', { flag: 'to' }, 16],
+        [promise, '--by', { flag: 'by' }, 24],
+        [init, 'goal', { flag: 'goal' }, 200],
+        [wait, 'who', { flag: 'who' }, 16],
+        [words, 'where', { flag: 'where' }, 40],
+        [ok, 'quote', { flag: 'quote' }, 120],
+        [grant, 'reading', { flag: 'reading' }, 200],
+        [use, '--for text', { flag: 'for' }, 200],
+        [words, "owner's words", { positional: 1 }, 300],
+      ]),
     ],
     'text-not-one-line': [{ kind: 'text-not-one-line', args: task, target: claim }],
     'text-empty': [{ kind: 'text-empty', args: task, target: claim }],
@@ -89,8 +127,20 @@ export function buildRefusalSamples(): RefusalSample[] {
       { kind: 'credential', args: task, target: claim, label: 'ghp', onOtherKind: false },
     ],
     'kind-full': [{ kind: 'kind-full', itemKind: 'task', oldestID: 't-old' }],
-    'owed-needs-note': [{ kind: 'owed-needs-note', args: now }],
-    'note-and-no-note': [{ kind: 'note-and-no-note', args: set }],
+    'owed-needs-note': [
+      { kind: 'owed-needs-note', args: now },
+      {
+        kind: 'owed-needs-note',
+        args: buildParsedArgs(['set', 't-a', 'Write the lexer', '--owed', '--no-note']),
+      },
+    ],
+    'note-and-no-note': [
+      { kind: 'note-and-no-note', args: set },
+      {
+        kind: 'note-and-no-note',
+        args: buildParsedArgs(['set', 't-a', '--note', 'the lexer', '--no-note']),
+      },
+    ],
     'set-needs-change': [{ kind: 'set-needs-change', args: set }],
     'set-check-needs-claim': [{ kind: 'set-check-needs-claim', args: set }],
     'no-note-to-clear': [{ kind: 'no-note-to-clear', args: set, id: 't-a' }],
@@ -103,7 +153,14 @@ export function buildRefusalSamples(): RefusalSample[] {
     'extra-has-separator': [
       { kind: 'extra-has-separator', args: ok, flag: 'who', value: 'jo;sam' },
     ],
-    'ok-needs-parts': [{ kind: 'ok-needs-parts', args: ok, missing: ['scope'] }],
+    'ok-needs-parts': [
+      { kind: 'ok-needs-parts', args: ok, missing: ['scope'] },
+      {
+        kind: 'ok-needs-parts',
+        args: buildParsedArgs('ok ok-a --quote Merge --who jo --where slack --once'.split(' ')),
+        missing: ['scope'],
+      },
+    ],
     'ok-standing': [{ kind: 'ok-standing', args: ok }],
     'grant-needs-part': [{ kind: 'grant-needs-part', args: grant }],
     'grant-reading-no-grant': [{ kind: 'grant-reading-no-grant', args: grant, name }],
@@ -116,14 +173,21 @@ export function buildRefusalSamples(): RefusalSample[] {
     'no-such-decision': [{ kind: 'no-such-decision', value: 'd-9', lastNumber: 2 }],
     'decision-numbers-used-up': [{ kind: 'decision-numbers-used-up', lastNumber: 999 }],
     'decision-is-owners': [{ kind: 'decision-is-owners', id: 'd-1' }],
-    'on-unknown': [{ kind: 'on-unknown', args: decide, id: 't-z', openIDs: ['t-a'] }],
+    'on-unknown': [
+      { kind: 'on-unknown', args: decide, id: 't-z', openIDs: ['t-a'] },
+      { kind: 'on-unknown', args: decideOn, id: 't-z', openIDs: ['t-a'] },
+      { kind: 'on-unknown', args: decideOn, id: 't-z', openIDs: [] },
+    ],
     'owner-only': [{ kind: 'owner-only' }],
     'owner-notes-full': [{ kind: 'owner-notes-full', name, oldestID: 'o-1' }],
     'owner-note-numbers-used-up': [{ kind: 'owner-note-numbers-used-up', lastNumber: 999 }],
     'owner-note-unknown': [{ kind: 'owner-note-unknown', name, id: 'o-9', shownIDs: ['o-1'] }],
     'bad-since': [
-      { kind: 'bad-since', command: 'recap' },
-      { kind: 'bad-since', command: 'log' },
+      { kind: 'bad-since', args: buildParsedArgs(['recap', '--since', 'yesterday', '--json']) },
+      {
+        kind: 'bad-since',
+        args: buildParsedArgs(['log', '--since', 'yesterday', '--op', 'set', '--id', 't-a']),
+      },
     ],
     'use-needs-for': [{ kind: 'use-needs-for', args: use }],
     'use-not-approval': [{ kind: 'use-not-approval', id: 't-a', itemKind: 'task' }],
@@ -149,7 +213,14 @@ export function buildRefusalSamples(): RefusalSample[] {
       },
     ],
     'bad-id': [{ kind: 'bad-id', args: task, id: 'T A' }],
-    'too-many-checks': [{ kind: 'too-many-checks', args: task, firstFlag: 'pr' }],
+    'too-many-checks': [
+      { kind: 'too-many-checks', args: task, firstFlag: 'pr' },
+      {
+        kind: 'too-many-checks',
+        args: buildParsedArgs(['task', 't-a', 'Write it', '--pr', '12', '--branch', 'parser']),
+        firstFlag: 'pr',
+      },
+    ],
     'malformed-check': [{ kind: 'malformed-check', args: task, flag: 'pr' }],
     'check-not-one-line': [{ kind: 'check-not-one-line', args: task, flag: 'path' }],
     'relative-path': [
@@ -158,6 +229,8 @@ export function buildRefusalSamples(): RefusalSample[] {
     'rule-has-check': [{ kind: 'rule-has-check', args: rule }],
     'blocked-by-unknown': [
       { kind: 'blocked-by-unknown', args: task, blockedBy: 't-z', openIDs: ['t-a'] },
+      { kind: 'blocked-by-unknown', args: blocked, blockedBy: 't-z', openIDs: ['t-a'] },
+      { kind: 'blocked-by-unknown', args: blocked, blockedBy: 't-z', openIDs: [] },
     ],
     'session-exists': [{ kind: 'session-exists', name }],
     'needs-goal': [{ kind: 'needs-goal', args: init }],
@@ -179,6 +252,13 @@ export function buildRefusalSamples(): RefusalSample[] {
       {
         kind: 'upgrade-refused',
         args: importArgs,
+        name,
+        rowProblems: [],
+        problems: [{ kind: 'drop-unknown', id: 'ok-z', open: ['ok-a'] }],
+      },
+      {
+        kind: 'upgrade-refused',
+        args: buildParsedArgs(['import', name, '--drop', 'ok-z']),
         name,
         rowProblems: [],
         problems: [{ kind: 'drop-unknown', id: 'ok-z', open: ['ok-a'] }],
@@ -225,6 +305,20 @@ function isKind<Kind extends RefusalKind>(
 
 function invariantSample(kind: RefusalKind): never {
   throw new Error(`the parser gave no ${kind} refusal`);
+}
+
+// A text-too-long reason for each label, one character over its limit, at the place its command
+// takes it.
+function collectTooLong(
+  rows: readonly (readonly [ParsedArgs, TextTarget['label'], TextTarget['place'], number])[],
+): Found<'text-too-long'>[] {
+  return rows.map(([args, label, place, limit]) => ({
+    kind: 'text-too-long',
+    args,
+    target: { label, place },
+    length: limit + 1,
+    limit,
+  }));
 }
 
 function buildTitle(reason: RefusalReason, at: number): string {
