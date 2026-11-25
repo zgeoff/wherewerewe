@@ -15,7 +15,7 @@ export function buildJsonCellArgvs(): JsonCellArgv[] {
   return [
     { shape: 'brief', argv: [] },
     { shape: 'show', argv: ['show'] },
-    ...['t-a', 'w-a', 'ok-a', 'r-a', 'wh-a', 'l-a', 'p-a', 'w-b', 'd-1', 'grant'].map(
+    ...['t-a', 't-b', 'w-a', 'w-c', 'ok-a', 'r-a', 'wh-a', 'l-a', 'p-a', 'w-b', 'd-1', 'grant'].map(
       (id): JsonCellArgv => ({ shape: 'show', argv: ['show', id] }),
     ),
     { shape: 'log', argv: ['log'] },

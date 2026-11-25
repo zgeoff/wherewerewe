@@ -2,6 +2,8 @@ import { expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import fc from 'fast-check';
+import { keyKinds } from '../import/collect-item-checks.ts';
+import type { ListKind } from '../rules/list-kinds.ts';
 import { redactCredentialWords } from '../rules/redact-credential-words.ts';
 import { runCLI } from '../run-cli.ts';
 import { formatSessionFile } from '../store/format-session-file.ts';
@@ -11,6 +13,10 @@ import { buildJsonCellArgvs } from '../test-utils/build-json-cell-argvs.ts';
 import { buildJsonRedactionCases } from '../test-utils/build-json-redaction-cases.ts';
 import { buildNamedCredentialCells } from '../test-utils/build-named-credential-cells.ts';
 import { buildStoredTextArbitrary } from '../test-utils/build-stored-text-arbitrary.ts';
+import {
+  collectSchemaFieldPaths,
+  collectValueFieldPaths,
+} from '../test-utils/collect-schema-field-paths.ts';
 import { collectSchemaStringPaths } from '../test-utils/collect-schema-string-paths.ts';
 import { collectStringLeaves } from '../test-utils/collect-string-leaves.ts';
 import { getJsonValue } from '../test-utils/get-json-value.ts';
@@ -18,7 +24,9 @@ import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { runJsonCellRead } from '../test-utils/run-json-cell-read.ts';
 import { plainCells, seedJsonCellsStore } from '../test-utils/seed-json-cells-store.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
+import type { FileKind } from '../types.ts';
 import { formatJSONOutput } from './format-json-output.ts';
+import type { Shown } from './types.ts';
 
 function setupTest() {
   const root = createTempDir('format-json-output').path;
@@ -32,6 +40,9 @@ function setupTest() {
     argvs: buildJsonCellArgvs(),
     schemaPaths: (['brief', 'show', 'log', 'list', 'recap'] as const).flatMap((shape) =>
       collectSchemaStringPaths(jsonSchemas[shape]).map((path) => `${shape}|${path}`),
+    ),
+    fieldPaths: (['brief', 'show', 'log', 'list', 'recap'] as const).flatMap((shape) =>
+      collectSchemaFieldPaths(jsonSchemas[shape]).map((path) => `${shape}|${path}`),
     ),
 
     named: buildNamedCredentialCells(),
@@ -140,7 +151,7 @@ test('it prints the plain text of each cell only at the places the table names, 
   expect(printed).toStrictEqual(reads);
 });
 
-test('it prints a value at every string field of every shape, and a row of every list kind, from the seeded store', async () => {
+test('it prints a value at every field of every kind of row in every shape, and a row of every list kind, from the seeded store', async () => {
   const ctx = setupTest();
 
   const printed = await Promise.all(
@@ -155,27 +166,89 @@ test('it prints a value at every string field of every shape, and a row of every
 
   const observed = new Set(
     printed.flatMap((entry) =>
-      collectStringLeaves(entry.value).map((leaf) => `${entry.read.shape}|${leaf}`),
+      collectValueFieldPaths(jsonSchemas[entry.read.shape], entry.value).map(
+        (path) => `${entry.read.shape}|${path}`,
+      ),
     ),
   );
 
-  // the type's Shown union allows a lesson, promise or words row, which the brief's open items
-  // and the recap's notes never hold; a failing check's name comes only from gh
-  const unprintable = new Set([
-    ...['text', 'why', 'what', 'to', 'byWhen', 'words', 'where'].flatMap((field) => [
-      `brief|open.[].row.${field}`,
-      `recap|notes.[].item.row.${field}`,
-    ]),
-    'show|subjects.[].failingChecks.[]',
-  ]);
+  const fileKinds: readonly string[] = ['lesson', 'promise', 'words'] satisfies FileKind[];
+
+  const listRowKinds: ReadonlyMap<string, string> = new Map(
+    Object.entries({
+      tasks: 'task',
+      waits: 'wait',
+      approvals: 'ok',
+      rules: 'rule',
+      where: 'where',
+      lessons: 'lesson',
+      promises: 'promise',
+      words: 'words',
+    } satisfies Record<Exclude<ListKind, 'notes' | 'decisions' | 'prs'>, Shown['kind']>),
+  );
+
+  const unprintable = new Set(
+    ctx.fieldPaths.filter((path) => {
+      const extra = /\{kind=(?<kind>\w+)\}\.row\.extra\.(?<key>\w+)$/u.exec(path)?.groups;
+
+      const listed = /^list\|\{kind=(?<list>\w+)\}\.rows\.\[\]\{kind=(?<kind>\w+)\}/u.exec(
+        path,
+      )?.groups;
+
+      const held = /^(?:brief\|open\.\[\]|recap\|notes\.\[\]\.item)\{kind=(?<kind>\w+)\}/u.exec(
+        path,
+      )?.groups;
+
+      const subject = /^show\|subjects\.\[\]\{kind=(?<kind>\w+)\}\.(?<field>.+)$/u.exec(
+        path,
+      )?.groups;
+
+      const subjectKind = subject?.['kind'] ?? '';
+
+      return [
+        // a write and the import each keep an extra key only on the kinds keyKinds names for it
+        keyKinds.some(
+          (entry) =>
+            entry.key === extra?.['key'] && !entry.kinds.some((kind) => kind === extra['kind']),
+        ),
+
+        // a rule refuses a check, and only a pid: check stores a pid_start
+        /\{kind=rule\}\.(?:row\.check|row\.extra\.pid_start|checkedNow)$/u.test(path),
+
+        // a list of one kind holds rows of that kind only
+        listed !== undefined && listRowKinds.get(listed['list'] ?? '') !== listed['kind'],
+
+        // the brief's open items and the recap's notes hold items.tsv rows only
+        fileKinds.includes(held?.['kind'] ?? ''),
+
+        // a lesson, a promise or the owner's words has no check to probe
+        fileKinds.includes(subjectKind) && subject?.['field'] === 'checkedNow',
+
+        // a decision's --on names an items.tsv id or a closed one, never a file row's
+        fileKinds.includes(subjectKind) && subject?.['field'] === 'decisions.[]',
+
+        // gh gives a failing check its name, as run-show-command.test.ts shows
+        path.endsWith('.failingChecks.[]'),
+
+        // only a close, a decision, a lesson or a grant row has a why, and a closed id never opens
+        // again, so no other subject's own rows hold one
+        subject?.['field'] === 'journal.[].why' &&
+          !['lesson', 'grant', 'decision'].includes(subjectKind),
+
+        // a lesson's row has no extra, and a drop closes it for good
+        subjectKind === 'lesson' && subject?.['field'] === 'journal.[].extra',
+      ].includes(true);
+    }),
+  );
 
   expect({
-    missing: ctx.schemaPaths.filter((path) => !observed.has(path) && !unprintable.has(path)),
+    missing: ctx.fieldPaths.filter((path) => !observed.has(path) && !unprintable.has(path)),
+    printedAnyway: [...unprintable].filter((path) => observed.has(path)),
     emptyLists: printed
       .filter((entry) => entry.read.shape === 'list')
       .filter((entry) => JSON.stringify(getJsonValue(entry.value, ['rows'])) === '[]')
       .map((entry) => entry.read.argv[1]),
-  }).toStrictEqual({ missing: [], emptyLists: [] });
+  }).toStrictEqual({ missing: [], printedAnyway: [], emptyLists: [] });
 });
 
 test('it places every string field of every shape in the table, a named row or a class of its own', async () => {
@@ -406,6 +479,13 @@ test("it leaves out the task's note row that holds a credential, keeps the other
       rows: [
         { id: 'r-a', owed: false, written: '2026-03-10T09:00:00Z', note: 'Cite the spec' },
         { id: 'ok-a', owed: false, written: '2026-03-10T08:00:00Z', note: 'Ask jo first' },
+        { id: 'w-c', owed: false, written: '2026-03-10T07:30:00Z', note: 'Ping kim at noon' },
+        {
+          id: 'wh-a',
+          owed: false,
+          written: '2026-03-10T07:00:00Z',
+          note: 'Stop it with the kill switch',
+        },
       ],
       names: true,
       leaked: false,

@@ -83,7 +83,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: false,
       reads: [
-        brief('open', 1, 'row', 'claim'),
+        brief('open', 2, 'row', 'claim'),
         show('w-a', 'subjects', 0, 'row', 'claim'),
         list('waits', 'rows', 0, 'row', 'claim'),
       ],
@@ -94,7 +94,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: true,
       reads: [
-        brief('open', 1, 'row', 'extra', 'who'),
+        brief('open', 2, 'row', 'extra', 'who'),
         show('w-a', 'subjects', 0, 'row', 'extra', 'who'),
         list('waits', 'rows', 0, 'row', 'extra', 'who'),
       ],
@@ -105,7 +105,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: 'path:/work/ ',
       isSeparated: false,
       reads: [
-        brief('open', 1, 'row', 'check'),
+        brief('open', 2, 'row', 'check'),
         show('w-a', 'subjects', 0, 'row', 'check'),
         list('waits', 'rows', 0, 'row', 'check'),
       ],
@@ -117,7 +117,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       isSeparated: false,
       reads: [
         brief('changed', 0, 'was'),
-        brief('open', 1, 'row', 'atWrite'),
+        brief('open', 2, 'row', 'atWrite'),
         show('w-a', 'subjects', 0, 'row', 'atWrite'),
         list('waits', 'rows', 0, 'row', 'atWrite'),
       ],
@@ -128,7 +128,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: false,
       reads: [
-        brief('open', 3, 'row', 'written'),
+        brief('open', 5, 'row', 'written'),
         show('r-a', 'subjects', 0, 'row', 'written'),
         list('rules', 'rows', 0, 'row', 'written'),
         recap('notes', 1, 'item', 'row', 'written'),
@@ -140,7 +140,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: false,
       reads: [
-        brief('open', 2, 'row', 'claim'),
+        brief('open', 4, 'row', 'claim'),
         show('ok-a', 'subjects', 0, 'row', 'claim'),
         list('approvals', 'rows', 0, 'row', 'claim'),
       ],
@@ -151,7 +151,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: true,
       reads: [
-        brief('open', 2, 'row', 'extra', 'who'),
+        brief('open', 4, 'row', 'extra', 'who'),
         show('ok-a', 'subjects', 0, 'row', 'extra', 'who'),
         list('approvals', 'rows', 0, 'row', 'extra', 'who'),
         recap('notes', 2, 'item', 'row', 'extra', 'who'),
@@ -163,7 +163,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: true,
       reads: [
-        brief('open', 2, 'row', 'extra', 'where'),
+        brief('open', 4, 'row', 'extra', 'where'),
         show('ok-a', 'subjects', 0, 'row', 'extra', 'where'),
         list('approvals', 'rows', 0, 'row', 'extra', 'where'),
         recap('notes', 2, 'item', 'row', 'extra', 'where'),
@@ -175,7 +175,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: true,
       reads: [
-        brief('open', 2, 'row', 'extra', 'scope'),
+        brief('open', 4, 'row', 'extra', 'scope'),
         show('ok-a', 'subjects', 0, 'row', 'extra', 'scope'),
         list('approvals', 'rows', 0, 'row', 'extra', 'scope'),
         recap('notes', 2, 'item', 'row', 'extra', 'scope'),
@@ -187,7 +187,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: false,
       reads: [
-        brief('open', 3, 'row', 'claim'),
+        brief('open', 5, 'row', 'claim'),
         show('r-a', 'subjects', 0, 'row', 'claim'),
         list('rules', 'rows', 0, 'row', 'claim'),
       ],
@@ -198,7 +198,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: false,
       reads: [
-        brief('open', 3, 'row', field),
+        brief('open', 5, 'row', field),
         show('r-a', 'subjects', 0, 'row', field),
         list('rules', 'rows', 0, 'row', field),
         recap('notes', 1, 'item', 'row', field),
@@ -210,7 +210,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       prefix: '',
       isSeparated: false,
       reads: [
-        brief('open', 4, 'row', 'claim'),
+        brief('open', 6, 'row', 'claim'),
         show('wh-a', 'subjects', 0, 'row', 'claim'),
         list('where', 'rows', 0, 'row', 'claim'),
       ],

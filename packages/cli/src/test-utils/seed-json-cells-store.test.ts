@@ -14,7 +14,7 @@ function setupTest() {
   };
 }
 
-test('it makes a store that reads whole, with one row of each kind', async () => {
+test('it makes a store that reads whole, with a row of each kind', async () => {
   const ctx = setupTest();
 
   ctx.seed(ctx.root, {});
@@ -23,7 +23,7 @@ test('it makes a store that reads whole, with one row of each kind', async () =>
 
   const kinds = read.kind === 'store' ? read.store.items.map((item) => item.kind) : read.kind;
 
-  expect(kinds).toStrictEqual(['task', 'wait', 'ok', 'rule', 'where']);
+  expect(kinds).toStrictEqual(['task', 'task', 'wait', 'wait', 'ok', 'rule', 'where']);
 });
 
 test('it puts the cell a test gives over the plain one, and names the session for its cell', async () => {
