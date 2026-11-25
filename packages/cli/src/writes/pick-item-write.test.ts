@@ -715,3 +715,30 @@ test.each([
 
   expect(picked.kind === 'refused' && picked.refusal.lines[0]).toBe(line);
 });
+
+test.each([
+  {
+    title: 'a claim',
+    argv: ['task', 't-chart', 'Axis done; key half done; table not started'],
+    line: 't-chart: the claim chains clauses with semicolons, and a row holds one fact, so each clause fits a row of its own.',
+  },
+  {
+    title: 'a note',
+    argv: ['task', 't-chart', 'Draw the chart', '--note', 'Axis; key; table'],
+    line: 't-chart: the note chains clauses with semicolons, and a row holds one fact, so each clause fits a row of its own.',
+  },
+])('it writes $title of three clauses and adds the line before its status', (row) => {
+  const ctx = setupTest();
+  const picked = getPickedWrite(ctx.pick(row.argv, []), 9);
+  const lines = picked.reply.split('\n');
+
+  expect({
+    count: lines.length,
+    first: lines[0],
+    status: lines[1]?.startsWith('t-chart  task, open'),
+  }).toStrictEqual({
+    count: 2,
+    first: row.line,
+    status: true,
+  });
+});
