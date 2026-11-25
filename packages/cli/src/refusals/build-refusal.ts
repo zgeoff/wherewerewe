@@ -359,7 +359,7 @@ function buildOnUnknown(found: Found<'on-unknown'>): Refusal {
 
   return refuse(
     `www: refused: no open item ${redactCredential(found.id)}. Open items: ${formatList(found.openIDs)}.`,
-    (closest === null ? spec.dropFlag('on') : spec.replaceFlag('on', closest)).toArgv(),
+    spec.replaceFlag('on', closest ?? toPlaceholder('<open id>', 'id')).toArgv(),
   );
 }
 
@@ -410,14 +410,9 @@ function buildBlockedByUnknown(found: Found<'blocked-by-unknown'>): Refusal {
   const spec = buildRunSpec(found.args);
   const closest = pickClosestID(found.blockedBy, found.openIDs);
 
-  const argv =
-    closest === null
-      ? spec.dropFlag('blocked-by').toArgv()
-      : spec.replaceFlag('blocked-by', closest).toArgv();
-
   return refuse(
     `www: refused: --blocked-by ${found.blockedBy} names no open task or wait. Open: ${formatList(found.openIDs)}.`,
-    argv,
+    spec.replaceFlag('blocked-by', closest ?? toPlaceholder('<open task or wait>', 'id')).toArgv(),
   );
 }
 

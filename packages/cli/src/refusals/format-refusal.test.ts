@@ -8,6 +8,7 @@ import { buildRefusalReplay } from '../test-utils/build-refusal-replay.ts';
 import { buildRefusalSamples } from '../test-utils/build-refusal-samples.ts';
 import { getSteeringWords } from '../test-utils/get-steering-words.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
+import type { RunWord } from '../types.ts';
 import { buildRefusal } from './build-refusal.ts';
 import { formatRefusal, nothingWrittenComment } from './format-refusal.ts';
 import { toPlaceholder } from './to-placeholder.ts';
@@ -28,7 +29,36 @@ function setupTest() {
   seedStubCommand(replayBin, 'bun', String.raw`printf '%s\037' bun "$@"; printf '\036'`);
   mkdirSync(cwd);
 
+  // the flags a refusal's Run line may leave out: one whose own presence is what it refuses, or
+  // every flag when the line runs another command
+  const droppedFlags: Readonly<Record<string, readonly string[]>> = {
+    // --no-note and the --note the fix gives cannot both stand
+    'owed-needs-note': ['no-note'],
+    'note-and-no-note': ['no-note'],
+
+    // an item holds one check, so the second check flag goes
+    'too-many-checks': ['pr', 'branch', 'path', 'pid'],
+
+    // the line writes the owed note first, with set
+    'owed-note': ['evidence'],
+
+    // the line is www grant, where lasting permission lives
+    'ok-standing': ['quote', 'who', 'where', 'scope', 'standing'],
+
+    // a --drop that names no item: a placeholder would drop an item the upgrade keeps
+    'upgrade-refused': ['drop'],
+  };
+
   return {
+    droppedFlags,
+
+    // the flag names a Run line holds, from its words
+    readRunFlags: (argv: readonly RunWord[]) =>
+      argv.flatMap((word) =>
+        typeof word === 'string' && word.startsWith('--') && word !== '--'
+          ? [word.slice(2).split('=')[0] ?? '']
+          : [],
+      ),
     formatRefusal,
     buildRefusalReplay,
     runInShell: (command: string) =>
@@ -415,3 +445,21 @@ test.each(buildRefusalSamples().filter((row) => row.reason.kind === 'text-too-lo
     });
   },
 );
+
+test.each(
+  buildRefusalSamples().flatMap((row) =>
+    'args' in row.reason && row.reason.args.flags.length > 0 ? [row] : [],
+  ),
+)('it keeps each flag typed in $title on its Run line', (row) => {
+  const ctx = setupTest();
+  const typed = 'args' in row.reason ? row.reason.args.flags.map((flag) => flag.name) : [];
+  const refusal = buildRefusal(row.reason);
+  const found = refusal.runs.find((candidate) => 'www' in candidate);
+  const kept = found !== undefined && 'www' in found ? ctx.readRunFlags(found.www) : [];
+  const mayDrop = ctx.droppedFlags[row.reason.kind] ?? [];
+
+  expect({
+    kind: row.reason.kind,
+    lost: typed.filter((flag) => !kept.includes(flag) && !mayDrop.includes(flag)),
+  }).toStrictEqual({ kind: row.reason.kind, lost: [] });
+});

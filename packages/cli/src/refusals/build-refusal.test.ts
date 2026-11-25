@@ -795,8 +795,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: --blocked-by missing-thing names no open task or wait. Open: zz-open.\nRun: www task t-flag x\n',
-    fills: [{}],
+      'www: refused: --blocked-by missing-thing names no open task or wait. Open: zz-open.\nRun: www task t-flag x --blocked-by "<open task or wait>"\n',
+    fills: [{ '<open task or wait>': 'zz-open' }],
   },
   {
     title: 'an init of a session that exists, with an agent id',
@@ -1206,7 +1206,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --scope "<what it covers>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "merge yourself" --who owner --where chat --once --scope "<what it covers>"\n',
     fills: [{ '<what it covers>': 'bosun-api' }],
   },
   {
@@ -1877,8 +1877,8 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: no open item zzzzzzzzzz. Open items: pr-api-77.\nRun: www decide "Retry a 503 3 times" --why "The feed flaps"\n',
-    fills: [{}],
+      'www: refused: no open item zzzzzzzzzz. Open items: pr-api-77.\nRun: www decide "Retry a 503 3 times" --why "The feed flaps" --on <open id>\n',
+    fills: [{ '<open id>': 'pr-api-77' }],
   },
   {
     title: 'a decision that replaces a decision that does not exist, with decisions made',
@@ -2015,7 +2015,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --scope "<what it covers>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-a --quote "<where the secret lives>" --who owner --where chat --once --scope "<what it covers>"\n',
     fills: [{ '<where the secret lives>': 'merge yourself', '<what it covers>': 'bosun-api' }],
   },
   {
@@ -2026,7 +2026,7 @@ test.each([
     env: 'agent',
     exitCode: 3,
     stderr:
-      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-b --quote="--preview" --where chat --scope tests --who "<who>"\n',
+      'www: refused: an approval needs the owner\'s exact words, who gave them, where, and what they cover.\nRun: www ok ok-b --quote="--preview" --where chat --scope tests --once --who "<who>"\n',
     fills: [{ '<who>': 'owner' }],
   },
   {
@@ -2247,8 +2247,10 @@ test.each([
     env: 'owner',
     exitCode: 3,
     stderr:
-      'www: refused: no open item d-1. Open items: none.\nRun: www --session tide-alerts say Hello\n',
-    fills: [{}],
+      'www: refused: no open item d-1. Open items: none.\nRun: www --session tide-alerts say Hello --on <open id>\n',
+
+    // no item is open, so the store refuses every id the line could take, as Refusals allows
+    fills: [],
   },
   {
     title: 'a say on an item that is not open',
@@ -2259,8 +2261,10 @@ test.each([
     env: 'owner',
     exitCode: 3,
     stderr:
-      'www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello\n',
-    fills: [{}],
+      'www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello --on <open id>\n',
+
+    // no item is open, so the store refuses every id the line could take, as Refusals allows
+    fills: [],
   },
   {
     title: 'a note over its limit on a task with a new id',
