@@ -37,3 +37,4 @@
 - [0021: a refused write says so on its Run line](./decisions/0021-a-refused-write-says-so-on-its-run-line.md)
 - [0022: ship compiled binaries through the tap and an install script](./decisions/0022-ship-compiled-binaries-through-the-tap-and-an-install-script.md)
 - [0023: the CLI ships its own www skill](./decisions/0023-the-cli-ships-its-own-www-skill.md)
+- [0024: a part-way install keeps what it wrote](./decisions/0024-a-part-way-install-keeps-what-it-wrote.md)

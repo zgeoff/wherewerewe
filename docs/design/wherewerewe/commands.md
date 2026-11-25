@@ -359,7 +359,7 @@ type Since = `${number}h` | `${number}d` | `day-${number}`;
 | `--by` (`promise`)                  | 24 characters   |
 | the owner's words (`words`)         | 300 characters  |
 | `--where` (`words`)                 | 40 characters   |
-| `--who`, `--where` (`ok`, `wait`, `grant`) | 16 characters   |
+| `--who` (`ok`, `wait`), `--where` (`ok`, `grant`) | 16 characters   |
 | `--scope`                           | 40 characters   |
 
 ### Write replies

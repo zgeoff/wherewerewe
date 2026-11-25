@@ -327,6 +327,26 @@ test('it never says nothing was written when a later file changes on each try af
   });
 });
 
+test('it finishes an install that a changed file stopped part way when run again', async () => {
+  const ctx = setupTest();
+
+  ctx.runWith({
+    beforeRename: (path) => {
+      if (path === ctx.paths.codexHooks) {
+        writeFileSync(path, `{"hooks": {}, "stamp": ${String(Date.now())}}\n`);
+      }
+    },
+  });
+
+  const rerun = await ctx.install();
+
+  expect({
+    exitCode: rerun.exitCode,
+    claudeHasHooks: 'hooks' in parseSettingsJson(ctx.read(ctx.paths.claudeSettings)),
+    codexHasEntries: ctx.read(ctx.paths.codexHooks).includes('wherewerewe hook codex'),
+  }).toStrictEqual({ exitCode: 0, claudeHasHooks: true, codexHasEntries: true });
+});
+
 test('it says what it adds and the limits that apply before it changes any file', () => {
   const ctx = setupTest();
 

@@ -73,7 +73,7 @@ Any probe can also read `unchecked`. The `pr` probe rolls `statusCheckRollup` up
 - Git before 2.45 does not read `GIT_NO_LAZY_FETCH`, so a check leans on `GIT_ALLOW_PROTOCOL=none` alone to stop a lazy fetch.
 - Git before 2.36 reads `core.fsmonitor=false` as the name of a helper program.
 - A repo whose git folder sits outside its work tree, named by a `.git` file or by `GIT_DIR`, is guarded only as far as its work tree.
-- `doctor` runs `codex` and `gh`, and each may write its own state, such as Codex's helper files or a refreshed `gh` token.
+- `www doctor` runs `codex` and `gh`, and each may write its own state, such as Codex's helper files.
 
 `www install` runs `git --version`, then prints each of these that applies on the machine, before it writes anything: the filter race whenever a `git` is found, the git version limits (all of them when the version cannot be read), each `PATH` entry the owner can write, each `PATH` entry inside the folder install ran in, and each of `HOME`, `XDG_CONFIG_HOME` and `GH_CONFIG_DIR` that names a folder the owner can write. It prints the list with `--print` too.
 

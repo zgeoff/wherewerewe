@@ -220,7 +220,7 @@ interface JournalRow {
   by: 'agent' | 'owner' | 'hook' | 'import';
   text: string; // the claim (for done, drop and use, the claim at close), the choice, the note, the grant's bullets and scope, a lesson's instruction, a promise's text, the owner's words, or "<old> -> <new>" for changed; '-' when none
   why: string; // the reason (decide, ruled-out, drop, lesson), the evidence (done), what it was used for (use), or the grant's reading (grant); '-' when none
-  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1, where=chat, to=<who>;by=<when> for a promise, or kind=lesson, kind=promise or kind=words on the `done` or `drop` row that closes one
+  extra: string; // key=value pairs joined by ';' with no free text, such as on=<id>;who=owner;replaces=d-4, owed=1, cleared=1, reading=1, where=chat, to=<who>;by=<when> for a promise, or kind=promise on the `done` or `drop` row that closes a promise, and kind=lesson or kind=words on the `drop` row that closes a lesson or a piece of the owner's words
 }
 
 type Op =
@@ -283,7 +283,7 @@ interface PrRow {
 
 - `format=2` is the format the tool writes. Format 2 adds the `grant` keys to `session`, has no `use` key in `extra`, and holds at most one `ok` item. `notes.tsv` belongs to format 1 and format 2 alike. `lessons.tsv`, `promises.tsv` and `words.tsv` belong to format 2 and change no format number: a tool that predates them ignores the files and still reads the store, and a missing file reads as none. The other item caps are not part of the format: a write keeps them, no read counts the rows of `items.tsv` or `notes.tsv`, and a format 2 store holds up to 30 tasks. The same goes for the caps of 8 waits, 15 rules, 8 where items, 5 lessons, 5 promises and 8 owner's words.
 - Every command except `www import`, `www sessions` and `www help` reads or writes only a store in format 2.
-- Every command except `www import`, `www sessions` and `www help` exits 5 on a store with `format=1`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
+- Every command that reads a session's store, except `www import`, `www sessions` and `www help`, exits 5 on a store with `format=1`, and asks for `www import <session>`, which upgrades it in place. The text is in [commands.md](commands.md).
 - `www detach` from a session whose store is format 1 exits 5 and keeps the binding, and `www init <name>` exits 5 when `<name>` holds a format 1 store. `install` and `doctor` read no store, and `hook` reads a store only as [sessions-and-hooks.md](sessions-and-hooks.md) says; a bound session's `www` prints the same text.
 - A command on a store with `format=0-by-hand`, or with no `format` line, exits 5 and asks for `www import <session>`.
 - A command on a store with a newer format than the tool knows exits 5 and asks for an upgrade of the tool, with the command in [commands.md](commands.md).
