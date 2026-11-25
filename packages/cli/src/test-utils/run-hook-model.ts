@@ -70,6 +70,9 @@ export async function runHookModel(
   // the brief commands the main agent started and no end event closed, counted apart from the gate
   let inflight = 0;
 
+  // whether a wipe closed the gate and no whole read or passed call opened it since, kept apart too
+  let isGateClosed = false;
+
   for (const [index, op] of ops.entries()) {
     const label = `op ${String(index)} ${JSON.stringify(op)}`;
     const before = readGateLine(root, `${harness}-${agent.id}`);
@@ -90,12 +93,13 @@ export async function runHookModel(
     problems.push(
       ...checkInvariants(
         op,
-        { before, prior, inflight, state, outcome, root: { harness, root } },
+        { before, prior, inflight, isGateClosed, state, outcome, root: { harness, root } },
         label,
       ),
     );
 
     inflight = countInflight(inflight, op, state.binding);
+    isGateClosed = isClosedAfter(isGateClosed, op, outcome.decision);
   }
 
   return problems;
@@ -319,6 +323,7 @@ interface InvariantInput {
 
   // the brief commands of the main agent in flight before the operation
   readonly inflight: number;
+  readonly isGateClosed: boolean;
   readonly state: ModelState;
   readonly outcome: Outcome;
   readonly root: { readonly harness: Harness; readonly root: string };
@@ -369,10 +374,9 @@ function checkMainCall(
 
   const decision = input.outcome.decision;
   const prior = input.prior;
-  const isClosed = prior.state === 'wiped' || prior.state === 'reading' || prior.state === 'cut';
 
   const failures = [
-    ...(isClosed && input.inflight > 0 && decision !== 'refuse' ? ['invariant 1'] : []),
+    ...(input.isGateClosed && input.inflight > 0 && decision !== 'refuse' ? ['invariant 1'] : []),
     ...(prior.state === 'failed' &&
     (decision !== 'pass+line' || !(after ?? '').includes('state=open'))
       ? ['a failed gate opens with the line once']
@@ -410,4 +414,28 @@ function countInflight(inflight: number, op: HookModelOp, binding: string): numb
 
       return call.payload.startsWith('stop') ? 0 : count;
     }, inflight);
+}
+
+// A SessionStart of the main agent and an attach close the gate; a whole read of the bound
+// session and any other call that passed open it.
+function isClosedAfter(isClosed: boolean, op: HookModelOp, decision: HookDecision): boolean {
+  if (op.kind === 'attach') {
+    return true;
+  }
+
+  if (op.kind !== 'call' || op.from !== 'main') {
+    return isClosed;
+  }
+
+  if (op.payload === 'start') {
+    return true;
+  }
+
+  if (op.payload === 'end-whole') {
+    return false;
+  }
+
+  const isOtherCall = op.payload === 'pre-ls' || op.payload === 'pre-mcp';
+
+  return isOtherCall && decision !== 'refuse' ? false : isClosed;
 }
