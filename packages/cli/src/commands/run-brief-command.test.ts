@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
@@ -236,7 +236,7 @@ test("it prints each write reply of commands.md's examples, figures included, fr
   );
 });
 
-test('it hides the next step when the item in focus changed after now_set, and prints its note whole under the hidden line', async () => {
+test('it hides the next step as reads dirty on the read that finds the change, as changed after it was set on the next, and prints its note whole under the hidden line', async () => {
   const ctx = setupTest();
 
   const repo = await ctx.createRepo();
@@ -270,12 +270,14 @@ test('it hides the next step when the item in focus changed after now_set, and p
     noteWhole: noteLines.map((line) => line.trim()).join(' '),
     noteLineCount: noteLines.length,
     after: lines[start + 6]?.startsWith('    ') ?? false,
-    hiddenAgain: again.stdout.includes(`${lines[start] ?? ''}\n`),
+    hiddenAgain: again.stdout.includes(
+      '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"\n',
+    ),
     fix: [fixed.exitCode, shown.stdout.includes('  next: go on\n')],
   }).toStrictEqual({
     hiddenLine:
       '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"',
-    line: '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"',
+    line: '  next step hidden: wt-dock reads dirty. Run: www now wt-dock "<next step>"',
     noteWhole: note,
     noteLineCount: 5,
     after: false,
@@ -284,7 +286,7 @@ test('it hides the next step when the item in focus changed after now_set, and p
   });
 });
 
-test('it keeps the next step hidden on each read, and shows it after the fix, when now and the change land in the same second', async () => {
+test('it hides the next step as reads dirty, then as changed after it was set, and shows it after the fix, when now and the change land in the same second', async () => {
   const ctx = setupTest();
 
   const repo = await ctx.createRepo();
@@ -304,21 +306,25 @@ test('it keeps the next step hidden on each read, and shows it after the fix, wh
     '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"\n';
 
   expect([
-    detecting.stdout.includes(hiddenLine),
+    detecting.stdout.includes(
+      '  next step hidden: wt-dock reads dirty. Run: www now wt-dock "<next step>"\n',
+    ),
     second.stdout.includes(hiddenLine),
     fixed.exitCode,
     shown.stdout.includes('  next: go on\n'),
   ]).toStrictEqual([true, true, 0, true]);
 });
 
-test('it hides the next step of an item whose check reads MERGED, and names that reading', async () => {
+test('it hides the next step of an item whose check reads OPEN passing at write and MERGED after the step is set, and names that reading', async () => {
   const ctx = setupTest();
 
-  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'MERGED' });
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
   await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
   await ctx.run(['now', 'pr-api-77', 'request review', '--note', 'Wait for the owner']);
+
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'MERGED' });
 
   const brief = await ctx.run([]);
 
@@ -332,7 +338,61 @@ test('it hides the next step of an item whose check reads MERGED, and names that
   ]);
 });
 
-test('it prints the next step of an item with no change and no reading of the four', async () => {
+test.each([['MERGED'], ['CLOSED']])(
+  'it prints the next step of an item whose check read %s at write and reads the same now',
+  async (result) => {
+    const ctx = setupTest();
+
+    seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': result });
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
+    await ctx.run(['now', 'pr-api-77', 'request review']);
+
+    const brief = await ctx.run([]);
+
+    expect(brief.stdout).toInclude('  next: request review\n');
+  },
+);
+
+test('it prints the next step of an item whose check read missing before the step was set', async () => {
+  const ctx = setupTest();
+  const gone = join(ctx.root, 'no-such-folder');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-draw', 'Draw the depth curve', '--path', gone]);
+  await ctx.run(['now', 't-draw', 'Plot the curve']);
+
+  const brief = await ctx.run([]);
+
+  expect(brief.stdout).toInclude('  next: Plot the curve\n');
+});
+
+test('it hides the next step as reads missing on the read that finds a path gone after the step was set, and as changed after it was set on the read after', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-draw', 'Draw the depth curve', '--path', repo.folder]);
+  await ctx.run(['now', 't-draw', 'Plot the curve']);
+
+  rmSync(repo.folder, { recursive: true, force: true });
+
+  const finding = await ctx.run([]);
+  const after = await ctx.run([]);
+
+  expect([
+    finding.stdout.includes(
+      '  next step hidden: t-draw reads missing. Run: www now t-draw "<next step>"\n',
+    ),
+    after.stdout.includes(
+      '  next step hidden: t-draw changed after it was set. Run: www now t-draw "<next step>"\n',
+    ),
+  ]).toStrictEqual([true, true]);
+});
+
+test('it prints the next step of an item with no change', async () => {
   const ctx = setupTest();
 
   seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });

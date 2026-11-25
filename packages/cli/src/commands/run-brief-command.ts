@@ -77,11 +77,9 @@ export async function runBriefCommand(
   };
 }
 
-const hiddenResults: ReadonlySet<string> = new Set(['MERGED', 'CLOSED', 'gone', 'missing']);
-
-// The item in focus changed after `now` was set when the journal holds a changed row for it since,
-// or this read finds a result that differs from the old value. Otherwise its step hides when its
-// check reads one of four results.
+// The next step of the item in focus hides with `changed after it was set` when the journal holds a
+// changed row of the item after its last `now` row, and with `reads <result>` when this read's
+// result differs from the item's last result, or from its result at write when it has no last one.
 async function readHiddenStep(
   store: Store,
   run: CheckRun,
@@ -93,18 +91,11 @@ async function readHiddenStep(
     return { step: null, unread: null };
   }
 
-  const found = run.results.get(item.id);
-  const result = found === undefined || found === 'unchecked' ? item.last : found;
-  const old = item.last ?? item.atWrite;
   const nowSet = store.session.nowSet;
-
-  const isChangedByRead =
-    found !== undefined && found !== 'unchecked' && old !== null && found !== old;
-
   let isChangedInJournal = false;
   let unread: UnreadRows | null = null;
 
-  if (nowSet !== null && !isChangedByRead) {
+  if (nowSet !== null) {
     try {
       const rows = await readJournalRows(
         store.folder,
@@ -121,12 +112,18 @@ async function readHiddenStep(
     }
   }
 
-  if (isChangedByRead || isChangedInJournal) {
+  if (isChangedInJournal) {
     return { step: { kind: 'changed' }, unread };
   }
 
+  const found = run.results.get(item.id);
+  const old = item.last ?? item.atWrite;
+
   return {
-    step: result !== null && hiddenResults.has(result) ? { kind: 'reads', result } : null,
+    step:
+      found !== undefined && found !== 'unchecked' && old !== null && found !== old
+        ? { kind: 'reads', result: found }
+        : null,
     unread,
   };
 }
