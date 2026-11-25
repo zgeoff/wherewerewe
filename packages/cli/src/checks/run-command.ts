@@ -56,6 +56,12 @@ export function runCommand(
   }
 
   return new Promise<CommandResult>((resolve) => {
+    // the interrupt handlers go in before the command starts, so a signal that arrives as it starts
+    // still kills its group; a signal runs the handler only after this block, once kill exists
+    const forgetLive = trackLive(() => {
+      kill();
+    });
+
     // Git before 2.45 cannot switch lazy fetch off, so GIT_ALLOW_PROTOCOL leaves it no transport.
     const child = spawn(path, args, {
       env: readProbeEnv(options.env, probePath, options.cwd),
@@ -96,7 +102,6 @@ export function runCommand(
 
     const timer = setTimeout(kill, options.timeoutMs);
     const forgetKill = options.kills.add(kill);
-    const forgetLive = trackLive(kill);
 
     const forget = (): void => {
       forgetKill();
