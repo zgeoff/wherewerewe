@@ -23,9 +23,9 @@ export interface JsonRedactionCase {
   readonly reads: readonly JsonRedactionRead[];
 }
 
-// Every string field of every shape that a store cell feeds and every store parser accepts, with the
-// reads that print it. The grant's values and a note are not here: a parser refuses a
-// credential in each, as json-redaction.test.ts checks.
+// Each free-text cell of the store that a parser keeps as written, with the reads that print it.
+// The grant's values and a note are not here, since a parser refuses a credential in each, and an
+// id, a ref or a session name holds no space, so format-json-output.test.ts gives each its own row.
 export function buildJsonRedactionCases(): JsonRedactionCase[] {
   return [
     {
@@ -100,6 +100,41 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       ],
     },
     {
+      cell: 'wait check',
+      limit: textLimits.claim,
+      prefix: 'path:/work/ ',
+      isSeparated: false,
+      reads: [
+        brief('open', 1, 'row', 'check'),
+        show('w-a', 'subjects', 0, 'row', 'check'),
+        list('waits', 'rows', 0, 'row', 'check'),
+      ],
+    },
+    {
+      cell: 'wait at write',
+      limit: textLimits.claim,
+      prefix: '',
+      isSeparated: false,
+      reads: [
+        brief('changed', 0, 'was'),
+        brief('open', 1, 'row', 'atWrite'),
+        show('w-a', 'subjects', 0, 'row', 'atWrite'),
+        list('waits', 'rows', 0, 'row', 'atWrite'),
+      ],
+    },
+    {
+      cell: 'rule written',
+      limit: textLimits.claim,
+      prefix: '',
+      isSeparated: false,
+      reads: [
+        brief('open', 3, 'row', 'written'),
+        show('r-a', 'subjects', 0, 'row', 'written'),
+        list('rules', 'rows', 0, 'row', 'written'),
+        recap('notes', 1, 'item', 'row', 'written'),
+      ],
+    },
+    {
       cell: 'approval quote',
       limit: textLimits.quote,
       prefix: '',
@@ -119,6 +154,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
         brief('open', 2, 'row', 'extra', 'who'),
         show('ok-a', 'subjects', 0, 'row', 'extra', 'who'),
         list('approvals', 'rows', 0, 'row', 'extra', 'who'),
+        recap('notes', 2, 'item', 'row', 'extra', 'who'),
       ],
     },
     {
@@ -130,6 +166,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
         brief('open', 2, 'row', 'extra', 'where'),
         show('ok-a', 'subjects', 0, 'row', 'extra', 'where'),
         list('approvals', 'rows', 0, 'row', 'extra', 'where'),
+        recap('notes', 2, 'item', 'row', 'extra', 'where'),
       ],
     },
     {
@@ -141,6 +178,7 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
         brief('open', 2, 'row', 'extra', 'scope'),
         show('ok-a', 'subjects', 0, 'row', 'extra', 'scope'),
         list('approvals', 'rows', 0, 'row', 'extra', 'scope'),
+        recap('notes', 2, 'item', 'row', 'extra', 'scope'),
       ],
     },
     {
@@ -154,6 +192,18 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
         list('rules', 'rows', 0, 'row', 'claim'),
       ],
     },
+    ...['atWrite', 'last'].map((field) => ({
+      cell: field === 'atWrite' ? 'rule at write' : 'rule last',
+      limit: textLimits.claim,
+      prefix: '',
+      isSeparated: false,
+      reads: [
+        brief('open', 3, 'row', field),
+        show('r-a', 'subjects', 0, 'row', field),
+        list('rules', 'rows', 0, 'row', field),
+        recap('notes', 1, 'item', 'row', field),
+      ],
+    })),
     {
       cell: 'where claim',
       limit: textLimits.claim,
@@ -287,12 +337,38 @@ export function buildJsonRedactionCases(): JsonRedactionCase[] {
       isSeparated: false,
       reads: decisionReads('extra'),
     },
+    ...(['text', 'why', 'extra'] as const).map((field) => ({
+      cell: `close ${field}`,
+      limit: field === 'text' ? textLimits.closeText : textLimits.why,
+      prefix: '',
+      isSeparated: false,
+      reads: [log('rows', 2, field), recap('closedSince', 0, field)],
+    })),
+    {
+      cell: 'decision ts',
+      limit: textLimits.claim,
+      prefix: '',
+      isSeparated: true,
+      reads: [
+        brief('decisions', 0, 'ts'),
+        show('d-1', 'subjects', 0, 'row', 'ts'),
+        show('d-1', 'subjects', 0, 'journal', 0, 'ts'),
+        list('decisions', 'rows', 0, 'ts'),
+      ],
+    },
+    {
+      cell: 'close ts',
+      limit: textLimits.claim,
+      prefix: '',
+      isSeparated: true,
+      reads: [log('rows', 2, 'ts')],
+    },
     {
       cell: 'journal op',
       limit: textLimits.idMax,
       prefix: '',
       isSeparated: true,
-      reads: [log('rows', 1, 'op')],
+      reads: [log('rows', 1, 'op'), show('ok-a', 'subjects', 0, 'journal', 0, 'op')],
     },
     {
       cell: 'journal id',

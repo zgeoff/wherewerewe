@@ -22,3 +22,13 @@ test.each([
 
   expect(ctx.collectStringLeaves(row.value)).toStrictEqual([...row.expected]);
 });
+
+test('it collects only the paths of the strings it is told to keep', () => {
+  const ctx = setupTest();
+  const value = { rows: [{ id: 't-a' }, { id: 't-b' }], focus: 't-a' };
+
+  expect(ctx.collectStringLeaves(value, [], (text) => text === 't-a')).toStrictEqual([
+    'rows.[].id',
+    'focus',
+  ]);
+});

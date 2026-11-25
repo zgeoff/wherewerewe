@@ -1,11 +1,12 @@
 import { join } from 'node:path';
-import { journalHeader, prsHeader } from '../store/constants.ts';
+import { journalHeader } from '../store/constants.ts';
 import { formatItemsFile } from '../store/format-items-file.ts';
 import { formatJournalRows } from '../store/format-journal-rows.ts';
 import { formatLessonsFile } from '../store/format-lessons-file.ts';
 import { formatNotesFile } from '../store/format-notes-file.ts';
 import { formatOwnerFile } from '../store/format-owner-file.ts';
 import { formatPromisesFile } from '../store/format-promises-file.ts';
+import { formatPrsFile } from '../store/format-prs-file.ts';
 import { formatSessionFile } from '../store/format-session-file.ts';
 import { formatWordsFile } from '../store/format-words-file.ts';
 import type { Item } from '../types.ts';
@@ -20,35 +21,53 @@ export const plainCells: Readonly<Record<string, string>> = {
   'task blocked by': 'w-z',
   'task pid start': '1700000000',
   note: 'Read the tests first',
+  'wait id': 'w-a',
   'wait claim': 'The staging key',
   'wait who': 'wren',
+  'wait check': 'path:/work/staging-key',
+  'wait at write': 'exists at write',
   'approval quote': 'Merge when CI is green',
   'approval who': 'jo',
   'approval where': 'slack',
   'approval scope': 'in the sailing app',
   'rule claim': 'Show depths in metres',
+  'rule at write': 'clean at write',
+  'rule last': 'gone',
+  'rule written': '2026-03-09T16:20:00Z',
   'where claim': 'The chart API lives in the sailing app',
   goal: 'Ship the tide chart',
   'next step': 'run the tests',
   'owner note': 'Ask before you merge',
+  'owner note on': 't-q',
+  'lesson id': 'l-a',
   'lesson text': 'Reseed the table',
   'lesson why': 'A stale row passed',
+  'promise id': 'p-a',
   'promise what': 'The cost table',
   'promise to': 'sam',
   'promise by': 'Friday',
+  'words id': 'w-b',
   words: 'Keep PRs small',
   'words where': 'chat',
+  'decision id': 'd-1',
+  'decision ts': '2026-03-10T09:05:00Z',
   'decision choice': 'Use UTC',
   'decision why': 'The feed sends UTC',
-  'decision extra': 'on=x-fixed;who=agent',
-  'journal op': 'note',
-  'journal id': 'n-1',
+  'decision extra': 'on=r-a;who=agent',
+  'close id': 't-z',
+  'close ts': '2026-03-10T10:30:00Z',
+  'close text': 'commit 4c1d2e0',
+  'close why': 'the parser ships',
+  'close extra': 'who=agent',
+  'pr ref': 'acme/tide-app#9',
+  'journal op': 'remark',
+  'journal id': 'ok-a',
   'session name': 'tide-alerts',
 };
 
-// Writes the session of the cell `session name` under the root's wherewerewe folder, by hand and
-// with no lock. A write refuses a cell that holds a credential, so the files are made directly.
-// Each cell is its plain text or the one `cells` gives. Returns the session folder.
+// Writes the session of the cell `session name` by hand, a row in every file and a value in every
+// field a --json read prints, each cell its plain text or the one `cells` gives. A write refuses a
+// credential, so the files are made directly. Returns the session folder.
 export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, string>>): string {
   const cell = (name: string): string => cells[name] ?? plainCells[name] ?? '';
   const folder = join(root, 'wherewerewe', cell('session name'));
@@ -68,7 +87,15 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
     format: '2',
     name: cell('session name'),
     goal: cell('goal'),
-    grant: null,
+    grant: {
+      may: ['merge the chart PRs'],
+      not: ['change the API'],
+      never: ['publish a release'],
+      scope: 'within the chart work',
+      where: 'standup',
+      reading: 'covers merges of chart PRs; kept back: releases',
+      set: '2026-03-10T09:30:00Z',
+    },
     started: '2026-03-02T08:04:11Z',
     now: cell('task id'),
     nowNext: cell('next step'),
@@ -92,16 +119,48 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
       check: cell('task check'),
       extra: { blocked_by: cell('task blocked by'), pid_start: cell('task pid start') },
     }),
-    item({ id: 'w-a', kind: 'wait', claim: cell('wait claim'), extra: { who: cell('wait who') } }),
+
+    // the check found the path at write, and this read finds it gone, so the item changed
+    item({
+      id: cell('wait id'),
+      kind: 'wait',
+      claim: cell('wait claim'),
+      check: cell('wait check'),
+      atWrite: cell('wait at write'),
+      last: 'exists',
+      extra: { who: cell('wait who') },
+    }),
     item({ id: 'ok-a', kind: 'ok', claim: cell('approval quote'), extra: approvalExtra }),
-    item({ id: 'r-a', kind: 'rule', claim: cell('rule claim') }),
+    item({
+      id: 'r-a',
+      kind: 'rule',
+      claim: cell('rule claim'),
+      atWrite: cell('rule at write'),
+      last: cell('rule last'),
+      written: cell('rule written'),
+    }),
     item({ id: 'wh-a', kind: 'where', claim: cell('where claim') }),
   ]);
 
   const note = { id: cell('task id'), owed: false, written, note: cell('note') };
 
+  // older notes on the rule and the approval, so the recap prints their cells after the task's
+  const ruleNote = {
+    id: 'r-a',
+    owed: false,
+    written: '2026-03-10T09:00:00Z',
+    note: 'Cite the spec',
+  };
+
+  const approvalNote = {
+    id: 'ok-a',
+    owed: false,
+    written: '2026-03-10T08:00:00Z',
+    note: 'Ask jo first',
+  };
+
   const lesson = {
-    id: 'l-a',
+    id: cell('lesson id'),
     text: cell('lesson text'),
     why: cell('lesson why'),
     written,
@@ -109,7 +168,7 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
   };
 
   const promise = {
-    id: 'p-a',
+    id: cell('promise id'),
     what: cell('promise what'),
     to: cell('promise to'),
     byWhen: cell('promise by'),
@@ -118,7 +177,7 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
   };
 
   const words = {
-    id: 'w-b',
+    id: cell('words id'),
     words: cell('words'),
     where: cell('words where'),
     written,
@@ -126,9 +185,9 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
   };
 
   const decision = {
-    ts: '2026-03-10T09:00:00Z',
+    ts: cell('decision ts'),
     op: 'decide',
-    id: 'd-1',
+    id: cell('decision id'),
     by: 'agent' as const,
     text: cell('decision choice'),
     why: cell('decision why'),
@@ -145,16 +204,44 @@ export function seedJsonCellsStore(root: string, cells: Readonly<Record<string, 
     extra: null,
   };
 
-  const ownerNote = { id: 'o-1', text: cell('owner note'), said: '2026-03-10T09:40:12Z', on: null };
+  const close = {
+    ts: cell('close ts'),
+    op: 'done',
+    id: cell('close id'),
+    by: 'agent' as const,
+    text: cell('close text'),
+    why: cell('close why'),
+    extra: cell('close extra'),
+  };
+
+  const ownerNote = {
+    id: 'o-1',
+    text: cell('owner note'),
+    said: '2026-03-10T09:40:12Z',
+    on: cell('owner note on'),
+  };
+
+  const pullRequest = {
+    ref: cell('pr ref'),
+    opened: '2026-03-10T08:43:00Z',
+    state: 'OPEN' as const,
+    seen: '2026-03-10T09:00:00Z',
+  };
 
   seedStoreFile(folder, 'session', session);
   seedStoreFile(folder, 'items.tsv', items);
-  seedStoreFile(folder, 'notes.tsv', formatNotesFile([note]));
+  seedStoreFile(folder, 'notes.tsv', formatNotesFile([note, ruleNote, approvalNote]));
   seedStoreFile(folder, 'lessons.tsv', formatLessonsFile([lesson]));
   seedStoreFile(folder, 'promises.tsv', formatPromisesFile([promise]));
   seedStoreFile(folder, 'words.tsv', formatWordsFile([words]));
-  seedStoreFile(folder, 'journal.tsv', `${journalHeader}\n${formatJournalRows([decision, other])}`);
-  seedStoreFile(folder, 'prs.tsv', `${prsHeader}\n`);
+
+  seedStoreFile(
+    folder,
+    'journal.tsv',
+    `${journalHeader}\n${formatJournalRows([decision, other, close])}`,
+  );
+
+  seedStoreFile(folder, 'prs.tsv', formatPrsFile([pullRequest]));
   seedStoreFile(folder, 'owner.tsv', formatOwnerFile([ownerNote]));
 
   return folder;

@@ -7,10 +7,14 @@ import { runCLI } from '../run-cli.ts';
 import { formatSessionFile } from '../store/format-session-file.ts';
 import { buildCredentialFieldArbitrary } from '../test-utils/build-credential-field-arbitrary.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
+import { buildJsonCellArgvs } from '../test-utils/build-json-cell-argvs.ts';
 import { buildJsonRedactionCases } from '../test-utils/build-json-redaction-cases.ts';
+import { buildNamedCredentialCells } from '../test-utils/build-named-credential-cells.ts';
 import { buildStoredTextArbitrary } from '../test-utils/build-stored-text-arbitrary.ts';
+import { collectSchemaStringPaths } from '../test-utils/collect-schema-string-paths.ts';
 import { collectStringLeaves } from '../test-utils/collect-string-leaves.ts';
 import { getJsonValue } from '../test-utils/get-json-value.ts';
+import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { runJsonCellRead } from '../test-utils/run-json-cell-read.ts';
 import { plainCells, seedJsonCellsStore } from '../test-utils/seed-json-cells-store.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
@@ -25,14 +29,20 @@ function setupTest() {
     formatJSONOutput,
     sample,
     cases: buildJsonRedactionCases(),
+    argvs: buildJsonCellArgvs(),
+    schemaPaths: (['brief', 'show', 'log', 'list', 'recap'] as const).flatMap((shape) =>
+      collectSchemaStringPaths(jsonSchemas[shape]).map((path) => `${shape}|${path}`),
+    ),
+
+    named: buildNamedCredentialCells(),
 
     // the brief's estimate counts the tokens of its text, which holds the cell too
     withoutEstimate: (stdout: string) => stdout.replace(/"estimate":\d+/u, '"estimate":0'),
 
     // the plain read with each plain text of the cell as the JSON string the cell now prints
-    expectStdout: (plainStdout: string, cell: string, printed: string) =>
+    expectStdout: (plainStdout: string, cell: string, shownText: string) =>
       plainStdout
-        .replaceAll(JSON.stringify(plainCells[cell]), () => JSON.stringify(printed))
+        .replaceAll(JSON.stringify(plainCells[cell]), () => JSON.stringify(shownText))
         .replace(/"estimate":\d+/u, '"estimate":0'),
     readCells: (cells: Readonly<Record<string, string>>, argv: readonly string[]) =>
       runJsonCellRead(root, cells, argv),
@@ -101,73 +111,204 @@ test.each(
   }).toStrictEqual({ exitCode: 0, value: plainCells[row.cell] });
 });
 
-test('it places each string field of each shape in the table, or leaves it out as an id, a time, a kind or a name', async () => {
+test('it prints the plain text of each cell only at the places the table names, so a property can swap it', async () => {
   const ctx = setupTest();
 
-  const argvs = [
-    [],
-    ['show'],
-    ['show', 't-a'],
-    ['show', 'l-a'],
-    ['show', 'p-a'],
-    ['show', 'w-b'],
-    ['show', 'd-1'],
-    ['show', 'w-a'],
-    ['show', 'ok-a'],
-    ['show', 'r-a'],
-    ['show', 'wh-a'],
-    ['log'],
-    ...['tasks', 'waits', 'approvals', 'rules', 'where', 'lessons', 'promises', 'words'].map(
-      (kind) => ['list', kind],
-    ),
-    ...['notes', 'decisions', 'prs'].map((kind) => ['list', kind]),
-    ['recap'],
-  ];
+  const reads = ctx.cases.flatMap((found) =>
+    found.reads
+      .filter(
+        (read, at) =>
+          found.reads.findIndex((other) => other.argv.join(' ') === read.argv.join(' ')) === at,
+      )
+      .map((read) => ({
+        cell: found.cell,
+        argv: read.argv,
+        places: found.reads.filter((other) => other.argv.join(' ') === read.argv.join(' ')).length,
+      })),
+  );
 
-  const printed = await Promise.all(argvs.map((argv) => ctx.readCells({}, argv)));
+  const printed = await Promise.all(
+    reads.map(async (read) => {
+      const result = await ctx.readCells({}, read.argv);
 
-  const leaves = printed.flatMap((read, index) =>
-    collectStringLeaves(JSON.parse(read.stdout)).map(
-      (leaf) => `${(argvs[index] ?? []).slice(0, 1).join('')}|${leaf}`,
+      const places = result.stdout.split(JSON.stringify(plainCells[read.cell])).length - 1;
+
+      return { ...read, places };
+    }),
+  );
+
+  expect(printed).toStrictEqual(reads);
+});
+
+test('it prints a value at every string field of every shape, and a row of every list kind, from the seeded store', async () => {
+  const ctx = setupTest();
+
+  const printed = await Promise.all(
+    ctx.argvs.map(async (read) => {
+      const result = await ctx.readCells({}, read.argv);
+
+      return { read, value: JSON.parse(result.stdout) };
+    }),
+  );
+
+  const observed = new Set(
+    printed.flatMap((entry) =>
+      collectStringLeaves(entry.value).map((leaf) => `${entry.read.shape}|${leaf}`),
     ),
   );
 
-  const tabled = new Set(
-    ctx.cases.flatMap((found) =>
-      found.reads.map((read) => {
-        const leaf = read.path.map((step) => (typeof step === 'number' ? '[]' : step)).join('.');
-
-        return `${read.argv.slice(0, 1).join('')}|${leaf}`;
-      }),
-    ),
-  );
-
-  const grammar = new Set([
-    'id',
-    'kind',
-    'by',
-    'host',
-    'written',
-    'ts',
-    'said',
-    'since',
-    'session',
-    'op',
-    'focus',
-    'note',
-    'last',
-    'checkedNow',
-    '[]',
+  // the type's Shown union allows a lesson, promise or words row, which the brief's open items
+  // and the recap's notes never hold; a failing check's name comes only from gh
+  const unprintable = new Set([
+    ...['text', 'why', 'what', 'to', 'byWhen', 'words', 'where'].flatMap((field) => [
+      `brief|open.[].row.${field}`,
+      `recap|notes.[].item.row.${field}`,
+    ]),
+    'show|subjects.[].failingChecks.[]',
   ]);
 
-  const unplaced = leaves.filter((leaf) => {
-    const [, path = ''] = leaf.split('|');
-    const last = path.split('.').at(-1) ?? '';
+  expect({
+    missing: ctx.schemaPaths.filter((path) => !observed.has(path) && !unprintable.has(path)),
+    emptyLists: printed
+      .filter((entry) => entry.read.shape === 'list')
+      .filter((entry) => JSON.stringify(getJsonValue(entry.value, ['rows'])) === '[]')
+      .map((entry) => entry.read.argv[1]),
+  }).toStrictEqual({ missing: [], emptyLists: [] });
+});
 
-    return !tabled.has(leaf) && !grammar.has(last);
+test('it places every string field of every shape in the table, a named row or a class of its own', async () => {
+  const ctx = setupTest();
+
+  const tabled = ctx.cases.flatMap((found) =>
+    found.reads.map(
+      (read) =>
+        `${read.shape}|${read.path.map((step) => (typeof step === 'number' ? '[]' : step)).join('.')}`,
+    ),
+  );
+
+  const plain = await Promise.all(
+    ctx.argvs.map(async (read) => {
+      const result = await ctx.readCells({}, read.argv);
+
+      return { read, value: JSON.parse(result.stdout) };
+    }),
+  );
+
+  const named = plain.flatMap((entry) =>
+    collectStringLeaves(entry.value, [], (text) =>
+      ctx.named.some((found) => plainCells[found.cell] === text),
+    ).map((leaf) => `${entry.read.shape}|${leaf}`),
+  );
+
+  // a field that no store text reaches as written, or whose text has a test of its own below
+  const ownClasses = [
+    {
+      reason: 'a parser refuses a credential in a grant text or a note, as the rows below show',
+      paths: [
+        ...['brief', 'recap'].flatMap((shape) =>
+          ['may.[]', 'not.[]', 'never.[]', 'scope', 'where', 'reading'].map(
+            (field) => `${shape}|grant.${field}`,
+          ),
+        ),
+        ...['may.[]', 'not.[]', 'never.[]', 'scope', 'reading'].map(
+          (field) => `show|subjects.[].row.${field}`,
+        ),
+        'brief|open.[].note.note',
+        'show|subjects.[].note.note',
+        'list|rows.[].note',
+        'list|rows.[].note.note',
+        'recap|notes.[].item.note.note',
+        'recap|notes.[].note.note',
+      ],
+    },
+    {
+      reason: 'a parser refuses any text that is not an ISO 8601 time, or the tool writes it',
+      paths: [
+        'brief|ownerNotes.[].said',
+        ...['words', 'lessons', 'promises'].map((kind) => `brief|${kind}.[].written`),
+        'brief|open.[].note.written',
+        'brief|prs.[].opened',
+        'brief|prs.[].seen',
+        'show|subjects.[].note.written',
+        'list|rows.[].written',
+        'list|rows.[].note.written',
+        'list|rows.[].opened',
+        'list|rows.[].seen',
+        'recap|since',
+        'recap|promises.[].written',
+        'recap|notes.[].item.note.written',
+        'recap|notes.[].note.written',
+      ],
+    },
+    {
+      reason: 'the recap keeps a journal row only when its ts is a time after since',
+      paths: ['recap|decidedSince.[].ts', 'recap|closedSince.[].ts'],
+    },
+    {
+      reason: 'the owner file refuses an id that is not o-<n>',
+      paths: ['brief|ownerNotes.[].id'],
+    },
+    {
+      reason: 'the read keeps only rows of one op, so it prints that op',
+      paths: [
+        'brief|decisions.[].op',
+        'show|subjects.[].row.op',
+        'list|rows.[].op',
+        'recap|decidedSince.[].op',
+        'recap|closedSince.[].op',
+      ],
+    },
+    {
+      reason: "the probe's own word for what it found",
+      paths: ['brief|changed.[].now', 'show|subjects.[].checkedNow'],
+    },
+    {
+      reason: 'gh gives a failing check its name, as run-show-command.test.ts shows',
+      paths: ['show|subjects.[].failingChecks.[]'],
+    },
+    {
+      reason: "the brief's open items and the recap's notes hold items.tsv rows only",
+      paths: ['text', 'why', 'what', 'to', 'byWhen', 'words', 'where'].flatMap((field) => [
+        `brief|open.[].row.${field}`,
+        `recap|notes.[].item.row.${field}`,
+      ]),
+    },
+  ];
+
+  const placed = new Set([...tabled, ...named, ...ownClasses.flatMap((found) => found.paths)]);
+
+  expect(ctx.schemaPaths.filter((path) => !placed.has(path))).toStrictEqual([]);
+});
+
+test.each(
+  buildNamedCredentialCells().flatMap((found) =>
+    buildJsonCellArgvs().map((read) => ({ cell: found.cell, argv: read.argv })),
+  ),
+)('it prints the placeholder for $cell holding a credential in www $argv --json', async (row) => {
+  const ctx = setupTest();
+  const found = ctx.named.find((entry) => entry.cell === row.cell);
+  const value = found?.value ?? '';
+
+  const plain = await ctx.readCells({}, row.argv);
+
+  const printed = await ctx.readCells(
+    { [row.cell]: value },
+    row.argv.map((word) => (word === plainCells[row.cell] ? value : word)),
+  );
+
+  const windows = Array.from({ length: (found?.tail.length ?? 4) - 3 }, (_unused, index) =>
+    found?.tail.slice(index, index + 4),
+  );
+
+  expect({
+    exitCode: printed.exitCode,
+    stdout: ctx.withoutEstimate(printed.stdout),
+    leaked: windows.some((window) => `${printed.stdout}${printed.stderr}`.includes(window ?? '')),
+  }).toStrictEqual({
+    exitCode: plain.exitCode,
+    stdout: ctx.expectStdout(plain.stdout, row.cell, '<where the secret lives>'),
+    leaked: false,
   });
-
-  expect([...new Set(unplaced)]).toStrictEqual([]);
 });
 
 test.each([
@@ -239,7 +380,7 @@ test.each([
   },
 );
 
-test('it leaves out a note row that holds a credential, and names notes.tsv on stderr', async () => {
+test("it leaves out the task's note row that holds a credential, keeps the other notes, and names notes.tsv on stderr", async () => {
   const ctx = setupTest();
 
   const printed = await Promise.all(
@@ -256,7 +397,15 @@ test('it leaves out a note row that holds a credential, and names notes.tsv on s
   );
 
   expect(printed).toStrictEqual(
-    printed.map(() => ({ exitCode: 0, rows: [], names: true, leaked: false })),
+    printed.map(() => ({
+      exitCode: 0,
+      rows: [
+        { id: 'r-a', owed: false, written: '2026-03-10T09:00:00Z', note: 'Cite the spec' },
+        { id: 'ok-a', owed: false, written: '2026-03-10T08:00:00Z', note: 'Ask jo first' },
+      ],
+      names: true,
+      leaked: false,
+    })),
   );
 });
 
