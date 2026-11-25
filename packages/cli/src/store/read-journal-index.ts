@@ -44,7 +44,10 @@ export async function readJournalIndex(folder: string): Promise<JournalIndex> {
         closed.set(id, ts);
       }
 
-      lastRows[findRowFile(op, readCell(cells[6]))].set(id, { op, text: readCell(cells[4]) });
+      // a row a stopped append cut short is no row: it records no close and replaces no row
+      if (parseJournalLine(line) !== null) {
+        lastRows[findRowFile(op, readCell(cells[6]))].set(id, { op, text: readCell(cells[4]) });
+      }
 
       if (op === 'say') {
         lastOwnerNoteNumber = Math.max(lastOwnerNoteNumber, readNumber(id, 'o') ?? 0);

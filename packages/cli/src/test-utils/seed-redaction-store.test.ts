@@ -31,7 +31,10 @@ test('it seeds a lesson, a promise, the owner words and a decision, each text fr
     journal: rows.map((row) => [row.op, row.id, row.text]),
   }).toStrictEqual({
     lessons: [['l-1', 'Reseed the table', 'why value']],
-    promises: [['p-1', 'The cost table', 'owner', 'Friday']],
+    promises: [
+      ['p-1', 'The cost table', 'owner', 'Friday'],
+      ['p-2', 'The alert fan-out', 'owner', 'day 12'],
+    ],
     words: [['w-1', 'Plain words in every reply', 'chat']],
     journal: expect.arrayContaining([
       ['lesson', 'l-1', 'Reseed the table'],

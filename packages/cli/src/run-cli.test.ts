@@ -20,7 +20,11 @@ import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
 import { buildGrantFaultCases, faultCredential } from './test-utils/build-grant-fault-cases.ts';
 import { buildMockIDs } from './test-utils/build-mock-ids.ts';
 import { buildPrintSites } from './test-utils/build-print-sites.ts';
-import { buildRedactionFields, buildRedactionValues } from './test-utils/build-redaction-fields.ts';
+import {
+  buildRedactionFields,
+  buildRedactionValues,
+  isPlaceholderField,
+} from './test-utils/build-redaction-fields.ts';
 import { buildSampleRunArgv } from './test-utils/build-sample-run-argv.ts';
 import { buildShortOpsValue } from './test-utils/build-short-ops-value.ts';
 import { buildSpacedText } from './test-utils/build-spaced-text.ts';
@@ -3003,7 +3007,7 @@ test('it writes a lesson, a promise and the owner words, reads them in every rea
 });
 
 test.each(
-  [...buildPrintSites(['l-1', 'p-1', 'w-1', 'd-1']).entries()].map(([index, site]) => ({
+  [...buildPrintSites(['l-1', 'p-1', 'p-2', 'w-1', 'd-1']).entries()].map(([index, site]) => ({
     title: site.title,
     argv: site.argv,
     index,
@@ -3012,22 +3016,46 @@ test.each(
   'it prints the stored texts of each kind through $title exactly as it prints a store that holds the placeholder in their place, whole or where the credential sat, and no credential',
   async (site) => {
     const ctx = setupTest();
-    const values = buildRedactionValues(buildRedactionFields(), site.index);
+    const fields = buildRedactionFields();
+
+    const values = buildRedactionValues(
+      fields.filter((field) => isPlaceholderField(field)),
+      site.index,
+    );
+
+    const short = buildRedactionValues(
+      fields.filter((field) => !isPlaceholderField(field)),
+      site.index,
+    );
 
     const leaked = await ctx.runInRedactionStore(values.credentials, site.argv);
     const whole = await ctx.runInRedactionStore(values.placeholders, site.argv);
     const inPlace = await ctx.runInRedactionStore(values.placedPlaceholders, site.argv);
+    const shortLeaked = await ctx.runInRedactionStore(short.credentials, site.argv);
+    const shortMarked = await ctx.runInRedactionStore(short.markers, site.argv);
 
-    const printed = `${leaked.stdout}${leaked.stderr}`;
+    const printed = `${leaked.stdout}${leaked.stderr}${shortLeaked.stdout}${shortLeaked.stderr}`;
+    const shortPrinted = `${shortLeaked.stdout}${shortLeaked.stderr}`;
+    const markedPrinted = `${shortMarked.stdout}${shortMarked.stderr}`;
 
-    const fourGrams = values.tails.flatMap((tail) =>
+    const fourGrams = [...values.tails, ...short.tails].flatMap((tail) =>
       Array.from({ length: tail.length - 3 }, (_value, at) => tail.slice(at, at + 4)),
     );
 
+    // a field of 16 characters cannot hold the placeholder in a store, so its site prints one
+    // placeholder for each time it prints that field's plain value
     expect({
       result: leaked,
       leaks: fourGrams.filter((gram) => printed.includes(gram)),
-    }).toStrictEqual({ result: expect.toBeOneOf([whole, inPlace]), leaks: [] });
+      shortPlaceholders: shortPrinted.split('<where the secret lives>').length - 1,
+    }).toStrictEqual({
+      result: expect.toBeOneOf([whole, inPlace]),
+      leaks: [],
+      shortPlaceholders: Object.values(short.markers).reduce(
+        (count, marker) => count + markedPrinted.split(marker).length - 1,
+        0,
+      ),
+    });
   },
 );
 
@@ -3261,4 +3289,29 @@ test('it refuses every write that names an id two files hold, prints both rows o
     briefHasBoth: [true, true],
     briefStderr: true,
   });
+});
+
+test('it records the drop of a task whose earlier drop row a stopped append cut short, on a line of its own', async () => {
+  const ctx = setupTest();
+  const journal = join(ctx.stateRoot, 'tide-alerts', 'journal.tsv');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-a', 'Write the parser']);
+
+  writeFileSync(
+    journal,
+    `${readFileSync(journal, 'utf8')}2026-03-10T11:43:05Z\tdrop\tt-a\tagent\tWrite the parser`,
+  );
+
+  const dropped = await ctx.run(['drop', 't-a', '--why', 'not needed now']);
+  const logged = await ctx.run(['log', '--op', 'drop', '--id', 't-a']);
+
+  expect({
+    dropped: dropped.exitCode,
+    rows: logged.stdout.split('\n').filter((line) => line.includes('drop      t-a')).length,
+    lastLines: readFileSync(journal, 'utf8')
+      .split('\n')
+      .slice(-3, -1)
+      .map((line) => line.split('\t')[1]),
+  }).toStrictEqual({ dropped: 0, rows: 1, lastLines: ['drop', 'drop'] });
 });
