@@ -76,7 +76,10 @@ test('it passes a release pull request without running the gate', async () => {
   const eventPath = await ctx.writeEvent({
     body: null,
     base: { ref: 'main', repo: { full_name: 'acme/notes' } },
-    head: { ref: 'release-please--branches--main', repo: { full_name: 'acme/notes' } },
+    head: {
+      ref: 'release-please--branches--main--components--@wherewerewe/cli',
+      repo: { full_name: 'acme/notes' },
+    },
     user: { type: 'Bot', login: 'zgeoff-release-please[bot]' },
   });
 

@@ -57,8 +57,9 @@ the build check as well.
 
 ## Cut a release
 
-1. Open the release pull request from the `release-please--branches--main` branch, and wait for its
-   checks to pass.
+1. Open the release pull request from the
+   `release-please--branches--main--components--@wherewerewe/cli` branch, and wait for its checks to
+   pass.
 2. Squash-merge it. The merge starts the run on `main`, which tags the release and starts the run at
    the tag.
 3. Run `gh release view '@wherewerewe/cli@<version>' -R zgeoff/wherewerewe`. Expect four binaries
