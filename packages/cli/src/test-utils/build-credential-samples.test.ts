@@ -19,3 +19,12 @@ test('it builds each tail so that the tail alone is no credential', () => {
 
   expect(tails).toSatisfyAll((match: string | null) => match === null);
 });
+
+test('it builds samples of another tail for each rotation, which each pattern still matches first', () => {
+  const rotated = buildCredentialSamples(3);
+
+  expect({
+    matched: rotated.map((entry) => findCredentialMatch(entry.sample)),
+    shared: rotated.filter((entry, index) => entry.tail === buildCredentialSamples()[index]?.tail),
+  }).toStrictEqual({ matched: rotated.map((entry) => entry.name), shared: [] });
+});

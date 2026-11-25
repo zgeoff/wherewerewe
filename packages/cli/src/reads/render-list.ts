@@ -35,7 +35,7 @@ function match(kind: ListKind, input: BriefInput): string[] {
   if (kind === 'decisions') {
     return [
       `DECISIONS (${String(input.decisions.length)} in force)`,
-      ...input.decisions.map((row) => `  ${row.id}  ${row.choice}`),
+      ...input.decisions.map((row) => `  ${row.id}  ${redactCredential(row.choice)}`),
     ];
   }
 

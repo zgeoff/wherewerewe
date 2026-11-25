@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
@@ -10,8 +10,6 @@ import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
 import { formatLessonsFile } from './store/format-lessons-file.ts';
 import { formatNotesFile } from './store/format-notes-file.ts';
-import { formatPromisesFile } from './store/format-promises-file.ts';
-import { formatWordsFile } from './store/format-words-file.ts';
 import { parseItemsFile } from './store/parse-items-file.ts';
 import { parseJournalFile } from './store/parse-journal-file.ts';
 import { readJournalRows } from './store/read-journal-rows.ts';
@@ -21,15 +19,11 @@ import { buildCredentialSamples } from './test-utils/build-credential-samples.ts
 import { buildFilledRunArgv } from './test-utils/build-filled-run-argv.ts';
 import { buildGrantFaultCases, faultCredential } from './test-utils/build-grant-fault-cases.ts';
 import { buildMockIDs } from './test-utils/build-mock-ids.ts';
-import {
-  buildCutPlacement,
-  buildRedactionPlacements,
-} from './test-utils/build-redaction-placements.ts';
+import { buildPrintSites } from './test-utils/build-print-sites.ts';
+import { buildRedactionFields, buildRedactionValues } from './test-utils/build-redaction-fields.ts';
 import { buildSampleRunArgv } from './test-utils/build-sample-run-argv.ts';
 import { buildShortOpsValue } from './test-utils/build-short-ops-value.ts';
 import { buildSpacedText } from './test-utils/build-spaced-text.ts';
-import { collectBriefSection } from './test-utils/collect-brief-section.ts';
-import { collectPrintRows } from './test-utils/collect-print-rows.ts';
 import { getSteeringWords } from './test-utils/get-steering-words.ts';
 import { readBriefFigure } from './test-utils/read-brief-figure.ts';
 import { readChangedPaths } from './test-utils/read-changed-paths.ts';
@@ -41,6 +35,7 @@ import { seedGitRepo } from './test-utils/seed-git-repo.ts';
 import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
 import { seedLockFile } from './test-utils/seed-lock-file.ts';
+import { seedRedactionStore } from './test-utils/seed-redaction-store.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
 import { seedStubCommand } from './test-utils/seed-stub-command.ts';
 import { seedTasks } from './test-utils/seed-tasks.ts';
@@ -52,6 +47,7 @@ function setupTest() {
   const stateRoot = join(root, 'wherewerewe');
   const agentEnv = { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test' };
   const clock = { nowMs: Date.parse('2026-03-10T11:43:00Z') };
+  const fixedMs = clock.nowMs;
 
   return {
     root,
@@ -77,6 +73,35 @@ function setupTest() {
         },
       }),
     readTree: () => readTreeHashes(stateRoot),
+
+    // a store of its own under the test's folder, with the lesson, promise, owner's words and
+    // decision of seedRedactionStore, then one command, all at one time
+    runInRedactionStore: async (
+      values: Readonly<Record<string, string>>,
+      argv: readonly string[],
+    ) => {
+      const storeRoot = mkdtempSync(join(root, 'store-'));
+
+      const env = {
+        HOME: storeRoot,
+        XDG_STATE_HOME: storeRoot,
+        CLAUDE_CODE_SESSION_ID: 'a1b2-test',
+      };
+
+      const terminal = { stdin: false, stdout: false };
+
+      await runCLI({
+        argv: ['init', 'tide-alerts', '--goal', 'Ship it'],
+        env,
+        cwd: '/work',
+        terminal,
+        now: () => fixedMs,
+      });
+
+      await seedRedactionStore(join(storeRoot, 'wherewerewe', 'tide-alerts'), values);
+
+      return runCLI({ argv, env, cwd: '/work', terminal, now: () => fixedMs });
+    },
     pickGrantLines: (stdout: string) =>
       stdout.split('\n').filter((line) => /^ {2}(?:may|not|never) /u.test(line)),
     advance: (durationMs: number) => {
@@ -2977,198 +3002,53 @@ test('it writes a lesson, a promise and the owner words, reads them in every rea
   });
 });
 
-test.each(buildCredentialSamples().map((sample) => [sample.name, sample] as const))(
-  'it prints a %s credential stored in a lesson, a promise, the owner words and a decision as the placeholder at each print site on its own: the brief sections, list, show, log and recap',
-  async (_name, credential) => {
+test.each(
+  [...buildPrintSites(['l-1', 'p-1', 'w-1', 'd-1']).entries()].map(([index, site]) => ({
+    title: site.title,
+    argv: site.argv,
+    index,
+  })),
+)(
+  'it prints the stored texts of each kind through $title exactly as it prints a store that holds the placeholder in their place, whole or where the credential sat, and no credential',
+  async (site) => {
     const ctx = setupTest();
-    const folder = join(ctx.stateRoot, 'tide-alerts');
+    const values = buildRedactionValues(buildRedactionFields(), site.index);
 
-    const placements = buildRedactionPlacements().map((placement) =>
-      placement.build(credential.sample),
+    const leaked = await ctx.runInRedactionStore(values.credentials, site.argv);
+    const whole = await ctx.runInRedactionStore(values.placeholders, site.argv);
+    const inPlace = await ctx.runInRedactionStore(values.placedPlaceholders, site.argv);
+
+    const printed = `${leaked.stdout}${leaked.stderr}`;
+
+    const fourGrams = values.tails.flatMap((tail) =>
+      Array.from({ length: tail.length - 3 }, (_value, at) => tail.slice(at, at + 4)),
     );
 
-    const written = '2026-03-09T09:00:00Z';
+    expect({
+      result: leaked,
+      leaks: fourGrams.filter((gram) => printed.includes(gram)),
+    }).toStrictEqual({ result: expect.toBeOneOf([whole, inPlace]), leaks: [] });
+  },
+);
 
-    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+test.each(buildRedactionFields())(
+  'it prints the $name field as one placeholder in www show of its row, and no credential, when only that field holds one',
+  async (field) => {
+    const ctx = setupTest();
+    const values = buildRedactionValues([field], 0);
 
-    seedStoreFile(
-      folder,
-      'lessons.tsv',
-      formatLessonsFile(
-        placements.map((text, index) => ({
-          id: `l-${String(index + 1)}`,
-          text,
-          why: text,
-          written,
-          by: 'agent' as const,
-        })),
+    const shown = await ctx.runInRedactionStore(values.credentials, ['show', field.id]);
+
+    const printed = `${shown.stdout}${shown.stderr}`;
+    const tail = values.tails[0] ?? '';
+
+    expect({
+      exitCode: shown.exitCode,
+      placeholders: printed.split('<where the secret lives>').length - 1,
+      leaks: Array.from({ length: tail.length - 3 }, (_value, at) => tail.slice(at, at + 4)).filter(
+        (gram) => printed.includes(gram),
       ),
-    );
-
-    seedStoreFile(
-      folder,
-      'promises.tsv',
-      formatPromisesFile(
-        placements.map((text, index) => ({
-          id: `p-${String(index + 1)}`,
-          what: text,
-          to: 'owner',
-          byWhen: 'day 10',
-          written,
-          by: 'agent' as const,
-        })),
-      ),
-    );
-
-    seedStoreFile(
-      folder,
-      'words.tsv',
-      formatWordsFile(
-        placements.map((text, index) => ({
-          id: `w-${String(index + 1)}`,
-          words: text,
-          where: 'chat',
-          written,
-          by: 'owner' as const,
-        })),
-      ),
-    );
-
-    await seedJournalRow(folder, {
-      ts: written,
-      op: 'decide',
-      id: 'd-4',
-      text: buildCutPlacement(credential.sample),
-      why: 'a reason',
-      extra: 'who=agent',
-    });
-
-    for (const [index, text] of placements.entries()) {
-      const number = String(index + 1);
-
-      await seedJournalRow(folder, {
-        ts: written,
-        op: 'decide',
-        id: `d-${number}`,
-        text,
-        why: text,
-        extra: 'who=agent',
-      });
-
-      await seedJournalRow(folder, {
-        ts: written,
-        op: 'lesson',
-        id: `l-${number}`,
-        text,
-        why: text,
-      });
-
-      await seedJournalRow(folder, {
-        ts: written,
-        op: 'promise',
-        id: `p-${number}`,
-        text,
-        extra: 'to=owner;by=day 10',
-      });
-
-      await seedJournalRow(folder, {
-        ts: written,
-        op: 'words',
-        id: `w-${number}`,
-        text,
-        extra: 'where=chat',
-      });
-    }
-
-    const indented = /^ {2}(?!and )\S/u;
-    const dayRow = /^day /u;
-    const decisionRow = /^(?!DECISIONS)\S/u;
-
-    const reads = [
-      { site: 'the WORDS rows of the brief', argv: [], heading: 'WORDS (', start: indented },
-      { site: 'the PROMISED rows of the brief', argv: [], heading: 'PROMISED (', start: indented },
-      { site: 'the LESSONS rows of the brief', argv: [], heading: 'LESSONS (', start: indented },
-      {
-        site: 'the DECISIONS rows of the brief',
-        argv: [],
-        heading: 'DECISIONS (',
-        start: indented,
-      },
-      { site: 'list lessons', argv: ['list', 'lessons'], heading: '', start: indented },
-      { site: 'list promises', argv: ['list', 'promises'], heading: '', start: indented },
-      { site: 'list words', argv: ['list', 'words'], heading: '', start: indented },
-      { site: 'list decisions', argv: ['list', 'decisions'], heading: '', start: decisionRow },
-      { site: 'show of a lesson', argv: ['show', 'l-1'], heading: '', start: null },
-      { site: 'show of a lesson across the wrap', argv: ['show', 'l-2'], heading: '', start: null },
-      { site: 'show of a promise', argv: ['show', 'p-3'], heading: '', start: null },
-      { site: 'show of owner words', argv: ['show', 'w-2'], heading: '', start: null },
-      { site: 'show of a decision', argv: ['show', 'd-2'], heading: '', start: null },
-      {
-        site: 'show of a decision across the cut',
-        argv: ['show', 'd-4'],
-        heading: '',
-        start: null,
-      },
-      { site: 'log of lesson rows', argv: ['log', '--op', 'lesson'], heading: '', start: dayRow },
-      { site: 'log of promise rows', argv: ['log', '--op', 'promise'], heading: '', start: dayRow },
-      { site: 'log of words rows', argv: ['log', '--op', 'words'], heading: '', start: dayRow },
-      { site: 'log of decide rows', argv: ['log', '--op', 'decide'], heading: '', start: dayRow },
-      {
-        site: 'the PROMISED rows of the recap',
-        argv: ['recap'],
-        heading: 'PROMISED (',
-        start: indented,
-      },
-    ];
-
-    const fourGrams = Array.from({ length: credential.tail.length - 3 }, (_value, at) =>
-      credential.tail.slice(at, at + 4),
-    );
-
-    const results = [];
-
-    for (const read of reads) {
-      const output = await ctx.run(read.argv);
-
-      const text =
-        read.heading === ''
-          ? `${output.stdout}${output.stderr}`
-          : collectBriefSection(output.stdout, read.heading).join('\n');
-
-      results.push({
-        site: read.site,
-        exitCode: output.exitCode,
-        rows: collectPrintRows(text, read.start).map((row) => ({
-          hasPlaceholder: row.includes('<where the secret lives>'),
-          leaks: fourGrams.filter((gram) => row.includes(gram)),
-        })),
-      });
-    }
-
-    // The recap cuts a line at 100 characters after it redacts, so its second promise, whose
-    // redacted text starts at column 94, ends inside the placeholder.
-    const rowCounts: Readonly<Record<string, number>> = {
-      'the DECISIONS rows of the brief': 3,
-      'list decisions': 4,
-      'log of decide rows': 4,
-      'show of a lesson': 1,
-      'show of a lesson across the wrap': 1,
-      'show of a promise': 1,
-      'show of owner words': 1,
-      'show of a decision': 1,
-      'show of a decision across the cut': 1,
-    };
-
-    expect(results).toStrictEqual(
-      reads.map((read) => ({
-        site: read.site,
-        exitCode: 0,
-        rows: Array.from({ length: rowCounts[read.site] ?? 3 }, (_row, index) => ({
-          hasPlaceholder: !(read.argv[0] === 'recap' && index === 1),
-          leaks: [],
-        })),
-      })),
-    );
+    }).toStrictEqual({ exitCode: 0, placeholders: 1, leaks: [] });
   },
 );
 
