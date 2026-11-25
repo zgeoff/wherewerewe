@@ -22,15 +22,15 @@ or under `~/.local/state/wherewerewe/` when that is unset. `session` holds the g
 one line per bullet, and the item in focus, `items.tsv` the open items, `notes.tsv` one row for each
 open item that has a note, `owner.tsv` the owner's notes that still show, `lessons.tsv`,
 `promises.tsv` and `words.tsv` the open lessons, promises and pieces of the owner's words, and
-`journal.tsv` every write. A missing one of the three reads as no rows. `init` and `import` create
-`owner.tsv`, and only `say` and `ack` rewrite it. A note write and the close of an item with a note
-rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A session never reuses a closed
-id: a write reads from the journal the ids that `done`, `drop` and `use` closed, the decision
-numbers, who made each decision and, for `say`, the highest note number among its `say` rows, and
-nothing else from the journal. The store is format 2. Every command except `import`, `sessions` and
-`help` exits 5 on a format 1 store, and `www import` upgrades it in place: it keeps the format 1
-files in `format-1-backup/`, writes `session` last, and reads the backup on a rerun. See
-[the store design](../design/wherewerewe/store.md) for the formats.
+`journal.tsv` every write. A missing `lessons.tsv`, `promises.tsv` or `words.tsv` reads as no rows.
+`init` and `import` create `owner.tsv`, and only `say` and `ack` rewrite it. A note write and the
+close of an item with a note rewrite `notes.tsv`, and a missing `notes.tsv` reads as no notes. A
+session never reuses a closed id: a write reads from the journal the ids that `done`, `drop` and
+`use` closed, the decision numbers, who made each decision and, for `say`, the highest note number
+among its `say` rows, and nothing else from the journal. The store is format 2. Every command except
+`import`, `sessions` and `help` exits 5 on a format 1 store, and `www import` upgrades it in place:
+it keeps the format 1 files in `format-1-backup/`, writes `session` last, and reads the backup on a
+rerun. See [the store design](../design/wherewerewe/store.md) for the formats.
 
 A write takes the folder's `lock` file, appends its journal rows, rewrites `items.tsv`, `notes.tsv`
 and `session` through a temporary file and a rename, and removes the lock, and a write that changes
@@ -193,8 +193,8 @@ known host, given as 8,000, 10,000 and 20,000 estimated tokens of 3 bytes each. 
 limit drops rows one at a time in a fixed cut order. Each section that lost rows ends with a line
 that counts them and names the `www list` command that prints every row of its kind. `OPEN` ends
 with its count line instead, which names `www show`, and `DECISIONS` can end with both its own count
-line and its cut line. It never cuts the header, the goal, the grant, the owner's notes, the changed
-rows, the item in focus with its step and note, or the footer.
+line and its cut line. The brief never cuts the header, the goal, the grant, the owner's notes, the
+changed rows, the item in focus with its step and note, or the footer.
 
 The host comes from the reader's environment, `CLAUDE_CODE_SESSION_ID` for Claude Code and
 `CODEX_SESSION_ID` or `CODEX_THREAD_ID` for Codex, never from the store. The open tasks print in the

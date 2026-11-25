@@ -183,7 +183,7 @@ So the ASCII worst case cuts nothing on any host, and Claude Code's room is the 
 
 ### The cut order
 
-When the brief is over its limit, the renderer drops one row at a time, from the first rank to go that still has a row, renders again, and stops as soon as the brief fits; it reaches the next rank only when the one before has no row left. Within a rank, rows go from the end of their section's order, and a task row goes from the end of the order in which `OPEN` lists tasks, never the item in focus. `OPEN`'s fill is this rule applied to rank 9.
+When the brief is over its limit, the renderer drops one row at a time, from the first rank to go that still has a row, renders again, and stops as soon as the brief fits. Within a rank, rows go from the end of their section's order, and a task row goes from the end of the order in which `OPEN` lists tasks, never the item in focus. `OPEN`'s fill is this rule applied to rank 9.
 
 | Rank          | Lines                                                                                     | Why                                                                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
