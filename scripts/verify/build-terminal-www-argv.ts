@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { cliPath } from './build-www-argv.ts';
+import { buildRunFolderStart, cliPath } from './build-www-argv.ts';
 
 // The argv of a terminal program: the real www in the run's folder, with the five agent variables
 // and WHEREWEREWE_SESSION unset. The driver adds a program's env to the supervisor's, so only env -u
@@ -10,6 +10,7 @@ export function buildTerminalWWWArgv(
   set: Readonly<Record<string, string>>,
 ): readonly string[] {
   return [
+    ...buildRunFolderStart(stateRoot),
     'env',
     '-u',
     'CLAUDECODE',

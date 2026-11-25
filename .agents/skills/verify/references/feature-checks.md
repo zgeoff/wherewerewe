@@ -17,6 +17,10 @@ bun verify www run --line 'www init trial-checks --goal "Ship the dock map in th
 bun verify www make-path --name dock-map
 bun verify www run --line 'www --session trial-checks where wt-dock "dock map worktree, branch dock-map" --path {run}/paths/dock-map' --expect 'wt-dock  where, open, checked now: clean.'
 bun verify www run --host codex --line 'www --session trial-checks' --expect '  wt-dock     dock map worktree, branch dock-map  [clean]'
+bun verify www make-filter-repo --name tide-repo
+bun verify www run --line 'www --session trial-checks where wt-tide "tide chart repo, file chart.txt" --path {run}/paths/tide-repo/chart.txt' --expect 'wt-tide  where, open, checked now: clean.'
+bun verify www run --host codex --line 'www --session trial-checks' --expect '  wt-tide     tide chart repo, file chart.txt  [clean]'
+bun verify www expect-missing --path {run}/paths/tide-repo-ran
 bun verify www remove-path --name dock-map
 bun verify www run --host codex --line 'www --session trial-checks' --expect 'CHANGED SINCE WRITTEN (1) · these claims are no longer true'
 bun verify www run --host claude --line 'www --session trial-checks' --expect ' · now missing · run: www drop wt-dock --why "path missing, seen by check"'
@@ -29,7 +33,9 @@ bun verify www run --host codex --line 'www --session trial-checks' --expect 'NO
 
 - Each `bun verify www run` exits 0, and its `data.stdout` holds the `--expect` text. The path reads
   `clean` at the write and in the brief. Once the path is gone, the brief prints the `CHANGED` row
-  with the fix command, the `log` keeps the `changed` row, and the fix command closes the item.
+  with the fix command, the `log` keeps the `changed` row, and the fix command closes the item. The
+  filter repo's file reads `clean`, and the filter repo's marker never appears: no check runs the
+  filter that the repo's own config names.
 - The run's folder sits under `.wringer/`, which `.gitignore` lists, so the path check's
   `git status` prints nothing and the path reads `clean`.
 - The journey adds `--session trial-checks` to the fix command, because a journey runs with no

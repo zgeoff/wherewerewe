@@ -50,6 +50,7 @@ Read a feature's file before you run its journey.
 | tasks       | Open 20 tasks, read them in the brief under each host, and list every open task with `www show`                       | [references/feature-tasks.md](references/feature-tasks.md)             |
 | checks      | Write an item with a --path check, remove the path, read the CHANGED row, and run the fix command it prints           | [references/feature-checks.md](references/feature-checks.md)           |
 | new-kinds   | Write a lesson, a promise and the owner's words, read them in the brief and the recap, list the rules, and close each | [references/feature-new-kinds.md](references/feature-new-kinds.md)     |
+| json        | Read the brief and a list as JSON, and print the grant as a /goal text                                                | [references/feature-json.md](references/feature-json.md)               |
 
 <!-- /wringer:features -->
 

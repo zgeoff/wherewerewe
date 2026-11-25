@@ -25,7 +25,16 @@ export type RefusalReason =
       readonly taken: readonly string[];
       readonly line: string;
     }
-  | { readonly kind: 'wrong-positionals'; readonly command: string; readonly usage: string }
+  | { readonly kind: 'goal-paste-with-text' }
+  | { readonly kind: 'no-grant-to-print'; readonly name: string }
+  | {
+      readonly kind: 'wrong-positionals';
+      readonly command: string;
+      readonly usage: string;
+
+      // the command's help line after `www`
+      readonly line: string;
+    }
   | {
       readonly kind: 'text-too-long';
       readonly args: ParsedArgs;

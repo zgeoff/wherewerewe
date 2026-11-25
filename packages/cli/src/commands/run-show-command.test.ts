@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { runCLI } from '../run-cli.ts';
+import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
+import { getJsonValue } from '../test-utils/get-json-value.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
@@ -113,4 +115,35 @@ test('it lists every open task with its saved result and probes nothing', async 
     true,
     false,
   ]);
+});
+
+test('it prints the placeholder for the name gh gives a failing check that holds a credential, in the text and the JSON', async () => {
+  const ctx = setupTest();
+  const credential = buildCredentialSamples()[0] ?? { sample: '', tail: '' };
+
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'OPEN pending' });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
+
+  seedStubCommand(
+    ctx.bin,
+    'gh',
+    `printf '%s' '{"state":"OPEN","statusCheckRollup":[{"name":"${credential.sample}","status":"COMPLETED","conclusion":"FAILURE"}]}'`,
+  );
+
+  const text = await ctx.run(['show', 'pr-api-77']);
+  const json = await ctx.run(['show', 'pr-api-77', '--json']);
+
+  expect({
+    line: text.stdout.split('\n').find((line) => line.startsWith('  checked now')),
+    failing: getJsonValue(JSON.parse(json.stdout), ['subjects', 0, 'failingChecks']),
+    leaked: [text, json].some((printed) =>
+      `${printed.stdout}${printed.stderr}`.includes(credential.tail),
+    ),
+  }).toStrictEqual({
+    line: '  checked now: OPEN failing (<where the secret lives>) · at write: OPEN pending',
+    failing: ['<where the secret lives>'],
+    leaked: false,
+  });
 });

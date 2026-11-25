@@ -9,12 +9,22 @@ import { toPrintedWords } from './to-printed-words.ts';
 
 export interface RefusalScope {
   readonly sessionFlag: string | null;
+
+  // whether the refused command writes, so its last Run line says that nothing was written
+  readonly writes: boolean;
 }
 
-// Prints the refusal's lines, then each run as `Run: <line>`, each line ending in a newline. Every
+export const nothingWrittenComment = '  # nothing was written';
+
+// Prints the refusal's lines, then each run as `Run: <line>`, each line ending in a newline. The last
+// Run line of a refused write ends with a shell comment that says nothing was written. Every
 // word of a Run line is quoted, so each Run line is one output line whatever its words hold.
 export function formatRefusal(refusal: Refusal, scope: RefusalScope): string {
-  const runs = refusal.runs.map((run) => `Run: ${formatRun(run, scope)}`);
+  const runs = refusal.runs.map((run, at) => {
+    const comment = scope.writes && at === refusal.runs.length - 1 ? nothingWrittenComment : '';
+
+    return `Run: ${formatRun(run, scope)}${comment}`;
+  });
 
   return [...refusal.lines, ...runs].map((line) => `${line}\n`).join('');
 }

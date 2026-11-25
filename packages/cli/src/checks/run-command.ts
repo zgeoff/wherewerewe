@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { buildProbeEnv } from './build-probe-env.ts';
+import { readProbePath } from './read-probe-path.ts';
 import type { CommandResult } from './types.ts';
 
 // Stops each command a read started: its whole process group, so a child it started dies too.
@@ -27,8 +29,11 @@ export function createKillSet(): KillSet {
 }
 
 export interface RunCommandOptions {
-  // gh and git are found on its PATH, never on the PATH of this process
+  // gh and git are found on its PATH, never on the PATH of this process, and get only some of it
   readonly env: Readonly<Record<string, string | undefined>>;
+
+  // the folder the command was typed in, whose PATH entries a probe never uses
+  readonly cwd: string;
   readonly timeoutMs: number;
   readonly kills: KillSet;
 }
@@ -41,7 +46,8 @@ export function runCommand(
   options: RunCommandOptions,
 ): Promise<CommandResult> {
   const [name, ...args] = argv;
-  const path = Bun.which(name, { PATH: options.env['PATH'] ?? '' });
+  const probePath = readProbePath(options.env['PATH'] ?? '', options.cwd);
+  const path = Bun.which(name, { PATH: probePath });
 
   if (path === null) {
     return Promise.resolve({ kind: 'missing' });
@@ -50,13 +56,7 @@ export function runCommand(
   return new Promise<CommandResult>((resolve) => {
     // Git before 2.45 cannot switch lazy fetch off, so GIT_ALLOW_PROTOCOL leaves it no transport.
     const child = spawn(path, args, {
-      env: {
-        ...options.env,
-        GH_PROMPT_DISABLED: '1',
-        GIT_TERMINAL_PROMPT: '0',
-        GIT_ALLOW_PROTOCOL: 'none',
-        LC_ALL: 'C',
-      },
+      env: buildProbeEnv(options.env, probePath),
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: true,
     });

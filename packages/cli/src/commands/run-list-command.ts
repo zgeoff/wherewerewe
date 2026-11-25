@@ -1,7 +1,9 @@
 import { buildReplyBriefInput } from '../brief/build-reply-brief-input.ts';
+import { buildListJSON } from '../json/build-list-json.ts';
+import { formatJSONOutput } from '../json/format-json-output.ts';
 import { renderList } from '../reads/render-list.ts';
 import type { ListKind } from '../rules/list-kinds.ts';
-import type { CLIResult, Store, UnreadRows } from '../types.ts';
+import type { CommandResult, Store, UnreadRows } from '../types.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
 import { readDecisions } from './read-decisions.ts';
 import type { CommandContext } from './types.ts';
@@ -13,7 +15,7 @@ export async function runListCommand(
   kind: ListKind,
   context: CommandContext,
   unread: UnreadRows | null,
-): Promise<CLIResult> {
+): Promise<CommandResult> {
   const decided = kind === 'decisions' ? await readDecisions(store.folder) : null;
 
   const input = buildReplyBriefInput(store, {
@@ -23,22 +25,35 @@ export async function runListCommand(
     decisions: decided?.decisions ?? [],
   });
 
-  return {
-    exitCode: 0,
-    stdout: renderList(kind, input),
-    stderr: [
-      unread,
-      store.notesUnread,
-      store.ownerUnread,
-      store.prsUnread,
-      store.lessonsUnread,
-      store.promisesUnread,
-      store.wordsUnread,
-      decided?.unread ?? null,
-    ]
-      .flatMap((rows) =>
-        rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'This read')],
-      )
-      .join(''),
-  };
+  const stderr = [
+    unread,
+    store.notesUnread,
+    store.ownerUnread,
+    store.prsUnread,
+    store.lessonsUnread,
+    store.promisesUnread,
+    store.wordsUnread,
+    decided?.unread ?? null,
+  ]
+    .flatMap((rows) =>
+      rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'This read')],
+    )
+    .join('');
+
+  if (context.args.values.json === true) {
+    return {
+      exitCode: 0,
+      stdout: formatJSONOutput(
+        buildListJSON(kind, {
+          brief: input,
+          prs: store.prs,
+          decisionRows: decided?.rows ?? [],
+        }),
+      ),
+      stderr,
+      stdoutFormat: 'json',
+    };
+  }
+
+  return { exitCode: 0, stdout: renderList(kind, input), stderr, stdoutFormat: 'text' };
 }

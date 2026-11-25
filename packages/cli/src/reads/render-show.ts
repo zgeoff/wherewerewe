@@ -7,12 +7,12 @@ import { findExtraValue } from '../rules/find-extra-value.ts';
 import { formatGrantText } from '../rules/format-grant-text.ts';
 import { getKindWord } from '../rules/get-kind-word.ts';
 import { redactCredential } from '../rules/redact-credential.ts';
-import { redactJoinedCredentials } from '../rules/redact-joined-credentials.ts';
 import type { Item, JournalRow, LessonRow, PromiseRow, Store, WordsRow } from '../types.ts';
 import { collectOpenIDs } from '../writes/collect-id-holders.ts';
 import { cutRedactedLine } from './cut-redacted-line.ts';
+import { formatFailingNames } from './format-failing-names.ts';
 
-interface CheckNow {
+export interface CheckNow {
   readonly result: string;
 
   // the names of the checks that failed, from GitHub, after `OPEN failing`
@@ -204,22 +204,9 @@ function formatApprovalLine(item: Item): string {
   return `  given by ${who} in ${where} · scope: ${scope}`;
 }
 
-// Characters that print as a space or as nothing. The names come from outside the store, so each
-// credential that such a character splits is redacted on the raw name, before the characters
-// become spaces. The line then passes the redaction and the 100 character cut again.
-const outsideSeparator = /[\s\p{Cc}\p{Cf}]/u;
-
 function formatCheckNowLine(checkNow: CheckNow | null, item: Item): string {
   const now = checkNow ?? { result: 'unchecked', failing: [] };
-
-  const names = now.failing
-    .map((name) =>
-      redactJoinedCredentials(name, outsideSeparator)
-        .replaceAll(/[\s\p{Cc}\p{Cf}]/gu, ' ')
-        .trim(),
-    )
-    .filter((name) => name !== '');
-
+  const names = formatFailingNames(now.failing);
   const failing = now.result === 'OPEN failing' && names.length > 0 ? ` (${names.join(', ')})` : '';
 
   return cutRedactedLine(

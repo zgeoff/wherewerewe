@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { buildOwnerPrograms } from './build-owner-programs.ts';
 import { buildWWWArgv } from './build-www-argv.ts';
 import { checkWWWHelp } from './check-www-help.ts';
+import { createFilterRepo } from './create-filter-repo.ts';
 import { fillRunFolder } from './fill-run-folder.ts';
 import { makePath } from './make-path.ts';
 import { readStateRoot } from './read-state-root.ts';
@@ -110,6 +111,30 @@ export function createVerifyRegistry(): Wringer {
       data: z.strictObject({ folder: z.string() }),
       run: (args, ctx) =>
         Promise.resolve({ folder: makePath(readStateRoot(ctx.endpoints), args.name) }),
+    })
+    .command({
+      path: ['www', 'make-filter-repo'],
+      summary:
+        'Make <run>/paths/<name> a git repo whose own filter creates <run>/paths/<name>-ran when it runs',
+      args: z.strictObject({ name: z.string() }),
+      data: z.strictObject({ folder: z.string() }),
+      run: (args, ctx) =>
+        Promise.resolve({ folder: createFilterRepo(readStateRoot(ctx.endpoints), args.name) }),
+    })
+    .command({
+      path: ['www', 'expect-missing'],
+      summary: 'Check that --path does not exist; {run} in it is the run folder',
+      args: z.strictObject({ path: z.string() }),
+      data: z.strictObject({ path: z.string() }),
+      run: (args, ctx) => {
+        const path = fillRunFolder(args.path, readStateRoot(ctx.endpoints));
+
+        if (existsSync(path)) {
+          return Promise.reject(new WringerError('check-failed', { message: `${path} exists` }));
+        }
+
+        return Promise.resolve({ path });
+      },
     })
     .command({
       path: ['www', 'remove-path'],
@@ -242,6 +267,11 @@ export function createVerifyRegistry(): Wringer {
       name: 'new-kinds',
       summary:
         "Write a lesson, a promise and the owner's words, read them in the brief and the recap, list the rules, and close each",
+      paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
+    })
+    .feature({
+      name: 'json',
+      summary: 'Read the brief and a list as JSON, and print the grant as a /goal text',
       paths: ['packages/cli/src/**', 'packages/cli/package.json', 'packages/cli/tsconfig.json'],
     })
     .shared(

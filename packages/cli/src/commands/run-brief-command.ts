@@ -5,14 +5,18 @@ import { renderBrief } from '../brief/render-brief.ts';
 import type { BriefInput } from '../brief/types.ts';
 import { checkLimits } from '../checks/check-limits.ts';
 import { pickCheckSave } from '../checks/pick-check-save.ts';
+import { pickSavedStore } from '../checks/pick-saved-store.ts';
 import { runChecks } from '../checks/run-checks.ts';
 import type { CheckRun } from '../checks/types.ts';
 import { formatTimestamp } from '../format-timestamp.ts';
+import { buildBriefJSON } from '../json/build-brief-json.ts';
+import { formatJSONOutput } from '../json/format-json-output.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
 import { readStore } from '../store/read-store.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { writeCheckFiles } from '../store/write-check-files.ts';
-import type { CLIResult, JournalRow, Store, UnreadRows } from '../types.ts';
+import type { CommandResult, JournalRow, Store, UnreadRows } from '../types.ts';
+import { buildBriefFigure } from '../writes/read-brief-figure.ts';
 import { formatUnreadNote } from './format-unread-note.ts';
 import { readDecisions } from './read-decisions.ts';
 import type { CommandContext } from './types.ts';
@@ -25,7 +29,7 @@ export async function runBriefCommand(
   context: CommandContext,
   unread: UnreadRows | null,
   host: 'claude' | 'codex' | null,
-): Promise<CLIResult> {
+): Promise<CommandResult> {
   const decided = await readDecisions(store.folder);
 
   const briefContext = {
@@ -47,41 +51,64 @@ export async function runBriefCommand(
   const run = await runChecks(order, store.items, store.prs, {
     deadlineMs: checkLimits.deadlineMs,
     env: context.env,
+    cwd: context.cwd,
     now: context.now,
   });
 
   const hidden = await readHiddenStep(store, run);
 
   const saved = unread === null ? await writeCheckResults(store, run, context.nowMs) : null;
+  const input = buildReadBriefInput(store, { run, hidden: hidden.step, saved }, briefContext);
+
+  const stderr = [
+    unread,
+    store.notesUnread,
+    store.ownerUnread,
+    store.prsUnread,
+    store.lessonsUnread,
+    store.promisesUnread,
+    store.wordsUnread,
+    decided.unread,
+    hidden.unread,
+  ]
+    .flatMap((rows) =>
+      rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'The brief')],
+    )
+    .join('');
+
+  if (context.args.values.json !== true) {
+    return { exitCode: 0, stdout: renderBrief(input), stderr, stdoutFormat: 'text' };
+  }
+
+  const figureStore =
+    unread === null && saved === null
+      ? pickSavedStore(store, run, formatTimestamp(context.nowMs))
+      : store;
+
+  const figure = buildBriefFigure(
+    figureStore,
+    { nowMs: context.nowMs, sessionFlag: context.args.sessionFlag, host },
+    decided.decisions,
+  );
 
   return {
     exitCode: 0,
-    stdout: renderBrief(
-      buildReadBriefInput(store, { run, hidden: hidden.step, saved }, briefContext),
+    stdout: formatJSONOutput(
+      buildBriefJSON({
+        brief: input,
+        prs: store.prs,
+        decisionRows: decided.rows,
+        estimate: figure.tokens,
+      }),
     ),
-    stderr: [
-      unread,
-      store.notesUnread,
-      store.ownerUnread,
-      store.prsUnread,
-      store.lessonsUnread,
-      store.promisesUnread,
-      store.wordsUnread,
-      decided.unread,
-      hidden.unread,
-    ]
-      .flatMap((rows) =>
-        rows === null ? [] : [formatUnreadNote(store.session.name, rows, 'The brief')],
-      )
-      .join(''),
+    stderr,
+    stdoutFormat: 'json',
   };
 }
 
-const hiddenResults: ReadonlySet<string> = new Set(['MERGED', 'CLOSED', 'gone', 'missing']);
-
-// The item in focus changed after `now` was set when the journal holds a changed row for it since,
-// or this read finds a result that differs from the old value. Otherwise its step hides when its
-// check reads one of four results.
+// The next step of the item in focus hides with `changed after it was set` when the journal holds a
+// changed row of the item after its last `now` row, and with `reads <result>` when this read's
+// result differs from the item's last result, or from its result at write when it has no last one.
 async function readHiddenStep(
   store: Store,
   run: CheckRun,
@@ -93,18 +120,11 @@ async function readHiddenStep(
     return { step: null, unread: null };
   }
 
-  const found = run.results.get(item.id);
-  const result = found === undefined || found === 'unchecked' ? item.last : found;
-  const old = item.last ?? item.atWrite;
   const nowSet = store.session.nowSet;
-
-  const isChangedByRead =
-    found !== undefined && found !== 'unchecked' && old !== null && found !== old;
-
   let isChangedInJournal = false;
   let unread: UnreadRows | null = null;
 
-  if (nowSet !== null && !isChangedByRead) {
+  if (nowSet !== null) {
     try {
       const rows = await readJournalRows(
         store.folder,
@@ -121,12 +141,18 @@ async function readHiddenStep(
     }
   }
 
-  if (isChangedByRead || isChangedInJournal) {
+  if (isChangedInJournal) {
     return { step: { kind: 'changed' }, unread };
   }
 
+  const found = run.results.get(item.id);
+  const old = item.last ?? item.atWrite;
+
   return {
-    step: result !== null && hiddenResults.has(result) ? { kind: 'reads', result } : null,
+    step:
+      found !== undefined && found !== 'unchecked' && old !== null && found !== old
+        ? { kind: 'reads', result: found }
+        : null,
     unread,
   };
 }

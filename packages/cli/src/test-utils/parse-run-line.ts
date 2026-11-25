@@ -1,8 +1,14 @@
-// Splits a `Run: www ...` line into the arguments after `www`. A double-quoted word stays whole,
-// with its escapes undone, and so do a single-quoted word, a backslash-escaped character and a
-// bare `<placeholder>`, which may hold spaces. It throws on a line that is not a www line.
-export function parseRunLine(line: string): readonly string[] {
+import { nothingWrittenComment } from '../refusals/format-refusal.ts';
+
+// Splits a `Run: www ...` line into the arguments after `www`, without the comment of a refused
+// write. A quoted word, a backslash-escaped character and a bare `<placeholder>` stay whole. It
+// throws on a line that is not a www line.
+export function parseRunLine(printed: string): readonly string[] {
   const prefix = 'Run: www ';
+
+  const line = printed.endsWith(nothingWrittenComment)
+    ? printed.slice(0, -nothingWrittenComment.length)
+    : printed;
 
   if (!line.startsWith(prefix) && line !== 'Run: www') {
     throw new Error(`not a www run line: ${line}`);

@@ -20,14 +20,34 @@ test('it gives the state after each step and the state the model expects, which 
 
   expect(result).toStrictEqual({
     actual: [
-      { outcome: 'write', problems: [], closeRows: [0] },
-      { outcome: 'write', problems: [], closeRows: [1] },
-      { outcome: 'refused', problems: [], closeRows: [1] },
+      {
+        outcome: 'write',
+        appended: [{ op: 'promise', id: 'p-a' }],
+        problems: [],
+        closeRows: [0],
+      },
+      {
+        outcome: 'write',
+        appended: [{ op: 'done', id: 'p-a' }],
+        problems: [],
+        closeRows: [1],
+      },
+      { outcome: 'refused', appended: [], problems: [], closeRows: [1] },
     ],
     expected: [
-      { outcome: 'write', problems: [], closeRows: [0] },
-      { outcome: 'write', problems: [], closeRows: [1] },
-      { outcome: 'refused', problems: [], closeRows: [1] },
+      {
+        outcome: 'write',
+        appended: [{ op: 'promise', id: 'p-a' }],
+        problems: [],
+        closeRows: [0],
+      },
+      {
+        outcome: 'write',
+        appended: [{ op: 'done', id: 'p-a' }],
+        problems: [],
+        closeRows: [1],
+      },
+      { outcome: 'refused', appended: [], problems: [], closeRows: [1] },
     ],
   });
 });

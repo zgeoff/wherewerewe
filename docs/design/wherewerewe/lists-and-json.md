@@ -102,13 +102,19 @@ PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
 
 ### --json
 
-The read commands take `--json`: the bare brief (`www`, with or without `--session <name>`), `www show` and `www show <id>`, `www log`, `www list <kind>` and `www recap`. Text stays the default. Hooks and scripts read the JSON, and the agent reads the text, so the `www` skill and every `Run:` line use the text form. No write command takes `--json`.
+The five read commands take `--json`: the brief (`www --json`, with or without `--session <name>`), `www show` and `www show <id>`, `www log`, `www list <kind>` and `www recap`. `www sessions` and `www help` take no `--json`, and each refuses it as a flag the command does not take. Text stays the default. Hooks and scripts read the JSON, and the agent reads the text, so the `www` skill and every `Run:` line use the text form. No write command takes `--json`.
 
-- A JSON read that succeeds prints one JSON value and a newline on stdout, and nothing else.
-- It runs the same checks, takes the same lock, and exits with the same code as its text form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.
+- A JSON read that succeeds prints one JSON value and a newline on stdout, and nothing else on stdout. Its stderr is the text form's stderr, such as the line for a `notes.tsv` row that does not parse or for a duplicate id.
+- It runs the checks its text form runs, takes the lock its text form takes, and exits with the same code. `www show` with no id, `www log`, `www list` and `www recap` run no check in either form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.
 - The JSON brief is never cut and is outside the brief's limit, because no host puts it in front of a model: it holds every open row whole. The recap's JSON holds its rows whole, with no 100-character cut.
+- A cell that is `-` on disk is `null` in every shape. A journal row's `extra` stays the string the journal holds, such as `on=pr-api-77;who=agent`, or `null`.
+- `open` holds the items of `items.tsv` in the order their sections print in the text brief, each with its note. Lessons, promises and the owner's words are in their own arrays, so no row appears twice.
+- Each item's `last` is what the text form's tag shows: in the brief, the result this read got, whether or not the read could save it; in `www list`, the result the last brief saved. `changed` holds every changed row whole. `next` is `null` whenever the text brief hides the next step.
+- `www show grant` with no grant prints one subject, `{ kind: 'grant', row: null }`, with `journal` holding every `grant` row. A closed item, an id other than a decision id that has journal rows only, and an id with no row print `"subjects":[]`; a decision id prints its decision subject.
+- A recap whose journal cannot be read holds `null` for `writes`, `decidedSince` and `closedSince`, and the text form's reason goes to stderr.
+- Each string value, an object key included, passes the credential redaction before it is encoded, so the output is always valid JSON.
 - Each value carries `v: 1`. A new field keeps the version, and a removed or renamed field raises it.
-- `www --json` is a `www` command for the gate, so it passes in every state, but it is not the brief command: the gate never counts it, and `PostToolUse` never counts it as a whole read ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)). The header and footer contract of [brief.md](brief.md) covers the text form only.
+- `www --json` prints the brief as JSON, and the gate lets it pass in every state as it does any `www` command. It is not what the gate calls a brief command, the read of the text brief that opens the gate: the gate never counts it, and `PostToolUse` never counts it as a whole read ([sessions-and-hooks.md](sessions-and-hooks.md#the-gate)). The header and footer contract of [brief.md](brief.md) covers the text form only.
 
 ```ts
 // --json output of each read command; text stays the default
@@ -134,7 +140,7 @@ interface BriefJson {
   changed: { id: ItemID; was: string; now: string }[];
   focus: ItemID | null; // the item NOW names
   next: string | null;
-  open: Shown[]; // every open item, in the brief's order, none cut
+  open: Shown[]; // the items of items.tsv in the order their sections print, none cut, each with its note
   lessons: LessonRow[];
   promises: PromiseRow[];
   decisions: JournalRow[]; // the decisions in force, newest first
@@ -144,7 +150,7 @@ interface BriefJson {
 // show <id> takes an item id, a lesson, promise or words id, 'grant' or a decision id
 type ShowSubject =
   | (Shown & { checkedNow: string | null; failingChecks: string[]; decisions: DecisionID[] }) // failingChecks: the names show prints after OPEN failing, redacted as the text form is; [] otherwise
-  | { kind: 'grant'; row: GrantOpts }
+  | { kind: 'grant'; row: GrantOpts | null } // null: the session has no grant
   | { kind: 'decision'; row: JournalRow };
 
 interface ShowJson {
@@ -170,13 +176,13 @@ interface RecapJson {
   session: string;
   day: number;
   since: string; // the time the recap starts from
-  writes: number;
+  writes: number | null; // null: the journal cannot be read
   grant: GrantOpts | null;
   promises: PromiseRow[];
   notes: { item: Shown; note: Note }[]; // every open item with a note, owed first, then newest
   otherOpen: ItemID[];
-  decidedSince: JournalRow[];
-  closedSince: JournalRow[];
+  decidedSince: JournalRow[] | null; // null: the journal cannot be read
+  closedSince: JournalRow[] | null;
 }
 ```
 
@@ -206,7 +212,8 @@ Run www --session tide-alerts and deliver all the work in it.
 - The text is the grant's bullets under `may`, `not` and `never`, in the owner's words as the brief prints them, then the scope when the grant has one, then one line: `Run www --session <name> and deliver all the work in it.`
 - It prints no reading, no session goal and nothing else of the brief. It reads only the `session` file, runs no check and never takes the lock.
 - With no grant, it refuses with a `Run: www grant` line.
-- The worst-case grant prints in about 960 characters, and the text stays under 1,100, far under the 4,000-character limit of a `/goal`.
+- The worst-case grant of [brief.md](brief.md) prints in 1,013 characters, and the text stays under 1,100, far under the 4,000-character limit of a `/goal`. The session's limits hold the text under that bound, so it is never cut and never refused for its length.
+- It reads only `session`, and exits 3, 4 or 5 as every read does on a store it cannot read.
 - The owner's paste carries the authority, and the tool's printing carries none ([sessions-and-hooks.md](sessions-and-hooks.md#the-injected-grant-authorises-nothing)). A `/goal` condition kept a permission before a compaction and lost it after one. After a compaction, the grant reaches the classifier again only when the agent restates it in its next summary, from the words the `SessionStart` hook injects.
 
 ## Constraints

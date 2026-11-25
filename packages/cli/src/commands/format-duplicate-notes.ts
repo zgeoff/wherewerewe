@@ -23,7 +23,7 @@ export function formatDuplicateNotes(store: Store): string {
                 ],
                 runs: [{ shell: ['less', join(store.folder, second.file)] }],
               },
-              { sessionFlag: null },
+              { sessionFlag: null, writes: false },
             ),
           ];
     })

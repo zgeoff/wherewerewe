@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { probePullRequest } from '../checks/probe-pull-request.ts';
 import { createKillSet, runCommand } from '../checks/run-command.ts';
@@ -13,7 +14,12 @@ test('it answers each pull request with its result, and reads another as not fou
   });
 
   const run = (argv: readonly [string, ...string[]], timeoutMs: number) =>
-    runCommand(argv, { env: { PATH: folder }, timeoutMs, kills: createKillSet() });
+    runCommand(argv, {
+      env: { PATH: folder },
+      cwd: join(folder, 'work'),
+      timeoutMs,
+      kills: createKillSet(),
+    });
 
   const failing = await probePullRequest({ repo: 'bosunhq/bosun-api', number: '77' }, run);
   const merged = await probePullRequest({ repo: 'bosunhq/bosun-app', number: '61' }, run);

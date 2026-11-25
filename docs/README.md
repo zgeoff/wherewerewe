@@ -32,3 +32,4 @@
 - [0018: a promise is a kind of its own](./decisions/0018-a-promise-is-a-kind-of-its-own.md)
 - [0019: the owner's words are a kind of their own](./decisions/0019-the-owners-words-are-a-kind-of-their-own.md)
 - [0020: authority comes from the owner's own acts](./decisions/0020-authority-comes-from-the-owners-own-acts.md)
+- [0021: a refused write says so on its Run line](./decisions/0021-a-refused-write-says-so-on-its-run-line.md)

@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { nothingWrittenComment } from '../refusals/format-refusal.ts';
 import { runCLI } from '../run-cli.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
 import { seedSessionStore } from '../test-utils/seed-session-store.ts';
@@ -328,12 +329,12 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
     say: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: tide-alerts's owner.tsv line 3 does not parse: expected 4 tab-separated columns, found 2. Fix the row by hand.\nRun: less ${join(folder, 'owner.tsv')}\n`,
+      stderr: `www: tide-alerts's owner.tsv line 3 does not parse: expected 4 tab-separated columns, found 2. Fix the row by hand.\nRun: less ${join(folder, 'owner.tsv')}${nothingWrittenComment}\n`,
     },
     ack: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: tide-alerts's owner.tsv line 3 does not parse: expected 4 tab-separated columns, found 2. Fix the row by hand.\nRun: less ${join(folder, 'owner.tsv')}\n`,
+      stderr: `www: tide-alerts's owner.tsv line 3 does not parse: expected 4 tab-separated columns, found 2. Fix the row by hand.\nRun: less ${join(folder, 'owner.tsv')}${nothingWrittenComment}\n`,
     },
     owner: brokenText,
   });
@@ -521,7 +522,7 @@ test('it prints the brief from the notes that parse, names the broken row, and r
   const refusal = {
     exitCode: 3 as const,
     stdout: '',
-    stderr: `www: tide-alerts's notes.tsv line 2 does not parse: expected 4 tab-separated columns, found 1. Fix the row by hand.\nRun: less ${join(folder, 'notes.tsv')}\n`,
+    stderr: `www: tide-alerts's notes.tsv line 2 does not parse: expected 4 tab-separated columns, found 1. Fix the row by hand.\nRun: less ${join(folder, 'notes.tsv')}${nothingWrittenComment}\n`,
   };
 
   expect({

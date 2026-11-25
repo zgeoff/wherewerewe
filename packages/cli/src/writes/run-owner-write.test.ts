@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { estimateTokens } from '../brief/estimate-tokens.ts';
+import { nothingWrittenComment } from '../refusals/format-refusal.ts';
 import { runCLI } from '../run-cli.ts';
 import { withStoreLock } from '../store/with-store-lock.ts';
 import { readBriefFigure } from '../test-utils/read-brief-figure.ts';
@@ -143,20 +144,17 @@ test.each([
   {
     title: 'an empty note',
     argv: ['say', ''],
-    stderr:
-      'www: refused: the owner note is empty.\nRun: www --session tide-alerts say "<owner note>"\n',
+    stderr: `www: refused: the owner note is empty.\nRun: www --session tide-alerts say "<owner note>"${nothingWrittenComment}\n`,
   },
   {
     title: 'a note on an unknown item',
     argv: ['say', 'Hello', '--on', 't-none'],
-    stderr:
-      'www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello\n',
+    stderr: `www: refused: no open item t-none. Open items: none.\nRun: www --session tide-alerts say Hello${nothingWrittenComment}\n`,
   },
   {
     title: 'an ack of an unknown note',
     argv: ['ack', 'o-7'],
-    stderr:
-      'www: refused: no owner note o-7 shows. Owner notes: none.\nRun: www --session tide-alerts\n',
+    stderr: `www: refused: no owner note o-7 shows. Owner notes: none.\nRun: www --session tide-alerts${nothingWrittenComment}\n`,
   },
 ])('it changes no file when it refuses $title', async (row) => {
   const ctx = setupTest();
@@ -197,7 +195,7 @@ test('it refuses a say while another process holds the store lock', async () => 
   expect(result).toStrictEqual({
     exitCode: 3,
     stdout: '',
-    stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www --session tide-alerts say "Ask me first"\n`,
+    stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www --session tide-alerts say "Ask me first"${nothingWrittenComment}\n`,
   });
 });
 
@@ -256,8 +254,7 @@ Write as you go: www set <id> "<claim>" --note "<detail>" · www decide, done or
     third: {
       exitCode: 3,
       stdout: '',
-      stderr:
-        'www: refused: 2 owner notes already show. Clear one that is done.\nRun: www --session tide-alerts ack o-1\n',
+      stderr: `www: refused: 2 owner notes already show. Clear one that is done.\nRun: www --session tide-alerts ack o-1${nothingWrittenComment}\n`,
     },
     afterAck: {
       exitCode: 0,
@@ -322,8 +319,7 @@ test.each([
     result: {
       exitCode: 3,
       stdout: '',
-      stderr:
-        'www: refused: owner note numbers are used up after o-9007199254740991.\nRun: www --session tide-alerts log --op say\n',
+      stderr: `www: refused: owner note numbers are used up after o-9007199254740991.\nRun: www --session tide-alerts log --op say${nothingWrittenComment}\n`,
     },
     owner: 'id\ttext\tsaid\ton\n',
   },

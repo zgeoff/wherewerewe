@@ -5,6 +5,8 @@ import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from './args/help-text.ts';
+import { jsonVersion } from './json/json-version.ts';
+import { nothingWrittenComment } from './refusals/format-refusal.ts';
 import { findCredentialMatch } from './rules/find-credential-match.ts';
 import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
@@ -38,6 +40,8 @@ import { seedGhAnswers } from './test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from './test-utils/seed-git-repo.ts';
 import { seedItem } from './test-utils/seed-item.ts';
 import { seedJournalRow } from './test-utils/seed-journal-row.ts';
+import { seedJsonCaseStore } from './test-utils/seed-json-case-store.ts';
+import type { JsonCase } from './test-utils/seed-json-case-store.ts';
 import { seedLockFile } from './test-utils/seed-lock-file.ts';
 import { seedRedactionStore } from './test-utils/seed-redaction-store.ts';
 import { seedStoreFile } from './test-utils/seed-store-file.ts';
@@ -78,6 +82,20 @@ function setupTest() {
       }),
     readTree: () => readTreeHashes(stateRoot),
 
+    // the result a read saved for t-a of tide-alerts, or null when no items.tsv reads
+    readSavedResult: () => {
+      try {
+        const parsed = parseItemsFile(
+          readFileSync(join(stateRoot, 'tide-alerts', 'items.tsv'), 'utf8'),
+          '2',
+        );
+
+        return parsed.items.find((item) => item.id === 't-a')?.last ?? null;
+      } catch {
+        return null;
+      }
+    },
+
     // a store of its own under the test's folder, with the lesson, promise, owner's words and
     // decision of seedRedactionStore, then one command, all at one time
     runInRedactionStore: async (
@@ -92,6 +110,9 @@ function setupTest() {
         CLAUDE_CODE_SESSION_ID: 'a1b2-test',
       };
 
+      // say and ack are the owner's: they run from a terminal outside any agent
+      const isOwner = argv[0] === 'say' || argv[0] === 'ack';
+      const ownerEnv = { HOME: storeRoot, XDG_STATE_HOME: storeRoot };
       const terminal = { stdin: false, stdout: false };
 
       await runCLI({
@@ -104,7 +125,30 @@ function setupTest() {
 
       await seedRedactionStore(join(storeRoot, 'wherewerewe', 'tide-alerts'), values);
 
-      return runCLI({ argv, env, cwd: '/work', terminal, now: () => fixedMs });
+      if (!isOwner) {
+        return runCLI({ argv, env, cwd: '/work', terminal, now: () => fixedMs });
+      }
+
+      const ownerTerminal = { stdin: true, stdout: true };
+      const scoped = ['--session', 'tide-alerts'];
+
+      if (argv[0] === 'ack') {
+        await runCLI({
+          argv: [...scoped, 'say', 'Plain words please'],
+          env: ownerEnv,
+          cwd: '/work',
+          terminal: ownerTerminal,
+          now: () => fixedMs,
+        });
+      }
+
+      return runCLI({
+        argv: [...scoped, ...argv],
+        env: ownerEnv,
+        cwd: '/work',
+        terminal: ownerTerminal,
+        now: () => fixedMs,
+      });
     },
     pickGrantLines: (stdout: string) =>
       stdout.split('\n').filter((line) => /^ {2}(?:may|not|never) /u.test(line)),
@@ -137,14 +181,30 @@ test.each([[['help']], [['--help']], [['-h']]])(
 );
 
 test.each([
-  [['taks'], 'www: unknown command "taks".\nRun: www help\n'],
-  [['doctor', 'x'], 'www: "doctor" comes in a later version of www.\nRun: www help\n'],
-  [['task', 't-a'], 'www: task takes <id> "<claim>".\nRun: www help\n'],
-  [['recap', 'x'], 'www: recap takes no arguments.\nRun: www help\n'],
-  [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www help\n'],
+  [['taks'], `www: unknown command "taks".\nRun: www help${nothingWrittenComment}\n`],
+  [['brief'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
+  [['brief', '--bogus'], `www: unknown command "brief".\nRun: www help${nothingWrittenComment}\n`],
+  [
+    ['doctor', 'x'],
+    `www: "doctor" comes in a later version of www.\nRun: www help${nothingWrittenComment}\n`,
+  ],
+  [
+    ['task', 't-a'],
+    `www: task takes <id> "<claim>".\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,
+  ],
+  [
+    ['list'],
+    'www: list takes tasks, waits, approvals, rules, where, lessons, promises, words, notes, decisions or prs.\nRun: www list tasks\n',
+  ],
+  [
+    ['list', 'bogus'],
+    'www: list takes tasks, waits, approvals, rules, where, lessons, promises, words, notes, decisions or prs.\nRun: www list tasks\n',
+  ],
+  [['recap', 'x'], 'www: recap takes no arguments.\nRun: www recap [--since <t>]\n'],
+  [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www show [<id>]\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],
-    'www: task takes no --bogus flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www --session sample task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]\n',
+    `www: task takes no --bogus flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www --session sample task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,
   ],
 ])('it refuses %p with exit 2', async (argv, stderr) => {
   const ctx = setupTest();
@@ -410,7 +470,7 @@ test('it refuses init while the binding lock is held, and creates no store and n
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www init tide-alerts --goal "Ship it"\n`,
+      stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www init tide-alerts --goal "Ship it"${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -1050,8 +1110,36 @@ test('it refuses a new item on an id whose done reached the journal before the w
   expect(result).toStrictEqual({
     exitCode: 3,
     stdout: '',
-    stderr:
-      'www: refused: t-a closed on day 1. Pick a new id.\nRun: www task <new id> "Write it again"\n',
+    stderr: `www: refused: t-a closed on day 1. Pick a new id.\nRun: www task <new id> "Write it again"${nothingWrittenComment}\n`,
+  });
+});
+
+test('it finds the interrupted close of a task whose id is the name of the session, and adds no second row', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 't-a');
+
+  await ctx.run(['init', 't-a', '--goal', 'x']);
+  await ctx.run(['--session', 't-a', 'task', 't-a', 'Write it']);
+
+  await seedJournalRow(folder, {
+    ts: '2026-03-10T11:43:02Z',
+    op: 'drop',
+    id: 't-a',
+    text: 'Write it',
+    why: 'again',
+  });
+
+  await ctx.run(['--session', 't-a', 'goal', 'Ship the parser']);
+
+  const dropped = await ctx.run(['--session', 't-a', 'drop', 't-a', '--why', 'again']);
+  const log = await ctx.run(['--session', 't-a', 'log', '--op', 'drop', '--id', 't-a']);
+
+  expect({
+    dropped: dropped.exitCode,
+    rows: log.stdout.split('\n').filter((line) => line.startsWith('day ')).length,
+  }).toStrictEqual({
+    dropped: 0,
+    rows: 1,
   });
 });
 
@@ -1282,8 +1370,7 @@ test.each([
     const refusal = {
       exitCode: 3 as const,
       stdout: '',
-      stderr:
-        'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
+      stderr: `www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"${nothingWrittenComment}\n`,
     };
 
     expect({ results, tree: await ctx.readTree() }).toStrictEqual({
@@ -1431,7 +1518,7 @@ test('it exits 2 for a parse error in say before it checks for an owner terminal
   expect(result).toStrictEqual({
     exitCode: 2,
     stdout: '',
-    stderr: 'www: say takes no --bogus flag. It takes --on.\nRun: www say "<text>" [--on <id>]\n',
+    stderr: `www: say takes no --bogus flag. It takes --on.\nRun: www say "<text>" [--on <id>]${nothingWrittenComment}\n`,
   });
 });
 
@@ -2260,7 +2347,7 @@ test('it refuses the 31st task with a Run line that runs, then writes it', async
     written: written.exitCode,
   }).toStrictEqual({
     exitCode: 3,
-    runLine: `Run: www --session tide-alerts done ${oldest} --evidence "<PR, commit or test run>"`,
+    runLine: `Run: www --session tide-alerts done ${oldest} --evidence "<PR, commit or test run>"${nothingWrittenComment}`,
     closed: 0,
     written: 0,
   });
@@ -2731,7 +2818,7 @@ test('it refuses a grant of 20 lines with a Run line that runs once filled', asy
     exitCode: 3,
     first:
       'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.',
-    line: 'Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "covers watering"',
+    line: `Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "covers watering"${nothingWrittenComment}`,
     retried: 0,
   });
 });
@@ -2763,8 +2850,7 @@ test('it refuses a grant with no bullet with a Run line that adds --may and runs
     retried: retried.exitCode,
   }).toStrictEqual({
     exitCode: 3,
-    stderr:
-      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"\n',
+    stderr: `www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"${nothingWrittenComment}\n`,
     retried: 0,
   });
 });
@@ -2795,8 +2881,7 @@ test('it prints no part of a credential inside a bullet of 160 characters, and a
     leaked: `${refused.stdout}${refused.stderr}`.includes(credential?.tail ?? ''),
   }).toStrictEqual({
     exitCode: 3,
-    stderr:
-      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "<where the secret lives>" --where chat --reading "covers watering"\n',
+    stderr: `www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "<where the secret lives>" --where chat --reading "covers watering"${nothingWrittenComment}\n`,
     stdout: '',
     leaked: false,
   });
@@ -2999,7 +3084,7 @@ test('it writes a lesson, a promise and the owner words, reads them in every rea
       'LESSONS (1, max 5)\n  l-seed      Reseed the staging table first  [why: A stale row passed]\n',
     loggedOps: 3,
     recap: ['PROMISED (1, max 5)'],
-    refused: [3, 'Run: www drop l-seed --why "<reason>"'],
+    refused: [3, `Run: www drop l-seed --why "<reason>"${nothingWrittenComment}`],
     done: 0,
     dropped: 0,
     after: 'LESSONS (0, max 5)\n',
@@ -3058,6 +3143,18 @@ test.each(
     });
   },
 );
+
+test.each(
+  buildPrintSites(['l-1'])
+    .filter((site) => ['say', 'ack', 'grant'].includes(site.argv[0] ?? ''))
+    .map((site) => ({ title: site.title, argv: site.argv })),
+)('it exits 0 for $title in the redaction store, so its reply is checked', async (site) => {
+  const ctx = setupTest();
+
+  const result = await ctx.runInRedactionStore({}, site.argv);
+
+  expect(result.exitCode).toBe(0);
+});
 
 test.each(buildRedactionFields())(
   'it prints the $name field as one placeholder in www show of its row, and no credential, when only that field holds one',
@@ -3169,7 +3266,24 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
   await ctx.run(['promise', 'due-cost', 'Cost table', '--to', 'owner', '--by', 'day 10']);
   await ctx.run(['words', 'w-plain', 'Plain words', '--where', 'chat']);
 
+  const noGrantPaste = await ctx.run(['goal', '--paste']);
+
+  await ctx.run([
+    'grant',
+    '--may',
+    'merge the chart PRs once CI is green',
+    '--never',
+    'publish a release',
+    '--scope',
+    'in the sailing app',
+    '--where',
+    'chat',
+    '--reading',
+    'covers chart merges on green CI',
+  ]);
+
   const outputs = [
+    noGrantPaste,
     await ctx.run(['lesson', 'l-new', 'A lesson', '--why', 'A mistake']),
     await ctx.run(['lesson', 'l-new', 'A lesson']),
     await ctx.run(['promise', 'p-new', 'A promise']),
@@ -3183,6 +3297,16 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     await ctx.run(['list', 'promises']),
     await ctx.run(['list', 'words']),
     await ctx.run(['--session', 'tide-alerts']),
+    await ctx.run(['goal', '--paste']),
+    await ctx.run(['goal', '--paste', 'Ship it']),
+    await ctx.run(['goal', '--paste', '--json']),
+    await ctx.run(['--bogus']),
+    await ctx.run(['show', '--bogus']),
+    await ctx.run(['log', '--bogus']),
+    await ctx.run(['list', 'rules', '--bogus']),
+    await ctx.run(['recap', '--bogus']),
+    await ctx.run(['goal', 'Ship it', '--bogus']),
+    await ctx.run(['task', 't-a', 'A task', '--json']),
   ];
 
   const text = outputs.map((output) => `${output.stdout}${output.stderr}`).join('\n');
@@ -3190,7 +3314,7 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
   const newHelpLines = helpText
     .split('\n')
     .filter((line) =>
-      /www list|every row of one kind|www lesson|www promise|www words|one screen for the owner|work on now|A lesson or the owner's words close/u.test(
+      /www list|every row of one kind|www lesson|www promise|www words|one screen for the owner|work on now|A lesson or the owner's words close|take --json|www goal --paste/u.test(
         line,
       ),
     );
@@ -3199,12 +3323,217 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     exitCodes: outputs.map((output) => output.exitCode),
     steering: getSteeringWords(text),
     help: getSteeringWords(newHelpLines.join('\n')),
-    helpLines: newHelpLines.length > 5,
+    jsonLine: newHelpLines.filter((line) => line.includes('take --json')),
+    pasteLine: newHelpLines.filter((line) => line.includes('www goal --paste')),
   }).toStrictEqual({
-    exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0],
+    exitCodes: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2],
     steering: [],
     help: [],
-    helpLines: true,
+    jsonLine: [
+      'www, show, log, list and recap take --json: one JSON value for a script, in place of the text.',
+    ],
+    pasteLine: [
+      '  www goal --paste           print a /goal text of the grant, for the owner to paste',
+    ],
+  });
+});
+
+test.each(
+  (
+    [
+      'a whole store',
+      'a notes row that does not parse',
+      'a held lock',
+      'a read-only store folder',
+      'no session',
+      'a format 1 store',
+      'a hand-kept store',
+      'a newer store',
+      'a session that does not parse',
+    ] satisfies JsonCase[]
+  ).flatMap((state) =>
+    [
+      { command: 'www', argv: [] },
+      { command: 'www show', argv: ['show'] },
+      { command: 'www log', argv: ['log'] },
+      { command: 'www list tasks', argv: ['list', 'tasks'] },
+      { command: 'www recap', argv: ['recap'] },
+    ].map((read) => ({
+      command: read.command,
+      argv: read.argv,
+      state,
+      saved:
+        read.command === 'www' &&
+        (state === 'a whole store' || state === 'a notes row that does not parse')
+          ? 'exists'
+          : null,
+    })),
+  ),
+)('it exits $command --json with the code and stderr of its text form when $state', async (row) => {
+  const text = setupTest();
+  const json = setupTest();
+
+  const restoreText = await seedJsonCaseStore(text.root, row.state);
+  const restoreJson = await seedJsonCaseStore(json.root, row.state);
+
+  const scoped = ['--session', 'tide-alerts', ...row.argv];
+
+  const printedText = await text.run(scoped);
+  const printedJSON = await json.run([...scoped, '--json']);
+
+  const savedText = text.readSavedResult();
+  const savedJSON = json.readSavedResult();
+
+  restoreText();
+  restoreJson();
+
+  expect({
+    exitCode: printedJSON.exitCode,
+    stderr: printedJSON.stderr.replaceAll(json.root, '<ROOT>'),
+    stdout: printedJSON.exitCode === 0 ? 'one line of JSON' : printedJSON.stdout,
+    lines: printedJSON.stdout.split('\n').length,
+    saved: savedJSON,
+  }).toStrictEqual({
+    exitCode: printedText.exitCode,
+    stderr: printedText.stderr.replaceAll(text.root, '<ROOT>'),
+    stdout: printedJSON.exitCode === 0 ? 'one line of JSON' : '',
+    lines: printedJSON.exitCode === 0 ? 2 : 1,
+    saved: row.saved,
+  });
+
+  expect(savedText).toBe(row.saved);
+
+  expect((): unknown =>
+    printedJSON.exitCode === 0 ? JSON.parse(printedJSON.stdout) : null,
+  ).not.toThrow();
+});
+
+test.each([
+  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h'] },
+  { title: 'www list --json', argv: ['list'] },
+])(
+  'it exits $title with the code and stderr of its usage refusal and prints no JSON',
+  async (row) => {
+    const text = setupTest();
+    const json = setupTest();
+
+    const refusedText = await text.run(row.argv);
+    const refusedJSON = await json.run([...row.argv, '--json']);
+
+    expect({
+      exitCode: refusedJSON.exitCode,
+      stdout: refusedJSON.stdout,
+      stderr: refusedJSON.stderr,
+    }).toStrictEqual({ exitCode: 2, stdout: '', stderr: refusedText.stderr });
+
+    expect(refusedText.exitCode).toBe(2);
+  },
+);
+
+test('it changes the files a read changes, and no more, with --json', async () => {
+  const text = setupTest();
+  const json = setupTest();
+
+  const runSeedSteps = async (ctx: ReturnType<typeof setupTest>) => {
+    const frozen = { env: ctx.agentEnv, now: () => Date.parse('2026-03-10T11:43:00Z') };
+
+    await runCLI({
+      argv: ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ...frozen,
+      cwd: '/work',
+      terminal: { stdin: false, stdout: false },
+    });
+
+    await seedItem(join(ctx.stateRoot, 'tide-alerts'), {
+      id: 't-a',
+      check: 'path:/work/no-such-folder-here',
+      atWrite: 'exists',
+      last: 'exists',
+    });
+
+    return frozen;
+  };
+
+  const frozenText = await runSeedSteps(text);
+  const frozenJSON = await runSeedSteps(json);
+
+  await runCLI({
+    argv: [],
+    ...frozenText,
+    cwd: '/work',
+    terminal: { stdin: false, stdout: false },
+  });
+
+  await runCLI({
+    argv: ['--json'],
+    ...frozenJSON,
+    cwd: '/work',
+    terminal: { stdin: false, stdout: false },
+  });
+
+  const jsonTree = await json.readTree();
+  const textTree = await text.readTree();
+
+  const changedRows = await readJournalRows(
+    join(json.stateRoot, 'tide-alerts'),
+    (row) => row.op === 'changed',
+  );
+
+  expect({
+    sameFiles: jsonTree,
+    changed: changedRows.map((row) => [row.id, row.text]),
+  }).toStrictEqual({ sameFiles: textTree, changed: [['t-a', 'exists -> missing']] });
+});
+
+test.each([
+  ['show', ['show', '--json']],
+  ['log', ['log', '--json']],
+  ['list', ['list', 'tasks', '--json']],
+  ['recap', ['recap', '--json']],
+])(
+  'it takes no lock and changes no file for www %s --json while the lock is held',
+  async (_name, argv) => {
+    const ctx = setupTest();
+    const folder = join(ctx.stateRoot, 'tide-alerts');
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 't-a', 'Write it']);
+
+    seedLockFile(folder, 'lock', `pid=${String(process.pid)} ts=${new Date().toISOString()}\n`);
+
+    const before = await ctx.readTree();
+    const printed = await ctx.run(argv);
+    const after = await ctx.readTree();
+
+    expect({ exitCode: printed.exitCode, unchanged: after }).toStrictEqual({
+      exitCode: 0,
+      unchanged: before,
+    });
+  },
+);
+
+test('it prints a claim that ends in ops_ and a few characters as JSON that parses', async () => {
+  const ctx = setupTest();
+  const folder = join(ctx.stateRoot, 'tide-alerts');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedItem(folder, { id: 't-a', claim: 'Check the cache ops_abcde' });
+
+  const printed = await ctx.run(['list', 'tasks', '--json']);
+
+  const parsed: unknown = JSON.parse(printed.stdout);
+
+  expect(parsed).toStrictEqual({
+    ...jsonVersion,
+    kind: 'tasks',
+    rows: [
+      {
+        kind: 'task',
+        row: expect.objectContaining({ id: 't-a', claim: 'Check the cache ops_abcde' }),
+        note: null,
+      },
+    ],
   });
 });
 
@@ -3219,6 +3548,18 @@ test('it prints no text of the new files through process.stdout or console', asy
     'src/writes/pick-words-write.ts',
     'src/writes/pick-file-close.ts',
     'src/refusals/build-kind-refusal.ts',
+    'src/commands/run-goal-paste-command.ts',
+    'src/commands/refuse-no-session.ts',
+    'src/reads/render-goal-paste.ts',
+    'src/reads/format-failing-names.ts',
+    'src/json/build-brief-json.ts',
+    'src/json/build-grant-opts.ts',
+    'src/json/build-list-json.ts',
+    'src/json/build-log-json.ts',
+    'src/json/build-recap-json.ts',
+    'src/json/build-show-json.ts',
+    'src/json/build-shown.ts',
+    'src/json/format-json-output.ts',
   ];
 
   const texts = await Promise.all(names.map((name) => ctx.readSource(name)));

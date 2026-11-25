@@ -267,7 +267,7 @@ interface KeyKinds {
   readonly kinds: readonly Kind[];
 }
 
-const keyKinds: readonly KeyKinds[] = [
+export const keyKinds: readonly KeyKinds[] = [
   { key: 'who', kinds: ['wait', 'ok'] },
   { key: 'where', kinds: ['ok'] },
   { key: 'scope', kinds: ['ok'] },

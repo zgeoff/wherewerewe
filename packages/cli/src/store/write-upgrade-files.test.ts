@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { findFormat } from '../import/find-format.ts';
 import { pickUpgrade } from '../import/pick-upgrade.ts';
+import { nothingWrittenComment } from '../refusals/format-refusal.ts';
 import { runCLI } from '../run-cli.ts';
 import { buildParsedArgs } from '../test-utils/build-parsed-args.ts';
 import { buildSteppedImportFiles } from '../test-utils/build-stepped-import-files.ts';
@@ -306,7 +307,10 @@ test.each(Array.from({ length: 28 }, (_value, step) => ({ step })))(
     }).toStrictEqual({
       format: '1',
       store: 'format-1',
-      refusals: [refusal, refusal],
+      refusals: [
+        refusal,
+        { ...refusal, stderr: `${refusal.stderr.trimEnd()}${nothingWrittenComment}\n` },
+      ],
       changedByRefusals: stopped,
     });
 
@@ -357,7 +361,7 @@ test('it leaves format 2 whole when it stops after the file call that renames se
     backup: originals,
     rerun: {
       exitCode: 3,
-      stderr: `www: refused: ${ctx.name} is already format 2.\nRun: www --session ${ctx.name}\n`,
+      stderr: `www: refused: ${ctx.name} is already format 2.\nRun: www --session ${ctx.name}${nothingWrittenComment}\n`,
     },
     tree: await readTreeHashes(clean.folder),
   });

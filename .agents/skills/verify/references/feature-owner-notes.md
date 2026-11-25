@@ -21,7 +21,7 @@ Give the `refuse` line's `--run` the `Run:` line as `www` prints it, and leave i
 bun verify use --feature owner-notes
 bun verify www run --line 'www init trial-owner --goal "Ship the glaze timer in the pottery app"' --expect 'Started session trial-owner in '
 bun verify www run --line 'www --session trial-owner task t-timer "Write the glaze timer"' --expect 't-timer  task, open, no check. Brief: '
-bun verify www refuse --line 'www --session trial-owner say "A note from an agent shell"' --expect 'www: refused: only the owner writes owner notes' --run 'www --session trial-owner rule <id> "<what the owner said, as a rule>"'
+bun verify www refuse --line 'www --session trial-owner say "A note from an agent shell"' --expect 'www: refused: only the owner writes owner notes' --run 'www --session trial-owner rule <id> "<what the owner said, as a rule>"  # nothing was written'
 bun verify terminal start say-as-agent
 bun verify terminal wait --session say-as-agent-1 --text 'www: refused: only the owner writes owner notes'
 bun verify terminal stop --session say-as-agent-1

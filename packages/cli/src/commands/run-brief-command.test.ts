@@ -1,19 +1,25 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { createGitCommit, runGit } from '@zgeoff/testing/git';
 import { estimateTokens } from '../brief/estimate-tokens.ts';
+import { pickBriefLimit } from '../brief/pick-brief-limit.ts';
 import { itemCaps, lessonCap, promiseCap, wordsCap } from '../rules/item-caps.ts';
 import { runCLI } from '../run-cli.ts';
+import { formatOwnerFile } from '../store/format-owner-file.ts';
 import { formatPrsFile } from '../store/format-prs-file.ts';
 import { parseItemsFile } from '../store/parse-items-file.ts';
 import { readJournalRows } from '../store/read-journal-rows.ts';
+import { readStore } from '../store/read-store.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
 import { countBriefLines } from '../test-utils/count-brief-lines.ts';
+import { getJsonValue } from '../test-utils/get-json-value.ts';
+import { getSteeringWords } from '../test-utils/get-steering-words.ts';
+import { jsonSchemas } from '../test-utils/json-schemas.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedDayNineStore } from '../test-utils/seed-day-nine-store.ts';
@@ -21,10 +27,13 @@ import { seedExampleStartStore } from '../test-utils/seed-example-start-store.ts
 import { seedGhAnswers } from '../test-utils/seed-gh-answers.ts';
 import { seedGitRepo } from '../test-utils/seed-git-repo.ts';
 import { seedItem } from '../test-utils/seed-item.ts';
+import { seedItems } from '../test-utils/seed-items.ts';
 import { seedLockFile } from '../test-utils/seed-lock-file.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
 import { seedStubCommand } from '../test-utils/seed-stub-command.ts';
 import { seedWorstCaseStore } from '../test-utils/seed-worst-case-store.ts';
+import { toSortedBy } from '../test-utils/to-sorted-by.ts';
+import { readBriefFigure } from '../writes/read-brief-figure.ts';
 
 function setupTest() {
   const root = createTempDir('run-brief').path;
@@ -236,7 +245,7 @@ test("it prints each write reply of commands.md's examples, figures included, fr
   );
 });
 
-test('it hides the next step when the item in focus changed after now_set, and prints its note whole under the hidden line', async () => {
+test('it hides the next step as reads dirty on the read that finds the change, as changed after it was set on the next, and prints its note whole under the hidden line', async () => {
   const ctx = setupTest();
 
   const repo = await ctx.createRepo();
@@ -270,12 +279,14 @@ test('it hides the next step when the item in focus changed after now_set, and p
     noteWhole: noteLines.map((line) => line.trim()).join(' '),
     noteLineCount: noteLines.length,
     after: lines[start + 6]?.startsWith('    ') ?? false,
-    hiddenAgain: again.stdout.includes(`${lines[start] ?? ''}\n`),
+    hiddenAgain: again.stdout.includes(
+      '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"\n',
+    ),
     fix: [fixed.exitCode, shown.stdout.includes('  next: go on\n')],
   }).toStrictEqual({
     hiddenLine:
       '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"',
-    line: '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"',
+    line: '  next step hidden: wt-dock reads dirty. Run: www now wt-dock "<next step>"',
     noteWhole: note,
     noteLineCount: 5,
     after: false,
@@ -284,7 +295,7 @@ test('it hides the next step when the item in focus changed after now_set, and p
   });
 });
 
-test('it keeps the next step hidden on each read, and shows it after the fix, when now and the change land in the same second', async () => {
+test('it hides the next step as reads dirty, then as changed after it was set, and shows it after the fix, when now and the change land in the same second', async () => {
   const ctx = setupTest();
 
   const repo = await ctx.createRepo();
@@ -304,21 +315,25 @@ test('it keeps the next step hidden on each read, and shows it after the fix, wh
     '  next step hidden: wt-dock changed after it was set. Run: www now wt-dock "<next step>"\n';
 
   expect([
-    detecting.stdout.includes(hiddenLine),
+    detecting.stdout.includes(
+      '  next step hidden: wt-dock reads dirty. Run: www now wt-dock "<next step>"\n',
+    ),
     second.stdout.includes(hiddenLine),
     fixed.exitCode,
     shown.stdout.includes('  next: go on\n'),
   ]).toStrictEqual([true, true, 0, true]);
 });
 
-test('it hides the next step of an item whose check reads MERGED, and names that reading', async () => {
+test('it hides the next step of an item whose check reads OPEN passing at write and MERGED after the step is set, and names that reading', async () => {
   const ctx = setupTest();
 
-  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'MERGED' });
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });
 
   await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
   await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
   await ctx.run(['now', 'pr-api-77', 'request review', '--note', 'Wait for the owner']);
+
+  seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'MERGED' });
 
   const brief = await ctx.run([]);
 
@@ -332,7 +347,61 @@ test('it hides the next step of an item whose check reads MERGED, and names that
   ]);
 });
 
-test('it prints the next step of an item with no change and no reading of the four', async () => {
+test.each([['MERGED'], ['CLOSED']])(
+  'it prints the next step of an item whose check read %s at write and reads the same now',
+  async (result) => {
+    const ctx = setupTest();
+
+    seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': result });
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 'pr-api-77', 'Alert job retries', '--pr', 'bosunhq/bosun-api#77']);
+    await ctx.run(['now', 'pr-api-77', 'request review']);
+
+    const brief = await ctx.run([]);
+
+    expect(brief.stdout).toInclude('  next: request review\n');
+  },
+);
+
+test('it prints the next step of an item whose check read missing before the step was set', async () => {
+  const ctx = setupTest();
+  const gone = join(ctx.root, 'no-such-folder');
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-draw', 'Draw the depth curve', '--path', gone]);
+  await ctx.run(['now', 't-draw', 'Plot the curve']);
+
+  const brief = await ctx.run([]);
+
+  expect(brief.stdout).toInclude('  next: Plot the curve\n');
+});
+
+test('it hides the next step as reads missing on the read that finds a path gone after the step was set, and as changed after it was set on the read after', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['task', 't-draw', 'Draw the depth curve', '--path', repo.folder]);
+  await ctx.run(['now', 't-draw', 'Plot the curve']);
+
+  rmSync(repo.folder, { recursive: true, force: true });
+
+  const finding = await ctx.run([]);
+  const after = await ctx.run([]);
+
+  expect([
+    finding.stdout.includes(
+      '  next step hidden: t-draw reads missing. Run: www now t-draw "<next step>"\n',
+    ),
+    after.stdout.includes(
+      '  next step hidden: t-draw changed after it was set. Run: www now t-draw "<next step>"\n',
+    ),
+  ]).toStrictEqual([true, true]);
+});
+
+test('it prints the next step of an item with no change', async () => {
   const ctx = setupTest();
 
   seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#77': 'OPEN passing' });
@@ -456,6 +525,29 @@ test('it names gh not logged in in the header when gh fails authentication', asy
   ]);
 });
 
+test('it names repo config in the header, with no steering word, when a checked repo defines a filter it cannot read', async () => {
+  const ctx = setupTest();
+
+  const repo = await ctx.createRepo();
+
+  writeFileSync(join(repo.folder, '.git', 'config'), '[filter "a b"]\n\tclean = cat\n', {
+    flag: 'a',
+  });
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+  await ctx.run(['where', 'w-repo', 'the chart repo', '--path', join(repo.folder, 'kiln.txt')]);
+
+  const brief = await ctx.run([]);
+
+  const header = brief.stdout.split('\n')[0]?.replace(/ in [0-9.]+s/u, ' in <t>s') ?? '';
+
+  expect({ header, steering: getSteeringWords(header) }).toStrictEqual({
+    header:
+      'tide-alerts · day 1 · Tue 2026-03-10 11:43Z · last write 0m ago · 1 checks in <t>s · 1 unchecked: repo config',
+    steering: [],
+  });
+});
+
 test('it starts the probes with the item in focus, then the newest tasks, not in the order of items.tsv', async () => {
   const ctx = setupTest();
   const log = join(ctx.root, 'started');
@@ -475,15 +567,16 @@ test('it starts the probes with the item in focus, then the newest tasks, not in
   seedStubCommand(
     ctx.bin,
     'gh',
-    `echo "$LAUNCH $3" >> "${log}"\n/bin/sleep 0.3\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
+    `echo "$USER $3" >> "${log}"\n/bin/sleep 0.3\nprintf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
   );
 
   const launches = { count: 0 };
 
-  // each command's env is copied just before it starts, so the getter numbers the launches in order
+  // each command's env is copied just before it starts, so the getter numbers the launches in order;
+  // USER is one of the few variables a probe passes on
   const env = {
     ...ctx.agentEnv,
-    get LAUNCH(): string {
+    get USER(): string {
       launches.count += 1;
 
       return String(launches.count);
@@ -765,3 +858,220 @@ test.each([
     });
   },
 );
+
+test.each([
+  { host: 'claude', variables: { CLAUDE_CODE_SESSION_ID: 'a1b2-test' }, limit: 'claude' },
+  { host: 'codex', variables: { CODEX_THREAD_ID: 'c9-test' }, limit: 'codex' },
+  { host: 'no host', variables: {}, limit: null },
+] as const)(
+  'it gives in the JSON brief the limit and estimate of the text brief for $host',
+  async (row) => {
+    const textCtx = setupTest();
+    const jsonCtx = setupTest();
+    const name = 'n'.repeat(24);
+
+    const pullRequestRefs = Array.from(
+      { length: 12 },
+      (_unused, index) => `bosunhq/bosun-api#${String(100 + index)}`,
+    );
+
+    const createCopy = async (ctx: ReturnType<typeof setupTest>) => {
+      seedGhAnswers(
+        ctx.bin,
+        Object.fromEntries(pullRequestRefs.map((ref) => [ref, 'OPEN passing'])),
+      );
+
+      await seedWorstCaseStore((argv) => ctx.run(argv, ctx.agentEnv), ctx.stateRoot, name, {
+        taskCount: 30,
+        isThreeByte: true,
+      });
+
+      seedStoreFile(
+        join(ctx.stateRoot, name),
+        'prs.tsv',
+        formatPrsFile(
+          pullRequestRefs.map((ref, index) =>
+            index < 6
+              ? { ref, opened: '2026-03-10T08:43:00Z', state: 'OPEN', seen: '2026-03-10T09:00:00Z' }
+              : { ref, opened: '2026-03-10T08:43:00Z', state: null, seen: null },
+          ),
+        ),
+      );
+
+      seedStoreFile(
+        join(ctx.stateRoot, name),
+        'owner.tsv',
+        formatOwnerFile([
+          { id: 'o-1', text: 'Keep the chart colours', said: '2026-03-10T09:10:00Z', on: null },
+          { id: 'o-2', text: 'Ask before the merge', said: '2026-03-10T09:20:00Z', on: 'w-o' },
+        ]),
+      );
+    };
+
+    await createCopy(textCtx);
+    await createCopy(jsonCtx);
+
+    const nowMs = Date.parse('2026-03-10T11:43:00Z');
+
+    const read = (ctx: ReturnType<typeof setupTest>, argv: readonly string[]) =>
+      runCLI({
+        argv,
+        env: { ...ctx.agentEnv, CLAUDE_CODE_SESSION_ID: '', ...row.variables },
+        cwd: '/work',
+        terminal: { stdin: false, stdout: false },
+        now: () => nowMs,
+      });
+
+    const printedText = await read(textCtx, ['--session', name]);
+    const printedJSON = await read(jsonCtx, ['--session', name, '--json']);
+    const stored = await readStore(join(jsonCtx.stateRoot, name));
+
+    if (stored.kind !== 'store') {
+      throw new Error('the seeded store does not read');
+    }
+
+    const figure = await readBriefFigure(join(jsonCtx.stateRoot, name), stored.store, {
+      nowMs,
+      sessionFlag: name,
+      host: row.limit,
+    });
+
+    const brief = jsonSchemas.brief.parse(JSON.parse(printedJSON.stdout));
+
+    const decided = await readJournalRows(
+      join(jsonCtx.stateRoot, name),
+      (journalRow) => journalRow.op === 'decide',
+    );
+
+    expect({
+      exitCodes: [printedText.exitCode, printedJSON.exitCode],
+      stderr: printedJSON.stderr,
+      isTextCut: /^ {2}and \d+ more/mu.test(printedText.stdout),
+      limit: brief.limit,
+      estimate: brief.estimate,
+      open: toSortedBy(brief.open, (shown) => shown.row.id),
+      lessons: toSortedBy(brief.lessons, (entry) => entry.id),
+      promises: toSortedBy(brief.promises, (entry) => entry.id),
+      words: toSortedBy(brief.words, (entry) => entry.id),
+      decisions: toSortedBy(brief.decisions, (entry) => entry.id),
+      ownerNotes: toSortedBy(brief.ownerNotes, (entry) => entry.id),
+      changed: brief.changed,
+      prs: toSortedBy(brief.prs, (entry) => entry.ref),
+    }).toStrictEqual({
+      exitCodes: [0, 0],
+      stderr: printedText.stderr,
+      isTextCut: true,
+      limit: pickBriefLimit(row.limit),
+      estimate: figure.tokens,
+      open: toSortedBy(
+        stored.store.items.map((item) => ({
+          kind: item.kind,
+          row: item,
+          note: stored.store.notes.find((note) => note.id === item.id) ?? null,
+        })),
+        (shown) => shown.row.id,
+      ),
+      lessons: toSortedBy(stored.store.lessons, (entry) => entry.id),
+      promises: toSortedBy(stored.store.promises, (entry) => entry.id),
+      words: toSortedBy(stored.store.words, (entry) => entry.id),
+      decisions: toSortedBy(decided, (entry) => entry.id),
+      ownerNotes: [
+        { id: 'o-1', text: 'Keep the chart colours', said: '2026-03-10T09:10:00Z', on: null },
+        { id: 'o-2', text: 'Ask before the merge', said: '2026-03-10T09:20:00Z', on: 'w-o' },
+      ],
+      changed: [],
+      prs: toSortedBy(
+        pullRequestRefs.map((ref, index) => ({
+          ref,
+          opened: '2026-03-10T08:43:00Z',
+          state: 'OPEN',
+          seen: index < 6 ? '2026-03-10T09:00:00Z' : '2026-03-10T11:43:00Z',
+        })),
+        (entry) => entry.ref,
+      ),
+    });
+  },
+);
+
+test('it prints the JSON brief and the stderr of the text brief when items.tsv stops reading during a probe', async () => {
+  const text = setupTest();
+  const json = setupTest();
+
+  const createCopy = async (ctx: ReturnType<typeof setupTest>) => {
+    const itemsPath = join(ctx.folder, 'items.tsv');
+
+    seedGhAnswers(ctx.bin, { 'bosunhq/bosun-api#1': 'OPEN passing' });
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+    await ctx.run(['task', 'pr-a', 'First', '--pr', 'bosunhq/bosun-api#1']);
+
+    seedStubCommand(
+      ctx.bin,
+      'gh',
+      `/bin/rm -f "${itemsPath}"; /bin/mkdir "${itemsPath}"; printf '%s' '{"state":"OPEN","statusCheckRollup":[]}'`,
+    );
+  };
+
+  await createCopy(text);
+  await createCopy(json);
+
+  const printedText = await text.run([]);
+  const printedJSON = await json.run(['--json']);
+
+  expect({
+    exitCode: printedJSON.exitCode,
+    stderr: printedJSON.stderr,
+    session: getJsonValue(JSON.parse(printedJSON.stdout), ['session']),
+  }).toStrictEqual({
+    exitCode: printedText.exitCode,
+    stderr: printedText.stderr,
+    session: 'tide-alerts',
+  });
+});
+
+test('it gives in the JSON brief the estimate of the store as the read saved it, results included', async () => {
+  const ctx = setupTest();
+  const watched = join(ctx.root, 'watched');
+
+  mkdirSync(watched);
+
+  await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+  await seedItems(
+    ctx.folder,
+    buildMockIDs('task', 30).map((id) => ({
+      id,
+      check: `path:${watched}`,
+      atWrite: 'exists',
+      last: 'exists',
+    })),
+  );
+
+  const before = await readStore(ctx.folder);
+
+  rmSync(watched, { recursive: true });
+
+  const printed = await ctx.runFrozen(['--json']);
+  const after = await readStore(ctx.folder);
+
+  if (before.kind !== 'store' || after.kind !== 'store') {
+    throw new Error('the seeded store does not read');
+  }
+
+  const context = {
+    nowMs: Date.parse('2026-03-10T11:43:00Z'),
+    sessionFlag: null,
+    host: 'claude' as const,
+  };
+
+  const saved = await readBriefFigure(ctx.folder, after.store, context);
+  const unsaved = await readBriefFigure(ctx.folder, before.store, context);
+
+  expect({
+    estimate: jsonSchemas.brief.parse(JSON.parse(printed.stdout)).estimate,
+    last: after.store.items
+      .map((item) => item.last ?? '')
+      .toSorted((first, second) => first.localeCompare(second))[0],
+    differsFromUnsaved: saved.tokens !== unsaved.tokens,
+  }).toStrictEqual({ estimate: saved.tokens, last: 'missing', differsFromUnsaved: true });
+});

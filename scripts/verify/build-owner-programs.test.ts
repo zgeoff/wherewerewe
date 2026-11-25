@@ -42,7 +42,7 @@ test.each([
   expect({
     tail: command.slice(-row.tail.length - 2),
     hasCodexCI: command.includes('CODEX_CI=1'),
-    unsetsFirst: command.slice(0, 3),
+    unsetsFirst: command.slice(4, 7),
   }).toStrictEqual({
     tail: ['--session', 'trial-owner', ...row.tail],
     hasCodexCI: row.isAgent,

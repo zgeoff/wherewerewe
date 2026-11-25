@@ -8,6 +8,7 @@ export type UncheckedReason =
   | 'gh missing'
   | 'gh not logged in'
   | 'git missing'
+  | 'repo config'
   | 'timeout';
 
 export type ProbeResult =

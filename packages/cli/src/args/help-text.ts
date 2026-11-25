@@ -13,6 +13,7 @@ Read. Run www first, after every compaction, and whenever you are unsure:
   www list <tasks|waits|approvals|rules|where|lessons|promises|words|notes|decisions|prs>
                              every row of one kind, whole, as the brief prints it
   www recap [--since <t>]    one screen for the owner: grant, notes, promises, decisions, closes
+www, show, log, list and recap take --json: one JSON value for a script, in place of the text.
 
 Write as you go. One id holds one claim and one note; --note replaces the note:
   www now <id> "<next step>" [--note "<detail>" [--owed]]
@@ -27,6 +28,7 @@ Write as you go. One id holds one claim and one note; --note replaces the note:
   www set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]
   www decide "<choice>" --why "<reason>" [--on <id>] [--who owner] [--ruled-out] [--replaces d-<n>]
   www goal "<what done means>"
+  www goal --paste           print a /goal text of the grant, for the owner to paste
   www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"]
             --where <where> --reading "<what they cover; what the owner kept back>"
   www grant --reading "<what they cover; what the owner kept back>"

@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { match } from 'ts-pattern';
 import { findListKind } from '../rules/find-list-kind.ts';
+import { isWriteCommand } from '../rules/is-write-command.ts';
 import { listKinds } from '../rules/list-kinds.ts';
 import type { ParsedArgs, RefusalReason, TypedFlag } from '../types.ts';
 import { joinDashValues } from './join-dash-values.ts';
@@ -48,6 +49,8 @@ const options = {
   by: { type: 'string' },
   owed: { type: 'boolean' },
   'no-note': { type: 'boolean' },
+  json: { type: 'boolean' },
+  paste: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -75,8 +78,10 @@ export function parseCLIArgs(argv: readonly string[]): ParseResult {
 }
 
 // Each command of the table, with the flags and the help line its refusal of a flag prints.
-export function listCommandShapes(): readonly CommandFlags[] {
-  return [...commandShapes].map(([command, shape]) => toCommandFlags(command, shape));
+export function listCommandShapes(): readonly CommandShapeInfo[] {
+  return [...commandShapes].map(([command, shape]) =>
+    Object.assign(toCommandFlags(command, shape), { counts: shape.counts }),
+  );
 }
 
 const checkFlags = ['pr', 'branch', 'path', 'pid'];
@@ -98,7 +103,7 @@ interface CommandShape {
 
 // A map, so a command named like an inherited object property, such as toString, is unknown.
 const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
-  ['brief', { counts: [0], usage: 'no arguments', flags: [], line: '' }],
+  ['brief', { counts: [0], usage: 'no arguments', flags: ['json'], line: '' }],
   ['help', { counts: [0], usage: 'no arguments', flags: [], line: 'help' }],
   ['sessions', { counts: [0], usage: 'no arguments', flags: [], line: 'sessions' }],
   ['detach', { counts: [0], usage: 'no arguments', flags: [], line: 'detach' }],
@@ -110,7 +115,12 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ],
   [
     'goal',
-    { counts: [1], usage: '"<what done means>"', flags: [], line: 'goal "<what done means>"' },
+    {
+      counts: [0, 1],
+      usage: '"<what done means>"',
+      flags: ['paste'],
+      line: 'goal "<what done means>"',
+    },
   ],
   [
     'grant',
@@ -238,23 +248,26 @@ const commandShapes: ReadonlyMap<string, CommandShape> = new Map([
   ],
   ['say', { counts: [1], usage: '"<text>"', flags: ['on'], line: 'say "<text>" [--on <id>]' }],
   ['ack', { counts: [1], usage: 'o-<n>', flags: [], line: 'ack o-<n>' }],
-  ['show', { counts: [0, 1], usage: '[<id>]', flags: [], line: 'show [<id>]' }],
+  ['show', { counts: [0, 1], usage: '[<id>]', flags: ['json'], line: 'show [<id>]' }],
   [
     'log',
     {
       counts: [0],
       usage: 'no arguments',
-      flags: ['since', 'op', 'id'],
+      flags: ['since', 'op', 'id', 'json'],
       line: 'log [--since <t>] [--op <op,...>] [--id <id>]',
     },
   ],
-  ['recap', { counts: [0], usage: 'no arguments', flags: ['since'], line: 'recap [--since <t>]' }],
+  [
+    'recap',
+    { counts: [0], usage: 'no arguments', flags: ['since', 'json'], line: 'recap [--since <t>]' },
+  ],
   [
     'list',
     {
       counts: [0, 1],
       usage: '<kind>',
-      flags: [],
+      flags: ['json'],
       line: `list <${listKinds.join('|')}>`,
     },
   ],
@@ -321,8 +334,14 @@ function checkArgs(argv: readonly string[]): ParseResult {
     });
   }
 
-  if (!shape.counts.includes(rest.length)) {
-    return refuse({ kind: 'wrong-positionals', command, usage: shape.usage });
+  if (command === 'goal' && args.values.paste === true && rest.length > 0) {
+    return refuse({ kind: 'goal-paste-with-text' });
+  }
+
+  const isGoalWithNothing = command === 'goal' && rest.length === 0 && args.values.paste !== true;
+
+  if (!shape.counts.includes(rest.length) || isGoalWithNothing) {
+    return refuse({ kind: 'wrong-positionals', command, usage: shape.usage, line: shape.line });
   }
 
   if (command === 'list' && findListKind(rest[0]) === null) {
@@ -341,12 +360,17 @@ function refuseCommand(command: string): RefusalReason {
     : { kind: 'unknown-command', command };
 }
 
-export interface CommandFlags {
+interface CommandFlags {
   readonly command: string;
 
   // the flags a refusal of an unknown flag names, and the command's help line after `www`
   readonly taken: readonly string[];
   readonly line: string;
+}
+
+export interface CommandShapeInfo extends CommandFlags {
+  // the numbers of arguments the command takes after its name
+  readonly counts: readonly number[];
 }
 
 function toCommandFlags(command: string, shape: CommandShape): CommandFlags {
@@ -433,4 +457,14 @@ function pickSessionFlag(argv: readonly string[]): string | null {
 
   // `--session --help` names no session: the parser took the next flag as its value
   return typeof session === 'string' && !session.startsWith('-') ? session : null;
+}
+
+// Whether the command typed writes, read leniently so a refusal of any flag still knows. The word
+// `brief` is an unknown command, and an unknown command is refused as a write.
+export function isWriteArgv(argv: readonly string[]): boolean {
+  const lenient = parseArgs({ args: [...argv], options, strict: false, allowPositionals: true });
+  const [first] = lenient.positionals;
+  const command = first ?? (lenient.values.help === true ? 'help' : 'brief');
+
+  return first === 'brief' || isWriteCommand(command, lenient.values.paste === true);
 }

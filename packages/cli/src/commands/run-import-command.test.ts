@@ -11,6 +11,7 @@ import {
 import { basename, dirname, join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { nothingWrittenComment } from '../refusals/format-refusal.ts';
 import { runCLI } from '../run-cli.ts';
 import { withBindingLock } from '../sessions/with-binding-lock.ts';
 import { createImportFiles } from '../store/create-import-files.ts';
@@ -308,8 +309,7 @@ test('it refuses a store with five broken rows, writes nothing, and passes once 
   expect(refused).toStrictEqual({
     exitCode: 3,
     stdout: '',
-    stderr:
-      'www: refused: import found 5 rows that break the rules, and wrote nothing.\nitems.tsv line 3 (t-b): the claim is 121 characters, and the limit is 120.\nitems.tsv line 4 (ok-a): an approval needs who, where, scope, and once or standing.\nitems.tsv line 5 (w-a): a wait needs who.\nitems.tsv line 6 (r-a): a rule has no check.\njournal.tsv line 2 (q-1): the question is 121 characters, and the limit is 120 for a wait.\nRun: www import old-notes\n',
+    stderr: `www: refused: import found 5 rows that break the rules, and wrote nothing.\nitems.tsv line 3 (t-b): the claim is 121 characters, and the limit is 120.\nitems.tsv line 4 (ok-a): an approval needs who, where, scope, and once or standing.\nitems.tsv line 5 (w-a): a wait needs who.\nitems.tsv line 6 (r-a): a rule has no check.\njournal.tsv line 2 (q-1): the question is 121 characters, and the limit is 120 for a wait.\nRun: www import old-notes${nothingWrittenComment}\n`,
   });
 
   expect(after).toStrictEqual(before);
@@ -340,8 +340,7 @@ test('it refuses a hand-kept session with CRLF line endings by its rows, not as 
     result: {
       exitCode: 3,
       stdout: '',
-      stderr:
-        'www: refused: import found 4 rows that break the rules, and wrote nothing.\nsession line 1: the line holds a carriage return. Save the file with LF line endings.\nsession line 2: the line holds a carriage return. Save the file with LF line endings.\nsession line 3: the line holds a carriage return. Save the file with LF line endings.\nsession line 4: the line holds a carriage return. Save the file with LF line endings.\nRun: www import old-notes\n',
+      stderr: `www: refused: import found 4 rows that break the rules, and wrote nothing.\nsession line 1: the line holds a carriage return. Save the file with LF line endings.\nsession line 2: the line holds a carriage return. Save the file with LF line endings.\nsession line 3: the line holds a carriage return. Save the file with LF line endings.\nsession line 4: the line holds a carriage return. Save the file with LF line endings.\nRun: www import old-notes${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -362,7 +361,7 @@ test('it refuses a store that is format 2 already', async () => {
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: 'www: refused: old-notes is already format 2.\nRun: www --session old-notes\n',
+      stderr: `www: refused: old-notes is already format 2.\nRun: www --session old-notes${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -424,8 +423,7 @@ test('it binds the agent with the Run line of a rerun, after an import stopped b
     retried: {
       exitCode: 3,
       stdout: '',
-      stderr:
-        'www: refused: old-notes is already format 2. Bind this agent session to it.\nRun: www attach old-notes\n',
+      stderr: `www: refused: old-notes is already format 2. Bind this agent session to it.\nRun: www attach old-notes${nothingWrittenComment}\n`,
     },
     attached: {
       exitCode: 0,
@@ -465,7 +463,7 @@ test('it refuses a format 1 store with a broken session file, and writes nothing
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: old-notes's session does not parse: the line "bogus line" is not key=value. Fix the file by hand.\nRun: less ${ctx.folder}/session\n`,
+      stderr: `www: old-notes's session does not parse: the line "bogus line" is not key=value. Fix the file by hand.\nRun: less ${ctx.folder}/session${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -492,7 +490,7 @@ test('it refuses a format 1 store with a broken items file by that file, so its 
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: old-notes's items.tsv line 2 does not parse: expected 9 tab-separated columns, found 2. Fix the row by hand.\nRun: less ${ctx.folder}/items.tsv\n`,
+      stderr: `www: old-notes's items.tsv line 2 does not parse: expected 9 tab-separated columns, found 2. Fix the row by hand.\nRun: less ${ctx.folder}/items.tsv${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -513,7 +511,7 @@ test.each([
   expect(result).toStrictEqual({
     exitCode: 3,
     stdout: '',
-    stderr: `www: refused: no session folder ${row.name} to import. Sessions: tide-alerts.\nRun: www sessions\n`,
+    stderr: `www: refused: no session folder ${row.name} to import. Sessions: tide-alerts.\nRun: www sessions${nothingWrittenComment}\n`,
   });
 });
 
@@ -537,8 +535,7 @@ test('it refuses a store of a newer format, and writes nothing', async () => {
     result: {
       exitCode: 5,
       stdout: '',
-      stderr:
-        'www: old-notes is format 3, and this www reads format 2.\nRun: bun add -g @wherewerewe/cli@latest\n',
+      stderr: `www: old-notes is format 3, and this www reads format 2.\nRun: bun add -g @wherewerewe/cli@latest${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -581,7 +578,7 @@ test('it refuses while another write holds the lock, and names the holder', asyn
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: refused: another write holds the lock on old-notes (pid ${String(process.pid)}). Try again.\nRun: www import old-notes\n`,
+      stderr: `www: refused: another write holds the lock on old-notes (pid ${String(process.pid)}). Try again.\nRun: www import old-notes${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -624,7 +621,7 @@ test('it refuses while the binding lock is held, and converts nothing', async ()
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: refused: another write holds the lock on old-notes (pid ${String(process.pid)}). Try again.\nRun: www import old-notes\n`,
+      stderr: `www: refused: another write holds the lock on old-notes (pid ${String(process.pid)}). Try again.\nRun: www import old-notes${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -1019,8 +1016,7 @@ test('it refuses a format 1 store with two standing and two one-time approvals, 
     rerun: {
       exitCode: 3,
       stdout: '',
-      stderr:
-        'www: refused: old-notes is already format 2. Bind this agent session to it.\nRun: www attach old-notes\n',
+      stderr: `www: refused: old-notes is already format 2. Bind this agent session to it.\nRun: www attach old-notes${nothingWrittenComment}\n`,
     },
   });
 });
@@ -1187,8 +1183,7 @@ test('it refuses an upgrade with a grant of 20 lines and one Run line that fixes
     session: ctx.readText('old-notes/session').split('\n').slice(3, 6),
   }).toStrictEqual({
     exitCode: 3,
-    runLine:
-      'Run: www import old-notes --may "<what the owner allows, in their words>" --where chat --reading "covers watering" --drop ok-wipe',
+    runLine: `Run: www import old-notes --may "<what the owner allows, in their words>" --where chat --reading "covers watering" --drop ok-wipe${nothingWrittenComment}`,
     upgradedExit: 0,
     session: ['grant_may=water the beds', 'grant_scope=', 'grant_reading=covers watering'],
   });
@@ -1258,8 +1253,7 @@ test.each([
         "www: refused: old-notes holds 2 standing approvals, and format 2 keeps lasting permission in the grant. Record the owner's words in the same command.",
       ],
       approvalLines: 2,
-      runLine:
-        'Run: www import old-notes --not "<what the owner did not grant, in their words>" --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>" --may "<what the owner allows, in their words>"',
+      runLine: `Run: www import old-notes --not "<what the owner did not grant, in their words>" --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>" --may "<what the owner allows, in their words>"${nothingWrittenComment}`,
       upgradedExit: 0,
     });
   },

@@ -9,6 +9,9 @@ import type { CheckRun, ProbeResult, StatPath, UncheckedReason } from './types.t
 export interface RunChecksOptions {
   readonly deadlineMs: number;
   readonly env: Readonly<Record<string, string | undefined>>;
+
+  // the folder the read was typed in
+  readonly cwd: string;
   readonly now: () => number;
   readonly statPath?: StatPath;
 }
@@ -36,6 +39,7 @@ export async function runChecks(
     items,
     prs,
     env: options.env,
+    cwd: options.cwd,
     kills,
     statPath: options.statPath,
     isStopped,
@@ -114,6 +118,7 @@ interface JobsInput {
   readonly items: readonly Item[];
   readonly prs: readonly PullRequestRow[];
   readonly env: RunChecksOptions['env'];
+  readonly cwd: string;
   readonly kills: KillSet;
   readonly statPath: StatPath | undefined;
   readonly isStopped: () => boolean;
@@ -149,7 +154,12 @@ function buildJobs(input: JobsInput): ProbeJob[] {
             run: (argv, timeoutMs) =>
               input.isStopped()
                 ? Promise.resolve({ kind: 'timeout' })
-                : runCommand(argv, { env: input.env, timeoutMs, kills: input.kills }),
+                : runCommand(argv, {
+                    env: input.env,
+                    cwd: input.cwd,
+                    timeoutMs,
+                    kills: input.kills,
+                  }),
           });
 
           return probe.result;

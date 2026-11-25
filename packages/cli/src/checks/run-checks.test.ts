@@ -49,7 +49,7 @@ test('it probes each item with a check and each open row that no item names, and
       buildMockItem({ id: 't-plain' }),
     ],
     [ctx.buildRow('bosunhq/bosun-app#64', 'OPEN'), ctx.buildRow('bosunhq/bosun-api#77')],
-    { deadlineMs: 2000, env: ctx.env, now: ctx.now },
+    { cwd: '/work', deadlineMs: 2000, env: ctx.env, now: ctx.now },
   );
 
   expect(run).toStrictEqual({
@@ -74,7 +74,7 @@ test('it never probes a row of prs.tsv that is merged or closed', async () => {
     [],
     [],
     [ctx.buildRow('bosunhq/bosun-app#1', 'MERGED'), ctx.buildRow('bosunhq/bosun-app#2', 'CLOSED')],
-    { deadlineMs: 2000, env: ctx.env, now: ctx.now },
+    { cwd: '/work', deadlineMs: 2000, env: ctx.env, now: ctx.now },
   );
 
   expect(run.ran).toBe(0);
@@ -85,6 +85,7 @@ test('it reads the clock only when a probe runs, and counts the ms from it', asy
   const calls: number[] = [];
 
   const run = await runChecks([], [buildMockItem({ id: 't-a' })], [], {
+    cwd: '/work',
     deadlineMs: 2000,
     env: ctx.env,
     now: () => {
@@ -110,12 +111,14 @@ test('it gives the one reason when every unchecked probe has it, and mixed when 
   ];
 
   const sameReason = await runChecks(['pr-a', 'pr-b'], items.slice(0, 2), [], {
+    cwd: '/work',
     deadlineMs: 2000,
     env: ctx.env,
     now: ctx.now,
   });
 
   const mixed = await runChecks(['pr-a', 'pr-b', 'br-a'], items, [], {
+    cwd: '/work',
     deadlineMs: 2000,
     env: ctx.env,
     now: ctx.now,
@@ -152,7 +155,7 @@ printf '%s' '${ctx.passing}'`,
     items.map((item) => item.id),
     items,
     [],
-    { deadlineMs: checkLimits.deadlineMs, env: ctx.env, now: ctx.now },
+    { cwd: '/work', deadlineMs: checkLimits.deadlineMs, env: ctx.env, now: ctx.now },
   );
 
   const startedBeforeRelease = await waitFor(async () => {
@@ -186,7 +189,7 @@ test('it reads unchecked with timeout within the deadline for a gh that runs sle
     ['pr-a'],
     [buildMockItem({ id: 'pr-a', check: 'pr:bosunhq/bosun-api#77' })],
     [],
-    { deadlineMs: 300, env: ctx.env, now: ctx.now },
+    { cwd: '/work', deadlineMs: 300, env: ctx.env, now: ctx.now },
   );
 
   const children = Bun.spawnSync(['pgrep', '-f', marker]);
@@ -210,7 +213,7 @@ test('it calls no git for a path probe whose stat returns after the deadline', a
     ['p-a'],
     [buildMockItem({ id: 'p-a', check: `path:${ctx.folder}` })],
     [],
-    { deadlineMs: 300, env: ctx.env, now: ctx.now, statPath: () => stat.promise },
+    { cwd: '/work', deadlineMs: 300, env: ctx.env, now: ctx.now, statPath: () => stat.promise },
   );
 
   stat.resolve({ isDirectory: () => true });
@@ -250,7 +253,7 @@ test('it starts no git for a path probe whose stat holds the event loop past the
     ['p-a'],
     [buildMockItem({ id: 'p-a', check: `path:${ctx.folder}` })],
     [],
-    { deadlineMs: 20, env, now: ctx.now, statPath: buildStubHeldStat(80) },
+    { cwd: '/work', deadlineMs: 20, env, now: ctx.now, statPath: buildStubHeldStat(80) },
   );
 
   expect([run.results.get('p-a'), run.reason, launches.count]).toStrictEqual([
@@ -268,7 +271,7 @@ test('it starts probes in the order given, and a probe the deadline stops before
   seedStubCommand(
     ctx.folder,
     'gh',
-    `echo "$LAUNCH $3" >> "${log}"
+    `echo "$USER $3" >> "${log}"
 /bin/sleep 5
 printf '%s' '${ctx.passing}'`,
   );
@@ -285,14 +288,20 @@ printf '%s' '${ctx.passing}'`,
   // each command's env is copied just before it starts, so the getter numbers the launches in order
   const env = {
     PATH: ctx.folder,
-    get LAUNCH(): string {
+    get USER(): string {
       launches.count += 1;
 
       return String(launches.count);
     },
   };
 
-  const run = await runChecks(order, items, [], { deadlineMs: 800, env, now: ctx.now });
+  const run = await runChecks(order, items, [], {
+    cwd: '/work',
+    deadlineMs: 800,
+    env,
+    now: ctx.now,
+  });
+
   const logText = await Bun.file(log).text();
 
   const started = logText
@@ -334,7 +343,7 @@ test('it writes nothing in a repo: the files of .git hold the same hashes after 
     runCLI({
       argv,
       env,
-      cwd: root,
+      cwd: '/work',
       terminal: { stdin: false, stdout: false },
       now: ctx.now,
     });

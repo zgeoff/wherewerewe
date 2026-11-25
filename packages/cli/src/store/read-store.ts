@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
 import type {
@@ -19,8 +18,9 @@ import { parseOwnerFile } from './parse-owner-file.ts';
 import { parsePromisesFile } from './parse-promises-file.ts';
 import { parsePrsFile } from './parse-prs-file.ts';
 import type { RowsParse } from './parse-rows-file.ts';
-import { parseSessionFile } from './parse-session-file.ts';
 import { parseWordsFile } from './parse-words-file.ts';
+import { readSessionFile } from './read-session-file.ts';
+import { readTextOrNull } from './read-text-or-null.ts';
 
 export interface ReadStoreOptions {
   // false leaves prs.tsv unopened and the store with no rows of it
@@ -53,13 +53,10 @@ export async function readStore(
   folder: string,
   options: ReadStoreOptions = readsPrs,
 ): Promise<StoreRead> {
-  const sessionText = await readTextOrNull(join(folder, 'session'));
+  const read = await readSessionFile(folder);
 
-  if (sessionText === null) {
-    return { kind: 'missing' };
-  }
-
-  return match(parseSessionFile(sessionText))
+  return match(read)
+    .with({ kind: 'missing' }, (found): StoreRead => found)
     .with({ kind: 'hand-kept' }, (found): StoreRead => found)
     .with({ kind: 'format-1' }, (found): StoreRead => found)
     .with({ kind: 'newer' }, (found): StoreRead => found)
@@ -72,18 +69,6 @@ export async function readStore(
     }))
     .with({ kind: 'session' }, (found) => readItems(folder, found.session, options))
     .exhaustive();
-}
-
-async function readTextOrNull(path: string): Promise<string | null> {
-  try {
-    return await readFile(path, 'utf8');
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return null;
-    }
-
-    throw error;
-  }
 }
 
 async function readItems(

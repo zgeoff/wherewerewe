@@ -22,6 +22,9 @@ export interface CloseModelState {
   readonly outcome: 'write' | 'refused';
   readonly problems: readonly string[];
   readonly closeRows: readonly number[];
+
+  // the journal rows the step appended, by op and id
+  readonly appended: readonly { readonly op: string; readonly id: string }[];
 }
 
 interface CloseModelKind {
@@ -142,13 +145,17 @@ async function runSteps(
       files.words = [...(picked.change.words ?? files.words)];
     }
 
-    const outcome = expectStep(model, step, state);
+    const expectation = expectStep(model, step, state);
     const journal = existsSync(journalPath) ? readFileSync(journalPath, 'utf8') : '';
     const rows = parseJournalFile(journal);
     const fileRows = model.readRows({ ...base, ...files });
 
     actual.push({
       outcome: picked.kind,
+      appended:
+        picked.kind === 'write'
+          ? picked.change.journal.map((row) => ({ op: row.op, id: row.id }))
+          : [],
       problems: readCloseModelProblems(model.kind, fileRows, journal, ids),
       closeRows: ids.map(
         (id) => rows.filter((row) => row.id === id && row.extra === `kind=${model.kind}`).length,
@@ -156,7 +163,8 @@ async function runSteps(
     });
 
     expected.push({
-      outcome,
+      outcome: expectation.outcome,
+      appended: expectation.appended,
       problems: [],
       closeRows: ids.map((id) => state.closeCounts.get(id) ?? 0),
     });
@@ -165,28 +173,28 @@ async function runSteps(
   return { actual, expected };
 }
 
-// The model, from the design's rules alone: a write of an open id replaces it, a write of an id
-// closed and open nowhere is refused, a close by the kind's own command removes the row, and a
-// close adds one journal row unless it retries the interrupted close of the same row and command.
+// The model, from the design's rules alone: a write of an open id replaces it and adds one journal
+// row, a write of a closed id is refused, a close removes the row and adds one journal row unless
+// it retries the interrupted close of the same row and command.
 function expectStep(
   model: CloseModelKind,
   step: CloseModelStep,
   state: ModelState,
-): 'write' | 'refused' {
+): Pick<CloseModelState, 'outcome' | 'appended'> {
   const row = state.open.get(step.id);
 
   if (step.op === 'write') {
     if (row === undefined && state.closed.has(step.id)) {
-      return 'refused';
+      return { outcome: 'refused', appended: [] };
     }
 
     state.open.set(step.id, { text: step.text, recordedClose: null });
 
-    return 'write';
+    return { outcome: 'write', appended: [{ op: model.kind, id: step.id }] };
   }
 
   if (row === undefined || !model.closes.includes(step.command)) {
-    return 'refused';
+    return { outcome: 'refused', appended: [] };
   }
 
   const added = row.recordedClose === step.command ? 0 : 1;
@@ -200,5 +208,8 @@ function expectStep(
     state.open.delete(step.id);
   }
 
-  return 'write';
+  return {
+    outcome: 'write',
+    appended: added === 1 ? [{ op: step.command, id: step.id }] : [],
+  };
 }

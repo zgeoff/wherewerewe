@@ -1,23 +1,27 @@
-import { buildFilledRunArgv } from './build-filled-run-argv.ts';
+import { buildUsageRunArgv } from './build-usage-run-argv.ts';
 import { parseRunLine } from './parse-run-line.ts';
 
 // The arguments of a Run line with every placeholder filled by one short word, so a filled grant
-// stays within its limits: an id or a name takes a new id, and a decision's who takes agent.
+// stays within its limits: an id or a name takes a new id, and a decision's who takes agent. A usage
+// line keeps its `--may` group and drops its other optional groups.
 export function buildSampleRunArgv(line: string): readonly string[] {
-  return buildFilledRunArgv(
+  return buildUsageRunArgv(
     line,
     Object.fromEntries(
       parseRunLine(line).flatMap((word) => {
-        if (!/<[^<>]+>/u.test(word)) {
+        const bare = word.replaceAll(/^\[+|\]+$/gu, '');
+
+        if (!/<[^<>|]+>/u.test(bare)) {
           return [];
         }
 
-        if (word === '<owner or agent>') {
-          return [[word, 'agent']];
+        if (bare === '<owner or agent>') {
+          return [[bare, 'agent']];
         }
 
-        return [[word, /id>$|^<name>$/u.test(word) ? 'n-c' : 'x']];
+        return [[bare, /id>$|^<name>$/u.test(bare) ? 'n-c' : 'x']];
       }),
     ),
+    ['--may'],
   );
 }

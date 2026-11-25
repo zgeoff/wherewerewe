@@ -12,7 +12,12 @@ function setupTest() {
   const target = { repo: 'bosunhq/bosun-api', number: '77' };
 
   const runWith: RunProbeCommand = (argv, timeoutMs) =>
-    runCommand(argv, { env: { PATH: folder }, timeoutMs, kills: createKillSet() });
+    runCommand(argv, {
+      env: { PATH: folder },
+      cwd: join(folder, 'work'),
+      timeoutMs,
+      kills: createKillSet(),
+    });
 
   return {
     target,
