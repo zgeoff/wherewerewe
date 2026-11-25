@@ -1,23 +1,32 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { setImmediate } from 'node:timers/promises';
 import { createTempDir } from '@zgeoff/testing/fs';
+import type fc from 'fast-check';
 import { match } from 'ts-pattern';
 import { briefFooter } from '../brief/join-brief.ts';
 import { runHookCommand } from '../commands/run-hook-command.ts';
 import { parseGateFile } from '../hooks/parse-gate-file.ts';
+import { readInjection } from '../hooks/read-injection.ts';
 import { stepGate } from '../hooks/step-gate.ts';
-import type { GateEvent, GateFile, GateOutput, Harness } from '../hooks/types.ts';
-import { writeBinding } from '../sessions/write-binding.ts';
+import type { GateEvent, GateFile, Harness } from '../hooks/types.ts';
+import { readBinding } from '../sessions/read-binding.ts';
 import { buildHookContext } from './build-hook-context.ts';
 import { buildHookPayload } from './build-hook-payload.ts';
 import type { HookPayloadSpec } from './build-hook-payload.ts';
+import { formatExpectedHookOutput } from './format-expected-hook-output.ts';
 import { readGateLine } from './read-gate-line.ts';
 import { seedHookStore } from './seed-hook-store.ts';
 import { toHookDecision } from './to-hook-decision.ts';
 import type { HookDecision } from './to-hook-decision.ts';
 
 export type HookModelPayload =
-  | 'start'
+  | 'start-startup'
+  | 'start-resume'
+  | 'start-clear'
+  | 'start-compact'
+  | 'start-fork'
+  | 'subagent-start'
   | 'pre-brief'
   | 'pre-brief-session'
   | 'pre-www-list'
@@ -51,12 +60,13 @@ interface ModelState {
 
 const agent = { id: '9e1f-trial', unbound: 'ffff-unbound' };
 
-// Runs the operations through the real hook command over a temp store root, and through a model
-// that advances the same step function over the binding table, and returns each place they or an
-// invariant of the design disagree. The model and the real files must agree after every operation.
+// Runs the operations through the real hook command over a temp store root and through a model that
+// advances the same step function, and returns each place they or an invariant disagree. Each
+// stdout must be the model's output whole. Two hooks run together in the scheduler's order.
 export async function runHookModel(
   harness: Harness,
   ops: readonly HookModelOp[],
+  scheduler: fc.Scheduler,
 ): Promise<readonly string[]> {
   const root = createTempDir('hook-model').path;
   const context = buildHookContext(root);
@@ -65,6 +75,17 @@ export async function runHookModel(
   await seedHookStore(root, { harness, id: 'eeee-other' }, 'docs-move');
 
   const problems: string[] = [];
+
+  const injections = {
+    'tide-alerts': await readInjection(
+      join(root, 'tide-alerts'),
+      'tide-alerts',
+      harness,
+      context.now(),
+    ),
+    'docs-move': await readInjection(join(root, 'docs-move'), 'docs-move', harness, context.now()),
+  };
+
   let state: ModelState = { file: null, binding: 'tide-alerts' };
 
   // the brief commands the main agent started and no end event closed, counted apart from the gate
@@ -78,7 +99,12 @@ export async function runHookModel(
     const before = readGateLine(root, `${harness}-${agent.id}`);
     const prior = state.file;
 
-    const outcome = await runOp({ harness, root, context, op }, state, problems, label);
+    const outcome = await runOp(
+      { harness, root, context, op, scheduler, injections },
+      state,
+      problems,
+      label,
+    );
 
     state = outcome.state;
 
@@ -110,6 +136,10 @@ interface OpRun {
   readonly root: string;
   readonly context: ReturnType<typeof buildHookContext>;
   readonly op: HookModelOp;
+  readonly scheduler: fc.Scheduler;
+
+  // what a SessionStart prints for each store, read from the store as the brief is
+  readonly injections: Readonly<Record<string, string | null>>;
 }
 
 interface Outcome {
@@ -120,53 +150,89 @@ interface Outcome {
 function runOp(run: OpRun, state: ModelState, problems: string[], label: string): Promise<Outcome> {
   return match(run.op)
     .with({ kind: 'attach' }, async (): Promise<Outcome> => {
-      await writeBinding(run.root, { harness: run.harness, id: agent.id }, 'docs-move');
+      const result = await runHookCommand(
+        run.harness,
+        buildHookPayload(run.harness, agent.id, {
+          event: 'PostToolUse',
+          command: 'www attach docs-move',
+          output: 'attached',
+        }),
+        run.context,
+      );
+
+      const bound = await readBinding(run.root, { harness: run.harness, id: agent.id });
+
+      if (result.stdout !== '' || bound !== 'docs-move') {
+        problems.push(`${label}: the attach printed ${result.stdout} and bound ${String(bound)}`);
+      }
 
       return { state: { ...state, binding: 'docs-move' }, decision: 'pass' };
     })
     .with({ kind: 'call' }, async (call): Promise<Outcome> => {
-      const stdout = await runCall(run, call);
+      const stdout = await runCall(run, call, run.context);
 
-      const expected = advance(state, call, run.harness);
+      const expected = advance(state, call, run);
       const decision = toHookDecision(stdout.stdout);
 
-      if (decision !== expected.decision) {
-        problems.push(`${label}: printed ${decision}, the model has ${expected.decision}`);
+      if (stdout.stdout !== expected.stdout) {
+        problems.push(
+          `${label}: printed ${JSON.stringify(stdout.stdout)}, the model has ${JSON.stringify(expected.stdout)}`,
+        );
       }
 
       return { state: expected.state, decision };
     })
     .with({ kind: 'together' }, async (together): Promise<Outcome> => {
-      const [firstOut, secondOut] = await Promise.all([
-        runCall(run, together.first),
-        runCall(run, together.second),
-      ]);
+      // the scheduler decides which hook starts first and when a hook that waits for the lock
+      // tries again; each wait also yields to the event loop, so the holder can finish its reads
+      const waiting = {
+        ...run.context,
+        sleep: async () => {
+          await run.scheduler.schedule(Promise.resolve());
 
-      const firstThenSecond = advanceBoth(state, together, run.harness, 'first-first');
-      const secondThenFirst = advanceBoth(state, together, run.harness, 'second-first');
-      const seen = [toHookDecision(firstOut.stdout), toHookDecision(secondOut.stdout)];
+          await setImmediate();
+        },
+      };
+
+      const [firstOut, secondOut] = await run.scheduler.waitFor(
+        Promise.all([
+          runScheduled(run, together.first, waiting),
+          runScheduled(run, together.second, waiting),
+        ]),
+      );
+
+      const firstThenSecond = advanceBoth(state, together, run, 'first-first');
+      const secondThenFirst = advanceBoth(state, together, run, 'second-first');
+      const seen = [firstOut.stdout, secondOut.stdout];
       const actual = parseGateFile(readGateLine(run.root, `${run.harness}-${agent.id}`) ?? '');
 
       const chosen = [firstThenSecond, secondThenFirst].find(
         (order) =>
-          JSON.stringify(order.decisions) === JSON.stringify(seen) &&
+          JSON.stringify(order.stdouts) === JSON.stringify(seen) &&
           JSON.stringify(order.state.file) === JSON.stringify(actual),
       );
 
       if (chosen === undefined) {
-        problems.push(`${label}: matches neither serial order: ${seen.join(',')}`);
+        problems.push(`${label}: matches neither serial order: ${JSON.stringify(seen)}`);
       }
 
-      return { state: chosen?.state ?? { ...state, file: actual }, decision: seen[0] ?? 'pass' };
+      return {
+        state: chosen?.state ?? { ...state, file: actual },
+        decision: toHookDecision(seen[0] ?? ''),
+      };
     })
     .exhaustive();
 }
 
-function runCall(run: OpRun, call: HookModelCall): Promise<{ stdout: string }> {
+function runCall(
+  run: OpRun,
+  call: HookModelCall,
+  context: OpRun['context'],
+): Promise<{ stdout: string }> {
   const sessionID = call.from === 'unbound' ? agent.unbound : agent.id;
   const spec = toSpec(call);
 
-  return runHookCommand(run.harness, buildHookPayload(run.harness, sessionID, spec), run.context);
+  return runHookCommand(run.harness, buildHookPayload(run.harness, sessionID, spec), context);
 }
 
 function toSpec(call: HookModelCall): HookPayloadSpec {
@@ -175,7 +241,12 @@ function toSpec(call: HookModelCall): HookPayloadSpec {
   const whole = `tide-alerts · day 1 · Tue 2026-03-10 11:43Z · no checks\nGOAL  Ship it\n${briefFooter}\n`;
 
   return match(call.payload)
-    .with('start', (): HookPayloadSpec => ({ event: 'SessionStart' }))
+    .with('start-startup', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'startup' }))
+    .with('start-resume', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'resume' }))
+    .with('start-clear', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'clear' }))
+    .with('start-compact', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'compact' }))
+    .with('start-fork', (): HookPayloadSpec => ({ event: 'SessionStart', source: 'fork' }))
+    .with('subagent-start', (): HookPayloadSpec => ({ event: 'SubagentStart' }))
     .with('pre-brief', (): HookPayloadSpec => ({
       event: 'PreToolUse',
       command: 'www',
@@ -230,25 +301,54 @@ function toSpec(call: HookModelCall): HookPayloadSpec {
     .exhaustive();
 }
 
-// What the model expects of one call: the gate event its payload sorts to, advanced by the step
-// function, or no change for a payload of a subagent or of an unbound id.
-function advance(
-  state: ModelState,
-  call: HookModelCall,
-  harness: Harness,
-): { readonly state: ModelState; readonly decision: HookDecision } {
-  const event = toGateEvent(call.payload, harness, state.binding);
+// What the model expects a call to print and to leave in the gate file.
+interface Advance {
+  readonly state: ModelState;
+  readonly stdout: string;
+}
 
-  if (call.from === 'unbound' || event === null) {
-    return { state, decision: 'pass' };
+// What the model expects of one call: the gate event its payload sorts to, advanced by the step
+// function, or no change for a payload of an unbound id, and the stdout of that event in the
+// host's shape, whole.
+function advance(state: ModelState, call: HookModelCall, run: OpRun): Advance {
+  if (call.from === 'unbound') {
+    return { state, stdout: '' };
+  }
+
+  if (call.payload === 'subagent-start') {
+    return {
+      state,
+      stdout: formatExpectedHookOutput({
+        event: 'SubagentStart',
+        output: { kind: 'pass' },
+        harness: run.harness,
+        name: state.binding,
+        injection: '',
+      }),
+    };
+  }
+
+  const event = toGateEvent(call.payload, run.harness, state.binding);
+
+  if (event === null) {
+    return { state, stdout: '' };
   }
 
   const agentID = call.from === 'subagent' ? 'sub-1' : null;
   const step = stepGate(state.file, state.binding, event, agentID);
   const needsFile = event.kind !== 'session-start' && state.file === null;
-  const decision = needsFile ? 'pass' : toDecision(step.output);
 
-  return { state: { ...state, file: step.file ?? state.file }, decision };
+  const stdout = needsFile
+    ? ''
+    : formatExpectedHookOutput({
+        event: toEventName(event),
+        output: step.output,
+        harness: run.harness,
+        name: state.binding,
+        injection: run.injections[state.binding] ?? '',
+      });
+
+  return { state: { ...state, file: step.file ?? state.file }, stdout };
 }
 
 function toGateEvent(
@@ -259,7 +359,17 @@ function toGateEvent(
   const isBound = binding === 'tide-alerts';
 
   return match(payload)
-    .with('start', (): GateEvent => ({ kind: 'session-start' }))
+    .with(
+      'start-startup',
+      'start-resume',
+      'start-clear',
+      'start-compact',
+      'start-fork',
+      (): GateEvent => ({
+        kind: 'session-start',
+      }),
+    )
+    .with('subagent-start', () => null)
     .with('pre-brief', (): GateEvent => ({ kind: 'call', call: 'brief-command' }))
     .with('pre-brief-session', (): GateEvent => ({
       kind: 'call',
@@ -278,15 +388,22 @@ function toGateEvent(
     .exhaustive();
 }
 
-function toDecision(output: GateOutput): HookDecision {
-  return match(output)
-    .with({ kind: 'refuse', reason: 'cut' }, (): HookDecision => 'refuse-cut')
-    .with({ kind: 'refuse' }, (): HookDecision => 'refuse')
-    .with({ kind: 'pass-with-line' }, (): HookDecision => 'pass+line')
-    .with({ kind: 'block' }, (): HookDecision => 'block')
-    .with({ kind: 'inject' }, (): HookDecision => 'inject')
-    .with({ kind: 'pass' }, { kind: 'none' }, (): HookDecision => 'pass')
+function toEventName(event: GateEvent): 'SessionStart' | 'PreToolUse' | 'Stop' {
+  return match(event)
+    .with({ kind: 'session-start' }, () => 'SessionStart' as const)
+    .with({ kind: 'stop' }, () => 'Stop' as const)
+    .with({ kind: 'call' }, { kind: 'end' }, () => 'PreToolUse' as const)
     .exhaustive();
+}
+
+async function runScheduled(
+  run: OpRun,
+  call: HookModelCall,
+  context: OpRun['context'],
+): Promise<{ stdout: string }> {
+  await run.scheduler.schedule(Promise.resolve());
+
+  return runCall(run, call, context);
 }
 
 interface HookModelPair {
@@ -297,22 +414,22 @@ interface HookModelPair {
 function advanceBoth(
   state: ModelState,
   together: HookModelPair,
-  harness: Harness,
+  run: OpRun,
   order: 'first-first' | 'second-first',
-): { readonly state: ModelState; readonly decisions: readonly HookDecision[] } {
+): { readonly state: ModelState; readonly stdouts: readonly string[] } {
   const calls =
     order === 'first-first' ? [together.first, together.second] : [together.second, together.first];
 
   const [one, two] = calls;
-  const afterOne = advance(state, one ?? together.first, harness);
-  const afterTwo = advance(afterOne.state, two ?? together.second, harness);
+  const afterOne = advance(state, one ?? together.first, run);
+  const afterTwo = advance(afterOne.state, two ?? together.second, run);
 
-  const decisions =
+  const stdouts =
     order === 'first-first'
-      ? [afterOne.decision, afterTwo.decision]
-      : [afterTwo.decision, afterOne.decision];
+      ? [afterOne.stdout, afterTwo.stdout]
+      : [afterTwo.stdout, afterOne.stdout];
 
-  return { state: afterTwo.state, decisions };
+  return { state: afterTwo.state, stdouts };
 }
 
 interface InvariantInput {
@@ -427,7 +544,7 @@ function isClosedAfter(isClosed: boolean, op: HookModelOp, decision: HookDecisio
     return isClosed;
   }
 
-  if (op.payload === 'start') {
+  if (op.payload.startsWith('start-')) {
     return true;
   }
 

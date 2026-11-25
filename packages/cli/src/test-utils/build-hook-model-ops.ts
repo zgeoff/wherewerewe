@@ -2,7 +2,12 @@ import fc from 'fast-check';
 import type { HookModelCall, HookModelOp, HookModelPayload } from './run-hook-model.ts';
 
 const payloads: readonly HookModelPayload[] = [
-  'start',
+  'start-startup',
+  'start-resume',
+  'start-clear',
+  'start-compact',
+  'start-fork',
+  'subagent-start',
   'pre-brief',
   'pre-brief-session',
   'pre-www-list',
@@ -18,14 +23,18 @@ const payloads: readonly HookModelPayload[] = [
 
 // The operations a generated sequence is made of: each payload of the gate from the main agent, a
 // subagent or an unbound id, an attach to another store, and two payloads at once. The main agent
-// is weighted over the rest so a sequence reaches every state. A SessionStart carries no `agent_id`.
+// is weighted over the rest so a sequence reaches every state.
 export function buildHookModelOps(): fc.Arbitrary<HookModelOp> {
   const call: fc.Arbitrary<HookModelCall> = fc
     .record({
       payload: fc.constantFrom(...payloads),
       from: fc.constantFrom('main', 'main', 'main', 'main', 'subagent', 'unbound'),
     })
-    .filter((found) => !(found.payload === 'start' && found.from === 'subagent'));
+    .filter(
+      (found) =>
+        !(found.payload.startsWith('start-') || found.payload === 'subagent-start') ||
+        found.from !== 'subagent',
+    );
 
   return fc.oneof(
     { weight: 12, arbitrary: call.map((found): HookModelOp => ({ kind: 'call', ...found })) },
