@@ -13,6 +13,7 @@ type ArgvRefusalReason = Extract<
       | 'flag-takes-no-value'
       | 'flag-not-taken'
       | 'wrong-positionals'
+      | 'goal-paste-with-text'
       | 'bad-list-kind';
   }
 >;
@@ -36,7 +37,10 @@ export function buildArgvRefusal(reason: ArgvRefusalReason): Refusal {
     .with({ kind: 'flag-takes-no-value' }, (found) => usage(`www: --${found.flag} takes no value.`))
     .with({ kind: 'flag-not-taken' }, (found) => buildFlagNotTaken(found))
     .with({ kind: 'wrong-positionals' }, (found) =>
-      usage(`www: ${found.command} takes ${found.usage}.`),
+      usageLine(`www: ${found.command} takes ${found.usage}.`, found.line),
+    )
+    .with({ kind: 'goal-paste-with-text' }, () =>
+      usageLine('www: goal --paste takes no goal text.', 'goal --paste'),
     )
     .with({ kind: 'bad-list-kind' }, () =>
       usage(`www: list takes ${formatKinds()}.`, ['list', 'tasks']),
@@ -67,6 +71,10 @@ function joinFlags(flags: readonly string[]): string {
   const last = named.at(-1);
 
   return named.length === 1 ? (last ?? '') : `${named.slice(0, -1).join(', ')} and ${last ?? ''}`;
+}
+
+function usageLine(line: string, helpLine: string): Refusal {
+  return { exitCode: 2, lines: [line], runs: [{ usage: helpLine }] };
 }
 
 // `a, b or c`.

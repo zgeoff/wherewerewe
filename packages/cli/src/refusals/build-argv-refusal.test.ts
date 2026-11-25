@@ -6,10 +6,12 @@ import { listCommandShapes, parseCLIArgs } from '../args/parse-cli-args.ts';
 import { runCLI } from '../run-cli.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { buildUsageRunArgv } from '../test-utils/build-usage-run-argv.ts';
+import { isReadCommand } from '../test-utils/is-read-command.ts';
 import { parseRunLine } from '../test-utils/parse-run-line.ts';
 import { readHelpCommandLine } from '../test-utils/read-help-command-line.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
+import { nothingWrittenComment } from './format-refusal.ts';
 
 function setupTest() {
   const root = createTempDir('argv-refusal').path;
@@ -196,14 +198,14 @@ test.each([
   {
     command: 'log',
     argv: ['log', '--on', 'x'],
-    takes: '--since, --op and --id',
+    takes: '--since, --op, --id and --json',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     fills: {},
   },
   {
     command: 'recap',
     argv: ['recap', '--op', 'x'],
-    takes: '--since',
+    takes: '--since and --json',
     setup: [['init', 'tide-alerts', '--goal', 'Ship it']],
     fills: {},
   },
@@ -241,7 +243,7 @@ test.each([
       refused: {
         exitCode: 2,
         stdout: '',
-        stderr: `www: ${row.command} takes no ${flag} flag. It takes ${row.takes}.\nRun: ${'scope' in row ? row.scope : 'www '}${line}\n`,
+        stderr: `www: ${row.command} takes no ${flag} flag. It takes ${row.takes}.\nRun: ${'scope' in row ? row.scope : 'www '}${line}${['log', 'recap'].includes(row.command) ? '' : nothingWrittenComment}\n`,
       },
       filledExitCode: 0,
     });
@@ -282,7 +284,7 @@ test('it keeps --session on the usage Run line of a flag the command does not ta
 
   expect({ stderr: refused.stderr, filledExitCode: filled.exitCode }).toStrictEqual({
     stderr:
-      'www: wait takes no --on flag. It takes --pr, --branch, --path, --pid, --note, --owed and --who.\nRun: www --session tide-alerts wait <id> "<what>" --who <who> [<check>]\n',
+      'www: wait takes no --on flag. It takes --pr, --branch, --path, --pid, --note, --owed and --who.\nRun: www --session tide-alerts wait <id> "<what>" --who <who> [<check>]  # nothing was written\n',
     filledExitCode: 0,
   });
 });
@@ -329,7 +331,7 @@ test.each(
     refused: {
       exitCode: 2,
       stdout: '',
-      stderr: `www: ${named} takes no ${row.flag} flag. It takes ${takes}.\nRun: ${['www', row.helpLine ?? row.command].filter((part) => part !== '').join(' ')}\n`,
+      stderr: `www: ${named} takes no ${row.flag} flag. It takes ${takes}.\nRun: ${['www', row.helpLine ?? row.command].filter((part) => part !== '').join(' ')}${isReadCommand(row.command) ? '' : nothingWrittenComment}\n`,
     },
     filled: 'args',
   });
@@ -345,8 +347,45 @@ test.each(buildCredentialSamples().map((entry) => [entry.name, entry.sample, ent
     const [first] = refused.stderr.split('\n');
 
     expect({ first, leaked: refused.stderr.includes(tail) }).toStrictEqual({
-      first: 'www: goal takes no <where the secret lives> flag. It takes only --session.',
+      first: 'www: goal takes no <where the secret lives> flag. It takes --paste.',
       leaked: false,
     });
+  },
+);
+
+test.each(
+  listCommandShapes()
+    .filter((shape) => shape.command !== 'brief')
+    .flatMap((shape) => {
+      const line = readHelpCommandLine(helpText, shape.command) ?? shape.command;
+      const fewest = Math.min(...shape.counts);
+      const most = Math.max(...shape.counts);
+
+      const wordCounts =
+        fewest > 0 || shape.command === 'goal' ? [Math.max(fewest - 1, 0), most + 1] : [most + 1];
+
+      return wordCounts.flatMap((wordCount) =>
+        ['', 'tide-alerts'].map((scope) => ({ command: shape.command, line, wordCount, scope })),
+      );
+    }),
+)(
+  'it prints the usage line of $command in the refusal of a wrong number of arguments',
+  async (row) => {
+    const ctx = setupTest();
+    const words = ['zz-a', 'zz-b', 'zz-c', 'zz-d'].slice(0, row.wordCount);
+    const session = row.scope === '' ? [] : ['--session', row.scope];
+
+    const refused = await ctx.run([...session, row.command, ...words]);
+
+    const [first, second] = refused.stderr.split('\n');
+    const scope = row.scope === '' ? '' : `--session ${row.scope} `;
+    const comment = isReadCommand(row.command) ? '' : nothingWrittenComment;
+
+    expect({ exitCode: refused.exitCode, second }).toStrictEqual({
+      exitCode: 2,
+      second: `Run: www ${scope}${row.line}${comment}`,
+    });
+
+    expect(first).toStartWith(`www: ${row.command} takes `);
   },
 );

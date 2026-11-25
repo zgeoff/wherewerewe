@@ -14,6 +14,7 @@ import { buildRunSpec } from './build-run-spec.ts';
 import type { RunSpec } from './build-run-spec.ts';
 import { buildUpgradeRefusal } from './build-upgrade-refusal.ts';
 import { formatList } from './format-list.ts';
+import { grantPlaceholders } from './grant-placeholders.ts';
 import { pickClosestID } from './pick-closest-id.ts';
 import { refuse } from './refuse.ts';
 import { replaceText } from './replace-text.ts';
@@ -34,6 +35,7 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'flag-takes-no-value' },
       { kind: 'flag-not-taken' },
       { kind: 'wrong-positionals' },
+      { kind: 'goal-paste-with-text' },
       { kind: 'bad-list-kind' },
       (found) => buildArgvRefusal(found),
     )
@@ -101,6 +103,17 @@ export function buildRefusal(reason: RefusalReason): Refusal {
       { kind: 'grant-too-many-lines' },
       { kind: 'text-has-mark' },
       (found) => buildApprovalRefusal(found),
+    )
+    .with({ kind: 'no-grant-to-print' }, (found) =>
+      refuse(`www: refused: ${found.name} has no grant to print.`, [
+        'grant',
+        '--may',
+        grantPlaceholders.may,
+        '--where',
+        toPlaceholder('<where>'),
+        '--reading',
+        grantPlaceholders.reading,
+      ]),
     )
     .with({ kind: 'decide-needs-why' }, (found) =>
       refuse(

@@ -16,7 +16,7 @@ test('it prints the lines, then each run as a Run line', () => {
       lines: ['www: refused: drop needs a reason.'],
       runs: [{ www: ['drop', 'p-sim', '--why', toPlaceholder('<reason>')] }],
     },
-    { sessionFlag: null },
+    { sessionFlag: null, writes: false },
   );
 
   expect(text).toBe('www: refused: drop needs a reason.\nRun: www drop p-sim --why "<reason>"\n');
@@ -44,7 +44,7 @@ test.each([
 
   const text = ctx.formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', writes: false },
   );
 
   expect(text).toBe(`www: x\n${expected}\n`);
@@ -62,7 +62,7 @@ test.each([
 
   const text = ctx.formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: argv }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', writes: false },
   );
 
   expect(text).toBe(`www: x\n${expected}\n`);
@@ -73,7 +73,7 @@ test('it adds no --session to a run that already names one', () => {
 
   const text = ctx.formatRefusal(
     { exitCode: 3, lines: ['www: x'], runs: [{ www: ['--session', 'other', 'task', 't-a'] }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', writes: false },
   );
 
   expect(text).toBe('www: x\nRun: www --session other task t-a\n');
@@ -88,7 +88,7 @@ test('it prints a shell run as it is', () => {
       lines: ['www: x'],
       runs: [{ shell: ['bun', 'add', '-g', '@wherewerewe/cli@latest'] }],
     },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', writes: false },
   );
 
   expect(text).toBe('www: x\nRun: bun add -g @wherewerewe/cli@latest\n');
@@ -99,7 +99,7 @@ test('it redacts a --session value that looks like a credential', () => {
 
   const text = ctx.formatRefusal(
     { exitCode: 2, lines: ['www: --goal needs a value.'], runs: [{ www: ['help'] }] },
-    { sessionFlag: ['xoxb', '-', '12'].join('') },
+    { sessionFlag: ['xoxb', '-', '12'].join(''), writes: false },
   );
 
   expect(text).toBe(
@@ -112,7 +112,7 @@ test('it adds no second --session to a Run line that holds --session=<name>', ()
 
   const text = ctx.formatRefusal(
     { exitCode: 2, lines: ['www: x'], runs: [{ www: ['--session=tide-alerts', 'goal', 'x'] }] },
-    { sessionFlag: 'tide-alerts' },
+    { sessionFlag: 'tide-alerts', writes: false },
   );
 
   expect(text).toBe('www: x\nRun: www --session=tide-alerts goal x\n');
@@ -140,7 +140,7 @@ test.each([
           { shell: ['less', `/srv/first${lineBreak}second/session`] },
         ],
       },
-      { sessionFlag: `tide${lineBreak}alerts` },
+      { sessionFlag: `tide${lineBreak}alerts`, writes: false },
     );
 
     expect(text.split(/\r\n|[\n\v\f\r\u0085\u2028\u2029]/u)).toHaveLength(4);
@@ -156,7 +156,7 @@ test('it prints a shell word that the credential test matches as the quoted plac
       lines: ['www: x'],
       runs: [{ shell: ['less', ['/srv/gh', 'p_demo/session'].join('')] }],
     },
-    { sessionFlag: null },
+    { sessionFlag: null, writes: false },
   );
 
   expect(text).toBe('www: x\nRun: less "<where the secret lives>"\n');
@@ -191,7 +191,7 @@ test.each([
             lines: ['www: x'],
             runs: [{ www: ['task', 't-a', entry.split] }, { shell: ['less', entry.split] }],
           },
-          { sessionFlag: null },
+          { sessionFlag: null, writes: false },
         ) !==
         'www: x\nRun: www task t-a "<where the secret lives>"\nRun: less "<where the secret lives>"\n',
     );

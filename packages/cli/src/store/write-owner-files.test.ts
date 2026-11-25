@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { chmodSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDir } from '@zgeoff/testing/fs';
+import { nothingWrittenComment } from '../refusals/format-refusal.ts';
 import { runCLI } from '../run-cli.ts';
 import { buildSteppedOwnerFiles } from '../test-utils/build-stepped-owner-files.ts';
 import { readChangedPaths } from '../test-utils/read-changed-paths.ts';
@@ -146,8 +147,7 @@ test.each([
     ack: {
       exitCode: 3,
       stdout: '',
-      stderr:
-        'www: refused: no owner note o-1 shows. Owner notes: o-2.\nRun: www --session tide-alerts\n',
+      stderr: `www: refused: no owner note o-1 shows. Owner notes: o-2.\nRun: www --session tide-alerts${nothingWrittenComment}\n`,
     } satisfies CLIResult,
   })),
 ])(

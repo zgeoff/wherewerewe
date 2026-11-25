@@ -17,6 +17,18 @@ test.each([
   [['--session', 'old-notes', 'import', 'old-notes'], 'import', ['old-notes']],
   [['attach', 'tide'], 'attach', ['tide']],
   [['goal', 'Ship it'], 'goal', ['Ship it']],
+  [['goal', '--paste'], 'goal', []],
+  [['--session', 'tide', 'goal', '--paste'], 'goal', []],
+  [['--json'], 'brief', []],
+  [['--session', 'tide', '--json'], 'brief', []],
+  [['show', '--json'], 'show', []],
+  [['show', 't-a', '--json'], 'show', ['t-a']],
+  [['--session', 'tide', 'show', '--json'], 'show', []],
+  [['log', '--json'], 'log', []],
+  [['--session', 'tide', 'log', '--since', '2h', '--json'], 'log', []],
+  [['list', 'rules', '--json'], 'list', ['rules']],
+  [['recap', '--json'], 'recap', []],
+  [['--session', 'tide', 'recap', '--json'], 'recap', []],
   [['grant', '--may', 'Go.', '--where', 'chat', '--reading', 'covers it'], 'grant', []],
   [
     [
@@ -217,7 +229,7 @@ test.each([
       kind: 'flag-not-taken',
       command: 'goal',
       flag: '--colour2',
-      taken: [],
+      taken: ['paste'],
       line: 'goal "<what done means>"',
     },
   ],
@@ -351,7 +363,7 @@ test.each([
   ],
   [
     ['--pr', 'a/b#1'],
-    { kind: 'flag-not-taken', command: 'brief', flag: '--pr', taken: [], line: '' },
+    { kind: 'flag-not-taken', command: 'brief', flag: '--pr', taken: ['json'], line: '' },
   ],
   [
     ['task', 't-a', 'c', '--no-note'],
@@ -373,30 +385,125 @@ test.each([
       line: 'rule <id> "<do it this way, and why>"',
     },
   ],
-  [['set'], { kind: 'wrong-positionals', command: 'set', usage: '<id> ["<claim>"]' }],
-  [['task', 't-a'], { kind: 'wrong-positionals', command: 'task', usage: '<id> "<claim>"' }],
-  [['recap', 'x'], { kind: 'wrong-positionals', command: 'recap', usage: 'no arguments' }],
-  [['show', 'a', 'b'], { kind: 'wrong-positionals', command: 'show', usage: '[<id>]' }],
+  [
+    ['set'],
+    {
+      kind: 'wrong-positionals',
+      command: 'set',
+      usage: '<id> ["<claim>"]',
+      line: 'set <id> ["<claim>"] [<check>] [--note "<detail>" [--owed] | --no-note]',
+    },
+  ],
+  [
+    ['task', 't-a'],
+    {
+      kind: 'wrong-positionals',
+      command: 'task',
+      usage: '<id> "<claim>"',
+      line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
+    },
+  ],
+  [
+    ['recap', 'x'],
+    {
+      kind: 'wrong-positionals',
+      command: 'recap',
+      usage: 'no arguments',
+      line: 'recap [--since <t>]',
+    },
+  ],
+  [
+    ['show', 'a', 'b'],
+    { kind: 'wrong-positionals', command: 'show', usage: '[<id>]', line: 'show [<id>]' },
+  ],
   [
     ['recap', '--op', 'decide'],
     {
       kind: 'flag-not-taken',
       command: 'recap',
       flag: '--op',
-      taken: ['since'],
+      taken: ['since', 'json'],
       line: 'recap [--since <t>]',
     },
   ],
   [
     ['task', 't-a', 'x', 'y'],
-    { kind: 'wrong-positionals', command: 'task', usage: '<id> "<claim>"' },
+    {
+      kind: 'wrong-positionals',
+      command: 'task',
+      usage: '<id> "<claim>"',
+      line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
+    },
   ],
-  [['goal'], { kind: 'wrong-positionals', command: 'goal', usage: '"<what done means>"' }],
-  [['now', 't-a'], { kind: 'wrong-positionals', command: 'now', usage: '<id> "<next step>"' }],
-  [['done'], { kind: 'wrong-positionals', command: 'done', usage: '<id>' }],
-  [['sessions', 'x'], { kind: 'wrong-positionals', command: 'sessions', usage: 'no arguments' }],
-  [['help', 'x'], { kind: 'wrong-positionals', command: 'help', usage: 'no arguments' }],
-  [['attach'], { kind: 'wrong-positionals', command: 'attach', usage: '<name>' }],
+  [
+    ['goal'],
+    {
+      kind: 'wrong-positionals',
+      command: 'goal',
+      usage: '"<what done means>"',
+      line: 'goal "<what done means>"',
+    },
+  ],
+  [
+    ['now', 't-a'],
+    {
+      kind: 'wrong-positionals',
+      command: 'now',
+      usage: '<id> "<next step>"',
+      line: 'now <id> "<next step>" [--note "<detail>" [--owed]]',
+    },
+  ],
+  [
+    ['done'],
+    {
+      kind: 'wrong-positionals',
+      command: 'done',
+      usage: '<id>',
+      line: 'done <id> --evidence "<PR, commit or test run>"',
+    },
+  ],
+  [
+    ['sessions', 'x'],
+    { kind: 'wrong-positionals', command: 'sessions', usage: 'no arguments', line: 'sessions' },
+  ],
+  [
+    ['help', 'x'],
+    { kind: 'wrong-positionals', command: 'help', usage: 'no arguments', line: 'help' },
+  ],
+  [
+    ['task', 't-a', 'x', '--json'],
+    {
+      kind: 'flag-not-taken',
+      command: 'task',
+      flag: '--json',
+      taken: ['pr', 'branch', 'path', 'pid', 'note', 'owed', 'blocked-by'],
+      line: 'task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]',
+    },
+  ],
+  [
+    ['sessions', '--json'],
+    { kind: 'flag-not-taken', command: 'sessions', flag: '--json', taken: [], line: 'sessions' },
+  ],
+  [
+    ['help', '--json'],
+    { kind: 'flag-not-taken', command: 'help', flag: '--json', taken: [], line: 'help' },
+  ],
+  [['--json=1'], { kind: 'flag-takes-no-value', flag: 'json' }],
+  [['goal', '--paste', 'Ship it'], { kind: 'goal-paste-with-text' }],
+  [
+    ['goal', '--paste', '--json'],
+    {
+      kind: 'flag-not-taken',
+      command: 'goal',
+      flag: '--json',
+      taken: ['paste'],
+      line: 'goal "<what done means>"',
+    },
+  ],
+  [
+    ['attach'],
+    { kind: 'wrong-positionals', command: 'attach', usage: '<name>', line: 'attach <name>' },
+  ],
 ])('it refuses %p with %p', (argv, reason) => {
   const ctx = setupTest();
   const actual: unknown = ctx.parseCLIArgs(argv);
@@ -412,5 +519,23 @@ test('it hands back the --session value typed with a command it refuses', () => 
     kind: 'refused',
     reason: { kind: 'unknown-command', command: 'taks' },
     sessionFlag: 'tide',
+  });
+});
+
+test('it hands back the --session value typed with a goal text beside --paste', () => {
+  const ctx = setupTest();
+
+  const actual: unknown = ctx.parseCLIArgs([
+    '--session',
+    'tide-alerts',
+    'goal',
+    'Ship it',
+    '--paste',
+  ]);
+
+  expect(actual).toStrictEqual({
+    kind: 'refused',
+    reason: { kind: 'goal-paste-with-text' },
+    sessionFlag: 'tide-alerts',
   });
 });

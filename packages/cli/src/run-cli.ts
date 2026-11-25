@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { match } from 'ts-pattern';
 import { helpText } from './args/help-text.ts';
-import { parseCLIArgs } from './args/parse-cli-args.ts';
+import { isWriteArgv, parseCLIArgs } from './args/parse-cli-args.ts';
 import { getSessionDay } from './brief/get-session-day.ts';
 import { formatDuplicateNotes } from './commands/format-duplicate-notes.ts';
 import { formatSessionLines } from './commands/format-session-lines.ts';
@@ -64,6 +64,7 @@ function runCommand(input: CLIInput): Promise<CLIResult> {
         buildRefusalResult(buildRefusal(refused.reason), {
           sessionFlag: refused.sessionFlag,
           cwd: input.cwd,
+          writes: isWriteArgv(input.argv),
         }),
       ),
     )

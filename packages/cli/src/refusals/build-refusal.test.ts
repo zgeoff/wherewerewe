@@ -10,11 +10,13 @@ import { buildCredentialSamples } from '../test-utils/build-credential-samples.t
 import { buildFilledRunArgv } from '../test-utils/build-filled-run-argv.ts';
 import { buildMockIDs } from '../test-utils/build-mock-ids.ts';
 import { buildSpacedText } from '../test-utils/build-spaced-text.ts';
+import { buildWriteRefusalStderr } from '../test-utils/build-write-refusal-stderr.ts';
 import { readShellWords } from '../test-utils/read-shell-words.ts';
 import { readTreeHashes } from '../test-utils/read-tree-hashes.ts';
 import { seedFormat1Store } from '../test-utils/seed-format-1-store.ts';
 import { seedItems } from '../test-utils/seed-items.ts';
 import { seedStoreFile } from '../test-utils/seed-store-file.ts';
+import { nothingWrittenComment } from './format-refusal.ts';
 
 function setupTest() {
   const root = createTempDir('refusals').path;
@@ -1167,13 +1169,16 @@ test.each([
   },
   {
     title: 'the wrong number of arguments',
-    setup: [],
+    setup: [
+      ['init', 'tide-alerts', '--goal', 'Ship it'],
+      ['task', 't-a', 'Write it'],
+    ],
     files: [],
-    argv: ['task', 't-a'],
+    argv: ['done'],
     env: 'agent',
     exitCode: 2,
-    stderr: 'www: task takes <id> "<claim>".\nRun: www help\n',
-    fills: [{}],
+    stderr: 'www: done takes <id>.\nRun: www done <id> --evidence "<PR, commit or test run>"\n',
+    fills: [{ '<id>': 't-a', '<PR, commit or test run>': 'the merged PR' }],
   },
   {
     title: 'an approval with nothing but its id',
@@ -3370,7 +3375,7 @@ test.each([
     env: 'agent',
     exitCode: 2,
     stderr:
-      'www: goal takes no <where the secret lives> flag. It takes only --session.\nRun: www goal "<what done means>"\n',
+      'www: goal takes no <where the secret lives> flag. It takes --paste.\nRun: www goal "<what done means>"\n',
     fills: [],
   },
   {
@@ -3970,7 +3975,7 @@ test.each([
 
   const listingAfter = ctx.readListing();
   const replayEnv = envs[row.replayEnv ?? row.env];
-  const stderr = row.stderr.replaceAll('<STATE>', ctx.stateRoot);
+  const stderr = buildWriteRefusalStderr(row.argv, row.stderr.replaceAll('<STATE>', ctx.stateRoot));
   const runLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: www'));
   const lessLines = result.stderr.split('\n').filter((line) => line.startsWith('Run: less '));
   const filledExitCodes: number[] = [];
@@ -4031,7 +4036,7 @@ test('it refuses a write while another holds the lock for 2 s, names the holder,
   expect(refused).toStrictEqual({
     exitCode: 3,
     stdout: '',
-    stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www task t-a "Write it"\n`,
+    stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www task t-a "Write it"${nothingWrittenComment}\n`,
   });
 
   expect(after).toStrictEqual(before);

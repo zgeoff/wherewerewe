@@ -360,6 +360,8 @@ interface ArgValues {
   readonly 'no-note'?: boolean | undefined;
   readonly to?: string | undefined;
   readonly by?: string | undefined;
+  readonly json?: boolean | undefined;
+  readonly paste?: boolean | undefined;
   readonly help?: boolean | undefined;
 }
 

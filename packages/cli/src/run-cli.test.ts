@@ -5,6 +5,7 @@ import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from './args/help-text.ts';
+import { nothingWrittenComment } from './refusals/format-refusal.ts';
 import { findCredentialMatch } from './rules/find-credential-match.ts';
 import { runCLI } from './run-cli.ts';
 import { withBindingLock } from './sessions/with-binding-lock.ts';
@@ -137,14 +138,20 @@ test.each([[['help']], [['--help']], [['-h']]])(
 );
 
 test.each([
-  [['taks'], 'www: unknown command "taks".\nRun: www help\n'],
-  [['doctor', 'x'], 'www: "doctor" comes in a later version of www.\nRun: www help\n'],
-  [['task', 't-a'], 'www: task takes <id> "<claim>".\nRun: www help\n'],
-  [['recap', 'x'], 'www: recap takes no arguments.\nRun: www help\n'],
-  [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www help\n'],
+  [['taks'], `www: unknown command "taks".\nRun: www help${nothingWrittenComment}\n`],
+  [
+    ['doctor', 'x'],
+    `www: "doctor" comes in a later version of www.\nRun: www help${nothingWrittenComment}\n`,
+  ],
+  [
+    ['task', 't-a'],
+    `www: task takes <id> "<claim>".\nRun: www task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,
+  ],
+  [['recap', 'x'], 'www: recap takes no arguments.\nRun: www recap [--since <t>]\n'],
+  [['show', 'a', 'b'], 'www: show takes [<id>].\nRun: www show [<id>]\n'],
   [
     ['--session', 'sample', 'task', 'x', '--bogus'],
-    'www: task takes no --bogus flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www --session sample task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]\n',
+    `www: task takes no --bogus flag. It takes --pr, --branch, --path, --pid, --note, --owed and --blocked-by.\nRun: www --session sample task <id> "<claim>" [<check>] [--blocked-by <id>] [--note "<detail>" [--owed]]${nothingWrittenComment}\n`,
   ],
 ])('it refuses %p with exit 2', async (argv, stderr) => {
   const ctx = setupTest();
@@ -410,7 +417,7 @@ test('it refuses init while the binding lock is held, and creates no store and n
     result: {
       exitCode: 3,
       stdout: '',
-      stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www init tide-alerts --goal "Ship it"\n`,
+      stderr: `www: refused: another write holds the lock on tide-alerts (pid ${String(process.pid)}). Try again.\nRun: www init tide-alerts --goal "Ship it"${nothingWrittenComment}\n`,
     },
     unchanged: before,
   });
@@ -1050,8 +1057,7 @@ test('it refuses a new item on an id whose done reached the journal before the w
   expect(result).toStrictEqual({
     exitCode: 3,
     stdout: '',
-    stderr:
-      'www: refused: t-a closed on day 1. Pick a new id.\nRun: www task <new id> "Write it again"\n',
+    stderr: `www: refused: t-a closed on day 1. Pick a new id.\nRun: www task <new id> "Write it again"${nothingWrittenComment}\n`,
   });
 });
 
@@ -1282,8 +1288,7 @@ test.each([
     const refusal = {
       exitCode: 3 as const,
       stdout: '',
-      stderr:
-        'www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"\n',
+      stderr: `www: refused: only the owner writes owner notes, from a terminal outside any agent. Record what the owner told you as a rule, a wait, an approval or the grant.\nRun: www --session tide-alerts rule <id> "<what the owner said, as a rule>"${nothingWrittenComment}\n`,
     };
 
     expect({ results, tree: await ctx.readTree() }).toStrictEqual({
@@ -1431,7 +1436,7 @@ test('it exits 2 for a parse error in say before it checks for an owner terminal
   expect(result).toStrictEqual({
     exitCode: 2,
     stdout: '',
-    stderr: 'www: say takes no --bogus flag. It takes --on.\nRun: www say "<text>" [--on <id>]\n',
+    stderr: `www: say takes no --bogus flag. It takes --on.\nRun: www say "<text>" [--on <id>]${nothingWrittenComment}\n`,
   });
 });
 
@@ -2260,7 +2265,7 @@ test('it refuses the 31st task with a Run line that runs, then writes it', async
     written: written.exitCode,
   }).toStrictEqual({
     exitCode: 3,
-    runLine: `Run: www --session tide-alerts done ${oldest} --evidence "<PR, commit or test run>"`,
+    runLine: `Run: www --session tide-alerts done ${oldest} --evidence "<PR, commit or test run>"${nothingWrittenComment}`,
     closed: 0,
     written: 0,
   });
@@ -2731,7 +2736,7 @@ test('it refuses a grant of 20 lines with a Run line that runs once filled', asy
     exitCode: 3,
     first:
       'www: refused: the grant takes 20 lines in the brief, and the limit is 19. Join short parts that belong together in one bullet, or put a long part in fewer words.',
-    line: 'Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "covers watering"',
+    line: `Run: www grant --may "<what the owner allows, in their words>" --where chat --reading "covers watering"${nothingWrittenComment}`,
     retried: 0,
   });
 });
@@ -2763,8 +2768,7 @@ test('it refuses a grant with no bullet with a Run line that adds --may and runs
     retried: retried.exitCode,
   }).toStrictEqual({
     exitCode: 3,
-    stderr:
-      'www: refused: a grant needs at least one --may, --not or --never in the owner\'s words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"\n',
+    stderr: `www: refused: a grant needs at least one --may, --not or --never in the owner's words, where they were given, and your reading of what they cover and what the owner kept back.\nRun: www grant --scope "in garden-api" --where chat --reading "covers nothing yet" --may "<what the owner allows, in their words>"${nothingWrittenComment}\n`,
     retried: 0,
   });
 });
@@ -2795,8 +2799,7 @@ test('it prints no part of a credential inside a bullet of 160 characters, and a
     leaked: `${refused.stdout}${refused.stderr}`.includes(credential?.tail ?? ''),
   }).toStrictEqual({
     exitCode: 3,
-    stderr:
-      'www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "<where the secret lives>" --where chat --reading "covers watering"\n',
+    stderr: `www: refused: the text looks like a credential (it matches the ghp pattern). Write where the secret lives, never its value.\nRun: www grant --may "<where the secret lives>" --where chat --reading "covers watering"${nothingWrittenComment}\n`,
     stdout: '',
     leaked: false,
   });
@@ -2999,7 +3002,7 @@ test('it writes a lesson, a promise and the owner words, reads them in every rea
       'LESSONS (1, max 5)\n  l-seed      Reseed the staging table first  [why: A stale row passed]\n',
     loggedOps: 3,
     recap: ['PROMISED (1, max 5)'],
-    refused: [3, 'Run: www drop l-seed --why "<reason>"'],
+    refused: [3, `Run: www drop l-seed --why "<reason>"${nothingWrittenComment}`],
     done: 0,
     dropped: 0,
     after: 'LESSONS (0, max 5)\n',

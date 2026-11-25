@@ -5,7 +5,9 @@ import { runCLI } from '../run-cli.ts';
 import { buildGrantFaultCases, faultCredential } from '../test-utils/build-grant-fault-cases.ts';
 import { buildSampleRunArgv } from '../test-utils/build-sample-run-argv.ts';
 import { buildWriteFaultCases } from '../test-utils/build-write-fault-cases.ts';
+import { buildWriteRefusalStderr } from '../test-utils/build-write-refusal-stderr.ts';
 import { readHelpCommandLine } from '../test-utils/read-help-command-line.ts';
+import { nothingWrittenComment } from './format-refusal.ts';
 import { settleRefusal } from './settle-refusal.ts';
 
 function setupTest() {
@@ -14,7 +16,7 @@ function setupTest() {
 
   return {
     settle: (refusal: Parameters<typeof settleRefusal>[0]) =>
-      settleRefusal(refusal, { sessionFlag: null, cwd: '/' }),
+      settleRefusal(refusal, { sessionFlag: null, cwd: '/', writes: false }),
     run: (argv: readonly string[]) =>
       runCLI({
         argv,
@@ -148,7 +150,7 @@ test('it ends at www help after three refusals in a row', () => {
       lines: ['www: refused: --pr takes <owner>/<repo>#<number>, such as bosunhq/bosun-api#77.'],
       runs: [{ www: ['help'] }],
     },
-    scope: { sessionFlag: null, cwd: '/' },
+    scope: { sessionFlag: null, cwd: '/', writes: false },
   });
 });
 
@@ -235,7 +237,7 @@ test('it keeps the Run line of the second refusal when two refusals in a row set
         },
       ],
     },
-    scope: { sessionFlag: null, cwd: '/' },
+    scope: { sessionFlag: null, cwd: '/', writes: false },
   });
 });
 
@@ -280,7 +282,8 @@ test.each([
     title: 'a --session value that starts with a dash',
     argv: ['--session=--help', 'grant', 'extra'],
     exitCode: 2,
-    stderr: 'www: grant takes no arguments.\nRun: www help\n',
+    stderr:
+      'www: grant takes no arguments.\nRun: www grant [--may "<words>"] [--not "<words>"] [--never "<words>"] [--scope "<scope>"] --where <where> --reading "<what they cover; what the owner kept back>"\n',
   },
   {
     title: 'a joined flag with a credential after --',
@@ -328,7 +331,11 @@ test.each([
       exitCode: refused.exitCode,
       stderr: refused.stderr,
       retried: retried.exitCode,
-    }).toStrictEqual({ exitCode: row.exitCode, stderr: row.stderr, retried: 0 });
+    }).toStrictEqual({
+      exitCode: row.exitCode,
+      stderr: buildWriteRefusalStderr(row.argv, row.stderr),
+      retried: 0,
+    });
   },
 );
 
@@ -352,7 +359,7 @@ test('it keeps a mistyped --session name on a Run line, so the line never writes
   const retried = await ctx.run(buildSampleRunArgv(runLine));
 
   expect({ runLine, retried: retried.exitCode }).toStrictEqual({
-    runLine: 'Run: www --session Tide_Alerts task t-a "Write it" --note="-keep"',
+    runLine: `Run: www --session Tide_Alerts task t-a "Write it" --note="-keep"${nothingWrittenComment}`,
     retried: 4,
   });
 });
