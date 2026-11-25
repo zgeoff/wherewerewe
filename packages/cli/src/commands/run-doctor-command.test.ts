@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { getPackageVersion } from '../install/get-package-version.ts';
 import { renderSkill } from '../skill/render-skill.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
 import { parseSettingsJson } from '../test-utils/parse-settings-json.ts';
@@ -559,7 +560,7 @@ test.each([
   { title: 'written by an older version', text: renderSkill('0.0.0'), fix: 'Run: www install' },
   {
     title: 'edited since',
-    text: `${renderSkill('0.0.1')}\nMore.\n`,
+    text: `${renderSkill(getPackageVersion())}\nMore.\n`,
     fix: 'Run: www install --replace-skill',
   },
   {

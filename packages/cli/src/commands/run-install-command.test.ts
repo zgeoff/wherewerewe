@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { buildHookEntries } from '../install/build-hook-entries.ts';
+import { getPackageVersion } from '../install/get-package-version.ts';
 import type { InstallWriteSeam } from '../install/write-installed-file.ts';
 import { renderSkill } from '../skill/render-skill.ts';
 import { buildCredentialSamples } from '../test-utils/build-credential-samples.ts';
@@ -43,13 +44,13 @@ function setupTest() {
         cwd: fixture.work,
         isPrinting: false,
         isReplacingSkill: false,
-        version: '0.0.1',
+        version: getPackageVersion(),
         emit: (text) => {
           events.push(text);
         },
         seam,
       }),
-    skill: renderSkill('0.0.1'),
+    skill: renderSkill(getPackageVersion()),
   };
 }
 
@@ -360,7 +361,7 @@ test('it says what it adds and the limits that apply before it changes any file'
     cwd: ctx.work,
     isPrinting: false,
     isReplacingSkill: false,
-    version: '0.0.1',
+    version: getPackageVersion(),
     emit: (text) => {
       ctx.events.push(text);
       hashesAtEmit.push(ctx.hash());
@@ -586,7 +587,10 @@ test.each([
     title: 'a hand-written skill with no mark',
     text: '---\nname: www\ndescription: "Keeps what is true."\n---\n\n# www\n\nRun `www`.\n',
   },
-  { title: 'a skill whose body was edited', text: `${renderSkill('0.0.1')}\nAlso do this.\n` },
+  {
+    title: 'a skill whose body was edited',
+    text: `${renderSkill(getPackageVersion())}\nAlso do this.\n`,
+  },
 ])('it refuses $title, changes no file in either home and prints the Run line', async (row) => {
   const ctx = setupTest();
 

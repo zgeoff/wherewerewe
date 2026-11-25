@@ -55,6 +55,8 @@ jobs:
     with:
       app-id: ${{ vars.RELEASE_APP_ID }}
       merge: false
+      # One package releases, so release-please names the branch after its component.
+      release-branch: release-please--branches--main--components--@wherewerewe/cli
     secrets:
       app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
