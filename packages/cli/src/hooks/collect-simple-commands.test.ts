@@ -6,7 +6,7 @@ function setupTest() {
 }
 
 test.each([
-  { command: 'git push', commands: [['git', 'push']] },
+  { command: 'make deploy', commands: [['make', 'deploy']] },
   {
     command: 'git add . && git commit -m "fix it" || echo no',
     commands: [
@@ -27,10 +27,10 @@ test.each([
   { command: 'echo \'a && b\' "c; d"', commands: [['echo', 'a && b', 'c; d']] },
   { command: String.raw`echo a\ b`, commands: [['echo', 'a b']] },
   {
-    command: 'git status\ngit push',
+    command: 'make build\nmake deploy',
     commands: [
-      ['git', 'status'],
-      ['git', 'push'],
+      ['make', 'build'],
+      ['make', 'deploy'],
     ],
   },
   { command: "cat <<'EOF'\ngh pr create\nEOF", commands: [['cat']] },

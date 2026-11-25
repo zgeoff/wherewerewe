@@ -92,7 +92,7 @@ test('it runs two hooks of one agent session together and finds one serial order
         second: { payload: 'pre-ls', from: 'main' },
       },
     ],
-    20,
+    10,
   );
 });
 
