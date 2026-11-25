@@ -105,11 +105,11 @@ PULL REQUESTS THIS SESSION OPENED THAT NO ITEM NAMES (1)
 The five read commands take `--json`: the brief (`www --json`, with or without `--session <name>`), `www show` and `www show <id>`, `www log`, `www list <kind>` and `www recap`. `www sessions` and `www help` take no `--json`, and each refuses it as a flag the command does not take. Text stays the default. Hooks and scripts read the JSON, and the agent reads the text, so the `www` skill and every `Run:` line use the text form. No write command takes `--json`.
 
 - A JSON read that succeeds prints one JSON value and a newline on stdout, and nothing else on stdout. Its stderr is the text form's stderr, such as the line for a `notes.tsv` row that does not parse or for a duplicate id.
-- It runs the same checks, takes the same lock, and exits with the same code as its text form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.
+- It runs the checks its text form runs, takes the lock its text form takes, and exits with the same code. `www show` with no id, `www log`, `www list` and `www recap` run no check in either form. A refusal, exit 4 or exit 5 prints the text form's lines and no JSON.
 - The JSON brief is never cut and is outside the brief's limit, because no host puts it in front of a model: it holds every open row whole. The recap's JSON holds its rows whole, with no 100-character cut.
 - A cell that is `-` on disk is `null` in every shape. A journal row's `extra` stays the string the journal holds, such as `on=pr-api-77;who=agent`, or `null`.
 - `open` holds the items of `items.tsv` in the order their sections print in the text brief, each with its note. Lessons, promises and the owner's words are in their own arrays, so no row appears twice.
-- Each item's `last` is the result this read got, as the text brief's tag shows it, whether or not the read could save it. `changed` holds every changed row whole. `next` is `null` whenever the text brief hides the next step.
+- Each item's `last` is what the text form's tag shows: in the brief, the result this read got, whether or not the read could save it; in `www list`, the result the last brief saved. `changed` holds every changed row whole. `next` is `null` whenever the text brief hides the next step.
 - `www show grant` with no grant prints one subject, `{ kind: 'grant', row: null }`, with `journal` holding every `grant` row. A closed item, an id with journal rows only, and an id with no row print `"subjects":[]`.
 - A recap whose journal cannot be read holds `null` for `writes`, `decidedSince` and `closedSince`, and the text form's reason goes to stderr.
 - Each string value, an object key included, passes the credential redaction before it is encoded, so the output is always valid JSON.
