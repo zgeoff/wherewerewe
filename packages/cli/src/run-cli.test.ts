@@ -3415,9 +3415,10 @@ test.each(
   ).not.toThrow();
 });
 
+// the --json form's Run line keeps --json, the flag it typed, where the refused value lets it
 test.each([
-  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h'] },
-  { title: 'www list --json', argv: ['list'] },
+  { title: 'www log --since -2h --json', argv: ['log', '--since', '-2h'], kept: ' --json' },
+  { title: 'www list --json', argv: ['list'], kept: '' },
 ])(
   'it exits $title with the code and stderr of its usage refusal and prints no JSON',
   async (row) => {
@@ -3431,7 +3432,11 @@ test.each([
       exitCode: refusedJSON.exitCode,
       stdout: refusedJSON.stdout,
       stderr: refusedJSON.stderr,
-    }).toStrictEqual({ exitCode: 2, stdout: '', stderr: refusedText.stderr });
+    }).toStrictEqual({
+      exitCode: 2,
+      stdout: '',
+      stderr: refusedText.stderr.replace(/\n$/u, `${row.kept}\n`),
+    });
 
     expect(refusedText.exitCode).toBe(2);
   },

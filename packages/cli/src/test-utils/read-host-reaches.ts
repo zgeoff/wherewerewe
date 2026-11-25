@@ -52,6 +52,11 @@ const exemptions: readonly Exemption[] = [
     why: 'it reads the text of a command that a hook is shown, and runs no program',
   },
   {
+    file: 'packages/cli/src/commands/run-hook-command.test.ts',
+    kind: 'remote-git',
+    why: 'it reads the text of a command that a hook is shown, and runs no program',
+  },
+  {
     file: 'scripts/verify/run-www-line-on-copy.test.ts',
     kind: 'network-import',
     why: 'it listens on a unix socket inside its own temp folder, which no network reaches',
