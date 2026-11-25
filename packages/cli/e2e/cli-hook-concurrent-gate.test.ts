@@ -13,11 +13,11 @@ async function setupTest() {
   // the smoke job names a compiled binary, so the gate lock is proven on each platform's own runner
   const resolved = await resolveProgram('www');
 
-  const program = {
-    ...resolved,
-    command: [process.env['WHEREWEREWE_BIN'] || resolved.command].flat(),
-  };
+  const given = [process.env['WHEREWEREWE_BIN'] ?? '']
+    .filter((path) => path !== '')
+    .map((path) => [path]);
 
+  const program = { ...resolved, command: given[0] ?? resolved.command };
   const stateHome = createTempDir('hook-concurrent').path;
   const root = join(stateHome, 'wherewerewe');
 
