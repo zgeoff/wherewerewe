@@ -1,10 +1,19 @@
 import { expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { linkCommands } from '@zgeoff/testing/bin';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { helpText } from './args/help-text.ts';
+import { formatGateFile } from './hooks/format-gate-file.ts';
 import { jsonVersion } from './json/json-version.ts';
 import { nothingWrittenComment } from './refusals/format-refusal.ts';
 import { findCredentialMatch } from './rules/find-credential-match.ts';
@@ -3653,3 +3662,27 @@ test('it records the drop of a task whose earlier drop row a stopped append cut 
       .map((line) => line.split('\t')[1]),
   }).toStrictEqual({ dropped: 0, rows: 1, lastLines: ['drop', 'drop'] });
 });
+
+test.each(['wiped', 'reading', 'cut', 'failed', 'read', 'open'] as const)(
+  'it never writes the gate file from the brief, www --json or a write when the state is %s',
+  async (state) => {
+    const ctx = setupTest();
+
+    await ctx.run(['init', 'tide-alerts', '--goal', 'Ship it']);
+
+    const path = join(ctx.stateRoot, '.gate', 'claude-a1b2-test');
+
+    mkdirSync(join(ctx.stateRoot, '.gate'), { recursive: true });
+    writeFileSync(path, formatGateFile({ state, session: 'tide-alerts', reads: 0, spare: 1 }));
+
+    const before = { bytes: readFileSync(path, 'utf8'), mtimeMs: statSync(path).mtimeMs };
+
+    await ctx.run([]);
+    await ctx.run(['--json']);
+    await ctx.run(['task', 't-a', 'Write it']);
+
+    expect({ bytes: readFileSync(path, 'utf8'), mtimeMs: statSync(path).mtimeMs }).toStrictEqual(
+      before,
+    );
+  },
+);

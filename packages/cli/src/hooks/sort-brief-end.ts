@@ -32,7 +32,9 @@ export function sortBriefEnd(input: HookInput, bound: string): BriefEnd | null {
   const hasMarker = output.includes('<persisted-output>') || output.includes('tokens truncated');
 
   const isOverCap =
-    input.maxOutputTokens !== null && input.maxOutputTokens * 4 < Buffer.byteLength(output, 'utf8');
+    input.harness === 'codex' &&
+    input.maxOutputTokens !== null &&
+    input.maxOutputTokens * 4 < Buffer.byteLength(output, 'utf8');
 
   if (!hasMarker && !isOverCap) {
     return 'whole';
