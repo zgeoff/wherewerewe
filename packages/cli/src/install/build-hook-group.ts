@@ -1,6 +1,6 @@
 import type { HookEntry } from './build-hook-entries.ts';
 
-export interface HookHandler {
+interface HookHandler {
   readonly type: 'command';
   readonly command: string;
   readonly timeout: number;

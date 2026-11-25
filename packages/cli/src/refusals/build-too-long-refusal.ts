@@ -21,7 +21,7 @@ const rowFactLabels: ReadonlySet<TextTarget['label']> = new Set<TextTarget['labe
 ]);
 
 // The line a length refusal of such a text adds after its reason.
-export const splitRowLine =
+const splitRowLine =
   'One row holds one fact: split the rest into rows, or put the detail in a file as a list or a table and record the file with www where.';
 
 export function buildTooLongRefusal(found: Found<'text-too-long'>): Refusal {

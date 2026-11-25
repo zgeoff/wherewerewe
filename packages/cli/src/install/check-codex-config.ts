@@ -4,7 +4,7 @@ import { buildFailedCheck } from './build-failed-check.ts';
 import { parseTOMLConfig } from './parse-toml-config.ts';
 import type { DoctorCheck } from './types.ts';
 
-export interface CodexConfigLayer {
+interface CodexConfigLayer {
   readonly shown: string;
 
   // `null` for a file that does not exist

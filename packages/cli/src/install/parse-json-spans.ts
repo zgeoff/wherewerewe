@@ -40,7 +40,7 @@ function scanValue(text: string, start: number): Scan {
   return { node: { kind: 'scalar', start, end }, next: end };
 }
 
-export interface JSONMember {
+interface JSONMember {
   readonly key: string;
   readonly keyStart: number;
   readonly value: JSONNode;
