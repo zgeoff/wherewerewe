@@ -36,28 +36,34 @@ const fills: Readonly<Record<string, string>> = {
   'o-<n>': 'o-1',
 };
 
-// Every command of the parser's table, its help line filled with plain values: once for each id
+// The commands that read no store, so they print no stored text: they check or edit the user's
+// own files, or answer a host's hook.
+const storeFreeCommands: ReadonlySet<string> = new Set(['install', 'doctor', 'hook']);
+
+// Every command of the parser's table that reads a store, its help line filled with plain values: once for each id
 // that `<id>` can take, with the optional id kept, and once for each choice of a choice
 // placeholder, such as each kind of `list`. The brief is the command with no words.
 export function buildPrintSites(ids: readonly string[]): PrintSite[] {
-  const sites = listCommandShapes().flatMap((shape) => {
-    const choice = /<[^>]*\|[^>]*>/u.exec(shape.line)?.[0];
-    const choices = choice === undefined ? [null] : choice.slice(1, -1).split('|');
-    const idValues = shape.line.includes('<id>') ? [null, ...ids] : [null];
+  const sites = listCommandShapes()
+    .filter((shape) => !storeFreeCommands.has(shape.command))
+    .flatMap((shape) => {
+      const choice = /<[^>]*\|[^>]*>/u.exec(shape.line)?.[0];
+      const choices = choice === undefined ? [null] : choice.slice(1, -1).split('|');
+      const idValues = shape.line.includes('<id>') ? [null, ...ids] : [null];
 
-    return choices.flatMap((picked) =>
-      idValues.map((id) => {
-        const choiceFill = picked === null || choice === undefined ? {} : { [choice]: picked };
-        const keeps = id === null ? ['--may'] : ['--may', '<id>', '--id'];
+      return choices.flatMap((picked) =>
+        idValues.map((id) => {
+          const choiceFill = picked === null || choice === undefined ? {} : { [choice]: picked };
+          const keeps = id === null ? ['--may'] : ['--may', '<id>', '--id'];
 
-        return buildUsageRunArgv(
-          `Run: www ${shape.line}`.trimEnd(),
-          { ...fills, ...choiceFill, '<id>': id ?? ids[0] ?? '' },
-          keeps,
-        );
-      }),
-    );
-  });
+          return buildUsageRunArgv(
+            `Run: www ${shape.line}`.trimEnd(),
+            { ...fills, ...choiceFill, '<id>': id ?? ids[0] ?? '' },
+            keeps,
+          );
+        }),
+      );
+    });
 
   const unique = new Map(sites.map((argv) => [argv.join(' '), argv]));
 

@@ -1,10 +1,12 @@
 import { expect, test } from 'bun:test';
-import { chmodSync, existsSync, readFileSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { waitFor } from '@zgeoff/testing';
 import { createTempDir } from '@zgeoff/testing/fs';
 import { estimateTokens } from '../brief/estimate-tokens.ts';
 import { runCLI } from '../run-cli.ts';
+import { buildHookPayload } from '../test-utils/build-hook-payload.ts';
+import type { HookPayloadSpec } from '../test-utils/build-hook-payload.ts';
 import { readBriefFigure } from '../test-utils/read-brief-figure.ts';
 import { readSavedBrief } from '../test-utils/read-saved-brief.ts';
 import { seedItems } from '../test-utils/seed-items.ts';
@@ -100,6 +102,51 @@ function setupTest() {
         { HOME: root, XDG_STATE_HOME: root, CLAUDE_CODE_SESSION_ID: 'a1b2-test', PATH: path },
         false,
       ),
+
+    // install and doctor against a PATH that holds a stub binary, so install writes into the temp home
+    runWithBin: (argv: readonly string[]) => {
+      mkdirSync(join(root, 'bin'), { recursive: true });
+      writeFileSync(join(root, 'bin', 'wherewerewe'), 'binary-stub');
+      chmodSync(join(root, 'bin', 'wherewerewe'), 0o755);
+
+      return run(
+        argv,
+        {
+          HOME: root,
+          XDG_STATE_HOME: root,
+          CLAUDE_CODE_SESSION_ID: 'a1b2-test',
+          PATH: join(root, 'bin'),
+        },
+        false,
+      );
+    },
+
+    // every event of one harness for the bound session, a brief command's end included
+    hookPayloads: (harness: 'claude' | 'codex') => {
+      const specs: HookPayloadSpec[] = [
+        { event: 'SessionStart' },
+        { event: 'PreToolUse', command: 'www' },
+        { event: 'PostToolUse', command: 'www', output: 'brief' },
+        { event: 'PostToolUse', command: 'ls', output: '' },
+        { event: 'SubagentStart' },
+        { event: 'Stop' },
+      ];
+
+      if (harness === 'claude') {
+        specs.push({ event: 'PostToolUseFailure', command: 'www' });
+      }
+
+      return specs.map((spec) => buildHookPayload(harness, 'a1b2-test', spec));
+    },
+    runHook: (harness: 'claude' | 'codex', stdin: string) =>
+      runCLI({
+        argv: ['hook', harness],
+        env: { HOME: root, XDG_STATE_HOME: root },
+        cwd: '/work',
+        stdin,
+        terminal: { stdin: false, stdout: false },
+        now: () => clock.nowMs,
+      }),
     runAsOwner: (argv: readonly string[]) => run(argv, { HOME: root, XDG_STATE_HOME: root }, true),
     lockOwnerFile: () => {
       chmodSync(ownerPath, 0o444);
@@ -112,7 +159,7 @@ function setupTest() {
   };
 }
 
-test('it never rewrites owner.tsv in an agent write or a read, or in a refused init, import, install, doctor and hook', async () => {
+test('it never rewrites owner.tsv in an agent write, a read, a refused init or import, install, doctor or any hook', async () => {
   const ctx = setupTest();
 
   await ctx.runAsAgent(['init', 'tide-alerts', '--goal', 'Ship the glaze timer']);
@@ -179,9 +226,6 @@ test('it never rewrites owner.tsv in an agent write or a read, or in a refused i
   const refused = [
     { argv: ['init', 'tide-alerts', '--goal', 'Ship the glaze timer'], exitCode: 3 },
     { argv: ['import', 'tide-alerts'], exitCode: 3 },
-    { argv: ['install'], exitCode: 2 },
-    { argv: ['doctor'], exitCode: 2 },
-    { argv: ['hook', 'claude'], exitCode: 2 },
   ];
 
   const runs = [...accepted.map((argv) => ({ argv, exitCode: 0 })), ...refused];
@@ -195,9 +239,32 @@ test('it never rewrites owner.tsv in an agent write or a read, or in a refused i
     owners.push(ctx.readOwnerFile());
   }
 
-  expect({ exitCodes, owners }).toStrictEqual({
-    exitCodes: runs.map((run) => run.exitCode),
-    owners: runs.map(() => untouched),
+  const setup = [await ctx.runWithBin(['install']), await ctx.runWithBin(['doctor'])];
+
+  exitCodes.push(...setup.map((result) => result.exitCode));
+  owners.push(ctx.readOwnerFile(), ctx.readOwnerFile());
+
+  for (const harness of ['claude', 'codex'] as const) {
+    for (const payload of ctx.hookPayloads(harness)) {
+      const result = await ctx.runHook(harness, payload);
+
+      exitCodes.push(result.exitCode);
+      owners.push(ctx.readOwnerFile());
+    }
+  }
+
+  expect({
+    exitCodes,
+    owners: owners.map((owner) => JSON.stringify(owner) === JSON.stringify(untouched)),
+  }).toStrictEqual({
+    exitCodes: [
+      ...runs.map((run) => run.exitCode),
+      0,
+      3,
+      ...ctx.hookPayloads('claude').map(() => 0),
+      ...ctx.hookPayloads('codex').map(() => 0),
+    ],
+    owners: owners.map(() => true),
   });
 });
 

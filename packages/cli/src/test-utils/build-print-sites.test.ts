@@ -7,7 +7,7 @@ function setupTest() {
   return { build: () => buildPrintSites(['l-1', 'd-1']) };
 }
 
-test('it builds a site for every command, every list kind, and every id of each command that takes one', () => {
+test('it builds a site for every command that reads a store, every list kind, and every id of each command that takes one', () => {
   const ctx = setupTest();
   const titles = ctx.build().map((site) => site.title);
 
@@ -19,6 +19,7 @@ test('it builds a site for every command, every list kind, and every id of each 
   }).toStrictEqual({
     commands: listCommandShapes()
       .map((shape) => shape.command)
+      .filter((command) => !['install', 'doctor', 'hook'].includes(command))
       .toSorted(),
     lists: listKinds.map((kind) => `www list ${kind}`),
     shows: ['www show', 'www show l-1', 'www show d-1'],
