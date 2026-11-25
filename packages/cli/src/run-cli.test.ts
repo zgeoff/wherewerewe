@@ -3392,7 +3392,7 @@ test('it holds no steering word in the new replies, refusals, cut lines, heading
     pasteLine: [
       '  www goal --paste           print a /goal text of the grant, for the owner to paste',
     ],
-    setupLine: ['Setup:   www install [--print]   www doctor   www --version'],
+    setupLine: ['Setup:   www install [--print] [--replace-skill]   www doctor   www --version'],
   });
 });
 

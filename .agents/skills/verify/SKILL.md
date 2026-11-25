@@ -143,19 +143,18 @@ for its commands.
 
 <!-- repo: commands -->
 
-- `bun verify www <command> ...` runs the real `www <command>` with `HOME` and `XDG_STATE_HOME`
-  inside the run's folder.
-- `bun verify www run --line '<line>' --expect '<text>'` runs that line as `www` and fails unless it
-  exits 0 and its stdout holds the text. Each `{run}` in either is the run's folder.
-- `bun verify www make-path --name <name>` makes the folder `<run>/paths/<name>` for a `--path`
-  check, and `bun verify www remove-path --name <name>` removes it.
+- `bun verify www <command> ...` runs the real `www <command>`, with `HOME` and `XDG_STATE_HOME` in
+  the run's folder.
+- `bun verify www run --line '<line>' --expect '<text>'` fails unless that `www` line exits 0 and
+  its stdout holds the text. Each `{run}` in either is the run's folder.
+- `bun verify www make-path --name <name>` and `remove-path --name <name>` make and remove
+  `<run>/paths/<name>`, a folder for a `--path` check.
 - `bun verify www refuse --line '<line>' --expect '<text>' --run '<run line>'` fails unless `www`
   refuses the line with exit 3, and its stderr holds the text and `Run: <run line>`.
-- `bun verify package build`, `install` and `run`: see
-  [feature-package.md](references/feature-package.md).
-- `bun verify terminal ...` drives `www` in a terminal: see
-  [feature-owner-notes.md](references/feature-owner-notes.md).
-- When the doctor check `www-help`, which runs `www help`, fails, fix `www` first.
+
+- `bun verify terminal ...` drives `www` in a terminal
+  ([feature-owner-notes.md](references/feature-owner-notes.md)).
+- When the `www-help` doctor check fails, fix `www` first.
 
 <!-- /repo -->
 
