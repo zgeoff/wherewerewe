@@ -66,13 +66,19 @@ $ www grant "I merge the alert PRs myself once CI is green"
 $ www decide "Retry a 503 from the tide feed 3 times, 2 s apart" --why "The feed returns 503 for about 4 s during its hourly refresh"
 {"ok":true,"id":"decision-1","label":"decision"}
 
+$ www wait "Review of the tide feed PR" --who "feed team"
+{"ok":true,"id":"wait-1","label":"wait"}
+
 $ www done task-1 --evidence "alerts-e2e run 412 passed"
 {"ok":true,"id":"task-1","closed":"done"}
+
+$ www now "Write the first alert case"
+{"ok":true,"id":"now","label":"now"}
 ```
 
 ## Wake up
 
-Type `www`, and read back everything you wrote:
+Type `www`, and read back what's still open:
 
 ```text
 $ www
@@ -89,7 +95,8 @@ Everything: www rows | jq   ·   Write: www <label> "<text>"   ·   www help
 
 ## But wait, there's more
 
-`www rows` prints every row as a line of JSON, so `jq` and `grep` find anything you wrote:
+`www rows` prints each open row as a line of JSON, so `jq` and `grep` find anything you wrote. Add
+`--all` for the rows you closed:
 
 ```sh
 www rows | jq -r 'select(.label=="decision") | "\(.id)  \(.text)"'
