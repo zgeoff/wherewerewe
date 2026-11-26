@@ -2,10 +2,11 @@
 
 ## [0.2.2](https://github.com/zgeoff/wherewerewe/compare/@wherewerewe/cli@0.2.1...@wherewerewe/cli@0.2.2) (2026-11-26)
 
-
 ### Bug Fixes
 
-* rewrite the www skill so each line says what the agent does ([#55](https://github.com/zgeoff/wherewerewe/issues/55)) ([1883619](https://github.com/zgeoff/wherewerewe/commit/1883619a649af94527369a3d70d8d74cb8bbe101))
+- rewrite the www skill so each line says what the agent does
+  ([#55](https://github.com/zgeoff/wherewerewe/issues/55))
+  ([1883619](https://github.com/zgeoff/wherewerewe/commit/1883619a649af94527369a3d70d8d74cb8bbe101))
 
 ## [0.2.1](https://github.com/zgeoff/wherewerewe/compare/@wherewerewe/cli@0.2.0...@wherewerewe/cli@0.2.1) (2026-11-26)
 
