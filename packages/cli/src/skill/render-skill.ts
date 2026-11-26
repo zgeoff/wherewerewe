@@ -1,6 +1,6 @@
 import { skillMark } from './skill-mark.ts';
 
-// The www skill that install writes: a way of working, with the commands it needs.
+// The www skill that install writes.
 export function renderSkill(version: string): string {
   return `---
 name: www
@@ -11,52 +11,65 @@ metadata:
 
 # www
 
-Your context gets compacted, and you forget. \`www\` holds what you would not want to forget, as short rows, and prints them back as one brief.
+Keep what you must not forget in \`www\`, as short rows. A compaction drops most of your context, and bare \`www\` prints your rows back as one brief. You hand nothing back. You're done when every open row is true and the brief fits one screen.
 
-## The loop
+## Key rules
 
-1. Run bare \`www\` at the start of work and after every compaction. A hook holds your other calls after a compaction until you have.
-2. When something becomes true that you would need after forgetting, write a row.
-3. When a row stops being true, close it: \`www done <id> --evidence "<PR, commit or test run>"\`, or \`www drop <id>\`.
-4. Before you stop, read \`www\` once as the next agent would, and fix what would mislead them.
+- [Read and write](#read-and-write): read the brief after every compaction, and write a row when a fact becomes true.
+- [Write a row](#write-a-row): one fact in one line, under a label you pick.
+- [Write what your owner meant](#write-what-your-owner-meant): plain words you can act on, read back once.
+- [Keep the brief to one screen](#keep-the-brief-to-one-screen): close the rows of finished work.
+- [Find a row](#find-a-row): \`www rows\`, with \`jq\` or \`grep\`.
 
-Start a session with \`www init <name> --goal "<what done means>"\`. Pick one up with \`www attach <name>\`.
+## Read and write
 
-## A good row
+1. Run bare \`www\` when you start work and after every compaction. After a compaction, the \`www\` hook refuses your other tool calls until you do.
+2. Write a row when a fact becomes true that you will need after the next compaction.
+3. Close a row when it stops being true: \`www done <id> --evidence "<PR, commit or test run>"\`, or \`www drop <id>\`.
+4. Before you stop, read \`www\` as an agent with none of your context, and fix each row that would mislead that agent.
 
-One fact, in one line: \`www <label> "<text>"\`. Add \`--note "<detail>"\` for what the line cannot hold.
+When you have no session yet, start one with \`www init <name> --goal "<what done means>"\`. Join a session that exists with \`www attach <name>\`.
 
-- The label is your word for what the row is: \`task\`, \`rule\`, \`where\`, \`lesson\`. Invent the ones your work needs.
-- \`www goal\`, \`www pin\` and \`www now\` each hold one row: what done means, the one thing to steer by, and your next step. Keep \`now\` current.
-- \`www grant "<what they allow>"\`: what your owner allowed or kept back. Read it before you ask them for something.
-- \`www wait "<what>" --who <who>\`: what you wait on, and from whom.
-- \`www decide "<choice>" --why "<reason>"\`: a choice you would otherwise reopen.
-- \`www pr <number or URL>\`: a pull request you opened.
-- When a row waits on another, say so in its text: "blocked by wait-2".
-- Write what happened as a \`note\` row or as evidence on a close. Keep open rows for what is still true or still to do.
+## Write a row
 
-A text holds 300 characters. When yours is longer, it is two rows, or a row and a note.
+Write one fact in one line, with \`www <label> "<text>"\`. Add \`--note "<detail>"\` for the detail that does not fit in the line.
 
-## Write what they meant
+Pick a label that says what the row is, such as \`task\`, \`rule\`, \`where\` or \`lesson\`, and invent the labels your work needs. Use these labels as the table says:
 
-When your owner tells you something to keep, write what they meant, in plain words you can act on. Their exact words made sense in the moment, and a reader with none of that moment has to guess at them.
+| Command | What you write |
+| --- | --- |
+| \`www goal "<text>"\` | What done means. A new goal replaces the old one. |
+| \`www pin "<text>"\` | The one thing to steer by. A new pin replaces the old one. |
+| \`www now "<text>"\` | Your next step. Write it again each time the step changes. |
+| \`www grant "<text>"\` | What your owner allowed or kept back. Read the grants before you ask your owner for something. |
+| \`www wait "<text>" --who <who>\` | What you wait on, and who you wait on. |
+| \`www decide "<text>" --why "<reason>"\` | A choice you would otherwise reopen. \`www\` labels the row \`decision\`. |
+| \`www pr <number or URL>\` | A pull request you opened. |
 
-- A chat line such as "yeah merge your own PRs here, you don't need me" becomes \`www grant "I merge my own PRs in this repo without asking"\`.
-- When the row gives you authority, read it back to them once. Fix what they correct with \`www set <id> "<text>"\`.
-- Quote only when the exact wording is the point, such as a name they chose.
+- Keep a text to 300 characters and a note to 1,500. \`www\` refuses a longer one. Split a long text into two rows, or into a row and a note.
+- When a row waits on another row, say so in its text, such as "blocked by wait-2".
+- Keep a row open only while it is still true or still to do. Record what happened in a \`note\` row, or in \`--evidence\` when you close a row.
 
-## Keep it to one screen
+## Write what your owner meant
 
-After a compaction you act on the brief only if you can read it whole, so keep it to one screen.
+Write your owner's instruction as what they meant, in plain words you can act on. The next reader has none of the conversation, and has to guess what a quote means.
 
-- When a piece of work ends, close the rows that were only about it before you start the next: \`www done\` for what you finished, \`www drop\` for what no longer matters. Keep each grant and rule that still applies.
-- Drop a decision once the code, a doc or a merged PR holds it.
-- Start a note with the part you will need. The brief shows the first line of a note, up to 160 characters, and \`www rows\` shows all of it.
-- When the brief runs past a screen, close rows that are done or no longer true before you write more.
+- Turn a chat line such as "yeah merge your own PRs here, you don't need me" into \`www grant "I merge my own PRs in this repo without asking"\`.
+- When a row gives you authority, read it back to your owner once. Correct it with \`www set <id> "<text>"\`.
+- Quote your owner only when the exact wording matters, such as a name they chose.
 
-## Find things again
+## Keep the brief to one screen
 
-\`www rows\` prints every open row as JSON lines, and \`--all\` adds the closed rows and each row's old versions.
+Keep the brief short enough to read whole after a compaction. You skim a longer brief, and miss rows.
+
+- When a piece of work ends, close the rows that were only about it: \`www done <id>\` for what you finished, and \`www drop <id>\` for what no longer matters. Keep each grant and rule that still applies.
+- Drop a decision once the code, a doc or a merged PR records it.
+- Start a note with the part you will need. The brief prints the first line of a note, up to 160 characters, and \`www rows\` prints all of it.
+- When the brief is longer than one screen, close rows before you write more.
+
+## Find a row
+
+\`www rows\` prints each open row as one JSON line. Add \`--all\` for the closed rows and the old versions of each row.
 
 \`\`\`sh
 www rows | jq -r 'select(.label=="decision") | "\\(.id)  \\(.text)"'
@@ -64,6 +77,6 @@ www rows | grep -i token
 www rows --all | jq -r 'select(.closed) | "\\(.id)  \\(.closed.evidence // "")"'
 \`\`\`
 
-Every command but bare \`www\` and \`www help\` prints JSON; add \`--human\` for plain text. When a command refuses, its reply gives the reason and the command to run in its place. In a subagent's shell or a plain terminal, add \`--session <name>\`.
+Every command except bare \`www\` and \`www help\` prints JSON. Add \`--human\` for plain text. When \`www\` refuses a command, read the reason and the command to run in its reply. In a subagent's shell or a plain terminal, add \`--session <name>\` to each command.
 `;
 }
