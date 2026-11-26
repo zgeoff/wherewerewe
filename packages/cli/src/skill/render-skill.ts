@@ -41,13 +41,13 @@ A text holds 300 characters. When yours is longer, it is two rows, or a row and 
 
 When your owner tells you something to keep, write what they meant, in plain words you can act on. Their exact words made sense in the moment, and a reader with none of that moment has to guess at them.
 
-- A chat line such as "yeah just merge those, you don't need me" becomes \`www grant "I merge my own PRs in this repo without asking"\`.
+- A chat line such as "yeah merge your own PRs here, you don't need me" becomes \`www grant "I merge my own PRs in this repo without asking"\`.
 - When the row gives you authority, read it back to them once. Fix what they correct with \`www set <id> "<text>"\`.
 - Quote only when the exact wording is the point, such as a name they chose.
 
 ## Keep it to one screen
 
-A brief you can read whole after a compaction is one you act on, so keep it that short.
+After a compaction you act on the brief only if you can read it whole, so keep it to one screen.
 
 - When a piece of work ends, close the rows that were only about it before you start the next: \`www done\` for what you finished, \`www drop\` for what no longer matters. Keep each grant and rule that still applies.
 - Drop a decision once the code, a doc or a merged PR holds it.
