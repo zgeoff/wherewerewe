@@ -11,7 +11,7 @@ Write
   www goal "<text>"           what done means            (one row; a new one replaces it)
   www pin "<text>"            the one thing to steer by  (one row)
   www now "<text>"            your next step             (one row)
-  www grant "<text>"          what the owner allowed or kept back, in their words
+  www grant "<text>"          what the owner allowed or kept back, as you understand it
   www wait "<text>" --who <who>
   www decide "<text>" --why "<reason>"
   www pr <number or URL> [--note "<detail>"]
