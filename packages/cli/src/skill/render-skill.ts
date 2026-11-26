@@ -41,22 +41,22 @@ A text holds 300 characters. When yours is longer, it is two rows, or a row and 
 
 When your owner tells you something to keep, write what they meant, in plain words you can act on. Their exact words made sense in the moment, and a reader with none of that moment has to guess at them.
 
-- Write "merge your own PRs in this repo without asking". Leave out the chat line it came from.
-- When the row gives you authority, read it back to them once and fix what they correct.
+- A chat line such as "yeah just merge those, you don't need me" becomes \`www grant "I merge my own PRs in this repo without asking"\`.
+- When the row gives you authority, read it back to them once. Fix what they correct with \`www set <id> "<text>"\`.
 - Quote only when the exact wording is the point, such as a name they chose.
 
 ## Keep it to one screen
 
-After a compaction you read the whole brief or you skim it. Keep it short enough to read whole.
+A brief you can read whole after a compaction is one you act on, so keep it that short.
 
-- When a piece of work ends, close every row that belonged to it before you start the next: \`www done\` for what you finished, \`www drop\` for what no longer matters.
+- When a piece of work ends, close the rows that were only about it before you start the next: \`www done\` for what you finished, \`www drop\` for what no longer matters. Keep each grant and rule that still applies.
 - Drop a decision once the code, a doc or a merged PR holds it.
-- Start a note with the part you will need. The brief shows the first 160 characters of a note, and \`www rows\` shows all of it.
-- When the brief runs past a screen, prune before you write more.
+- Start a note with the part you will need. The brief shows the first line of a note, up to 160 characters, and \`www rows\` shows all of it.
+- When the brief runs past a screen, close rows that are done or no longer true before you write more.
 
 ## Find things again
 
-\`www rows\` prints every open row as JSON lines, and \`--all\` adds the closed ones.
+\`www rows\` prints every open row as JSON lines, and \`--all\` adds the closed rows and each row's old versions.
 
 \`\`\`sh
 www rows | jq -r 'select(.label=="decision") | "\\(.id)  \\(.text)"'
@@ -64,6 +64,6 @@ www rows | grep -i token
 www rows --all | jq -r 'select(.closed) | "\\(.id)  \\(.closed.evidence // "")"'
 \`\`\`
 
-Every command but bare \`www\` prints JSON; add \`--human\` for plain text. In a subagent's shell or a plain terminal, add \`--session <name>\`.
+Every command but bare \`www\` and \`www help\` prints JSON; add \`--human\` for plain text. When a command refuses, its reply gives the reason and the command to run in its place. In a subagent's shell or a plain terminal, add \`--session <name>\`.
 `;
 }

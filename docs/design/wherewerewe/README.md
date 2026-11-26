@@ -48,7 +48,7 @@ Every note is one row. A goal, a task, a wait, a decision and the owner's grant 
 A label is data. The tool gives six labels a shape check on the way in, and treats every other label the same:
 
 - `goal`, `pin` and `now` hold one row each, with the label as its id. A new one replaces the old.
-- `grant` takes any text. The agent writes what the owner meant, in plain words it can act on.
+- `grant` has no shape of its own. The agent writes what the owner meant, in plain words it can act on.
 - `wait` needs `--who`.
 - `decision`, written with `www decide`, needs `--why`, which becomes the note.
 - `pr` takes a number or a pull request URL.
