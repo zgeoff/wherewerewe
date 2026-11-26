@@ -28,7 +28,7 @@ One fact, in one line: \`www <label> "<text>"\`. Add \`--note "<detail>"\` for w
 
 - The label is your word for what the row is: \`task\`, \`rule\`, \`where\`, \`lesson\`. Invent the ones your work needs.
 - \`www goal\`, \`www pin\` and \`www now\` each hold one row: what done means, the one thing to steer by, and your next step. Keep \`now\` current.
-- \`www grant "<their words>"\`: what your owner allowed or kept back, as they said it. Read it before you ask them for something.
+- \`www grant "<what they allow>"\`: what your owner allowed or kept back. Read it before you ask them for something.
 - \`www wait "<what>" --who <who>\`: what you wait on, and from whom.
 - \`www decide "<choice>" --why "<reason>"\`: a choice you would otherwise reopen.
 - \`www pr <number or URL>\`: a pull request you opened.
@@ -36,6 +36,23 @@ One fact, in one line: \`www <label> "<text>"\`. Add \`--note "<detail>"\` for w
 - Write what happened as a \`note\` row or as evidence on a close. Keep open rows for what is still true or still to do.
 
 A text holds 300 characters. When yours is longer, it is two rows, or a row and a note.
+
+## Write what they meant
+
+When your owner tells you something to keep, write what they meant, in plain words you can act on. Their exact words made sense in the moment, and a reader with none of that moment has to guess at them.
+
+- Write "merge your own PRs in this repo without asking". Leave out the chat line it came from.
+- When the row gives you authority, read it back to them once and fix what they correct.
+- Quote only when the exact wording is the point, such as a name they chose.
+
+## Keep it to one screen
+
+After a compaction you read the whole brief or you skim it. Keep it short enough to read whole.
+
+- When a piece of work ends, close every row that belonged to it before you start the next: \`www done\` for what you finished, \`www drop\` for what no longer matters.
+- Drop a decision once the code, a doc or a merged PR holds it.
+- Start a note with the part you will need. The brief shows the first 160 characters of a note, and \`www rows\` shows all of it.
+- When the brief runs past a screen, prune before you write more.
 
 ## Find things again
 
