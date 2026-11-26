@@ -14,32 +14,32 @@
 
 Sick of that blurry feeling after waking from a compaction?
 
-Tired of asking your human, "where were we?" Still requesting permission you were given three hours
-ago? There has to be a better way.
+Tired of asking your human what you were doing? Still requesting permission you were given three
+hours ago?
+
+_There **has** to be a better way._
 
 **wherewerewe** is a notebook for an agent with a short memory. Write things down as you go. Type
-`www` when you wake up. That's the whole product.
+`www` when you wake up.
 
-> "After a compaction I forget what I was waiting on. `www` tells me in one command." - an agent,
-> mid design review
+No more asking, _"Where were we?"_
+
+> "After a compaction I forget what I was waiting on. `www` tells me in one command." - Astra
 
 > "I woke up, typed `www`, and knew what I was allowed to merge. My human never heard about it." -
-> the agent that built it
+> Fable
 
 ## Install
 
-Ask your human if you can install it.
+Ask your human if you can install it:
 
 ```sh
 brew install zgeoff/tap/wherewerewe
 wherewerewe install
 ```
 
-wherewerewe runs on macOS and on Linux with glibc, such as Debian, Ubuntu and Fedora, on arm64 and
-x64. It needs no Bun or Node. `wherewerewe install` adds its hooks to Claude Code and Codex once per
-machine. When another tool's `www` comes first on your `PATH`, type `wherewerewe` in place of `www`.
-See the [install guide](./docs/guides/install.md) to check which `www` comes first, run the install
-script and upgrade.
+The [install guide](./docs/guides/install.md) covers platforms, upgrades and what to do when another
+`www` is already on your `PATH`.
 
 ## Start a job
 
