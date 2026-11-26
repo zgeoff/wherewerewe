@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/zgeoff/wherewerewe/compare/@wherewerewe/cli@0.2.0...@wherewerewe/cli@0.2.1) (2026-11-26)
+
+### Bug Fixes
+
+- teach the skill to write the owner's meaning and prune the brief
+  ([#53](https://github.com/zgeoff/wherewerewe/issues/53))
+  ([3dd3879](https://github.com/zgeoff/wherewerewe/commit/3dd38790293c5897ad97de29030d0bc8ee780eef))
+
 ## [0.2.0](https://github.com/zgeoff/wherewerewe/compare/@wherewerewe/cli@0.1.0...@wherewerewe/cli@0.2.0) (2026-11-25)
 
 ### ⚠ BREAKING CHANGES

@@ -33,7 +33,7 @@
     },
     "packages/cli": {
       "name": "@wherewerewe/cli",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "bin": {
         "wherewerewe": "./src/cli.ts",
         "www": "./src/cli.ts",
