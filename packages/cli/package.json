@@ -1,6 +1,6 @@
 {
   "name": "@wherewerewe/cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Notes for one long agent session: what is true now, in a brief an agent can read after a compaction.",
   "homepage": "https://github.com/zgeoff/wherewerewe#readme",
