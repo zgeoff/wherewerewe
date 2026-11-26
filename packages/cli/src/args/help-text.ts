@@ -29,6 +29,6 @@ Setup
   www install [--print]       hooks, allow rules and the www skill for Claude Code and Codex
   www doctor                  checks that setup
 
-A text holds at most 300 characters and a note 1,500. Every command but bare www prints JSON;
+Keep a text to 300 characters and a note to 1,500. Every command but bare www prints JSON;
 add --human for plain text. In a shell with no session, add --session <name>.
 `;

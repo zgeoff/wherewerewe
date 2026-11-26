@@ -8,7 +8,7 @@ export function checkLength(
 ): void {
   if (text !== undefined && text.length > limit) {
     throw new RefusalError(
-      `the ${name} is ${text.length} characters, and a ${name} holds at most ${limit}; split it into rows, or put the rest in a note or a file`,
+      `the ${name} is ${text.length} characters, and the limit is ${limit}; split it into rows, or put the rest in a note or a file`,
       run,
     );
   }

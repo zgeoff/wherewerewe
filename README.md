@@ -102,9 +102,9 @@ www rows --all | grep -i certificate
   300 characters, with an optional note of detail.
 - **[The brief](./docs/design/wherewerewe/README.md#the-brief):** the goal, the pin, the grant, the
   next step, the waits and each other label, in one read.
-- **[The grant](./docs/design/wherewerewe/README.md#the-row):** your words on what the agent may do
-  and what you keep back, printed whole.
-- **[The gate](./docs/design/wherewerewe/README.md#the-gate):** after a compaction, hooks hold the
+- **[The grant](./docs/design/wherewerewe/README.md#the-row):** what you allow the agent and what
+  you keep back, in plain words, printed whole.
+- **[The gate](./docs/design/wherewerewe/README.md#the-gate):** after a compaction, hooks refuse the
   agent's tool calls until it reads its brief.
 - **[One plain file](./docs/design/wherewerewe/README.md#the-file):** JSON lines that the tool only
   appends to, readable with `jq`.

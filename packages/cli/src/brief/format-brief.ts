@@ -86,7 +86,7 @@ function formatRow(row: Row, withID: boolean): string {
   const indent = ' '.repeat(7 + lead.length);
   const who = row.who === undefined ? '' : ` [${row.who}]`;
 
-  // the brief shows the start of a note, and `www rows` holds the whole of it
+  // the brief shows the start of a note, and `www rows` prints the whole of it
   const first = row.note?.split('\n')[0]?.slice(0, noteRoom);
   const more = row.note !== undefined && row.note !== first ? ' …' : '';
 
