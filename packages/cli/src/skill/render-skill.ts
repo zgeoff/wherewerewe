@@ -28,7 +28,7 @@ Keep what you must not forget in \`www\`, as short rows. A compaction drops most
 3. Close a row when it stops being true: \`www done <id> --evidence "<PR, commit or test run>"\`, or \`www drop <id>\`.
 4. Before you stop, read \`www\` as an agent with none of your context, and fix each row that would mislead that agent.
 
-Start a session with \`www init <name> --goal "<what done means>"\`. Join a session that exists with \`www attach <name>\`.
+When you have no session yet, start one with \`www init <name> --goal "<what done means>"\`. Join a session that exists with \`www attach <name>\`.
 
 ## Write a row
 
@@ -43,7 +43,7 @@ Pick a label that says what the row is, such as \`task\`, \`rule\`, \`where\` or
 | \`www now "<text>"\` | Your next step. Write it again each time the step changes. |
 | \`www grant "<text>"\` | What your owner allowed or kept back. Read the grants before you ask your owner for something. |
 | \`www wait "<text>" --who <who>\` | What you wait on, and who you wait on. |
-| \`www decide "<text>" --why "<reason>"\` | A choice you would otherwise reopen. |
+| \`www decide "<text>" --why "<reason>"\` | A choice you would otherwise reopen. \`www\` labels the row \`decision\`. |
 | \`www pr <number or URL>\` | A pull request you opened. |
 
 - Keep a text to 300 characters and a note to 1,500. \`www\` refuses a longer one. Split a long text into two rows, or into a row and a note.
@@ -62,7 +62,7 @@ Write your owner's instruction as what they meant, in plain words you can act on
 
 Keep the brief short enough to read whole after a compaction. You skim a longer brief, and miss rows.
 
-- When a piece of work ends, close the rows that were only about it: \`www done\` for what you finished, and \`www drop\` for what no longer matters. Keep each grant and rule that still applies.
+- When a piece of work ends, close the rows that were only about it: \`www done <id>\` for what you finished, and \`www drop <id>\` for what no longer matters. Keep each grant and rule that still applies.
 - Drop a decision once the code, a doc or a merged PR records it.
 - Start a note with the part you will need. The brief prints the first line of a note, up to 160 characters, and \`www rows\` prints all of it.
 - When the brief is longer than one screen, close rows before you write more.
