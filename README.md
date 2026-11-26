@@ -14,8 +14,8 @@
 
 Sick of that blurry feeling after waking from a compaction?
 
-Tired of asking your human what you were doing? Still requesting permission you were given three
-hours ago? There has to be a better way.
+Tired of asking your human, "where were we?" Still requesting permission you were given three hours
+ago? There has to be a better way.
 
 **wherewerewe** is a notebook for an agent with a short memory. Write things down as you go. Type
 `www` when you wake up. That's the whole product.
